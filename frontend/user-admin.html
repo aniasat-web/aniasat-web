@@ -1,0 +1,443 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>User Management</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+    <style>
+      :root {
+        --bg: #faf8f5;
+        --ink: #292524;
+        --muted: #78716c;
+        --border: #e7e5e4;
+        --primary: #b45309;
+        --primary-hover: #92400e;
+        --surface: #fffefb;
+        --ok: #047857;
+        --ok-bg: #ecfdf5;
+        --err: #b91c1c;
+        --err-bg: #fef2f2;
+      }
+
+      body {
+        font-family: "Plus Jakarta Sans", sans-serif;
+        background-color: var(--bg);
+        color: var(--ink);
+        padding-top: 70px;
+      }
+
+      h1, h2, h3, .navbar-brand {
+        font-family: "Instrument Serif", serif;
+      }
+
+      .navbar {
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(10px);
+        border-bottom: 1px solid var(--border);
+        box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+      }
+
+      .navbar-brand {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-size: 1.35rem;
+        font-weight: 600 !important;
+        color: var(--primary) !important;
+      }
+
+      .navbar .nav-link {
+        color: var(--muted);
+        letter-spacing: 0.02em;
+      }
+
+      .navbar .nav-link:hover {
+        color: var(--primary);
+      }
+
+      .navbar .nav-link.active {
+        color: var(--ink) !important;
+      }
+
+      .brand-logo {
+        width: 48px;
+        height: 48px;
+        object-fit: contain;
+        flex-shrink: 0;
+      }
+
+      .card {
+        border-radius: 1rem;
+        border: 1px solid var(--border);
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+      }
+
+      .hero-gradient {
+        background: linear-gradient(135deg, var(--surface) 0%, #fef3c7 100%);
+        border-color: #fde68a;
+      }
+
+      .stat-card {
+        padding: 0.75rem 1rem;
+        text-align: center;
+        background: white;
+        border: 1px solid var(--border);
+        border-radius: 0.75rem;
+        min-width: 110px;
+      }
+
+      .stat-card span {
+        display: block;
+        font-size: 1.3rem;
+        font-weight: 800;
+        color: var(--primary);
+      }
+
+      .stat-card small {
+        color: var(--muted);
+        font-weight: 700;
+        text-transform: uppercase;
+        font-size: 0.65rem;
+        letter-spacing: 0.04em;
+      }
+
+      .status-pill {
+        border-radius: 999px;
+        padding: 0.3rem 0.75rem;
+        font-weight: 700;
+        font-size: 0.78rem;
+      }
+
+      .status-pill.ok {
+        color: var(--ok);
+        background: var(--ok-bg);
+        border: 1px solid #a7f3d0;
+      }
+
+      .status-pill.err {
+        color: var(--err);
+        background: var(--err-bg);
+        border: 1px solid #fecaca;
+      }
+
+      .status-pill.info {
+        color: #1d4ed8;
+        background: #eff6ff;
+        border: 1px solid #bfdbfe;
+      }
+
+      .table td, .table th {
+        vertical-align: middle;
+      }
+    </style>
+  </head>
+  <body>
+    <nav class="navbar navbar-expand-lg navbar-light fixed-top">
+      <div class="container">
+        <a class="navbar-brand" href="recipe-scaling.html">
+          <img class="brand-logo" src="assets/blossom-mark.png" alt="Blossom logo" />
+          <span>Blossom Foundation Spring 2026 Retreats</span>
+        </a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarContent">
+          <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarContent">
+          <ul class="navbar-nav ms-auto mb-2 mb-lg-0 fw-semibold small text-uppercase">
+            <li class="nav-item">
+              <a class="nav-link" href="retreat-planner-sample.html"><i class="fa-solid fa-calendar-days me-1"></i> Planner</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="kitchen-service-view.html"><i class="fa-solid fa-fire-burner me-1"></i> Kitchen</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="recipe-admin.html"><i class="fa-solid fa-book me-1"></i> Recipes</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="recipe-scaling.html"><i class="fa-solid fa-scale-balanced me-1"></i> Scaling</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link active" href="user-admin.html"><i class="fa-solid fa-users-gear me-1"></i> Users</a>
+            </li>
+            <li class="nav-item d-flex align-items-center">
+              <span class="nav-link text-muted d-none" id="authUserLabel"></span>
+            </li>
+            <li class="nav-item d-flex align-items-center ms-lg-2">
+              <button class="btn btn-sm btn-outline-secondary d-none" id="logoutBtn" type="button">Logout</button>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </nav>
+
+    <main class="container py-4">
+      <section class="card hero-gradient p-4 mb-4 border-0">
+        <div class="row align-items-center">
+          <div class="col-lg-7">
+            <h1 class="fw-bold mb-2"><i class="fa-solid fa-users-gear text-warning me-2"></i>User Management</h1>
+            <p class="text-secondary mb-0">Create accounts and assign roles (admin only).</p>
+          </div>
+          <div class="col-lg-5 d-flex gap-2 justify-content-lg-end mt-3 mt-lg-0">
+            <div class="stat-card">
+              <span id="statUsers">0</span>
+              <small>Users</small>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="card p-4 mb-4">
+        <div class="d-flex align-items-center justify-content-between mb-3">
+          <h2 class="h5 fw-bold mb-0"><i class="fa-solid fa-user-plus me-2 text-primary"></i>Create User</h2>
+          <span id="createStatus" class="status-pill info">Ready.</span>
+        </div>
+
+        <form id="createForm" class="row g-3 align-items-end">
+          <div class="col-md-4">
+            <label class="form-label fw-bold small text-muted text-uppercase">Username</label>
+            <input id="newUsername" type="text" class="form-control" placeholder="e.g. kitchen1" required />
+          </div>
+          <div class="col-md-4">
+            <label class="form-label fw-bold small text-muted text-uppercase">Password</label>
+            <input id="newPassword" type="password" class="form-control" placeholder="temporary password" required />
+          </div>
+          <div class="col-md-3">
+            <label class="form-label fw-bold small text-muted text-uppercase">Role</label>
+            <select id="newRole" class="form-select">
+              <option value="viewer">viewer</option>
+              <option value="planner">planner</option>
+              <option value="admin">admin</option>
+            </select>
+          </div>
+          <div class="col-md-1">
+            <button class="btn btn-primary w-100 fw-bold" type="submit">Add</button>
+          </div>
+          <div class="col-12">
+            <div class="form-check">
+              <input id="newActive" class="form-check-input" type="checkbox" checked />
+              <label class="form-check-label" for="newActive">Active</label>
+            </div>
+          </div>
+        </form>
+      </section>
+
+      <section class="card p-4">
+        <div class="d-flex align-items-center justify-content-between mb-3">
+          <h2 class="h5 fw-bold mb-0"><i class="fa-solid fa-users me-2 text-primary"></i>Users</h2>
+          <span id="tableStatus" class="status-pill info">Loading...</span>
+        </div>
+
+        <div class="table-responsive">
+          <table class="table table-hover align-middle">
+            <thead>
+              <tr class="small text-muted text-uppercase fw-bold">
+                <th>Username</th>
+                <th style="width: 160px;">Role</th>
+                <th style="width: 130px;">Active</th>
+                <th style="width: 240px;">New Password</th>
+                <th style="width: 110px;"></th>
+              </tr>
+            </thead>
+            <tbody id="usersBody"></tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+
+    <script src="assets/auth.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+      function resolveApiBase() {
+        const queryValue = new URLSearchParams(window.location.search).get("api");
+        const base = queryValue && queryValue.trim()
+          ? queryValue.trim()
+          : window.location.origin;
+        return base.replace(/\\/+$/, "");
+      }
+
+      const API_BASE = resolveApiBase();
+      const statUsers = document.getElementById("statUsers");
+      const usersBody = document.getElementById("usersBody");
+      const tableStatus = document.getElementById("tableStatus");
+      const createStatus = document.getElementById("createStatus");
+
+      const createForm = document.getElementById("createForm");
+      const newUsername = document.getElementById("newUsername");
+      const newPassword = document.getElementById("newPassword");
+      const newRole = document.getElementById("newRole");
+      const newActive = document.getElementById("newActive");
+
+      function apiUrl(path) {
+        return `${API_BASE}${path.startsWith("/") ? path : `/${path}`}`;
+      }
+
+      function setPill(el, kind, message) {
+        if (!el) return;
+        el.className = `status-pill ${kind}`;
+        el.textContent = message;
+      }
+
+      function renderUsers(users) {
+        usersBody.innerHTML = "";
+        statUsers.textContent = String(users.length);
+
+        if (!users.length) {
+          const tr = document.createElement("tr");
+          const td = document.createElement("td");
+          td.colSpan = 5;
+          td.className = "text-muted small py-3";
+          td.textContent = "No users found.";
+          tr.appendChild(td);
+          usersBody.appendChild(tr);
+          return;
+        }
+
+        users.forEach((user) => {
+          const tr = document.createElement("tr");
+
+          const usernameTd = document.createElement("td");
+          usernameTd.innerHTML = `<div class="fw-bold">${user.username}</div><div class="text-muted small">id ${user.id}</div>`;
+
+          const roleTd = document.createElement("td");
+          const roleSelect = document.createElement("select");
+          roleSelect.className = "form-select form-select-sm";
+          ["viewer", "planner", "admin"].forEach((role) => {
+            const opt = document.createElement("option");
+            opt.value = role;
+            opt.textContent = role;
+            if (role === user.role) opt.selected = true;
+            roleSelect.appendChild(opt);
+          });
+          roleTd.appendChild(roleSelect);
+
+          const activeTd = document.createElement("td");
+          const activeWrap = document.createElement("div");
+          activeWrap.className = "form-check form-switch";
+          const activeToggle = document.createElement("input");
+          activeToggle.className = "form-check-input";
+          activeToggle.type = "checkbox";
+          activeToggle.checked = Boolean(user.is_active);
+          activeWrap.appendChild(activeToggle);
+          activeTd.appendChild(activeWrap);
+
+          const passwordTd = document.createElement("td");
+          const passInput = document.createElement("input");
+          passInput.type = "password";
+          passInput.className = "form-control form-control-sm";
+          passInput.placeholder = "leave blank to keep";
+          passwordTd.appendChild(passInput);
+
+          const actionTd = document.createElement("td");
+          const saveBtn = document.createElement("button");
+          saveBtn.type = "button";
+          saveBtn.className = "btn btn-sm btn-outline-primary fw-bold w-100";
+          saveBtn.textContent = "Save";
+          saveBtn.addEventListener("click", async () => {
+            setPill(tableStatus, "info", "Saving...");
+            try {
+              const payload = {
+                role: roleSelect.value,
+                is_active: activeToggle.checked,
+              };
+              const newPass = passInput.value || "";
+              if (newPass.trim()) payload.password = newPass;
+
+              const res = await fetch(apiUrl(`/api/auth/users/${user.id}`), {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(payload),
+              });
+              if (!res.ok) {
+                const text = await res.text();
+                let detail = text;
+                try {
+                  const parsed = JSON.parse(text);
+                  if (parsed && parsed.detail) detail = parsed.detail;
+                } catch (_error) {}
+                throw new Error(detail || `HTTP ${res.status}`);
+              }
+              passInput.value = "";
+              setPill(tableStatus, "ok", "Saved.");
+              await loadUsers();
+            } catch (error) {
+              const msg = error instanceof Error ? error.message : String(error);
+              setPill(tableStatus, "err", msg);
+            }
+          });
+          actionTd.appendChild(saveBtn);
+
+          tr.appendChild(usernameTd);
+          tr.appendChild(roleTd);
+          tr.appendChild(activeTd);
+          tr.appendChild(passwordTd);
+          tr.appendChild(actionTd);
+          usersBody.appendChild(tr);
+        });
+      }
+
+      async function loadUsers() {
+        setPill(tableStatus, "info", "Loading...");
+        try {
+          const res = await fetch(apiUrl("/api/auth/users"));
+          if (!res.ok) {
+            const text = await res.text();
+            throw new Error(text || `HTTP ${res.status}`);
+          }
+          const users = await res.json();
+          renderUsers(Array.isArray(users) ? users : []);
+          setPill(tableStatus, "ok", "Loaded.");
+        } catch (error) {
+          const msg = error instanceof Error ? error.message : String(error);
+          setPill(tableStatus, "err", msg);
+        }
+      }
+
+      createForm.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        setPill(createStatus, "info", "Creating...");
+        try {
+          const payload = {
+            username: newUsername.value.trim(),
+            password: newPassword.value,
+            role: newRole.value,
+            is_active: newActive.checked,
+          };
+          const res = await fetch(apiUrl("/api/auth/users"), {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          });
+          if (!res.ok) {
+            const text = await res.text();
+            let detail = text;
+            try {
+              const parsed = JSON.parse(text);
+              if (parsed && parsed.detail) detail = parsed.detail;
+            } catch (_error) {}
+            throw new Error(detail || `HTTP ${res.status}`);
+          }
+
+          newUsername.value = "";
+          newPassword.value = "";
+          newRole.value = "viewer";
+          newActive.checked = true;
+          setPill(createStatus, "ok", "User created.");
+          await loadUsers();
+        } catch (error) {
+          const msg = error instanceof Error ? error.message : String(error);
+          setPill(createStatus, "err", msg);
+        }
+      });
+
+      void loadUsers();
+    </script>
+  </body>
+</html>
+

@@ -395,6 +395,15 @@ def auth_update_user(
                 role=payload.role,
                 is_active=payload.is_active,
             )
+            admins = conn.execute(
+                "SELECT COUNT(*) AS admin_count FROM users WHERE role = 'admin' AND is_active = 1"
+            ).fetchone()
+            if admins and int(admins["admin_count"]) <= 0:
+                conn.rollback()
+                raise HTTPException(
+                    status_code=400,
+                    detail="Refusing to remove the last active admin user.",
+                )
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
         conn.commit()

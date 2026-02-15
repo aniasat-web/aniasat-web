@@ -2,6 +2,7 @@
   const loginPath = "/login.html";
   const currentPath = window.location.pathname;
   const isLoginPage = currentPath.endsWith(loginPath);
+  const PUBLIC_PAGES = new Set(["/kitchen-service-view.html"]);
 
   const PAGE_ROLE_REQUIREMENTS = {
     "/retreat-planner-sample.html": ["planner", "admin"],
@@ -201,6 +202,16 @@
 
   if (isLoginPage) {
     void initLoginPage();
+  } else if (PUBLIC_PAGES.has(currentPath)) {
+    // Public read-only pages should render without forcing auth.
+    void loadCurrentUser()
+      .then((user) => {
+        if (user && user.role) {
+          applyUserUi(user);
+          window.retreatAuthUser = user;
+        }
+      })
+      .catch(() => null);
   } else {
     void initProtectedPage();
   }

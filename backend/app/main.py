@@ -95,6 +95,14 @@ PUBLIC_API_PATHS = {
     "/api/auth/bootstrap-status",
 }
 
+PUBLIC_API_GET_PREFIXES = (
+    "/api/service-snapshots/by-plan/",
+)
+
+PUBLIC_API_GET_PATHS = {
+    "/api/service-snapshots/latest",
+}
+
 
 class IngredientInput(BaseModel):
     name: str = Field(min_length=1)
@@ -257,6 +265,10 @@ async def api_auth_middleware(request: Request, call_next):
 
     if request.method == "OPTIONS" or path in PUBLIC_API_PATHS:
         return await call_next(request)
+
+    if request.method in {"GET", "HEAD"}:
+        if path in PUBLIC_API_GET_PATHS or any(path.startswith(prefix) for prefix in PUBLIC_API_GET_PREFIXES):
+            return await call_next(request)
 
     raw_token = request.cookies.get(SESSION_COOKIE_NAME)
     if not raw_token:

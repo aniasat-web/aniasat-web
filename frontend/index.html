@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Retreat Ops - Scaling Preview</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="page">
+      <header>
+        <h1>Retreat Ops</h1>
+        <p>Recipe scaling + unit conversion preview.</p>
+        <p>
+          <a href="retreat-planner-sample.html">Open retreat planner sample page</a>
+        </p>
+      </header>
+
+      <section class="card">
+        <h2>Scale Recipe</h2>
+        <form id="scale-form">
+          <div class="row">
+            <label>
+              Base servings
+              <input type="number" id="base-servings" min="1" step="1" value="6" required />
+            </label>
+            <label>
+              Target servings
+              <input type="number" id="target-servings" min="1" step="1" value="120" required />
+            </label>
+          </div>
+
+          <table id="ingredient-table">
+            <thead>
+              <tr>
+                <th>Ingredient</th>
+                <th>Qty</th>
+                <th>Unit</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="ingredient-body"></tbody>
+          </table>
+
+          <div class="controls">
+            <button type="button" id="add-row">Add Ingredient</button>
+            <button type="submit">Scale</button>
+          </div>
+        </form>
+      </section>
+
+      <section class="card">
+        <h2>Scaled Output</h2>
+        <pre id="output">Run a scale preview to see results.</pre>
+      </section>
+    </main>
+
+    <script src="app.js"></script>
+  </body>
+</html>

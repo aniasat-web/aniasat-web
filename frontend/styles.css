@@ -1,0 +1,100 @@
+:root {
+  --bg: #f6f3ed;
+  --card: #fffaf0;
+  --ink: #24313a;
+  --accent: #0e6b56;
+  --line: #d7cfc2;
+}
+
+body {
+  margin: 0;
+  font-family: "Source Sans 3", "Segoe UI", sans-serif;
+  background: radial-gradient(circle at top right, #f3e9d3, var(--bg));
+  color: var(--ink);
+}
+
+.page {
+  max-width: 980px;
+  margin: 24px auto;
+  padding: 0 16px 32px;
+}
+
+h1,
+h2 {
+  margin: 0 0 8px;
+}
+
+header a {
+  color: var(--accent);
+  font-weight: 700;
+  text-decoration-thickness: 2px;
+}
+
+.card {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 16px;
+  margin: 16px 0;
+}
+
+.row {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  margin-bottom: 12px;
+}
+
+label {
+  display: grid;
+  gap: 6px;
+  font-size: 0.95rem;
+}
+
+input,
+select,
+button {
+  font: inherit;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+button {
+  background: var(--accent);
+  color: white;
+  border: none;
+  cursor: pointer;
+}
+
+button#add-row {
+  background: #6f7b83;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 8px 0 12px;
+}
+
+th,
+td {
+  border-bottom: 1px solid var(--line);
+  padding: 8px;
+  text-align: left;
+}
+
+.controls {
+  display: flex;
+  gap: 8px;
+}
+
+pre {
+  white-space: pre-wrap;
+  margin: 0;
+  background: #f8f8f8;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px;
+  min-height: 120px;
+}

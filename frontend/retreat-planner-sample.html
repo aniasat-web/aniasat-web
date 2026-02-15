@@ -1,0 +1,1426 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Retreat Planner Sample</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+    <style>
+      body {
+        font-family: "Manrope", sans-serif;
+        background-color: #f8fafc;
+        color: #1e293b;
+        padding-top: 70px; /* Space for fixed navbar */
+      }
+      .navbar {
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(10px);
+        border-bottom: 1px solid #e2e8f0;
+        box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+      }
+      .navbar-brand {
+        font-weight: 800;
+        letter-spacing: -0.02em;
+        color: #0f766e !important;
+      }
+      .card {
+        border-radius: 1rem;
+        border: 1px solid #e2e8f0;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        transition: transform 0.2s, box-shadow 0.2s;
+        margin-bottom: 1.5rem;
+      }
+      .card:hover {
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+      }
+      .hero-gradient {
+        background: linear-gradient(135deg, #ffffff 0%, #f0fdfa 100%);
+        border-color: #ccfbf1;
+      }
+      .stat-card {
+        padding: 0.75rem 1rem;
+        text-align: center;
+        background: white;
+        border: 1px solid #e2e8f0;
+        border-radius: 0.75rem;
+        min-width: 90px;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+      }
+      .stat-card span {
+        display: block;
+        font-size: 1.25rem;
+        font-weight: 800;
+        color: #0f766e;
+      }
+      .stat-card small {
+        color: #64748b;
+        font-weight: 700;
+        text-transform: uppercase;
+        font-size: 0.65rem;
+      }
+      .meal-badge {
+        font-size: 0.75rem;
+        font-weight: 800;
+        padding: 0.5rem 0.75rem;
+        border-radius: 0.5rem;
+        text-transform: uppercase;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .meal-breakfast { background-color: #fef3c7; color: #92400e; }
+      .meal-lunch { background-color: #d1fae5; color: #065f46; }
+      .meal-dinner { background-color: #ffedd5; color: #9a3412; }
+      .meal-evening { background-color: #f5f5f4; color: #57534e; }
+      
+      .dish-list {
+        background-color: #f8fafc;
+        padding: 1rem;
+        border-radius: 0.75rem;
+        border: 1px dashed #cbd5e1;
+      }
+      .btn-primary { background-color: #0f766e; border-color: #0f766e; }
+      .btn-primary:hover { background-color: #115e59; border-color: #115e59; }
+      
+      .toolbar {
+        background-color: #f1f5f9;
+        border: 1px solid #e2e8f0;
+        border-radius: 0.75rem;
+        padding: 1rem;
+      }
+      .remove-dish {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 32px;
+        height: 32px;
+        padding: 0;
+        border-radius: 8px;
+        background: #fff;
+        border: 1px solid transparent;
+        color: #94a3b8;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+        transition: all 0.2s;
+      }
+      .remove-dish:hover {
+        color: #ef4444;
+        background: #fef2f2;
+        border-color: #fee2e2;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Navbar -->
+    <nav class="navbar navbar-expand-lg fixed-top">
+      <div class="container">
+        <a class="navbar-brand" href="#">
+          <i class="fa-solid fa-utensils me-2"></i>Retreat Ops
+        </a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarContent">
+          <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarContent">
+          <ul class="navbar-nav ms-auto mb-2 mb-lg-0 fw-semibold small text-uppercase">
+            <li class="nav-item">
+              <a class="nav-link active" href="#"><i class="fa-solid fa-calendar-days me-1"></i> Planner</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link text-muted" href="#"><i class="fa-solid fa-fire-burner me-1"></i> Kitchen</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link text-muted" href="#"><i class="fa-solid fa-gear me-1"></i> Settings</a>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </nav>
+
+    <main class="container py-4">
+      <section class="card hero-gradient p-4 mb-4 border-0">
+        <div class="row align-items-center">
+          <div class="col-lg-7">
+            <h1 class="fw-bold mb-2 text-dark"><i class="fa-solid fa-wand-magic-sparkles text-warning me-2"></i>Retreat Planner</h1>
+            <p class="text-secondary mb-0">
+              Design your retreat menu, manage headcounts, and sync with the kitchen instantly.
+            </p>
+          </div>
+          <div class="col-lg-5 d-flex gap-2 justify-content-lg-end mt-3 mt-lg-0">
+            <div class="stat-card">
+              <span id="statDays">0</span>
+              <small>Days</small>
+            </div>
+            <div class="stat-card">
+              <span id="statMeals">4</span>
+              <small>Meals/Day</small>
+            </div>
+            <div class="stat-card">
+              <span id="statRecipes">0</span>
+              <small>Recipes</small>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="card p-4">
+        <div class="d-flex align-items-center justify-content-between mb-4">
+          <h2 class="h5 fw-bold mb-0"><i class="fa-solid fa-sliders me-2 text-primary"></i>Setup</h2>
+          <div class="badge bg-light text-dark border">
+            <i class="fa-solid fa-circle-info me-1 text-info"></i> Auto-saving enabled
+          </div>
+        </div>
+        
+        <div class="row g-3">
+          <div class="col-md-3">
+            <label class="form-label fw-bold small text-muted text-uppercase">Retreat Name</label>
+            <div class="input-group">
+              <span class="input-group-text bg-white"><i class="fa-solid fa-tag text-muted"></i></span>
+              <input id="retreatName" type="text" class="form-control" value="Untitled Retreat" list="retreatNameOptions" />
+            </div>
+            <datalist id="retreatNameOptions"></datalist>
+          </div>
+          <div class="col-md-3">
+            <label class="form-label fw-bold small text-muted text-uppercase">Start Date</label>
+            <div class="input-group">
+              <span class="input-group-text bg-white"><i class="fa-regular fa-calendar text-muted"></i></span>
+              <input id="startDate" type="date" class="form-control" placeholder="Select date" />
+            </div>
+          </div>
+          <div class="col-md-3">
+            <label class="form-label fw-bold small text-muted text-uppercase">Days</label>
+            <input id="dayCount" type="number" class="form-control" min="1" max="10" placeholder="1-10" />
+          </div>
+          <div class="col-md-3">
+            <label class="form-label fw-bold small text-muted text-uppercase">Headcount</label>
+            <input id="defaultPeople" type="number" class="form-control" min="1" value="160" />
+          </div>
+        </div>
+        
+        <div class="mt-4 d-flex flex-wrap gap-2 justify-content-between align-items-center border-top pt-4">
+          <div class="d-flex gap-2">
+            <button class="btn btn-primary fw-bold shadow-sm" id="buildSchedule">
+              <i class="fa-solid fa-layer-group me-2"></i>Build Schedule
+            </button>
+            <button class="btn btn-light border shadow-sm" id="loadSample">
+              <i class="fa-solid fa-flask me-2 text-muted"></i>Load Sample
+            </button>
+          </div>
+          <div class="d-flex align-items-center gap-2">
+            <button class="btn btn-sm btn-light border text-muted" id="newRetreatBtn" type="button">
+              <i class="fa-solid fa-plus me-1"></i> New
+            </button>
+            <span class="small fw-semibold text-primary ms-2" id="retreatStoreStatus">Ready.</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="card p-4" id="mealPlanSection" hidden>
+        <div class="d-flex align-items-center justify-content-between mb-4">
+          <div>
+            <h2 class="h5 fw-bold mb-1"><i class="fa-solid fa-calendar-week me-2 text-primary"></i>Meal Plan</h2>
+            <p class="text-muted small mb-0">Plan dishes and headcount for each session.</p>
+          </div>
+          <div class="d-flex gap-2">
+            <button class="btn btn-outline-secondary btn-sm" id="prevDayBtn" type="button"><i class="fa-solid fa-chevron-left"></i></button>
+            <span class="badge bg-secondary d-flex align-items-center" id="dayViewStatus">Day 1</span>
+            <button class="btn btn-outline-secondary btn-sm" id="nextDayBtn" type="button"><i class="fa-solid fa-chevron-right"></i></button>
+          </div>
+        </div>
+
+        <div class="toolbar mb-4 d-flex align-items-center flex-wrap gap-3 shadow-sm bg-white">
+          <div class="d-flex align-items-center gap-2">
+            <label class="small fw-bold text-muted text-uppercase mb-0"><i class="fa-solid fa-filter me-1"></i> View:</label>
+            <select id="dayPicker" class="form-select form-select-sm border-0 bg-light fw-bold" style="width: auto; cursor: pointer;"></select>
+          </div>
+          <div class="form-check form-switch ms-auto">
+            <input id="showAllDaysToggle" class="form-check-input" type="checkbox" />
+            <label class="form-check-label small fw-bold" for="showAllDaysToggle">Show All Days</label>
+          </div>
+        </div>
+        
+        <div id="dayContainer" class="row row-cols-1 row-cols-lg-2 g-4"></div>
+      </section>
+
+      <section class="card p-4 border-warning bg-warning-subtle" id="kitchenSection" hidden>
+        <div class="row align-items-center">
+          <div class="col-md-8">
+            <h2 class="h5 fw-bold mb-2 text-dark"><i class="fa-solid fa-bullhorn me-2 text-warning"></i>Kitchen Operations</h2>
+            <p class="small text-dark mb-0 opacity-75">Publish this menu to the kitchen display system (KDS) for live service.</p>
+          </div>
+          <div class="col-md-4 text-md-end mt-3 mt-md-0">
+             <button class="btn btn-warning fw-bold shadow-sm text-dark" id="openKitchenPage" type="button">
+               <i class="fa-solid fa-arrow-up-right-from-square me-2"></i>Open Kitchen View
+             </button>
+          </div>
+        </div>
+        
+        <div class="mt-4 pt-3 border-top border-warning-subtle">
+           <label class="form-label fw-bold small text-uppercase text-dark opacity-50 mb-1">Shareable Link</label>
+           <div class="input-group">
+             <input id="kitchenShareUrl" type="text" class="form-control bg-white border-0" readonly placeholder="Save retreat to generate link" />
+             <button class="btn btn-light fw-bold border-0" id="copyKitchenUrl" type="button" disabled>
+               <i class="fa-regular fa-copy me-1"></i> Copy
+             </button>
+           </div>
+           <div class="mt-2 small fw-semibold text-success" id="kitchenPublishStatus"></div>
+        </div>
+      </section>
+    </main>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <script>
+      const MEALS = ["Breakfast", "Lunch", "Dinner", "Evening Chai"];
+
+      let recipeCatalog = {};
+
+      const GRAMS_PER_CUP = {
+        "Rolled Oats": 90,
+        Rajma: 264,
+        "Toor Dal": 192,
+        "Sona Masoori Rice": 185,
+        Almonds: 140,
+      };
+
+      const UNIT_ALIASES = {
+        cups: "cup",
+        tablespoons: "tbsp",
+        tablespoon: "tbsp",
+        tbs: "tbsp",
+        teaspoons: "tsp",
+        teaspoon: "tsp",
+        gms: "g",
+        liters: "l",
+        litres: "l",
+      };
+
+      const MASS_TO_G = { g: 1, kg: 1000, lb: 453.592, oz: 28.3495 };
+      const VOLUME_TO_ML = { ml: 1, l: 1000, cup: 240, tbsp: 14.7868, tsp: 4.92892 };
+
+
+      const dayContainer = document.getElementById("dayContainer");
+      const mealPlanSection = document.getElementById("mealPlanSection");
+      const prevDayBtn = document.getElementById("prevDayBtn");
+      const nextDayBtn = document.getElementById("nextDayBtn");
+      const dayViewStatus = document.getElementById("dayViewStatus");
+      const dayPicker = document.getElementById("dayPicker");
+      const showAllDaysToggle = document.getElementById("showAllDaysToggle");
+      const openKitchenPage = document.getElementById("openKitchenPage");
+      const kitchenSection = document.getElementById("kitchenSection");
+      const kitchenPublishStatus = document.getElementById("kitchenPublishStatus");
+      const retreatStoreStatus = document.getElementById("retreatStoreStatus");
+      const newRetreatBtn = document.getElementById("newRetreatBtn");
+      const retreatNameOptions = document.getElementById("retreatNameOptions");
+      const retreatNameInput = document.getElementById("retreatName");
+      const dayCountInput = document.getElementById("dayCount");
+      const defaultPeopleInput = document.getElementById("defaultPeople");
+      const startDateInput = document.getElementById("startDate");
+      const statDays = document.getElementById("statDays");
+      const statMeals = document.getElementById("statMeals");
+      const statRecipes = document.getElementById("statRecipes");
+      const API_BASE = resolveApiBase();
+
+      let currentViewDay = 1;
+      let showAllDays = false;
+      let startDatePicker = null;
+      let retreatPlanIdByName = new Map();
+      let retreatAutoSaveTimer = null;
+      let isApplyingLoadedRetreat = false;
+      let lastSavedRetreatFingerprint = "";
+      let currentRetreatPlanId = null;
+
+      function resolveApiBase() {
+        const queryValue = new URLSearchParams(window.location.search).get("api");
+        const base = queryValue && queryValue.trim()
+          ? queryValue.trim()
+          : window.location.origin;
+        return base.replace(/\/+$/, "");
+      }
+
+      function apiUrl(path) {
+        return `${API_BASE}${path.startsWith("/") ? path : `/${path}`}`;
+      }
+
+      function formatLocalDateTime(value) {
+        if (!value) {
+          return "recently";
+        }
+        const candidate = value.includes("T") ? value : value.replace(" ", "T");
+        const date = new Date(candidate);
+        if (Number.isNaN(date.getTime())) {
+          return value;
+        }
+        return date.toLocaleString();
+      }
+
+      function normalizeRetreatNameKey(name) {
+        return String(name || "").trim().toLowerCase();
+      }
+
+      function fingerprintRetreatPayload(payload) {
+        return JSON.stringify(payload);
+      }
+
+      function initializeStartDatePicker() {
+        if (!startDateInput || typeof window.flatpickr !== "function") {
+          return;
+        }
+        startDatePicker = window.flatpickr(startDateInput, {
+          dateFormat: "Y-m-d",
+          altInput: true,
+          altFormat: "F j, Y",
+          altInputClass: "form-control",
+          allowInput: true,
+          disableMobile: true,
+        });
+      }
+
+      function setStartDateValue(value) {
+        const normalized = value || "";
+        if (startDatePicker) {
+          startDatePicker.setDate(normalized, false, "Y-m-d");
+          return;
+        }
+        if (startDateInput) {
+          startDateInput.value = normalized;
+        }
+      }
+
+      function normalizeUnit(unit) {
+        const value = String(unit || "").trim().toLowerCase();
+        return UNIT_ALIASES[value] || value;
+      }
+
+      function formatNumber(value) {
+        return Number(value).toFixed(value >= 10 ? 1 : 2).replace(/\.00$/, "");
+      }
+
+      function suggestShoppingUnit(name, qty, unit) {
+        const normalized = normalizeUnit(unit);
+        if (MASS_TO_G[normalized]) {
+          const grams = qty * MASS_TO_G[normalized];
+          if (grams >= 1000) {
+            return { qty: grams / 1000, unit: "kg", canonicalQty: grams, canonicalUnit: "g" };
+          }
+          return { qty: grams, unit: "g", canonicalQty: grams, canonicalUnit: "g" };
+        }
+
+        if (VOLUME_TO_ML[normalized]) {
+          const gramsPerCup = GRAMS_PER_CUP[name];
+          if (gramsPerCup) {
+            const cups = (qty * VOLUME_TO_ML[normalized]) / VOLUME_TO_ML.cup;
+            const grams = cups * gramsPerCup;
+            if (grams >= 1000) {
+              return { qty: grams / 1000, unit: "kg", canonicalQty: grams, canonicalUnit: "g" };
+            }
+            return { qty: grams, unit: "g", canonicalQty: grams, canonicalUnit: "g" };
+          }
+
+          const ml = qty * VOLUME_TO_ML[normalized];
+          if (ml >= 1000) {
+            return { qty: ml / 1000, unit: "l", canonicalQty: ml, canonicalUnit: "ml" };
+          }
+          return { qty: ml, unit: "ml", canonicalQty: ml, canonicalUnit: "ml" };
+        }
+
+        return { qty, unit: normalized || unit, canonicalQty: qty, canonicalUnit: normalized || unit };
+      }
+
+      function getRecipeNames() {
+        return Object.keys(recipeCatalog).sort((a, b) => a.localeCompare(b));
+      }
+
+      function refreshDishSelectOptions() {
+        const dishRows = Array.from(dayContainer.querySelectorAll(".dish-row"));
+        dishRows.forEach((row) => {
+          const existing = row.querySelector(".dish-select");
+          if (!existing) {
+            return;
+          }
+          const selectedValue = existing.value;
+          const replacement = createRecipeSelect(selectedValue);
+          row.replaceChild(replacement, existing);
+        });
+      }
+
+      async function loadRecipesFromApi() {
+        const endpoint = apiUrl("/api/recipes/full");
+        try {
+          const response = await fetch(endpoint);
+          if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+          }
+
+          const rows = await response.json();
+          const loadedCatalog = {};
+          rows.forEach((row) => {
+            const recipeName = String(row.name || "").trim();
+            if (!recipeName) {
+              return;
+            }
+
+            const ingredients = Array.isArray(row.ingredients)
+              ? row.ingredients
+                  .map((item) => {
+                    const name = String(item.name || item.ingredient_name || "").trim();
+                    const qty = Number(item.quantity ?? item.qty ?? 0);
+                    const unit = normalizeUnit(item.unit || "");
+                    if (!name || !unit || !Number.isFinite(qty) || qty <= 0) {
+                      return null;
+                    }
+                    return { name, qty, unit };
+                  })
+                  .filter(Boolean)
+              : [];
+            if (!ingredients.length) {
+              return;
+            }
+
+            const steps = Array.isArray(row.steps)
+              ? row.steps.map((step) => String(step || "").trim()).filter(Boolean)
+              : [];
+
+            loadedCatalog[recipeName] = {
+              baseServings: Math.max(1, Number(row.base_servings || row.baseServings || 6)),
+              ingredients,
+              steps: steps.length ? steps : ["Use standard method; detailed steps pending."],
+            };
+          });
+
+          if (!Object.keys(loadedCatalog).length) {
+            throw new Error("API returned zero usable recipes.");
+          }
+
+          recipeCatalog = loadedCatalog;
+          refreshDishSelectOptions();
+          updateHeroStats(dayContainer.querySelectorAll(".day-card").length);
+          updateRetreatStoreStatus(`Loaded ${Object.keys(loadedCatalog).length} recipes from API.`);
+        } catch (error) {
+          const detail = error instanceof Error ? error.message : String(error);
+          updateRetreatStoreStatus(`Recipe load failed (${endpoint}): ${detail}`);
+          throw error;
+        }
+      }
+
+      function updateHeroStats(days) {
+        if (statDays) {
+          statDays.textContent = String(days);
+        }
+        if (statMeals) {
+          statMeals.textContent = String(MEALS.length);
+        }
+        if (statRecipes) {
+          statRecipes.textContent = String(getRecipeNames().length);
+        }
+      }
+
+      function setMealPlanVisible(isVisible) {
+        if (mealPlanSection) {
+          mealPlanSection.hidden = !isVisible;
+        }
+      }
+
+      function setKitchenSectionVisible(isVisible) {
+        if (kitchenSection) {
+          kitchenSection.hidden = !isVisible;
+        }
+      }
+
+      function mealToneClass(meal) {
+        if (meal === "Breakfast") {
+          return "meal-breakfast";
+        }
+        if (meal === "Lunch") {
+          return "meal-lunch";
+        }
+        if (meal === "Dinner") {
+          return "meal-dinner";
+        }
+        return "meal-evening";
+      }
+
+      function createRecipeSelect(selectedName) {
+        const select = document.createElement("select");
+        select.className = "form-select form-select-sm dish-select";
+        select.required = true;
+        select.setAttribute("aria-label", "Dish lookup");
+
+        const recipeNames = getRecipeNames();
+        if (!recipeNames.length) {
+          const option = document.createElement("option");
+          option.value = "";
+          option.textContent = "Recipes unavailable (check API)";
+          option.selected = true;
+          option.disabled = true;
+          select.appendChild(option);
+          select.disabled = true;
+          return select;
+        }
+
+        const hasSelectedRecipe = recipeNames.includes(selectedName);
+        const placeholder = document.createElement("option");
+        placeholder.value = "";
+        placeholder.textContent = "Select dish";
+        placeholder.selected = !hasSelectedRecipe;
+        select.appendChild(placeholder);
+
+        recipeNames.forEach((name) => {
+          const option = document.createElement("option");
+          option.value = name;
+          option.textContent = name;
+          if (name === selectedName) {
+            option.selected = true;
+          }
+          select.appendChild(option);
+        });
+
+        return select;
+      }
+
+      function createDishRow(selectedName) {
+        const row = document.createElement("div");
+        row.className = "row g-2 align-items-center mb-2 dish-row";
+
+        const colSelect = document.createElement("div");
+        colSelect.className = "col";
+        colSelect.appendChild(createRecipeSelect(selectedName || ""));
+
+        const colBtn = document.createElement("div");
+        colBtn.className = "col-auto";
+        const removeBtn = document.createElement("button");
+        removeBtn.type = "button";
+        removeBtn.className = "remove-dish";
+        removeBtn.innerHTML = '<i class="fa-solid fa-xmark"></i>';
+        removeBtn.setAttribute("aria-label", "Remove dish");
+        colBtn.appendChild(removeBtn);
+
+        row.appendChild(colSelect);
+        row.appendChild(colBtn);
+        return row;
+      }
+
+      function defaultPeopleByMeal(defaultPeople, meal) {
+        return Math.max(1, Math.round(defaultPeople));
+      }
+
+      function createMealCard(dayIndex, meal, people, dishes) {
+        const mealCard = document.createElement("div");
+        mealCard.className = "meal-card pb-4 mb-4 border-bottom";
+        mealCard.dataset.day = String(dayIndex);
+        mealCard.dataset.meal = meal;
+
+        const top = document.createElement("div");
+        top.className = "d-flex flex-wrap align-items-center gap-3 mb-3 justify-content-between";
+
+        const mealBadge = document.createElement("div");
+        mealBadge.className = `meal-badge ${mealToneClass(meal)}`;
+        mealBadge.innerHTML = `<i class="fa-solid fa-bowl-food opacity-50"></i> ${meal}`;
+
+        const peopleWrap = document.createElement("div");
+        peopleWrap.className = "d-flex align-items-center gap-2";
+        const peopleLabel = document.createElement("span");
+        peopleLabel.className = "small fw-bold text-muted text-uppercase";
+        peopleLabel.textContent = "Pax";
+        const peopleInput = document.createElement("input");
+        peopleInput.type = "number";
+        peopleInput.min = "0";
+        peopleInput.value = String(people);
+        peopleInput.className = "form-control form-control-sm meal-people";
+        peopleInput.style.width = "70px";
+        peopleWrap.appendChild(peopleLabel);
+        peopleWrap.appendChild(peopleInput);
+
+        const addDishBtn = document.createElement("button");
+        addDishBtn.type = "button";
+        addDishBtn.className = "btn btn-outline-primary btn-sm border-0 fw-bold add-dish";
+        addDishBtn.dataset.action = "add-dish";
+        addDishBtn.innerHTML = '<i class="fa-solid fa-plus me-1"></i> Add Dish';
+
+        top.appendChild(mealBadge);
+        top.appendChild(peopleWrap);
+        top.appendChild(addDishBtn);
+
+        const dishList = document.createElement("div");
+        dishList.className = "dish-list";
+
+        const dishNames = Array.isArray(dishes) ? dishes : [];
+        dishNames.forEach((dishName) => {
+          dishList.appendChild(createDishRow(dishName));
+        });
+
+        mealCard.appendChild(top);
+        mealCard.appendChild(dishList);
+        return mealCard;
+      }
+
+      function renderDayPicker(totalDays) {
+        dayPicker.innerHTML = "";
+        for (let day = 1; day <= totalDays; day += 1) {
+          const option = document.createElement("option");
+          option.value = String(day);
+          option.textContent = `Day ${day}`;
+          dayPicker.appendChild(option);
+        }
+      }
+
+      function refreshDayVisibility() {
+        const dayCards = Array.from(dayContainer.querySelectorAll(".day-card-col"));
+        const totalDays = dayCards.length;
+
+        if (!totalDays) {
+          currentViewDay = 1;
+          dayViewStatus.textContent = "No days defined";
+          prevDayBtn.disabled = true;
+          nextDayBtn.disabled = true;
+          dayPicker.disabled = true;
+          showAllDaysToggle.disabled = true;
+          return;
+        }
+
+        currentViewDay = Math.max(1, Math.min(totalDays, currentViewDay));
+        dayPicker.value = String(currentViewDay);
+
+        dayCards.forEach((dayCol) => {
+          const dayCard = dayCol.querySelector(".day-card");
+          const dayNumber = Number(dayCard.dataset.day || "1");
+          const shouldShow = showAllDays || dayNumber === currentViewDay;
+          dayCol.hidden = !shouldShow;
+          if (!shouldShow) {
+            dayCol.classList.remove("d-block");
+            dayCol.classList.add("d-none");
+          } else {
+            dayCol.classList.remove("d-none");
+            dayCol.classList.add("d-block");
+          }
+        });
+
+        dayViewStatus.textContent = showAllDays
+          ? `Showing all ${totalDays} days`
+          : `Day ${currentViewDay} of ${totalDays}`;
+        prevDayBtn.disabled = showAllDays || currentViewDay <= 1;
+        nextDayBtn.disabled = showAllDays || currentViewDay >= totalDays;
+        dayPicker.disabled = showAllDays;
+        showAllDaysToggle.disabled = totalDays <= 1;
+        showAllDaysToggle.checked = showAllDays;
+      }
+
+      function configureDayView(days) {
+        currentViewDay = 1;
+        showAllDays = days <= 2;
+        renderDayPicker(days);
+        refreshDayVisibility();
+      }
+
+      function buildSchedule(days, mealLookup = null) {
+        const startValue = startDateInput.value;
+        const startDate = startValue ? new Date(startValue + "T00:00:00") : new Date();
+        const defaultPeople = Number(defaultPeopleInput.value || 160);
+
+        dayContainer.innerHTML = "";
+
+        for (let i = 0; i < days; i += 1) {
+          const date = new Date(startDate);
+          date.setDate(startDate.getDate() + i);
+
+          const col = document.createElement("div");
+          col.className = "col day-card-col";
+
+          const dayCard = document.createElement("article");
+          dayCard.className = "card p-4 day-card h-100";
+          dayCard.dataset.day = String(i + 1);
+
+          const head = document.createElement("div");
+          head.className = "d-flex justify-content-between align-items-center mb-4 pb-2 border-bottom";
+          head.innerHTML = `<h3 class="h5 fw-bold mb-0 text-primary">Day ${i + 1}</h3><span class="badge bg-light text-muted border"><i class="fa-regular fa-calendar me-1"></i> ${date.toLocaleDateString()}</span>`;
+
+          const mealGrid = document.createElement("div");
+          mealGrid.className = "meal-grid";
+
+          MEALS.forEach((meal) => {
+            const mealKey = `${i + 1}|${meal}`;
+            const loadedMeal = mealLookup?.get(mealKey) || null;
+            const people = loadedMeal
+              ? Math.max(0, Number(loadedMeal.people || 0))
+              : defaultPeopleByMeal(defaultPeople, meal);
+            const dishes = loadedMeal
+              ? (Array.isArray(loadedMeal.dishes) ? loadedMeal.dishes : [])
+              : [];
+            mealGrid.appendChild(createMealCard(i + 1, meal, people, dishes));
+          });
+
+          dayCard.appendChild(head);
+          dayCard.appendChild(mealGrid);
+          col.appendChild(dayCard);
+          dayContainer.appendChild(col);
+        }
+
+        configureDayView(days);
+        updateHeroStats(days);
+        setMealPlanVisible(days > 0);
+        updateKitchenPublishStatus("Plan changed. Open Kitchen Service Page to publish.");
+        scheduleAutoSave();
+      }
+
+      function updateKitchenPublishStatus(message) {
+        if (kitchenPublishStatus) {
+          kitchenPublishStatus.textContent = message;
+        }
+      }
+
+      function updateRetreatStoreStatus(message) {
+        if (retreatStoreStatus) {
+          retreatStoreStatus.textContent = message;
+        }
+      }
+
+      function clearKitchenPayload(message) {
+        updateKitchenPublishStatus(message);
+      }
+
+      function kitchenMealSort(planA, planB) {
+        if (planA.day !== planB.day) {
+          return planA.day - planB.day;
+        }
+        return MEALS.indexOf(planA.meal) - MEALS.indexOf(planB.meal);
+      }
+
+      function buildKitchenPayload(sortedPlan, retreatName) {
+        const groupedMeals = new Map();
+
+        sortedPlan.forEach((slot) => {
+          const recipe = recipeCatalog[slot.recipe];
+          if (!recipe || slot.people <= 0) {
+            return;
+          }
+
+          const mealKey = `${slot.day}|${slot.meal}`;
+          if (!groupedMeals.has(mealKey)) {
+            groupedMeals.set(mealKey, {
+              day: slot.day,
+              meal: slot.meal,
+              people: slot.people,
+              dishes: [],
+            });
+          }
+
+          const meal = groupedMeals.get(mealKey);
+          meal.people = Math.max(meal.people, slot.people);
+          const factor = slot.people / recipe.baseServings;
+          const dish = {
+            name: slot.recipe,
+            serves: slot.people,
+            baseServings: recipe.baseServings,
+            factor: Number(factor.toFixed(2)),
+            ingredients: recipe.ingredients.map((item) => {
+              const scaledQty = item.qty * factor;
+              const suggestion = suggestShoppingUnit(item.name, scaledQty, item.unit);
+              return {
+                name: item.name,
+                scaledQty: formatNumber(scaledQty),
+                scaledUnit: normalizeUnit(item.unit),
+                shopQty: formatNumber(suggestion.qty),
+                shopUnit: suggestion.unit,
+              };
+            }),
+            steps: [...recipe.steps],
+          };
+          meal.dishes.push(dish);
+        });
+
+        return {
+          version: 1,
+          retreatName,
+          generatedAt: new Date().toISOString(),
+          meals: Array.from(groupedMeals.values()).sort(kitchenMealSort),
+        };
+      }
+
+      async function publishKitchenPayload(sortedPlan, retreatName) {
+        const payload = buildKitchenPayload(sortedPlan, retreatName);
+        if (!payload.meals.length) {
+          clearKitchenPayload("No cookable meals found to publish.");
+          return;
+        }
+
+        if (currentRetreatPlanId) {
+          payload.retreatPlanId = currentRetreatPlanId;
+        }
+
+        try {
+          updateKitchenPublishStatus("Publishing latest menu...");
+          const response = await fetch(apiUrl("/api/service-snapshots"), {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          });
+
+          if (!response.ok) {
+            const detail = await response.text();
+            throw new Error(detail || `HTTP ${response.status}`);
+          }
+
+          const result = await response.json();
+          const publishedAt = formatLocalDateTime(result.created_at || payload.generatedAt);
+          updateKitchenPublishStatus(
+            `Published ${payload.meals.length} meals (${publishedAt}).`
+          );
+        } catch (error) {
+          updateKitchenPublishStatus("Could not publish to API.");
+        }
+      }
+
+      async function loadKitchenPublishStatus() {
+        try {
+          const response = await fetch(apiUrl("/api/service-snapshots/latest"));
+          if (response.status === 404) {
+            updateKitchenPublishStatus("Ready to publish.");
+            return;
+          }
+          if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+          }
+
+          const snapshot = await response.json();
+          const meals = snapshot.payload?.meals;
+          if (!Array.isArray(meals) || !meals.length) {
+            updateKitchenPublishStatus("No published menu found.");
+            return;
+          }
+
+          const publishedAt = formatLocalDateTime(
+            snapshot.payload?.generatedAt || snapshot.created_at
+          );
+          updateKitchenPublishStatus(`Latest publish: ${meals.length} meals (${publishedAt})`);
+        } catch (error) {
+          updateKitchenPublishStatus("Could not reach API.");
+        }
+      }
+
+      async function autoPublishKitchenSnapshot() {
+        const { slots: plan, invalidRecipes } = collectPlan();
+        if (invalidRecipes.length || !plan.length) {
+          return;
+        }
+
+        const retreatName = plan[0].retreatName;
+        const sortedPlan = [...plan].sort((a, b) => {
+          if (a.day !== b.day) {
+            return a.day - b.day;
+          }
+          if (a.meal !== b.meal) {
+            return MEALS.indexOf(a.meal) - MEALS.indexOf(b.meal);
+          }
+          return a.recipe.localeCompare(b.recipe);
+        });
+
+        const payload = buildKitchenPayload(sortedPlan, retreatName);
+        if (!payload.meals.length) {
+          return;
+        }
+
+        if (currentRetreatPlanId) {
+          payload.retreatPlanId = currentRetreatPlanId;
+        }
+
+        try {
+          const response = await fetch(apiUrl("/api/service-snapshots"), {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          });
+
+          if (response.ok) {
+            const result = await response.json();
+            const publishedAt = formatLocalDateTime(result.created_at || payload.generatedAt);
+            updateKitchenPublishStatus(
+              `Auto-published ${payload.meals.length} meals (${publishedAt}).`
+            );
+          }
+        } catch (error) {
+          // Silent
+        }
+      }
+
+      function updateShareableUrl() {
+        const shareInput = document.getElementById("kitchenShareUrl");
+        const copyBtn = document.getElementById("copyKitchenUrl");
+        if (!shareInput) {
+          return;
+        }
+
+        if (!currentRetreatPlanId) {
+          shareInput.value = "";
+          if (copyBtn) {
+            copyBtn.disabled = true;
+          }
+          return;
+        }
+
+        const kitchenUrl = new URL("kitchen-service-view.html", window.location.href);
+        kitchenUrl.searchParams.set("plan", String(currentRetreatPlanId));
+        kitchenUrl.searchParams.set("api", API_BASE);
+        shareInput.value = kitchenUrl.toString();
+        if (copyBtn) {
+          copyBtn.disabled = false;
+        }
+      }
+
+      function buildMealLookup(meals) {
+        const lookup = new Map();
+        if (!Array.isArray(meals)) {
+          return lookup;
+        }
+
+        meals.forEach((entry) => {
+          if (!entry || typeof entry !== "object") {
+            return;
+          }
+          const day = Number(entry.day || 0);
+          const meal = String(entry.meal || "").trim();
+          if (day < 1 || !meal) {
+            return;
+          }
+          lookup.set(`${day}|${meal}`, {
+            people: Math.max(0, Number(entry.people || 0)),
+            dishes: Array.isArray(entry.dishes) ? entry.dishes : [],
+          });
+        });
+        return lookup;
+      }
+
+      function collectRetreatPlanPayload() {
+        const dayCards = Array.from(dayContainer.querySelectorAll(".day-card"));
+        if (!dayCards.length) {
+          return { payload: null, error: "Build schedule to start auto-save." };
+        }
+
+        const meals = [];
+        const mealCards = Array.from(dayContainer.querySelectorAll(".meal-card"));
+        mealCards.forEach((mealCard) => {
+          const day = Number(mealCard.dataset.day || 0);
+          const meal = String(mealCard.dataset.meal || "").trim();
+          const people = Math.max(0, Number(mealCard.querySelector(".meal-people")?.value || 0));
+          const dishes = Array.from(mealCard.querySelectorAll(".dish-select"))
+            .map((select) => String(select.value || "").trim())
+            .filter(Boolean);
+          meals.push({ day, meal, people, dishes });
+        });
+
+        const payload = {
+          name: retreatNameInput.value.trim() || "Untitled Retreat",
+          startDate: startDateInput.value || null,
+          dayCount: dayCards.length,
+          defaultPeople: Math.max(1, Number(defaultPeopleInput.value || 160)),
+          meals,
+        };
+        return { payload, error: null };
+      }
+
+      function resetPlannerForNewRetreat() {
+        if (retreatAutoSaveTimer) {
+          clearTimeout(retreatAutoSaveTimer);
+          retreatAutoSaveTimer = null;
+        }
+        lastSavedRetreatFingerprint = "";
+        currentRetreatPlanId = null;
+        retreatNameInput.value = "Untitled Retreat";
+        setStartDateValue("");
+        dayCountInput.value = "";
+        defaultPeopleInput.value = "160";
+        dayContainer.innerHTML = "";
+        setMealPlanVisible(false);
+        setKitchenSectionVisible(false);
+        updateHeroStats(0);
+        refreshDayVisibility();
+        updateRetreatStoreStatus("Ready for a new retreat.");
+      }
+
+      async function refreshRetreatPlanOptions(selectedName = null) {
+        try {
+          const response = await fetch(apiUrl("/api/retreat-plans"));
+          if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+          }
+          const plans = await response.json();
+          retreatPlanIdByName = new Map();
+          if (retreatNameOptions) {
+            retreatNameOptions.innerHTML = "";
+          }
+
+          plans.forEach((plan) => {
+            const planName = String(plan.name || "").trim();
+            if (!planName) {
+              return;
+            }
+            retreatPlanIdByName.set(normalizeRetreatNameKey(planName), Number(plan.id));
+            if (retreatNameOptions) {
+              const option = document.createElement("option");
+              option.value = planName;
+              option.label = `Updated ${formatLocalDateTime(plan.updated_at)}`;
+              retreatNameOptions.appendChild(option);
+            }
+          });
+
+          if (selectedName !== null && selectedName !== undefined) {
+            retreatNameInput.value = String(selectedName);
+          }
+
+          if (plans.length) {
+            updateRetreatStoreStatus(`Loaded ${plans.length} saved retreats.`);
+          }
+        } catch (error) {
+          updateRetreatStoreStatus("Could not load retreats.");
+        }
+      }
+
+      async function persistRetreatPlan(mode = "autosave") {
+        const { payload, error } = collectRetreatPlanPayload();
+        if (error) {
+          if (mode === "autosave") {
+            updateRetreatStoreStatus(error);
+          }
+          return false;
+        }
+
+        const payloadFingerprint = fingerprintRetreatPayload(payload);
+        if (mode === "autosave" && payloadFingerprint === lastSavedRetreatFingerprint) {
+          return true;
+        }
+
+        try {
+          updateRetreatStoreStatus(mode === "autosave" ? "Auto-saving..." : "Saving...");
+          const endpoint = apiUrl("/api/retreat-plans");
+          const response = await fetch(endpoint, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          });
+          if (!response.ok) {
+            const raw = await response.text();
+            let detail = raw;
+            try {
+              const parsed = JSON.parse(raw);
+              if (parsed && typeof parsed === "object" && typeof parsed.detail === "string") {
+                detail = parsed.detail;
+              }
+            } catch (parseError) {
+              // Keep raw text detail when response is not JSON.
+            }
+            throw new Error(`HTTP ${response.status}${detail ? `: ${detail}` : ""}`);
+          }
+          const result = await response.json();
+          currentRetreatPlanId = result.id;
+          lastSavedRetreatFingerprint = payloadFingerprint;
+          updateRetreatStoreStatus(
+            `${mode === "autosave" ? "Auto-saved" : "Saved"} retreat "${result.name}".`
+          );
+          setKitchenSectionVisible(true);
+          updateShareableUrl();
+          await refreshRetreatPlanOptions(result.name);
+          void autoPublishKitchenSnapshot();
+          return true;
+        } catch (error) {
+          const detail = error instanceof Error ? error.message : String(error);
+          updateRetreatStoreStatus(`Could not save to API (${apiUrl("/api/retreat-plans")}): ${detail}`);
+          console.error("Persist retreat failed:", error);
+          return false;
+        }
+      }
+
+      function scheduleAutoSave(delayMs = 1200) {
+        if (isApplyingLoadedRetreat) {
+          return;
+        }
+        if (retreatAutoSaveTimer) {
+          clearTimeout(retreatAutoSaveTimer);
+        }
+        updateRetreatStoreStatus("Changes pending...");
+        retreatAutoSaveTimer = window.setTimeout(() => {
+          void persistRetreatPlan("autosave");
+        }, delayMs);
+      }
+
+      async function loadRetreatPlanById(selectedId) {
+        if (!selectedId) {
+          return false;
+        }
+
+        try {
+          updateRetreatStoreStatus("Loading retreat...");
+          isApplyingLoadedRetreat = true;
+          const response = await fetch(apiUrl(`/api/retreat-plans/${selectedId}`));
+          if (!response.ok) {
+            const detail = await response.text();
+            throw new Error(detail || `HTTP ${response.status}`);
+          }
+
+          const plan = await response.json();
+          retreatNameInput.value = String(plan.name || "Untitled Retreat");
+          setStartDateValue(plan.startDate || "");
+          const days = Math.max(1, Math.min(10, Number(plan.dayCount || 1)));
+          dayCountInput.value = String(days);
+          defaultPeopleInput.value = String(Math.max(1, Number(plan.defaultPeople || 160)));
+
+          buildSchedule(days, buildMealLookup(plan.meals));
+          
+          const loadedPayload = {
+            name: retreatNameInput.value.trim() || "Untitled Retreat",
+            startDate: startDateInput.value || null,
+            dayCount: days,
+            defaultPeople: Math.max(1, Number(defaultPeopleInput.value || 160)),
+            meals: Array.isArray(plan.meals) ? plan.meals : [],
+          };
+          lastSavedRetreatFingerprint = fingerprintRetreatPayload(loadedPayload);
+          currentRetreatPlanId = selectedId;
+          setKitchenSectionVisible(true);
+          updateShareableUrl();
+          updateRetreatStoreStatus(`Loaded "${retreatNameInput.value}".`);
+          return true;
+        } catch (error) {
+          updateRetreatStoreStatus("Could not load selected retreat.");
+          return false;
+        } finally {
+          isApplyingLoadedRetreat = false;
+        }
+      }
+
+      async function maybeLoadRetreatByName() {
+        const retreatName = retreatNameInput.value.trim();
+        if (!retreatName) {
+          return false;
+        }
+
+        const selectedId = retreatPlanIdByName.get(normalizeRetreatNameKey(retreatName));
+        if (!selectedId) {
+          return false;
+        }
+
+        return loadRetreatPlanById(selectedId);
+      }
+
+      function collectPlan() {
+        const retreatName = document.getElementById("retreatName").value.trim() || "Untitled Retreat";
+        const mealCards = Array.from(dayContainer.querySelectorAll(".meal-card"));
+        const slots = [];
+        const invalidRecipes = [];
+        const recipeNames = new Set(getRecipeNames());
+
+        mealCards.forEach((mealCard) => {
+          const day = Number(mealCard.dataset.day);
+          const meal = mealCard.dataset.meal;
+          const people = Number(mealCard.querySelector(".meal-people")?.value || 0);
+          if (people <= 0) {
+            return;
+          }
+
+          const dishRows = Array.from(mealCard.querySelectorAll(".dish-row"));
+          dishRows.forEach((dishRow) => {
+            const recipe = dishRow.querySelector(".dish-select")?.value;
+            if (!recipe) {
+              return;
+            }
+            if (!recipeNames.has(recipe)) {
+              invalidRecipes.push(`Day ${day} ${meal}: "${recipe}"`);
+              return;
+            }
+            slots.push({ retreatName, day, meal, people, recipe });
+          });
+        });
+
+        return { slots, invalidRecipes };
+      }
+
+      async function generateBlurb() {
+        const { slots: plan, invalidRecipes } = collectPlan();
+
+        if (invalidRecipes.length) {
+          updateKitchenPublishStatus(`Unknown recipes: ${invalidRecipes.length}`);
+          return false;
+        }
+
+        if (!plan.length) {
+          return false;
+        }
+
+        const retreatName = plan[0].retreatName;
+        const sortedPlan = [...plan].sort((a, b) => {
+          if (a.day !== b.day) {
+            return a.day - b.day;
+          }
+          if (a.meal !== b.meal) {
+            return MEALS.indexOf(a.meal) - MEALS.indexOf(b.meal);
+          }
+          return a.recipe.localeCompare(b.recipe);
+        });
+
+        await publishKitchenPayload(sortedPlan, retreatName);
+        return true;
+      }
+
+      function handleDayContainerClick(event) {
+        const clickTarget = event.target instanceof Element ? event.target : null;
+        const addBtn = clickTarget?.closest(".add-dish, [data-action='add-dish']");
+        if (addBtn) {
+          const mealCard = addBtn.closest(".meal-card");
+          if (!mealCard) {
+            return;
+          }
+          const dishList = mealCard.querySelector(".dish-list");
+          if (!dishList) {
+            return;
+          }
+          dishList.appendChild(createDishRow(""));
+          scheduleAutoSave();
+          return;
+        }
+
+        const removeBtn = clickTarget?.closest(".remove-dish");
+        if (removeBtn) {
+          const mealCard = removeBtn.closest(".meal-card");
+          const dishList = mealCard?.querySelector(".dish-list");
+          if (!dishList) {
+            return;
+          }
+          removeBtn.closest(".dish-row")?.remove();
+          scheduleAutoSave();
+        }
+      }
+
+      function tryBuildScheduleFromDayCount() {
+        const rawDays = Number(dayCountInput.value);
+        if (!dayCountInput.value || Number.isNaN(rawDays) || rawDays < 1) {
+          return false;
+        }
+        const days = Math.max(1, Math.min(10, rawDays));
+        dayCountInput.value = String(days);
+        buildSchedule(days);
+        return true;
+      }
+
+      document.getElementById("buildSchedule").addEventListener("click", () => {
+        if (!tryBuildScheduleFromDayCount()) {
+          dayCountInput.focus();
+          return;
+        }
+      });
+      dayCountInput.addEventListener("change", () => {
+        void tryBuildScheduleFromDayCount();
+      });
+      dayCountInput.addEventListener("keydown", (event) => {
+        if (event.key !== "Enter") {
+          return;
+        }
+        event.preventDefault();
+        if (!tryBuildScheduleFromDayCount()) {
+          dayCountInput.focus();
+        }
+      });
+
+      document.getElementById("loadSample").addEventListener("click", () => {
+        retreatNameInput.value = "Fall Kriya + Upanishad Retreat";
+        setStartDateValue("2026-10-09");
+        dayCountInput.value = "3";
+        defaultPeopleInput.value = "160";
+        buildSchedule(3);
+      });
+
+      newRetreatBtn.addEventListener("click", resetPlannerForNewRetreat);
+      retreatNameInput.addEventListener("change", async () => {
+        const loadedExisting = await maybeLoadRetreatByName();
+        if (!loadedExisting) {
+          scheduleAutoSave();
+        }
+      });
+      startDateInput.addEventListener("change", () => {
+        scheduleAutoSave();
+      });
+      defaultPeopleInput.addEventListener("change", () => {
+        scheduleAutoSave();
+      });
+
+      dayContainer.addEventListener("click", handleDayContainerClick);
+      dayContainer.addEventListener("input", (event) => {
+        if (event.target instanceof HTMLInputElement && event.target.classList.contains("meal-people")) {
+          scheduleAutoSave();
+        }
+      });
+      dayContainer.addEventListener("change", (event) => {
+        if (event.target instanceof HTMLSelectElement && event.target.classList.contains("dish-select")) {
+          scheduleAutoSave();
+        }
+      });
+
+      prevDayBtn.addEventListener("click", () => {
+        currentViewDay = Math.max(1, currentViewDay - 1);
+        refreshDayVisibility();
+      });
+
+      nextDayBtn.addEventListener("click", () => {
+        const totalDays = dayContainer.querySelectorAll(".day-card-col").length;
+        currentViewDay = Math.min(totalDays, currentViewDay + 1);
+        refreshDayVisibility();
+      });
+
+      dayPicker.addEventListener("change", () => {
+        currentViewDay = Number(dayPicker.value || 1);
+        refreshDayVisibility();
+      });
+
+      showAllDaysToggle.addEventListener("change", () => {
+        showAllDays = showAllDaysToggle.checked;
+        refreshDayVisibility();
+      });
+
+      openKitchenPage.addEventListener("click", async () => {
+        const didPublish = await generateBlurb();
+        if (!didPublish) {
+          return;
+        }
+        const kitchenUrl = new URL("kitchen-service-view.html", window.location.href);
+        kitchenUrl.searchParams.set("api", API_BASE);
+        if (currentRetreatPlanId) {
+          kitchenUrl.searchParams.set("plan", String(currentRetreatPlanId));
+        }
+        window.location.href = kitchenUrl.toString();
+      });
+
+      document.getElementById("copyKitchenUrl").addEventListener("click", async () => {
+        const shareInput = document.getElementById("kitchenShareUrl");
+        if (!shareInput || !shareInput.value) {
+          return;
+        }
+        try {
+          await navigator.clipboard.writeText(shareInput.value);
+          const btn = document.getElementById("copyKitchenUrl");
+          const original = btn.textContent;
+          btn.textContent = "Copied!";
+          setTimeout(() => { btn.textContent = original; }, 1500);
+        } catch (error) {
+          // Ignore
+        }
+      });
+
+      async function initializePlanner() {
+        initializeStartDatePicker();
+        updateHeroStats(0);
+        setMealPlanVisible(false);
+        refreshDayVisibility();
+        void refreshRetreatPlanOptions();
+        await loadRecipesFromApi();
+        await loadKitchenPublishStatus();
+      }
+
+      void initializePlanner().catch((error) => {
+        console.error("Planner init error:", error);
+        updateKitchenPublishStatus("Planner init failed. Check API connection on port 8000.");
+      });
+    </script>
+  </body>
+</html>

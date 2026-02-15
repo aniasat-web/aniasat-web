@@ -35,8 +35,8 @@
       }
       h1 { letter-spacing: -0.01em; }
       .navbar-brand {
-        font-size: 1.5rem;
-        font-weight: 400 !important; /* Serif carries the weight */
+        font-size: 1.35rem;
+        font-weight: 600 !important;
         letter-spacing: -0.01em;
       }
       .navbar {
@@ -62,8 +62,8 @@
         color: var(--ink) !important;
       }
       .brand-logo {
-        width: 36px;
-        height: 36px;
+        width: 48px;
+        height: 48px;
         object-fit: contain;
         flex-shrink: 0;
       }
@@ -246,7 +246,7 @@
       <div class="container">
         <a class="navbar-brand" href="#">
           <img class="brand-logo" src="assets/blossom-mark.png" alt="Blossom logo" />
-          <span>Retreat Ops</span>
+          <span>Blossom Foundation Spring 2026 Retreats</span>
         </a>
         <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarContent">
           <span class="navbar-toggler-icon"></span>
@@ -261,6 +261,9 @@
             </li>
             <li class="nav-item">
               <a class="nav-link" href="recipe-admin.html"><i class="fa-solid fa-book me-1"></i> Recipes</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="recipe-scaling.html"><i class="fa-solid fa-scale-balanced me-1"></i> Scaling</a>
             </li>
             <li class="nav-item">
               <span class="nav-link text-muted"><i class="fa-solid fa-gear me-1"></i> Settings</span>
@@ -342,6 +345,9 @@
           <div class="d-flex align-items-center gap-2">
             <button class="btn btn-sm btn-light border text-muted" id="newRetreatBtn" type="button">
               <i class="fa-solid fa-plus me-1"></i> New
+            </button>
+            <button class="btn btn-sm btn-light border text-muted" id="duplicateRetreatBtn" type="button">
+              <i class="fa-regular fa-copy me-1"></i> Duplicate
             </button>
             <span class="small fw-semibold text-primary ms-2" id="retreatStoreStatus">Ready.</span>
           </div>
@@ -441,6 +447,7 @@
       const kitchenPublishStatus = document.getElementById("kitchenPublishStatus");
       const retreatStoreStatus = document.getElementById("retreatStoreStatus");
       const newRetreatBtn = document.getElementById("newRetreatBtn");
+      const duplicateRetreatBtn = document.getElementById("duplicateRetreatBtn");
       const retreatNameOptions = document.getElementById("retreatNameOptions");
       const retreatNameInput = document.getElementById("retreatName");
       const dayCountInput = document.getElementById("dayCount");
@@ -1534,6 +1541,54 @@
         return loadRetreatPlanById(selectedId);
       }
 
+      async function duplicateCurrentRetreat() {
+        const hasSchedule = dayContainer.querySelectorAll(".day-card").length > 0;
+        if (!hasSchedule) {
+          updateRetreatStoreStatus("Build schedule before duplicating.");
+          return false;
+        }
+
+        if (retreatAutoSaveTimer) {
+          clearTimeout(retreatAutoSaveTimer);
+          retreatAutoSaveTimer = null;
+        }
+
+        const didSave = await persistRetreatPlan("manual");
+        if (!didSave || !currentRetreatPlanId) {
+          updateRetreatStoreStatus("Could not duplicate because save failed.");
+          return false;
+        }
+
+        const sourcePlanId = currentRetreatPlanId;
+        try {
+          updateRetreatStoreStatus("Duplicating retreat...");
+          const response = await fetch(apiUrl(`/api/retreat-plans/${sourcePlanId}/duplicate`), {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({}),
+          });
+          if (!response.ok) {
+            const detail = await response.text();
+            throw new Error(detail || `HTTP ${response.status}`);
+          }
+
+          const result = await response.json();
+          await refreshRetreatPlanOptions(result.name);
+          const didLoad = await loadRetreatPlanById(Number(result.id));
+          if (!didLoad) {
+            throw new Error("Duplicate created but could not be loaded.");
+          }
+
+          updateRetreatStoreStatus(`Duplicated as "${result.name}".`);
+          return true;
+        } catch (error) {
+          const detail = error instanceof Error ? error.message : String(error);
+          updateRetreatStoreStatus(`Could not duplicate retreat: ${detail}`);
+          console.error("Duplicate retreat failed:", error);
+          return false;
+        }
+      }
+
       function collectPlan() {
         const retreatName = document.getElementById("retreatName").value.trim() || "Untitled Retreat";
         const mealCards = Array.from(dayContainer.querySelectorAll(".meal-card"));
@@ -1667,6 +1722,9 @@
       });
 
       newRetreatBtn.addEventListener("click", resetPlannerForNewRetreat);
+      duplicateRetreatBtn.addEventListener("click", () => {
+        void duplicateCurrentRetreat();
+      });
       retreatNameInput.addEventListener("change", async () => {
         const loadedExisting = await maybeLoadRetreatByName();
         if (!loadedExisting) {

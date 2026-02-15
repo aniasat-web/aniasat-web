@@ -129,6 +129,10 @@ class RetreatPlanPayload(BaseModel):
     meals: list[RetreatPlanMeal] = Field(min_length=1)
 
 
+class RetreatPlanDuplicatePayload(BaseModel):
+    name: str | None = None
+
+
 class ServiceSnapshotIngredient(BaseModel):
     name: str = Field(min_length=1)
     scaledQty: str = Field(min_length=1)
@@ -547,6 +551,65 @@ def upsert_retreat_plan(payload: RetreatPlanPayload) -> dict[str, Any]:
     }
 
 
+@app.post("/api/retreat-plans/{plan_id}/duplicate")
+def duplicate_retreat_plan(
+    plan_id: int, payload: RetreatPlanDuplicatePayload | None = None
+) -> dict[str, Any]:
+    with get_connection() as conn:
+        source = conn.execute(
+            """
+            SELECT id, name, start_date, day_count, default_people, plan_json
+            FROM retreat_plans
+            WHERE id = ?
+            """,
+            (plan_id,),
+        ).fetchone()
+        if not source:
+            raise HTTPException(status_code=404, detail="Retreat plan not found")
+
+        source_payload = json.loads(source["plan_json"]) if source["plan_json"] else {}
+        if not isinstance(source_payload, dict):
+            source_payload = {}
+
+        requested_name = payload.name.strip() if payload and payload.name and payload.name.strip() else None
+        base_name = requested_name or f"{source['name']} (Copy)"
+        copy_name = unique_retreat_plan_name(conn, base_name)
+
+        source_payload["name"] = copy_name
+        source_payload["startDate"] = source_payload.get("startDate", source["start_date"])
+        source_payload["dayCount"] = int(source_payload.get("dayCount") or source["day_count"])
+        source_payload["defaultPeople"] = float(
+            source_payload.get("defaultPeople") or source["default_people"]
+        )
+        if not isinstance(source_payload.get("meals"), list):
+            source_payload["meals"] = []
+
+        created = conn.execute(
+            """
+            INSERT INTO retreat_plans(name, start_date, day_count, default_people, plan_json)
+            VALUES (?, ?, ?, ?, ?)
+            RETURNING id, name, created_at, updated_at
+            """,
+            (
+                copy_name,
+                source_payload["startDate"],
+                source_payload["dayCount"],
+                source_payload["defaultPeople"],
+                json.dumps(source_payload),
+            ),
+        ).fetchone()
+        conn.commit()
+
+    return {
+        "id": int(created["id"]),
+        "name": created["name"],
+        "status": "duplicated",
+        "source_plan_id": int(source["id"]),
+        "created_at": created["created_at"],
+        "updated_at": created["updated_at"],
+    }
+
+
 @app.post("/api/service-snapshots")
 def create_service_snapshot(payload: ServiceSnapshotPayload) -> dict[str, Any]:
     with get_connection() as conn:
@@ -623,6 +686,19 @@ def get_service_snapshot_by_plan(plan_id: int) -> dict[str, Any]:
         "created_at": row["created_at"],
         "payload": payload,
     }
+
+
+def unique_retreat_plan_name(conn: Any, base_name: str) -> str:
+    seed = " ".join(base_name.strip().split()) or "Untitled Retreat (Copy)"
+    candidate = seed
+    suffix = 2
+    while conn.execute(
+        "SELECT 1 FROM retreat_plans WHERE lower(name) = lower(?)",
+        (candidate,),
+    ).fetchone():
+        candidate = f"{seed} ({suffix})"
+        suffix += 1
+    return candidate
 
 
 def normalize_unit(unit: str) -> str:

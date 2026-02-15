@@ -49,7 +49,8 @@
         display: inline-flex;
         align-items: center;
         gap: 0.5rem;
-        font-size: 1.5rem;
+        font-size: 1.35rem;
+        font-weight: 600 !important;
         color: var(--primary) !important;
       }
 
@@ -67,8 +68,8 @@
       }
 
       .brand-logo {
-        width: 36px;
-        height: 36px;
+        width: 48px;
+        height: 48px;
         object-fit: contain;
         flex-shrink: 0;
       }
@@ -245,6 +246,27 @@
         border: 1px solid #bfdbfe;
       }
 
+      .cat-pill {
+        font-size: 0.72rem;
+        font-weight: 600;
+        padding: 0.2rem 0.55rem;
+        border-radius: 999px;
+        border: 1px solid var(--border);
+        background: white;
+        color: var(--muted);
+        cursor: pointer;
+        white-space: nowrap;
+      }
+      .cat-pill:hover {
+        border-color: #f59e0b;
+        color: var(--ink);
+      }
+      .cat-pill.active {
+        background: var(--primary);
+        border-color: var(--primary);
+        color: white;
+      }
+
       @media (max-width: 992px) {
         .sticky-panel {
           position: static;
@@ -258,9 +280,9 @@
   <body>
     <nav class="navbar navbar-expand-lg navbar-light fixed-top">
       <div class="container">
-        <a class="navbar-brand" href="index.html">
+        <a class="navbar-brand" href="recipe-scaling.html">
           <img class="brand-logo" src="assets/blossom-mark.png" alt="Blossom logo" />
-          <span>Retreat Ops</span>
+          <span>Blossom Foundation Spring 2026 Retreats</span>
         </a>
         <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarContent">
           <span class="navbar-toggler-icon"></span>
@@ -275,6 +297,9 @@
             </li>
             <li class="nav-item">
               <a class="nav-link active" href="recipe-admin.html"><i class="fa-solid fa-book me-1"></i> Recipes</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="recipe-scaling.html"><i class="fa-solid fa-scale-balanced me-1"></i> Scaling</a>
             </li>
             <li class="nav-item">
               <span class="nav-link text-muted"><i class="fa-solid fa-gear me-1"></i> Settings</span>
@@ -318,6 +343,7 @@
                 <i class="fa-solid fa-plus me-1"></i>New
               </button>
             </div>
+            <div id="categoryFilter" class="d-flex flex-wrap gap-1 mb-3"></div>
             <div id="recipeList" class="recipe-list"></div>
           </div>
         </div>
@@ -426,6 +452,8 @@
       const addStepBtn = document.getElementById("addStepBtn");
       const reloadDishBtn = document.getElementById("reloadDishBtn");
 
+      const categoryFilter = document.getElementById("categoryFilter");
+
       const API_BASE = resolveApiBase();
       const FALLBACK_CATEGORIES = [
         "M's Recipes",
@@ -441,6 +469,7 @@
       ];
       let recipes = [];
       let selectedRecipeId = null;
+      let selectedCategory = null;
 
       function resolveApiBase() {
         const queryValue = new URLSearchParams(window.location.search).get("api");
@@ -589,15 +618,51 @@
         renderRecipeList();
       }
 
+      function renderCategoryFilter() {
+        const counts = new Map();
+        recipes.forEach((r) => {
+          const cat = r.category || "Uncategorized";
+          counts.set(cat, (counts.get(cat) || 0) + 1);
+        });
+
+        categoryFilter.innerHTML = "";
+
+        const allBtn = document.createElement("button");
+        allBtn.type = "button";
+        allBtn.className = "cat-pill" + (selectedCategory === null ? " active" : "");
+        allBtn.textContent = `All (${recipes.length})`;
+        allBtn.addEventListener("click", () => { selectedCategory = null; renderCategoryFilter(); renderRecipeList(); });
+        categoryFilter.appendChild(allBtn);
+
+        const ordered = FALLBACK_CATEGORIES.filter((c) => counts.has(c));
+        if (counts.has("Uncategorized")) ordered.push("Uncategorized");
+
+        ordered.forEach((cat) => {
+          const btn = document.createElement("button");
+          btn.type = "button";
+          btn.className = "cat-pill" + (selectedCategory === cat ? " active" : "");
+          btn.textContent = `${cat} (${counts.get(cat)})`;
+          btn.addEventListener("click", () => { selectedCategory = cat; renderCategoryFilter(); renderRecipeList(); });
+          categoryFilter.appendChild(btn);
+        });
+      }
+
       function renderRecipeList() {
         const term = recipeSearch.value.trim().toLowerCase();
-        const filtered = recipes.filter((recipe) => recipe.name.toLowerCase().includes(term));
+        const filtered = recipes.filter((recipe) => {
+          if (term && !recipe.name.toLowerCase().includes(term)) return false;
+          if (selectedCategory !== null) {
+            const cat = recipe.category || "Uncategorized";
+            if (cat !== selectedCategory) return false;
+          }
+          return true;
+        });
         recipeList.innerHTML = "";
 
         if (!filtered.length) {
           const empty = document.createElement("div");
           empty.className = "text-muted small p-2";
-          empty.textContent = term ? "No matching dishes." : "No recipes loaded from API.";
+          empty.textContent = term || selectedCategory ? "No matching dishes." : "No recipes loaded from API.";
           recipeList.appendChild(empty);
           return;
         }
@@ -756,6 +821,7 @@
           }
           const result = await response.json();
           await fetchRecipes();
+          renderCategoryFilter();
           loadRecipeIntoForm(Number(result.id));
           setStatus(
             wasUpdate ? "Dish updated successfully." : "Dish created successfully.",
@@ -840,6 +906,7 @@
           setStatus("Loading recipes...", "info");
           await fetchCategories();
           await fetchRecipes();
+          renderCategoryFilter();
           renderRecipeList();
           if (recipes.length) {
             loadRecipeIntoForm(recipes[0].id);

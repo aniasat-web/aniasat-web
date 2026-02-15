@@ -22,6 +22,10 @@ def init_db() -> None:
     with get_connection() as conn:
         conn.executescript(schema)
 
+        recipe_columns = {row[1] for row in conn.execute("PRAGMA table_info(recipes)").fetchall()}
+        if "category" not in recipe_columns:
+            conn.execute("ALTER TABLE recipes ADD COLUMN category TEXT")
+
         columns = {row[1] for row in conn.execute("PRAGMA table_info(service_snapshots)").fetchall()}
         if "retreat_plan_id" not in columns:
             conn.execute(

@@ -26,6 +26,7 @@ CREATE TABLE IF NOT EXISTS unit_conversions (
 CREATE TABLE IF NOT EXISTS recipes (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL UNIQUE,
+    category TEXT,
     base_servings REAL NOT NULL,
     notes TEXT,
     created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP

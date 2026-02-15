@@ -7,33 +7,69 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap"
       rel="stylesheet"
     />
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" />
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tom-select@2.4.3/dist/css/tom-select.bootstrap5.min.css" />
     <style>
+      :root {
+        --bg: #faf8f5;
+        --ink: #292524;
+        --muted: #78716c;
+        --border: #e7e5e4;
+        --primary: #b45309;
+        --primary-hover: #92400e;
+        --surface: #fffefb;
+      }
       body {
-        font-family: "Manrope", sans-serif;
-        background-color: #f8fafc;
-        color: #1e293b;
+        font-family: "Plus Jakarta Sans", sans-serif;
+        background-color: var(--bg);
+        color: var(--ink);
         padding-top: 70px; /* Space for fixed navbar */
+      }
+      h1, h2, h3, .navbar-brand {
+        font-family: "Instrument Serif", serif;
+      }
+      h1 { letter-spacing: -0.01em; }
+      .navbar-brand {
+        font-size: 1.5rem;
+        font-weight: 400 !important; /* Serif carries the weight */
+        letter-spacing: -0.01em;
       }
       .navbar {
         background: rgba(255, 255, 255, 0.95);
         backdrop-filter: blur(10px);
-        border-bottom: 1px solid #e2e8f0;
+        border-bottom: 1px solid var(--border);
         box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
       }
       .navbar-brand {
-        font-weight: 800;
-        letter-spacing: -0.02em;
-        color: #0f766e !important;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        color: var(--primary) !important;
+      }
+      .navbar .nav-link {
+        color: var(--muted);
+        letter-spacing: 0.02em;
+      }
+      .navbar .nav-link:hover {
+        color: var(--primary);
+      }
+      .navbar .nav-link.active {
+        color: var(--ink) !important;
+      }
+      .brand-logo {
+        width: 36px;
+        height: 36px;
+        object-fit: contain;
+        flex-shrink: 0;
       }
       .card {
         border-radius: 1rem;
-        border: 1px solid #e2e8f0;
+        border: 1px solid var(--border);
         box-shadow: 0 1px 3px rgba(0,0,0,0.1);
         transition: transform 0.2s, box-shadow 0.2s;
         margin-bottom: 1.5rem;
@@ -42,14 +78,14 @@
         box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
       }
       .hero-gradient {
-        background: linear-gradient(135deg, #ffffff 0%, #f0fdfa 100%);
-        border-color: #ccfbf1;
+        background: linear-gradient(135deg, var(--surface) 0%, #fef3c7 100%);
+        border-color: #fde68a;
       }
       .stat-card {
         padding: 0.75rem 1rem;
         text-align: center;
         background: white;
-        border: 1px solid #e2e8f0;
+        border: 1px solid var(--border);
         border-radius: 0.75rem;
         min-width: 90px;
         box-shadow: 0 1px 2px rgba(0,0,0,0.05);
@@ -58,10 +94,10 @@
         display: block;
         font-size: 1.25rem;
         font-weight: 800;
-        color: #0f766e;
+        color: var(--primary);
       }
       .stat-card small {
-        color: #64748b;
+        color: var(--muted);
         font-weight: 700;
         text-transform: uppercase;
         font-size: 0.65rem;
@@ -82,17 +118,17 @@
       .meal-evening { background-color: #f5f5f4; color: #57534e; }
       
       .dish-list {
-        background-color: #f8fafc;
+        background-color: var(--bg);
         padding: 1rem;
         border-radius: 0.75rem;
-        border: 1px dashed #cbd5e1;
+        border: 1px dashed #d6d3d1;
       }
-      .btn-primary { background-color: #0f766e; border-color: #0f766e; }
-      .btn-primary:hover { background-color: #115e59; border-color: #115e59; }
+      .btn-primary { background-color: var(--primary); border-color: var(--primary); }
+      .btn-primary:hover { background-color: var(--primary-hover); border-color: var(--primary-hover); }
       
       .toolbar {
-        background-color: #f1f5f9;
-        border: 1px solid #e2e8f0;
+        background-color: #f5f5f4;
+        border: 1px solid var(--border);
         border-radius: 0.75rem;
         padding: 1rem;
       }
@@ -115,14 +151,102 @@
         background: #fef2f2;
         border-color: #fee2e2;
       }
+
+      /* ── Flatpickr warm earth theme ── */
+      .flatpickr-calendar {
+        font-family: "Plus Jakarta Sans", sans-serif;
+        border-radius: 0.75rem;
+        box-shadow: 0 10px 25px rgba(0,0,0,0.12);
+        border: 1px solid var(--border);
+      }
+      .flatpickr-months .flatpickr-month,
+      .flatpickr-weekdays,
+      span.flatpickr-weekday {
+        background: #92400e;
+        color: #fff;
+      }
+      .flatpickr-months .flatpickr-prev-month,
+      .flatpickr-months .flatpickr-next-month {
+        color: #fff;
+        fill: #fff;
+      }
+      .flatpickr-months .flatpickr-prev-month:hover svg,
+      .flatpickr-months .flatpickr-next-month:hover svg {
+        fill: #fde68a;
+      }
+      .flatpickr-current-month .cur-month,
+      .flatpickr-current-month input.cur-year {
+        color: #fff;
+        font-weight: 700;
+      }
+      .flatpickr-day.today {
+        border-color: #b45309;
+        color: #b45309;
+      }
+      .flatpickr-day.today:hover {
+        background: #fffbeb;
+        border-color: #b45309;
+        color: #b45309;
+      }
+      .flatpickr-day.selected,
+      .flatpickr-day.selected:hover,
+      .flatpickr-day.selected:focus {
+        background: #b45309;
+        border-color: #b45309;
+        color: #fff;
+      }
+      .flatpickr-day:hover {
+        background: #fffbeb;
+        border-color: #fde68a;
+      }
+
+      /* ── Tom Select warm earth theme ── */
+      .ts-wrapper.single .ts-control,
+      .ts-wrapper.multi .ts-control {
+        font-family: "Plus Jakarta Sans", sans-serif;
+        font-size: 0.875rem;
+        border-color: var(--border);
+        border-radius: 0.375rem;
+        padding: 0.35rem 0.75rem;
+        min-height: 31px;
+        background: var(--surface);
+      }
+      .ts-wrapper.focus .ts-control {
+        border-color: #b45309;
+        box-shadow: 0 0 0 0.2rem rgba(180,83,9,0.15);
+      }
+      .ts-dropdown {
+        font-family: "Plus Jakarta Sans", sans-serif;
+        font-size: 0.875rem;
+        border-color: var(--border);
+        border-radius: 0.5rem;
+        box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+        margin-top: 4px;
+      }
+      .ts-dropdown .active {
+        background-color: #fffbeb;
+        color: #92400e;
+      }
+      .ts-dropdown .option {
+        padding: 0.5rem 0.75rem;
+      }
+      .ts-wrapper .ts-control input {
+        font-family: "Plus Jakarta Sans", sans-serif;
+      }
+      .ts-dropdown .no-results {
+        padding: 0.5rem 0.75rem;
+        color: var(--muted);
+        font-size: 0.8rem;
+      }
     </style>
   </head>
   <body>
     <!-- Navbar -->
-    <nav class="navbar navbar-expand-lg fixed-top">
+    <nav class="navbar navbar-expand-lg navbar-light fixed-top">
       <div class="container">
         <a class="navbar-brand" href="#">
-          <i class="fa-solid fa-utensils me-2"></i>Retreat Ops
+          <img class="brand-logo" src="assets/blossom-mark.png" alt="Blossom logo" />
+          <span>Retreat Ops</span>
         </a>
         <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarContent">
           <span class="navbar-toggler-icon"></span>
@@ -130,13 +254,16 @@
         <div class="collapse navbar-collapse" id="navbarContent">
           <ul class="navbar-nav ms-auto mb-2 mb-lg-0 fw-semibold small text-uppercase">
             <li class="nav-item">
-              <a class="nav-link active" href="#"><i class="fa-solid fa-calendar-days me-1"></i> Planner</a>
+              <a class="nav-link active" href="retreat-planner-sample.html"><i class="fa-solid fa-calendar-days me-1"></i> Planner</a>
             </li>
             <li class="nav-item">
-              <a class="nav-link text-muted" href="#"><i class="fa-solid fa-fire-burner me-1"></i> Kitchen</a>
+              <a class="nav-link" href="kitchen-service-view.html"><i class="fa-solid fa-fire-burner me-1"></i> Kitchen</a>
             </li>
             <li class="nav-item">
-              <a class="nav-link text-muted" href="#"><i class="fa-solid fa-gear me-1"></i> Settings</a>
+              <a class="nav-link" href="recipe-admin.html"><i class="fa-solid fa-book me-1"></i> Recipes</a>
+            </li>
+            <li class="nav-item">
+              <span class="nav-link text-muted"><i class="fa-solid fa-gear me-1"></i> Settings</span>
             </li>
           </ul>
         </div>
@@ -276,18 +403,15 @@
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <script src="https://cdn.jsdelivr.net/npm/tom-select@2.4.3/dist/js/tom-select.complete.min.js"></script>
     <script>
       const MEALS = ["Breakfast", "Lunch", "Dinner", "Evening Chai"];
 
       let recipeCatalog = {};
-
-      const GRAMS_PER_CUP = {
-        "Rolled Oats": 90,
-        Rajma: 264,
-        "Toor Dal": 192,
-        "Sona Masoori Rice": 185,
-        Almonds: 140,
-      };
+      const gramsPerCupByIngredient = {};
+      const ingredientSpecificConversions = new Map();
+      const genericSolidConversions = new Map();
+      const genericLiquidConversions = new Map();
 
       const UNIT_ALIASES = {
         cups: "cup",
@@ -398,43 +522,167 @@
         return UNIT_ALIASES[value] || value;
       }
 
+      function normalizeIngredientKey(name) {
+        return String(name || "").trim().toLowerCase().replace(/\s+/g, " ");
+      }
+
+      function isMassUnit(unit) {
+        return Boolean(MASS_TO_G[unit]);
+      }
+
+      function isVolumeUnit(unit) {
+        return Boolean(VOLUME_TO_ML[unit]);
+      }
+
+      function setPreferredConversion(map, key, candidate) {
+        if (!candidate || !Number.isFinite(candidate.quantityFrom) || candidate.quantityFrom <= 0) {
+          return;
+        }
+        const existing = map.get(key);
+        if (!existing) {
+          map.set(key, candidate);
+          return;
+        }
+
+        const existingMass = isMassUnit(existing.unitTo);
+        const candidateMass = isMassUnit(candidate.unitTo);
+        if (candidateMass && !existingMass) {
+          map.set(key, candidate);
+          return;
+        }
+
+        const existingVolume = isVolumeUnit(existing.unitTo);
+        const candidateVolume = isVolumeUnit(candidate.unitTo);
+        if (!existingMass && !candidateMass && candidateVolume && !existingVolume) {
+          map.set(key, candidate);
+        }
+      }
+
+      function clearConversionData() {
+        ingredientSpecificConversions.clear();
+        genericSolidConversions.clear();
+        genericLiquidConversions.clear();
+        Object.keys(gramsPerCupByIngredient).forEach((key) => delete gramsPerCupByIngredient[key]);
+      }
+
+      function applyConversion(qty, conversion) {
+        if (!conversion || !Number.isFinite(qty) || conversion.quantityFrom <= 0) {
+          return null;
+        }
+        return {
+          qty: (qty / conversion.quantityFrom) * conversion.quantityTo,
+          unit: conversion.unitTo,
+        };
+      }
+
+      function toCanonicalQuantity(name, qty, unit) {
+        const normalized = normalizeUnit(unit);
+        if (MASS_TO_G[normalized]) {
+          return { qty: qty * MASS_TO_G[normalized], unit: "g" };
+        }
+
+        if (VOLUME_TO_ML[normalized]) {
+          const gramsPerCup = gramsPerCupByIngredient[normalizeIngredientKey(name)];
+          if (Number.isFinite(gramsPerCup) && gramsPerCup > 0) {
+            const cups = (qty * VOLUME_TO_ML[normalized]) / VOLUME_TO_ML.cup;
+            return { qty: cups * gramsPerCup, unit: "g" };
+          }
+          return { qty: qty * VOLUME_TO_ML[normalized], unit: "ml" };
+        }
+
+        return { qty, unit: normalized || unit };
+      }
+
+      function toShoppingFromCanonical(canonicalQty, canonicalUnit) {
+        if (!Number.isFinite(canonicalQty)) {
+          return { qty: canonicalQty, unit: canonicalUnit };
+        }
+
+        if (canonicalUnit === "g") {
+          if (canonicalQty >= 1000) {
+            return { qty: canonicalQty / 1000, unit: "kg" };
+          }
+          return { qty: canonicalQty, unit: "g" };
+        }
+
+        if (canonicalUnit === "ml") {
+          if (canonicalQty >= 1000) {
+            return { qty: canonicalQty / 1000, unit: "l" };
+          }
+          return { qty: canonicalQty, unit: "ml" };
+        }
+
+        return { qty: canonicalQty, unit: canonicalUnit };
+      }
+
       function formatNumber(value) {
         return Number(value).toFixed(value >= 10 ? 1 : 2).replace(/\.00$/, "");
       }
 
       function suggestShoppingUnit(name, qty, unit) {
         const normalized = normalizeUnit(unit);
-        if (MASS_TO_G[normalized]) {
-          const grams = qty * MASS_TO_G[normalized];
-          if (grams >= 1000) {
-            return { qty: grams / 1000, unit: "kg", canonicalQty: grams, canonicalUnit: "g" };
-          }
-          return { qty: grams, unit: "g", canonicalQty: grams, canonicalUnit: "g" };
+        if (!Number.isFinite(qty)) {
+          return { qty, unit: normalized || unit, canonicalQty: qty, canonicalUnit: normalized || unit };
         }
 
-        if (VOLUME_TO_ML[normalized]) {
-          const gramsPerCup = GRAMS_PER_CUP[name];
-          if (gramsPerCup) {
-            const cups = (qty * VOLUME_TO_ML[normalized]) / VOLUME_TO_ML.cup;
-            const grams = cups * gramsPerCup;
-            if (grams >= 1000) {
-              return { qty: grams / 1000, unit: "kg", canonicalQty: grams, canonicalUnit: "g" };
-            }
-            return { qty: grams, unit: "g", canonicalQty: grams, canonicalUnit: "g" };
-          }
+        const ingredientKey = normalizeIngredientKey(name);
+        let converted = null;
 
-          const ml = qty * VOLUME_TO_ML[normalized];
-          if (ml >= 1000) {
-            return { qty: ml / 1000, unit: "l", canonicalQty: ml, canonicalUnit: "ml" };
-          }
-          return { qty: ml, unit: "ml", canonicalQty: ml, canonicalUnit: "ml" };
+        const specificKey = `${ingredientKey}|${normalized}`;
+        const specificConversion = ingredientSpecificConversions.get(specificKey);
+        if (specificConversion) {
+          converted = applyConversion(qty, specificConversion);
         }
 
-        return { qty, unit: normalized || unit, canonicalQty: qty, canonicalUnit: normalized || unit };
+        if (!converted) {
+          const genericSolid = genericSolidConversions.get(normalized);
+          if (genericSolid) {
+            converted = applyConversion(qty, genericSolid);
+          }
+        }
+
+        if (!converted) {
+          const genericLiquid = genericLiquidConversions.get(normalized);
+          if (genericLiquid) {
+            converted = applyConversion(qty, genericLiquid);
+          }
+        }
+
+        const canonical = converted
+          ? toCanonicalQuantity(name, converted.qty, converted.unit)
+          : toCanonicalQuantity(name, qty, normalized || unit);
+        const shopping = toShoppingFromCanonical(canonical.qty, canonical.unit);
+
+        return {
+          qty: shopping.qty,
+          unit: shopping.unit,
+          canonicalQty: canonical.qty,
+          canonicalUnit: canonical.unit,
+        };
       }
 
       function getRecipeNames() {
         return Object.keys(recipeCatalog).sort((a, b) => a.localeCompare(b));
+      }
+
+      function initTomSelect(selectEl) {
+        if (!selectEl || selectEl.tomselect || selectEl.disabled || typeof TomSelect === "undefined") {
+          return;
+        }
+        new TomSelect(selectEl, {
+          create: false,
+          maxOptions: null,
+          allowEmptyOption: true,
+          render: {
+            no_results: function() {
+              return '<div class="no-results">No matching dishes</div>';
+            },
+          },
+        });
+      }
+
+      function initAllTomSelects() {
+        dayContainer.querySelectorAll(".dish-select:not(.tomselected)").forEach(initTomSelect);
       }
 
       function refreshDishSelectOptions() {
@@ -445,9 +693,87 @@
             return;
           }
           const selectedValue = existing.value;
+          if (existing.tomselect) {
+            existing.tomselect.destroy();
+          }
           const replacement = createRecipeSelect(selectedValue);
-          row.replaceChild(replacement, existing);
+          existing.parentNode.replaceChild(replacement, existing);
         });
+        initAllTomSelects();
+      }
+
+      async function loadConversionDataFromApi() {
+        clearConversionData();
+        const conversionsEndpoint = apiUrl("/api/unit-conversions");
+        const ingredientsEndpoint = apiUrl("/api/ingredients");
+        try {
+          const [conversionsResponse, ingredientsResponse] = await Promise.all([
+            fetch(conversionsEndpoint),
+            fetch(ingredientsEndpoint),
+          ]);
+
+          if (!conversionsResponse.ok) {
+            throw new Error(`Unit conversions HTTP ${conversionsResponse.status}`);
+          }
+          if (!ingredientsResponse.ok) {
+            throw new Error(`Ingredients HTTP ${ingredientsResponse.status}`);
+          }
+
+          const [conversionRows, ingredientRows] = await Promise.all([
+            conversionsResponse.json(),
+            ingredientsResponse.json(),
+          ]);
+
+          if (Array.isArray(conversionRows)) {
+            conversionRows.forEach((row) => {
+              const context = String(row.context || "").trim();
+              const unitFrom = normalizeUnit(row.unit_from || row.unitFrom || "");
+              const unitTo = normalizeUnit(row.unit_to || row.unitTo || "");
+              const quantityFrom = Number(row.quantity_from ?? row.quantityFrom ?? NaN);
+              const quantityTo = Number(row.quantity_to ?? row.quantityTo ?? NaN);
+              if (!context || !unitFrom || !unitTo || !Number.isFinite(quantityFrom) || !Number.isFinite(quantityTo) || quantityFrom <= 0) {
+                return;
+              }
+
+              const candidate = { quantityFrom, quantityTo, unitTo };
+              if (context === "ingredient_specific") {
+                const name = String(row.item_name || row.itemName || "").trim();
+                if (!name) {
+                  return;
+                }
+                const key = `${normalizeIngredientKey(name)}|${unitFrom}`;
+                setPreferredConversion(ingredientSpecificConversions, key, candidate);
+                return;
+              }
+
+              if (context === "generic_solid") {
+                setPreferredConversion(genericSolidConversions, unitFrom, candidate);
+                return;
+              }
+              if (context === "generic_liquid") {
+                setPreferredConversion(genericLiquidConversions, unitFrom, candidate);
+              }
+            });
+          }
+
+          if (Array.isArray(ingredientRows)) {
+            ingredientRows.forEach((row) => {
+              const name = String(row.name || "").trim();
+              const gramsPerCup = Number(row.grams_per_cup ?? row.gramsPerCup ?? NaN);
+              if (!name || !Number.isFinite(gramsPerCup) || gramsPerCup <= 0) {
+                return;
+              }
+              gramsPerCupByIngredient[normalizeIngredientKey(name)] = gramsPerCup;
+            });
+          }
+
+          updateRetreatStoreStatus(
+            `Loaded ${ingredientSpecificConversions.size} ingredient conversions + ${Object.keys(gramsPerCupByIngredient).length} densities.`,
+          );
+        } catch (error) {
+          console.error("Conversion load failed:", error);
+          updateRetreatStoreStatus("Could not load conversion table. Using basic unit rules.");
+        }
       }
 
       async function loadRecipesFromApi() {
@@ -765,6 +1091,7 @@
         updateHeroStats(days);
         setMealPlanVisible(days > 0);
         updateKitchenPublishStatus("Plan changed. Open Kitchen Service Page to publish.");
+        initAllTomSelects();
         scheduleAutoSave();
       }
 
@@ -965,7 +1292,9 @@
 
         const kitchenUrl = new URL("kitchen-service-view.html", window.location.href);
         kitchenUrl.searchParams.set("plan", String(currentRetreatPlanId));
-        kitchenUrl.searchParams.set("api", API_BASE);
+        if (API_BASE !== window.location.origin) {
+          kitchenUrl.searchParams.set("api", API_BASE);
+        }
         shareInput.value = kitchenUrl.toString();
         if (copyBtn) {
           copyBtn.disabled = false;
@@ -1276,7 +1605,10 @@
           if (!dishList) {
             return;
           }
-          dishList.appendChild(createDishRow(""));
+          const newRow = createDishRow("");
+          dishList.appendChild(newRow);
+          const newSelect = newRow.querySelector(".dish-select");
+          if (newSelect) { initTomSelect(newSelect); }
           scheduleAutoSave();
           return;
         }
@@ -1288,7 +1620,10 @@
           if (!dishList) {
             return;
           }
-          removeBtn.closest(".dish-row")?.remove();
+          const dishRow = removeBtn.closest(".dish-row");
+          const dishSelect = dishRow?.querySelector(".dish-select");
+          if (dishSelect?.tomselect) { dishSelect.tomselect.destroy(); }
+          dishRow?.remove();
           scheduleAutoSave();
         }
       }
@@ -1384,9 +1719,11 @@
           return;
         }
         const kitchenUrl = new URL("kitchen-service-view.html", window.location.href);
-        kitchenUrl.searchParams.set("api", API_BASE);
         if (currentRetreatPlanId) {
           kitchenUrl.searchParams.set("plan", String(currentRetreatPlanId));
+        }
+        if (API_BASE !== window.location.origin) {
+          kitchenUrl.searchParams.set("api", API_BASE);
         }
         window.location.href = kitchenUrl.toString();
       });
@@ -1413,6 +1750,7 @@
         setMealPlanVisible(false);
         refreshDayVisibility();
         void refreshRetreatPlanOptions();
+        await loadConversionDataFromApi();
         await loadRecipesFromApi();
         await loadKitchenPublishStatus();
       }

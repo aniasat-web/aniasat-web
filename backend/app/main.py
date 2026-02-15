@@ -10,6 +10,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from .db import get_connection, init_db
+from .usda import populate_ingredient_conversions
 
 app = FastAPI(title="Retreat Ops API", version="0.1.0")
 
@@ -53,6 +54,19 @@ COUNT_UNITS = {
     "loaves",
 }
 
+RECIPE_CATEGORIES = [
+    "M's Recipes",
+    "Breakfast",
+    "Salads",
+    "Vegetable Dishes",
+    "Dals & Stews",
+    "Khichdi & Kadhi",
+    "Rice Dishes",
+    "Desserts",
+    "Chai & Coffee",
+    "Pickles",
+]
+
 
 class IngredientInput(BaseModel):
     name: str = Field(min_length=1)
@@ -93,9 +107,11 @@ class RecipeIngredientCreate(BaseModel):
 
 class RecipeCreate(BaseModel):
     name: str = Field(min_length=1)
+    category: str | None = None
     base_servings: float = Field(gt=0)
     notes: str | None = None
     ingredients: list[RecipeIngredientCreate] = Field(min_length=1)
+    steps: list[str] = Field(default_factory=list)
 
 
 class RetreatPlanMeal(BaseModel):
@@ -164,44 +180,122 @@ def list_ingredients() -> list[dict[str, Any]]:
     return [dict(r) for r in rows]
 
 
+@app.get("/api/unit-conversions")
+def list_unit_conversions() -> list[dict[str, Any]]:
+    with get_connection() as conn:
+        rows = conn.execute(
+            """
+            SELECT
+                id,
+                item_name,
+                quantity_from,
+                unit_from,
+                quantity_to,
+                unit_to,
+                context,
+                source_sheet,
+                source_row,
+                notes
+            FROM unit_conversions
+            ORDER BY context, item_name, unit_from, id
+            """
+        ).fetchall()
+    return [
+        {
+            "id": int(row["id"]),
+            "item_name": row["item_name"],
+            "quantity_from": float(row["quantity_from"]),
+            "unit_from": row["unit_from"],
+            "quantity_to": float(row["quantity_to"]),
+            "unit_to": row["unit_to"],
+            "context": row["context"],
+            "source_sheet": row["source_sheet"],
+            "source_row": row["source_row"],
+            "notes": row["notes"],
+        }
+        for row in rows
+    ]
+
+
+@app.get("/api/recipe-categories")
+def list_recipe_categories() -> list[str]:
+    return RECIPE_CATEGORIES
+
+
 @app.post("/api/recipes")
 def create_recipe(payload: RecipeCreate) -> dict[str, Any]:
+    recipe_name = payload.name.strip()
+    if not recipe_name:
+        raise HTTPException(status_code=400, detail="Recipe name cannot be blank")
+    recipe_category = normalize_recipe_category(payload.category)
+    recipe_notes = payload.notes.strip() if payload.notes and payload.notes.strip() else None
+
     with get_connection() as conn:
         try:
             recipe_row = conn.execute(
-                "INSERT INTO recipes(name, base_servings, notes) VALUES (?, ?, ?) RETURNING id, name, base_servings, notes",
-                (payload.name.strip(), payload.base_servings, payload.notes),
+                """
+                INSERT INTO recipes(name, category, base_servings, notes)
+                VALUES (?, ?, ?, ?)
+                RETURNING id, name, category, base_servings, notes
+                """,
+                (recipe_name, recipe_category, payload.base_servings, recipe_notes),
             ).fetchone()
+            recipe_id = int(recipe_row["id"])
+            replace_recipe_ingredients(conn, recipe_id, payload.ingredients)
+            replace_recipe_steps(conn, recipe_id, payload.steps)
         except Exception as exc:
             raise HTTPException(status_code=400, detail=f"Could not create recipe: {exc}") from exc
-
-        recipe_id = recipe_row["id"]
-
-        for item in payload.ingredients:
-            ing_name = item.ingredient_name.strip()
-            ing_row = conn.execute(
-                "SELECT id FROM ingredients WHERE lower(name) = lower(?)", (ing_name,)
-            ).fetchone()
-            if not ing_row:
-                ing_row = conn.execute(
-                    "INSERT INTO ingredients(name) VALUES (?) RETURNING id", (ing_name,)
-                ).fetchone()
-
-            conn.execute(
-                """
-                INSERT INTO recipe_ingredients(recipe_id, ingredient_id, quantity, unit, prep_notes)
-                VALUES (?, ?, ?, ?, ?)
-                """,
-                (recipe_id, ing_row["id"], item.quantity, normalize_unit(item.unit), item.prep_notes),
-            )
 
         conn.commit()
 
     return {
         "id": recipe_row["id"],
         "name": recipe_row["name"],
+        "category": recipe_row["category"],
         "base_servings": recipe_row["base_servings"],
         "notes": recipe_row["notes"],
+    }
+
+
+@app.put("/api/recipes/{recipe_id}")
+def update_recipe(recipe_id: int, payload: RecipeCreate) -> dict[str, Any]:
+    recipe_name = payload.name.strip()
+    if not recipe_name:
+        raise HTTPException(status_code=400, detail="Recipe name cannot be blank")
+    recipe_category = normalize_recipe_category(payload.category)
+    recipe_notes = payload.notes.strip() if payload.notes and payload.notes.strip() else None
+
+    with get_connection() as conn:
+        existing = conn.execute("SELECT id FROM recipes WHERE id = ?", (recipe_id,)).fetchone()
+        if not existing:
+            raise HTTPException(status_code=404, detail="Recipe not found")
+
+        try:
+            conn.execute(
+                """
+                UPDATE recipes
+                SET name = ?, category = ?, base_servings = ?, notes = ?
+                WHERE id = ?
+                """,
+                (recipe_name, recipe_category, payload.base_servings, recipe_notes, recipe_id),
+            )
+            replace_recipe_ingredients(conn, recipe_id, payload.ingredients)
+            replace_recipe_steps(conn, recipe_id, payload.steps)
+            updated = conn.execute(
+                "SELECT id, name, category, base_servings, notes FROM recipes WHERE id = ?",
+                (recipe_id,),
+            ).fetchone()
+        except Exception as exc:
+            raise HTTPException(status_code=400, detail=f"Could not update recipe: {exc}") from exc
+
+        conn.commit()
+
+    return {
+        "id": int(updated["id"]),
+        "name": updated["name"],
+        "category": updated["category"],
+        "base_servings": float(updated["base_servings"]),
+        "notes": updated["notes"],
     }
 
 
@@ -209,7 +303,11 @@ def create_recipe(payload: RecipeCreate) -> dict[str, Any]:
 def list_recipes() -> list[dict[str, Any]]:
     with get_connection() as conn:
         rows = conn.execute(
-            "SELECT id, name, base_servings, notes, created_at FROM recipes ORDER BY created_at DESC"
+            """
+            SELECT id, name, category, base_servings, notes, created_at
+            FROM recipes
+            ORDER BY created_at DESC
+            """
         ).fetchall()
     return [dict(r) for r in rows]
 
@@ -218,7 +316,11 @@ def list_recipes() -> list[dict[str, Any]]:
 def list_recipes_full() -> list[dict[str, Any]]:
     with get_connection() as conn:
         recipes = conn.execute(
-            "SELECT id, name, base_servings, notes, created_at FROM recipes ORDER BY name"
+            """
+            SELECT id, name, category, base_servings, notes, created_at
+            FROM recipes
+            ORDER BY name
+            """
         ).fetchall()
 
         ingredient_rows = conn.execute(
@@ -267,6 +369,7 @@ def list_recipes_full() -> list[dict[str, Any]]:
             {
                 "id": recipe_id,
                 "name": recipe["name"],
+                "category": recipe["category"],
                 "base_servings": float(recipe["base_servings"]),
                 "notes": recipe["notes"],
                 "created_at": recipe["created_at"],
@@ -548,6 +651,87 @@ def normalize_unit(unit: str) -> str:
         "pounds": "lb",
     }
     return aliases.get(value, value)
+
+
+def normalize_recipe_category(category: str | None) -> str | None:
+    if category is None:
+        return None
+    candidate = " ".join(str(category).strip().split())
+    if not candidate:
+        return None
+
+    matches = [known for known in RECIPE_CATEGORIES if known.lower() == candidate.lower()]
+    if matches:
+        return matches[0]
+
+    raise HTTPException(
+        status_code=400,
+        detail=(
+            f"Unknown recipe category '{candidate}'. "
+            f"Allowed categories: {', '.join(RECIPE_CATEGORIES)}"
+        ),
+    )
+
+
+def get_or_create_ingredient_id(conn: Any, ingredient_name: str) -> int:
+    ing_name = ingredient_name.strip()
+    if not ing_name:
+        raise HTTPException(status_code=400, detail="Ingredient name cannot be blank")
+
+    ing_row = conn.execute(
+        "SELECT id FROM ingredients WHERE lower(name) = lower(?)",
+        (ing_name,),
+    ).fetchone()
+    if ing_row:
+        return int(ing_row["id"])
+
+    created = conn.execute(
+        "INSERT INTO ingredients(name) VALUES (?) RETURNING id",
+        (ing_name,),
+    ).fetchone()
+    ingredient_id = int(created["id"])
+
+    # Automatically fetch USDA density data for the new ingredient.
+    try:
+        populate_ingredient_conversions(conn, ingredient_id, ing_name)
+    except Exception:
+        import logging
+        logging.getLogger(__name__).warning(
+            "USDA lookup failed for %r — ingredient created without density data",
+            ing_name,
+            exc_info=True,
+        )
+
+    return ingredient_id
+
+
+def replace_recipe_ingredients(
+    conn: Any, recipe_id: int, ingredients: list[RecipeIngredientCreate]
+) -> None:
+    conn.execute("DELETE FROM recipe_ingredients WHERE recipe_id = ?", (recipe_id,))
+    for item in ingredients:
+        ingredient_id = get_or_create_ingredient_id(conn, item.ingredient_name)
+        prep_notes = item.prep_notes.strip() if item.prep_notes and item.prep_notes.strip() else None
+        conn.execute(
+            """
+            INSERT INTO recipe_ingredients(recipe_id, ingredient_id, quantity, unit, prep_notes)
+            VALUES (?, ?, ?, ?, ?)
+            """,
+            (recipe_id, ingredient_id, item.quantity, normalize_unit(item.unit), prep_notes),
+        )
+
+
+def replace_recipe_steps(conn: Any, recipe_id: int, steps: list[str] | None) -> None:
+    conn.execute("DELETE FROM recipe_steps WHERE recipe_id = ?", (recipe_id,))
+    clean_steps = [step.strip() for step in (steps or []) if step and step.strip()]
+    for index, instruction in enumerate(clean_steps, start=1):
+        conn.execute(
+            """
+            INSERT INTO recipe_steps(recipe_id, step_order, instruction)
+            VALUES (?, ?, ?)
+            """,
+            (recipe_id, index, instruction),
+        )
 
 
 def ingredient_grams_per_cup(ingredient_name: str) -> float | None:

@@ -1,0 +1,863 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Recipe Admin</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+    <style>
+      :root {
+        --bg: #faf8f5;
+        --ink: #292524;
+        --muted: #78716c;
+        --border: #e7e5e4;
+        --primary: #b45309;
+        --primary-hover: #92400e;
+        --surface: #fffefb;
+        --ok: #047857;
+        --ok-bg: #ecfdf5;
+        --err: #b91c1c;
+        --err-bg: #fef2f2;
+      }
+
+      body {
+        font-family: "Plus Jakarta Sans", sans-serif;
+        background-color: var(--bg);
+        color: var(--ink);
+        padding-top: 70px;
+      }
+
+      h1, h2, h3, .navbar-brand {
+        font-family: "Instrument Serif", serif;
+      }
+
+      .navbar {
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(10px);
+        border-bottom: 1px solid var(--border);
+        box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+      }
+
+      .navbar-brand {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-size: 1.5rem;
+        color: var(--primary) !important;
+      }
+
+      .navbar .nav-link {
+        color: var(--muted);
+        letter-spacing: 0.02em;
+      }
+
+      .navbar .nav-link:hover {
+        color: var(--primary);
+      }
+
+      .navbar .nav-link.active {
+        color: var(--ink) !important;
+      }
+
+      .brand-logo {
+        width: 36px;
+        height: 36px;
+        object-fit: contain;
+        flex-shrink: 0;
+      }
+
+      .card {
+        border-radius: 1rem;
+        border: 1px solid var(--border);
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+      }
+
+      .hero-gradient {
+        background: linear-gradient(135deg, var(--surface) 0%, #fef3c7 100%);
+        border-color: #fde68a;
+      }
+
+      .stat-card {
+        padding: 0.75rem 1rem;
+        text-align: center;
+        background: white;
+        border: 1px solid var(--border);
+        border-radius: 0.75rem;
+        min-width: 110px;
+      }
+
+      .stat-card span {
+        display: block;
+        font-size: 1.3rem;
+        font-weight: 800;
+        color: var(--primary);
+      }
+
+      .stat-card small {
+        color: var(--muted);
+        font-weight: 700;
+        text-transform: uppercase;
+        font-size: 0.65rem;
+        letter-spacing: 0.04em;
+      }
+
+      .panel-card {
+        height: 100%;
+      }
+
+      .sticky-panel {
+        position: sticky;
+        top: 84px;
+      }
+
+      .recipe-list {
+        max-height: calc(100vh - 270px);
+        overflow: auto;
+      }
+
+      .recipe-item {
+        width: 100%;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 0.75rem;
+        padding: 0.7rem 0.8rem;
+        text-align: left;
+        margin-bottom: 0.5rem;
+      }
+
+      .recipe-item:hover {
+        border-color: #f59e0b;
+        background: #fffbeb;
+      }
+
+      .recipe-item.active {
+        border-color: #b45309;
+        background: #fff7ed;
+        box-shadow: 0 0 0 1px #b45309 inset;
+      }
+
+      .recipe-item-title {
+        font-weight: 700;
+        color: var(--ink);
+      }
+
+      .recipe-item-meta {
+        color: var(--muted);
+        font-size: 0.8rem;
+      }
+
+      .muted-note {
+        color: var(--muted);
+        font-size: 0.86rem;
+      }
+
+      .ingredient-table th {
+        font-size: 0.78rem;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        color: var(--muted);
+      }
+
+      .ingredient-table td,
+      .ingredient-table th {
+        vertical-align: middle;
+        padding: 0.55rem;
+      }
+
+      .ingredient-table input {
+        min-width: 90px;
+      }
+
+      .icon-btn {
+        width: 32px;
+        height: 32px;
+        border-radius: 8px;
+        border: 1px solid var(--border);
+        background: white;
+        color: #6b7280;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .icon-btn:hover {
+        color: #b91c1c;
+        background: #fef2f2;
+        border-color: #fecaca;
+      }
+
+      .step-row {
+        display: grid;
+        grid-template-columns: auto 1fr auto;
+        gap: 0.5rem;
+        align-items: start;
+        margin-bottom: 0.55rem;
+      }
+
+      .step-index {
+        width: 32px;
+        height: 32px;
+        border-radius: 999px;
+        background: #fffbeb;
+        border: 1px solid #fde68a;
+        color: #92400e;
+        font-size: 0.8rem;
+        font-weight: 700;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .step-text {
+        min-height: 72px;
+        resize: vertical;
+      }
+
+      .status-pill {
+        border-radius: 999px;
+        padding: 0.3rem 0.75rem;
+        font-weight: 700;
+        font-size: 0.78rem;
+      }
+
+      .status-pill.ok {
+        color: var(--ok);
+        background: var(--ok-bg);
+        border: 1px solid #a7f3d0;
+      }
+
+      .status-pill.err {
+        color: var(--err);
+        background: var(--err-bg);
+        border: 1px solid #fecaca;
+      }
+
+      .status-pill.info {
+        color: #1d4ed8;
+        background: #eff6ff;
+        border: 1px solid #bfdbfe;
+      }
+
+      @media (max-width: 992px) {
+        .sticky-panel {
+          position: static;
+        }
+        .recipe-list {
+          max-height: 320px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <nav class="navbar navbar-expand-lg navbar-light fixed-top">
+      <div class="container">
+        <a class="navbar-brand" href="index.html">
+          <img class="brand-logo" src="assets/blossom-mark.png" alt="Blossom logo" />
+          <span>Retreat Ops</span>
+        </a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarContent">
+          <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarContent">
+          <ul class="navbar-nav ms-auto mb-2 mb-lg-0 fw-semibold small text-uppercase">
+            <li class="nav-item">
+              <a class="nav-link" href="retreat-planner-sample.html"><i class="fa-solid fa-calendar-days me-1"></i> Planner</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="kitchen-service-view.html"><i class="fa-solid fa-fire-burner me-1"></i> Kitchen</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link active" href="recipe-admin.html"><i class="fa-solid fa-book me-1"></i> Recipes</a>
+            </li>
+            <li class="nav-item">
+              <span class="nav-link text-muted"><i class="fa-solid fa-gear me-1"></i> Settings</span>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </nav>
+
+    <main class="container py-4">
+      <section class="card hero-gradient p-4 mb-4 border-0">
+        <div class="d-flex flex-wrap align-items-center gap-3">
+          <div class="flex-grow-1">
+            <h1 class="fw-bold mb-2"><i class="fa-solid fa-book-medical me-2 text-warning"></i>Dish Admin</h1>
+            <p class="text-secondary mb-0">
+              Edit existing dishes or create new ones. Changes save directly to the recipe catalog used by Planner and Kitchen.
+            </p>
+          </div>
+          <div class="d-flex gap-2 flex-wrap">
+            <div class="stat-card">
+              <span id="statRecipes">0</span>
+              <small>Recipes</small>
+            </div>
+            <div class="stat-card">
+              <span id="statMode">New</span>
+              <small>Mode</small>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="row g-4">
+        <div class="col-lg-4">
+          <div class="card panel-card p-3 sticky-panel">
+            <div class="d-flex gap-2 mb-3">
+              <div class="input-group">
+                <span class="input-group-text bg-white"><i class="fa-solid fa-magnifying-glass text-muted"></i></span>
+                <input id="recipeSearch" type="text" class="form-control" placeholder="Search dish name" />
+              </div>
+              <button id="newDishBtn" type="button" class="btn btn-outline-primary fw-semibold">
+                <i class="fa-solid fa-plus me-1"></i>New
+              </button>
+            </div>
+            <div id="recipeList" class="recipe-list"></div>
+          </div>
+        </div>
+
+        <div class="col-lg-8">
+          <div class="card panel-card p-4">
+            <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+              <div>
+                <h2 class="h4 fw-bold mb-1" id="formTitle">Create New Dish</h2>
+                <p class="muted-note mb-0">At least one ingredient and one step are required.</p>
+              </div>
+              <span id="saveStatus" class="status-pill info">Ready.</span>
+            </div>
+
+            <form id="recipeForm">
+              <div class="row g-3 mb-3">
+                <div class="col-md-4">
+                  <label class="form-label fw-bold small text-muted text-uppercase">Dish Name</label>
+                  <input id="dishName" type="text" class="form-control" required />
+                </div>
+                <div class="col-md-4">
+                  <label class="form-label fw-bold small text-muted text-uppercase">Category</label>
+                  <select id="dishCategory" class="form-select">
+                    <option value="">Uncategorized</option>
+                  </select>
+                </div>
+                <div class="col-md-2">
+                  <label class="form-label fw-bold small text-muted text-uppercase">Base Servings</label>
+                  <input id="baseServings" type="number" min="0.1" step="0.1" class="form-control" value="6" required />
+                </div>
+                <div class="col-md-2">
+                  <label class="form-label fw-bold small text-muted text-uppercase">Recipe ID</label>
+                  <input id="dishId" type="text" class="form-control bg-light" readonly placeholder="New" />
+                </div>
+                <div class="col-12">
+                  <label class="form-label fw-bold small text-muted text-uppercase">Notes (optional)</label>
+                  <textarea id="dishNotes" class="form-control" rows="2" placeholder="Short description or context"></textarea>
+                </div>
+              </div>
+
+              <div class="border rounded-3 p-3 mb-3 bg-light-subtle">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                  <h3 class="h6 fw-bold mb-0"><i class="fa-solid fa-list-check me-2 text-primary"></i>Ingredients</h3>
+                  <button id="addIngredientBtn" type="button" class="btn btn-sm btn-outline-primary fw-semibold">
+                    <i class="fa-solid fa-plus me-1"></i>Add Ingredient
+                  </button>
+                </div>
+                <div class="table-responsive">
+                  <table class="table table-sm ingredient-table mb-0">
+                    <thead>
+                      <tr>
+                        <th>Ingredient</th>
+                        <th>Qty</th>
+                        <th>Unit</th>
+                        <th>Prep Note</th>
+                        <th></th>
+                      </tr>
+                    </thead>
+                    <tbody id="ingredientBody"></tbody>
+                  </table>
+                </div>
+              </div>
+
+              <div class="border rounded-3 p-3 mb-4 bg-light-subtle">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                  <h3 class="h6 fw-bold mb-0"><i class="fa-solid fa-list-ol me-2 text-primary"></i>Cooking Steps</h3>
+                  <button id="addStepBtn" type="button" class="btn btn-sm btn-outline-primary fw-semibold">
+                    <i class="fa-solid fa-plus me-1"></i>Add Step
+                  </button>
+                </div>
+                <div id="stepsList"></div>
+              </div>
+
+              <div class="d-flex flex-wrap gap-2">
+                <button id="saveDishBtn" type="submit" class="btn btn-primary fw-bold">
+                  <i class="fa-solid fa-floppy-disk me-2"></i>Save Dish
+                </button>
+                <button id="reloadDishBtn" type="button" class="btn btn-outline-secondary fw-semibold">
+                  <i class="fa-solid fa-rotate-right me-2"></i>Reload Form
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+      const recipeList = document.getElementById("recipeList");
+      const recipeSearch = document.getElementById("recipeSearch");
+      const newDishBtn = document.getElementById("newDishBtn");
+      const statRecipes = document.getElementById("statRecipes");
+      const statMode = document.getElementById("statMode");
+      const saveStatus = document.getElementById("saveStatus");
+      const formTitle = document.getElementById("formTitle");
+      const recipeForm = document.getElementById("recipeForm");
+      const dishIdInput = document.getElementById("dishId");
+      const dishNameInput = document.getElementById("dishName");
+      const dishCategoryInput = document.getElementById("dishCategory");
+      const baseServingsInput = document.getElementById("baseServings");
+      const dishNotesInput = document.getElementById("dishNotes");
+      const ingredientBody = document.getElementById("ingredientBody");
+      const addIngredientBtn = document.getElementById("addIngredientBtn");
+      const stepsList = document.getElementById("stepsList");
+      const addStepBtn = document.getElementById("addStepBtn");
+      const reloadDishBtn = document.getElementById("reloadDishBtn");
+
+      const API_BASE = resolveApiBase();
+      const FALLBACK_CATEGORIES = [
+        "M's Recipes",
+        "Breakfast",
+        "Salads",
+        "Vegetable Dishes",
+        "Dals & Stews",
+        "Khichdi & Kadhi",
+        "Rice Dishes",
+        "Desserts",
+        "Chai & Coffee",
+        "Pickles",
+      ];
+      let recipes = [];
+      let selectedRecipeId = null;
+
+      function resolveApiBase() {
+        const queryValue = new URLSearchParams(window.location.search).get("api");
+        const base = queryValue && queryValue.trim() ? queryValue.trim() : window.location.origin;
+        return base.replace(/\/+$/, "");
+      }
+
+      function apiUrl(path) {
+        return `${API_BASE}${path.startsWith("/") ? path : `/${path}`}`;
+      }
+
+      function setStatus(message, mode = "info") {
+        saveStatus.textContent = message;
+        saveStatus.classList.remove("info", "ok", "err");
+        saveStatus.classList.add(mode);
+      }
+
+      function setModeLabel() {
+        statMode.textContent = selectedRecipeId ? "Edit" : "New";
+      }
+
+      function setCategoryOptions(categories) {
+        const unique = Array.from(new Set((Array.isArray(categories) ? categories : [])
+          .map((value) => String(value || "").trim())
+          .filter(Boolean)));
+        const options = unique.length ? unique : FALLBACK_CATEGORIES;
+        const currentValue = dishCategoryInput.value;
+        dishCategoryInput.innerHTML = '<option value="">Uncategorized</option>';
+        options.forEach((name) => {
+          const option = document.createElement("option");
+          option.value = name;
+          option.textContent = name;
+          dishCategoryInput.appendChild(option);
+        });
+        if (currentValue && options.includes(currentValue)) {
+          dishCategoryInput.value = currentValue;
+        } else {
+          dishCategoryInput.value = "";
+        }
+      }
+
+      function makeIngredientRow(item = {}) {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td><input class="form-control form-control-sm ing-name" type="text" value="${escapeAttribute(item.name || "")}" placeholder="e.g. Toor Dal" /></td>
+          <td><input class="form-control form-control-sm ing-qty" type="number" min="0.0001" step="0.0001" value="${escapeAttribute(item.quantity ?? "")}" placeholder="0" /></td>
+          <td><input class="form-control form-control-sm ing-unit" type="text" value="${escapeAttribute(item.unit || "")}" placeholder="kg, g, cup" /></td>
+          <td><input class="form-control form-control-sm ing-prep" type="text" value="${escapeAttribute(item.prep_notes || "")}" placeholder="optional" /></td>
+          <td class="text-end"><button type="button" class="icon-btn remove-ingredient" aria-label="Remove ingredient"><i class="fa-solid fa-xmark"></i></button></td>
+        `;
+        return tr;
+      }
+
+      function makeStepRow(text = "") {
+        const wrapper = document.createElement("div");
+        wrapper.className = "step-row";
+        wrapper.innerHTML = `
+          <span class="step-index">1</span>
+          <textarea class="form-control step-text" placeholder="Describe this step...">${escapeHtml(text)}</textarea>
+          <button type="button" class="icon-btn remove-step" aria-label="Remove step"><i class="fa-solid fa-xmark"></i></button>
+        `;
+        return wrapper;
+      }
+
+      function refreshStepIndices() {
+        Array.from(stepsList.querySelectorAll(".step-row .step-index")).forEach((el, idx) => {
+          el.textContent = String(idx + 1);
+        });
+      }
+
+      function clearForm() {
+        dishIdInput.value = "";
+        dishNameInput.value = "";
+        dishCategoryInput.value = "";
+        baseServingsInput.value = "6";
+        dishNotesInput.value = "";
+        ingredientBody.innerHTML = "";
+        stepsList.innerHTML = "";
+        ingredientBody.appendChild(makeIngredientRow());
+        stepsList.appendChild(makeStepRow());
+        refreshStepIndices();
+      }
+
+      function normalizeRecipeShape(recipe) {
+        const ingredients = Array.isArray(recipe.ingredients)
+          ? recipe.ingredients.map((ing) => ({
+              name: String(ing.name || ""),
+              quantity: Number(ing.quantity || 0),
+              unit: String(ing.unit || ""),
+              prep_notes: ing.prep_notes ? String(ing.prep_notes) : "",
+            }))
+          : [];
+        const steps = Array.isArray(recipe.steps)
+          ? recipe.steps.map((step) => String(step || "").trim()).filter(Boolean)
+          : [];
+        return {
+          id: Number(recipe.id),
+          name: String(recipe.name || ""),
+          category: String(recipe.category || ""),
+          base_servings: Number(recipe.base_servings || 0),
+          notes: recipe.notes ? String(recipe.notes) : "",
+          ingredients,
+          steps,
+        };
+      }
+
+      function loadRecipeIntoForm(recipeId) {
+        const selected = recipes.find((recipe) => recipe.id === recipeId);
+        if (!selected) {
+          return;
+        }
+        selectedRecipeId = selected.id;
+        dishIdInput.value = String(selected.id);
+        dishNameInput.value = selected.name;
+        dishCategoryInput.value = selected.category || "";
+        baseServingsInput.value = String(selected.base_servings || 1);
+        dishNotesInput.value = selected.notes || "";
+
+        ingredientBody.innerHTML = "";
+        if (selected.ingredients.length) {
+          selected.ingredients.forEach((item) => ingredientBody.appendChild(makeIngredientRow(item)));
+        } else {
+          ingredientBody.appendChild(makeIngredientRow());
+        }
+
+        stepsList.innerHTML = "";
+        if (selected.steps.length) {
+          selected.steps.forEach((step) => stepsList.appendChild(makeStepRow(step)));
+        } else {
+          stepsList.appendChild(makeStepRow());
+        }
+        refreshStepIndices();
+
+        formTitle.textContent = `Edit Dish: ${selected.name}`;
+        setModeLabel();
+        setStatus(`Loaded "${selected.name}".`, "info");
+        renderRecipeList();
+      }
+
+      function startNewDish() {
+        selectedRecipeId = null;
+        clearForm();
+        formTitle.textContent = "Create New Dish";
+        setModeLabel();
+        setStatus("New dish form ready.", "info");
+        renderRecipeList();
+      }
+
+      function renderRecipeList() {
+        const term = recipeSearch.value.trim().toLowerCase();
+        const filtered = recipes.filter((recipe) => recipe.name.toLowerCase().includes(term));
+        recipeList.innerHTML = "";
+
+        if (!filtered.length) {
+          const empty = document.createElement("div");
+          empty.className = "text-muted small p-2";
+          empty.textContent = term ? "No matching dishes." : "No recipes loaded from API.";
+          recipeList.appendChild(empty);
+          return;
+        }
+
+        filtered.forEach((recipe) => {
+          const button = document.createElement("button");
+          button.type = "button";
+          button.className = "recipe-item";
+          if (recipe.id === selectedRecipeId) {
+            button.classList.add("active");
+          }
+          button.innerHTML = `
+            <div class="recipe-item-title">${escapeHtml(recipe.name)}</div>
+            <div class="recipe-item-meta">${escapeHtml(recipe.category || "Uncategorized")} · Serves ${formatNumber(recipe.base_servings)} · ${recipe.ingredients.length} ingredients</div>
+          `;
+          button.addEventListener("click", () => loadRecipeIntoForm(recipe.id));
+          recipeList.appendChild(button);
+        });
+      }
+
+      function formatNumber(value) {
+        const numeric = Number(value);
+        if (!Number.isFinite(numeric)) {
+          return String(value);
+        }
+        if (Math.abs(numeric - Math.round(numeric)) < 1e-9) {
+          return String(Math.round(numeric));
+        }
+        return numeric.toFixed(2).replace(/\.?0+$/, "");
+      }
+
+      function collectPayloadFromForm() {
+        const name = dishNameInput.value.trim();
+        const category = String(dishCategoryInput.value || "").trim();
+        const baseServings = Number(baseServingsInput.value);
+        const notesRaw = dishNotesInput.value.trim();
+
+        if (!name) {
+          throw new Error("Dish name is required.");
+        }
+        if (!Number.isFinite(baseServings) || baseServings <= 0) {
+          throw new Error("Base servings must be a positive number.");
+        }
+
+        const ingredients = [];
+        const rows = Array.from(ingredientBody.querySelectorAll("tr"));
+        rows.forEach((row) => {
+          const ingredient_name = String(row.querySelector(".ing-name")?.value || "").trim();
+          const quantityRaw = String(row.querySelector(".ing-qty")?.value || "").trim();
+          const unit = String(row.querySelector(".ing-unit")?.value || "").trim();
+          const prep_notes_raw = String(row.querySelector(".ing-prep")?.value || "").trim();
+
+          const isCompletelyEmpty = !ingredient_name && !quantityRaw && !unit && !prep_notes_raw;
+          if (isCompletelyEmpty) {
+            return;
+          }
+
+          const quantity = Number(quantityRaw);
+          if (!ingredient_name || !unit || !Number.isFinite(quantity) || quantity <= 0) {
+            throw new Error("Each ingredient row must have name, quantity (>0), and unit.");
+          }
+          ingredients.push({
+            ingredient_name,
+            quantity,
+            unit,
+            prep_notes: prep_notes_raw || null,
+          });
+        });
+
+        if (!ingredients.length) {
+          throw new Error("Add at least one ingredient.");
+        }
+
+        const steps = Array.from(stepsList.querySelectorAll(".step-text"))
+          .map((el) => String(el.value || "").trim())
+          .filter(Boolean);
+        if (!steps.length) {
+          throw new Error("Add at least one cooking step.");
+        }
+
+        return {
+          name,
+          category: category || null,
+          base_servings: baseServings,
+          notes: notesRaw || null,
+          ingredients,
+          steps,
+        };
+      }
+
+      async function parseApiError(response) {
+        const raw = await response.text();
+        if (!raw) {
+          return `HTTP ${response.status}`;
+        }
+        try {
+          const parsed = JSON.parse(raw);
+          if (parsed && typeof parsed === "object" && typeof parsed.detail === "string") {
+            return parsed.detail;
+          }
+        } catch (error) {
+          // keep raw text fallback
+        }
+        return raw;
+      }
+
+      async function fetchRecipes() {
+        const response = await fetch(apiUrl("/api/recipes/full"));
+        if (!response.ok) {
+          throw new Error(await parseApiError(response));
+        }
+        const payload = await response.json();
+        recipes = Array.isArray(payload)
+          ? payload.map(normalizeRecipeShape).sort((a, b) => a.name.localeCompare(b.name))
+          : [];
+        statRecipes.textContent = String(recipes.length);
+      }
+
+      async function fetchCategories() {
+        try {
+          const response = await fetch(apiUrl("/api/recipe-categories"));
+          if (!response.ok) {
+            throw new Error(await parseApiError(response));
+          }
+          const payload = await response.json();
+          setCategoryOptions(payload);
+        } catch (error) {
+          setCategoryOptions(FALLBACK_CATEGORIES);
+        }
+      }
+
+      async function saveRecipe() {
+        let payload;
+        try {
+          payload = collectPayloadFromForm();
+        } catch (error) {
+          setStatus(error instanceof Error ? error.message : String(error), "err");
+          return;
+        }
+
+        const wasUpdate = Boolean(selectedRecipeId);
+        const method = selectedRecipeId ? "PUT" : "POST";
+        const endpoint = selectedRecipeId
+          ? apiUrl(`/api/recipes/${selectedRecipeId}`)
+          : apiUrl("/api/recipes");
+
+        try {
+          setStatus("Saving...", "info");
+          const response = await fetch(endpoint, {
+            method,
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          });
+          if (!response.ok) {
+            throw new Error(await parseApiError(response));
+          }
+          const result = await response.json();
+          await fetchRecipes();
+          loadRecipeIntoForm(Number(result.id));
+          setStatus(
+            wasUpdate ? "Dish updated successfully." : "Dish created successfully.",
+            "ok",
+          );
+        } catch (error) {
+          setStatus(error instanceof Error ? error.message : "Could not save dish.", "err");
+        }
+      }
+
+      function escapeHtml(value) {
+        return String(value)
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;");
+      }
+
+      function escapeAttribute(value) {
+        return escapeHtml(value).replace(/"/g, "&quot;");
+      }
+
+      recipeSearch.addEventListener("input", renderRecipeList);
+      newDishBtn.addEventListener("click", startNewDish);
+      addIngredientBtn.addEventListener("click", () => {
+        ingredientBody.appendChild(makeIngredientRow());
+      });
+      ingredientBody.addEventListener("click", (event) => {
+        const target = event.target instanceof Element ? event.target : null;
+        const removeBtn = target?.closest(".remove-ingredient");
+        if (!removeBtn) {
+          return;
+        }
+        const row = removeBtn.closest("tr");
+        row?.remove();
+        if (!ingredientBody.querySelector("tr")) {
+          ingredientBody.appendChild(makeIngredientRow());
+        }
+      });
+
+      addStepBtn.addEventListener("click", () => {
+        stepsList.appendChild(makeStepRow());
+        refreshStepIndices();
+      });
+
+      stepsList.addEventListener("click", (event) => {
+        const target = event.target instanceof Element ? event.target : null;
+        const removeBtn = target?.closest(".remove-step");
+        if (!removeBtn) {
+          return;
+        }
+        const row = removeBtn.closest(".step-row");
+        row?.remove();
+        if (!stepsList.querySelector(".step-row")) {
+          stepsList.appendChild(makeStepRow());
+        }
+        refreshStepIndices();
+      });
+
+      recipeForm.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        await saveRecipe();
+      });
+
+      reloadDishBtn.addEventListener("click", () => {
+        if (selectedRecipeId) {
+          loadRecipeIntoForm(selectedRecipeId);
+        } else {
+          clearForm();
+          setStatus("Form reset.", "info");
+        }
+      });
+
+      document.addEventListener("keydown", (event) => {
+        if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "s") {
+          event.preventDefault();
+          void saveRecipe();
+        }
+      });
+
+      async function init() {
+        try {
+          setStatus("Loading recipes...", "info");
+          await fetchCategories();
+          await fetchRecipes();
+          renderRecipeList();
+          if (recipes.length) {
+            loadRecipeIntoForm(recipes[0].id);
+            setStatus(`Loaded ${recipes.length} recipes.`, "ok");
+          } else {
+            startNewDish();
+            setStatus("No recipes found. Create your first dish.", "info");
+          }
+        } catch (error) {
+          clearForm();
+          setStatus(
+            `Could not load recipes (${apiUrl("/api/recipes/full")}). Check API.`,
+            "err",
+          );
+        }
+      }
+
+      void init();
+    </script>
+  </body>
+</html>

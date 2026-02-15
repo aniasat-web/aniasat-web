@@ -7,5 +7,15 @@ services:
     startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
     envVars:
       - key: PYTHON_VERSION
-        value: "3.12"
+        value: "3.12.8"
+      - key: RETREAT_OPS_AUTO_SEED_MASTER_DATA
+        value: "1"
+      - key: RETREAT_OPS_COOKIE_SECURE
+        value: "1"
+      - key: USDA_API_KEY
+        sync: false
+      - key: RETREAT_OPS_BOOTSTRAP_ADMIN_USERNAME
+        sync: false
+      - key: RETREAT_OPS_BOOTSTRAP_ADMIN_PASSWORD
+        sync: false
     plan: free

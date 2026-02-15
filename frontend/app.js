@@ -1,4 +1,10 @@
-const API_BASE = "http://localhost:8000";
+function resolveApiBase() {
+  const queryValue = new URLSearchParams(window.location.search).get("api");
+  const base = queryValue && queryValue.trim() ? queryValue.trim() : window.location.origin;
+  return base.replace(/\/+$/, "");
+}
+
+const API_BASE = resolveApiBase();
 
 const body = document.getElementById("ingredient-body");
 const output = document.getElementById("output");

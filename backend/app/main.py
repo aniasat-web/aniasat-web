@@ -2,13 +2,35 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from typing import Annotated
 from typing import Any
 
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import Depends, FastAPI, HTTPException, Query, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
+from .auth import (
+    BOOTSTRAP_ADMIN_PASSWORD_ENV,
+    BOOTSTRAP_ADMIN_USERNAME_ENV,
+    ROLE_ADMIN,
+    ROLE_PLANNER,
+    SESSION_COOKIE_NAME,
+    AuthUser,
+    authenticate_credentials,
+    authenticate_session_token,
+    cookie_secure_enabled,
+    create_session,
+    create_user,
+    default_route_for_role,
+    delete_session,
+    ensure_bootstrap_admin,
+    has_any_users,
+    list_users,
+    normalize_role,
+    update_user,
+)
 from .db import get_connection, init_db
 from .usda import populate_ingredient_conversions
 
@@ -66,6 +88,12 @@ RECIPE_CATEGORIES = [
     "Chai & Coffee",
     "Pickles",
 ]
+
+PUBLIC_API_PATHS = {
+    "/api/health",
+    "/api/auth/login",
+    "/api/auth/bootstrap-status",
+}
 
 
 class IngredientInput(BaseModel):
@@ -133,6 +161,24 @@ class RetreatPlanDuplicatePayload(BaseModel):
     name: str | None = None
 
 
+class AuthLoginPayload(BaseModel):
+    username: str = Field(min_length=1)
+    password: str = Field(min_length=1)
+
+
+class AuthUserCreatePayload(BaseModel):
+    username: str = Field(min_length=1)
+    password: str = Field(min_length=1)
+    role: str = Field(min_length=1)
+    is_active: bool = True
+
+
+class AuthUserUpdatePayload(BaseModel):
+    password: str | None = None
+    role: str | None = None
+    is_active: bool | None = None
+
+
 class ServiceSnapshotIngredient(BaseModel):
     name: str = Field(min_length=1)
     scaledQty: str = Field(min_length=1)
@@ -168,11 +214,210 @@ class ServiceSnapshotPayload(BaseModel):
 @app.on_event("startup")
 def on_startup() -> None:
     init_db()
+    with get_connection() as conn:
+        created = ensure_bootstrap_admin(conn)
+        conn.commit()
+    if created:
+        print("Bootstrap admin user created from environment variables.")
+
+
+def get_request_user(request: Request) -> AuthUser | None:
+    candidate = getattr(request.state, "auth_user", None)
+    if isinstance(candidate, AuthUser):
+        return candidate
+    return None
+
+
+def require_authenticated_user(request: Request) -> AuthUser:
+    user = get_request_user(request)
+    if not user:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    return user
+
+
+def require_roles(*allowed_roles: str):
+    normalized_allowed = {normalize_role(role) for role in allowed_roles}
+
+    def dependency(user: Annotated[AuthUser, Depends(require_authenticated_user)]) -> AuthUser:
+        if user.role not in normalized_allowed:
+            raise HTTPException(
+                status_code=403,
+                detail=f"Requires one of roles: {', '.join(sorted(normalized_allowed))}",
+            )
+        return user
+
+    return dependency
+
+
+@app.middleware("http")
+async def api_auth_middleware(request: Request, call_next):
+    path = request.url.path
+    if not path.startswith("/api"):
+        return await call_next(request)
+
+    if request.method == "OPTIONS" or path in PUBLIC_API_PATHS:
+        return await call_next(request)
+
+    raw_token = request.cookies.get(SESSION_COOKIE_NAME)
+    if not raw_token:
+        return JSONResponse(status_code=401, content={"detail": "Authentication required"})
+
+    with get_connection() as conn:
+        user = authenticate_session_token(conn, raw_token)
+        conn.commit()
+
+    if not user:
+        return JSONResponse(status_code=401, content={"detail": "Session expired. Please log in again."})
+
+    request.state.auth_user = user
+    return await call_next(request)
 
 
 @app.get("/api/health")
 def health() -> dict[str, str]:
     return {"status": "ok"}
+
+
+@app.get("/api/auth/bootstrap-status")
+def auth_bootstrap_status() -> dict[str, Any]:
+    with get_connection() as conn:
+        configured = has_any_users(conn)
+    return {
+        "has_users": configured,
+        "bootstrap_env_required": [BOOTSTRAP_ADMIN_USERNAME_ENV, BOOTSTRAP_ADMIN_PASSWORD_ENV],
+    }
+
+
+@app.post("/api/auth/login")
+def login(payload: AuthLoginPayload, response: Response) -> dict[str, Any]:
+    with get_connection() as conn:
+        if not has_any_users(conn):
+            raise HTTPException(
+                status_code=503,
+                detail=(
+                    "No users configured. Set "
+                    f"{BOOTSTRAP_ADMIN_USERNAME_ENV} and {BOOTSTRAP_ADMIN_PASSWORD_ENV}, "
+                    "then restart the service."
+                ),
+            )
+        user = authenticate_credentials(conn, payload.username, payload.password)
+        if not user:
+            raise HTTPException(status_code=401, detail="Invalid username or password")
+        token = create_session(conn, user.id)
+        conn.commit()
+
+    response.set_cookie(
+        key=SESSION_COOKIE_NAME,
+        value=token,
+        httponly=True,
+        secure=cookie_secure_enabled(),
+        samesite="lax",
+        path="/",
+    )
+
+    return {
+        "id": user.id,
+        "username": user.username,
+        "role": user.role,
+        "default_path": default_route_for_role(user.role),
+    }
+
+
+@app.post("/api/auth/logout")
+def logout(request: Request, response: Response) -> dict[str, str]:
+    raw_token = request.cookies.get(SESSION_COOKIE_NAME)
+    with get_connection() as conn:
+        delete_session(conn, raw_token)
+        conn.commit()
+
+    response.delete_cookie(SESSION_COOKIE_NAME, path="/")
+    return {"status": "ok"}
+
+
+@app.get("/api/auth/me")
+def auth_me(request: Request) -> dict[str, Any]:
+    user = require_authenticated_user(request)
+    return {
+        "id": user.id,
+        "username": user.username,
+        "role": user.role,
+        "is_active": user.is_active,
+        "default_path": default_route_for_role(user.role),
+    }
+
+
+@app.get("/api/auth/users")
+def auth_list_users(
+    _user: Annotated[AuthUser, Depends(require_roles(ROLE_ADMIN))],
+) -> list[dict[str, Any]]:
+    with get_connection() as conn:
+        return list_users(conn)
+
+
+@app.post("/api/auth/users")
+def auth_create_user(
+    payload: AuthUserCreatePayload,
+    _user: Annotated[AuthUser, Depends(require_roles(ROLE_ADMIN))],
+) -> dict[str, Any]:
+    with get_connection() as conn:
+        try:
+            created = create_user(
+                conn,
+                payload.username,
+                payload.password,
+                payload.role,
+                is_active=payload.is_active,
+            )
+        except Exception as exc:
+            raise HTTPException(status_code=400, detail=f"Could not create user: {exc}") from exc
+        conn.commit()
+    return {
+        "id": created.id,
+        "username": created.username,
+        "role": created.role,
+        "is_active": created.is_active,
+    }
+
+
+@app.put("/api/auth/users/{user_id}")
+def auth_update_user(
+    user_id: int,
+    payload: AuthUserUpdatePayload,
+    request: Request,
+    _user: Annotated[AuthUser, Depends(require_roles(ROLE_ADMIN))],
+) -> Any:
+    with get_connection() as conn:
+        try:
+            updated = update_user(
+                conn,
+                user_id,
+                password=payload.password,
+                role=payload.role,
+                is_active=payload.is_active,
+            )
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        conn.commit()
+
+    current = get_request_user(request)
+    if current and current.id == updated.id and not updated.is_active:
+        response = JSONResponse(
+            {
+                "id": updated.id,
+                "username": updated.username,
+                "role": updated.role,
+                "is_active": updated.is_active,
+            }
+        )
+        response.delete_cookie(SESSION_COOKIE_NAME, path="/")
+        return response
+
+    return {
+        "id": updated.id,
+        "username": updated.username,
+        "role": updated.role,
+        "is_active": updated.is_active,
+    }
 
 
 @app.get("/api/ingredients")
@@ -227,7 +472,10 @@ def list_recipe_categories() -> list[str]:
 
 
 @app.post("/api/recipes")
-def create_recipe(payload: RecipeCreate) -> dict[str, Any]:
+def create_recipe(
+    payload: RecipeCreate,
+    _user: Annotated[AuthUser, Depends(require_roles(ROLE_ADMIN))],
+) -> dict[str, Any]:
     recipe_name = payload.name.strip()
     if not recipe_name:
         raise HTTPException(status_code=400, detail="Recipe name cannot be blank")
@@ -262,7 +510,11 @@ def create_recipe(payload: RecipeCreate) -> dict[str, Any]:
 
 
 @app.put("/api/recipes/{recipe_id}")
-def update_recipe(recipe_id: int, payload: RecipeCreate) -> dict[str, Any]:
+def update_recipe(
+    recipe_id: int,
+    payload: RecipeCreate,
+    _user: Annotated[AuthUser, Depends(require_roles(ROLE_ADMIN))],
+) -> dict[str, Any]:
     recipe_name = payload.name.strip()
     if not recipe_name:
         raise HTTPException(status_code=400, detail="Recipe name cannot be blank")
@@ -489,7 +741,10 @@ def get_retreat_plan(plan_id: int) -> dict[str, Any]:
 
 
 @app.post("/api/retreat-plans")
-def upsert_retreat_plan(payload: RetreatPlanPayload) -> dict[str, Any]:
+def upsert_retreat_plan(
+    payload: RetreatPlanPayload,
+    _user: Annotated[AuthUser, Depends(require_roles(ROLE_PLANNER, ROLE_ADMIN))],
+) -> dict[str, Any]:
     plan_name = payload.name.strip()
     if not plan_name:
         raise HTTPException(status_code=400, detail="Retreat name cannot be blank")
@@ -553,7 +808,9 @@ def upsert_retreat_plan(payload: RetreatPlanPayload) -> dict[str, Any]:
 
 @app.post("/api/retreat-plans/{plan_id}/duplicate")
 def duplicate_retreat_plan(
-    plan_id: int, payload: RetreatPlanDuplicatePayload | None = None
+    plan_id: int,
+    _user: Annotated[AuthUser, Depends(require_roles(ROLE_PLANNER, ROLE_ADMIN))],
+    payload: RetreatPlanDuplicatePayload | None = None,
 ) -> dict[str, Any]:
     with get_connection() as conn:
         source = conn.execute(
@@ -611,7 +868,10 @@ def duplicate_retreat_plan(
 
 
 @app.post("/api/service-snapshots")
-def create_service_snapshot(payload: ServiceSnapshotPayload) -> dict[str, Any]:
+def create_service_snapshot(
+    payload: ServiceSnapshotPayload,
+    _user: Annotated[AuthUser, Depends(require_roles(ROLE_PLANNER, ROLE_ADMIN))],
+) -> dict[str, Any]:
     with get_connection() as conn:
         if payload.retreatPlanId is not None:
             plan = conn.execute(

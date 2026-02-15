@@ -17,10 +17,32 @@ cd backend
 python -m venv .venv
 . .venv/bin/activate
 pip install -r requirements.txt
+export RETREAT_OPS_BOOTSTRAP_ADMIN_USERNAME=admin
+export RETREAT_OPS_BOOTSTRAP_ADMIN_PASSWORD='change-this-password'
 uvicorn app.main:app --reload --port 8000
 ```
 
 Then open `frontend/retreat-planner-sample.html` in a browser. The frontend resolves the API base from `window.location.origin` or the `?api=` query parameter.
+
+## Authentication and roles
+
+The app uses cookie-based authentication.
+
+- Login page: `/login.html`
+- Session cookie: `retreat_ops_session` (`HttpOnly`, `SameSite=Lax`)
+- Default session lifetime: 14 days (`RETREAT_OPS_SESSION_HOURS` to override)
+
+Bootstrap admin:
+
+- On startup, if no user exists and both env vars are set, the app creates an admin user:
+  - `RETREAT_OPS_BOOTSTRAP_ADMIN_USERNAME`
+  - `RETREAT_OPS_BOOTSTRAP_ADMIN_PASSWORD`
+
+Roles:
+
+- `viewer`: kitchen + scaling read access
+- `planner`: viewer access + retreat plan create/update/publish
+- `admin`: planner access + recipe CRUD + user management APIs
 
 ## Project layout
 

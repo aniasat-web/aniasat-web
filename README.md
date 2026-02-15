@@ -72,6 +72,38 @@ Notes:
 - The all-recipes importer deduplicates by recipe name and keeps the richest parsed version.
 - The conversions importer stores rows in `unit_conversions` and updates ingredient `grams_per_cup` where possible.
 
+## Master data in git (recommended)
+To version recipe and conversion master data (while excluding retreat plans/service snapshots), use:
+
+### Export current DB master data
+```bash
+cd backend
+. .venv/bin/activate
+python scripts/export_master_data.py --out seeds/master_data.json
+```
+
+### Import/upsert master data into DB
+```bash
+cd backend
+. .venv/bin/activate
+python scripts/import_master_data.py --seed seeds/master_data.json
+```
+
+### Validate import without writing
+```bash
+python scripts/import_master_data.py --seed seeds/master_data.json --dry-run
+```
+
+What is included:
+- `ingredients`
+- `unit_conversions`
+- `recipes` + `recipe_ingredients` + `recipe_steps`
+
+What is excluded:
+- retreat plans
+- kitchen/service snapshots
+- shopping/inventory operational records
+
 ## Current status
 This is an MVP scaffold with:
 - Core schema for recipes, ingredients, inventory, retreats, and shopping.

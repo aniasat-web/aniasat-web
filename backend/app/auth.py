@@ -92,9 +92,13 @@ def cleanup_expired_sessions(conn: Any) -> None:
 
 
 def ensure_bootstrap_admin(conn: Any) -> bool:
-    username = os.getenv(BOOTSTRAP_ADMIN_USERNAME_ENV, "").strip()
     password = os.getenv(BOOTSTRAP_ADMIN_PASSWORD_ENV, "").strip()
-    if not username or not password:
+    if not password:
+        return False
+    username = os.getenv(BOOTSTRAP_ADMIN_USERNAME_ENV, "").strip() or "admin"
+
+    # Only bootstrap when there are zero users (fresh/ephemeral DB).
+    if has_any_users(conn):
         return False
 
     existing = conn.execute(

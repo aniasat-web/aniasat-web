@@ -37,6 +37,7 @@ Bootstrap admin:
 - On startup, if no user exists and both env vars are set, the app creates an admin user:
   - `RETREAT_OPS_BOOTSTRAP_ADMIN_USERNAME`
   - `RETREAT_OPS_BOOTSTRAP_ADMIN_PASSWORD`
+  - If `RETREAT_OPS_BOOTSTRAP_ADMIN_USERNAME` is unset, it defaults to `admin`.
 
 Roles:
 

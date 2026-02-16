@@ -1,7 +1,7 @@
 {
   "format": "retreat_ops_master_data",
   "version": 1,
-  "generated_at": "2026-02-16T07:01:46.712173+00:00",
+  "generated_at": "2026-02-16T07:39:26.336102+00:00",
   "source_db": "backend/data/retreat_ops.db",
   "ingredients": [
     {
@@ -149,14 +149,6 @@
       "purchase_tier": "bulk"
     },
     {
-      "name": "Black Eyed Peas",
-      "category": "Pulses & Legumes",
-      "canonical_unit": "g",
-      "grams_per_cup": 260.0,
-      "notes": null,
-      "purchase_tier": "bulk"
-    },
-    {
       "name": "Black pepper",
       "category": "Spices & Seasonings",
       "canonical_unit": "g",
@@ -169,14 +161,6 @@
       "category": "Beverages",
       "canonical_unit": null,
       "grams_per_cup": null,
-      "notes": null,
-      "purchase_tier": "bulk"
-    },
-    {
-      "name": "Black urad split dal",
-      "category": "Pulses & Legumes",
-      "canonical_unit": "g",
-      "grams_per_cup": 140.0,
       "notes": null,
       "purchase_tier": "bulk"
     },
@@ -233,14 +217,6 @@
       "category": "Pulses & Legumes",
       "canonical_unit": null,
       "grams_per_cup": null,
-      "notes": null,
-      "purchase_tier": "bulk"
-    },
-    {
-      "name": "Cannellini beans",
-      "category": "Pulses & Legumes",
-      "canonical_unit": "g",
-      "grams_per_cup": 180.0,
       "notes": null,
       "purchase_tier": "bulk"
     },
@@ -341,14 +317,6 @@
       "purchase_tier": "bulk"
     },
     {
-      "name": "Chole Masala",
-      "category": "Spices & Seasonings",
-      "canonical_unit": "g",
-      "grams_per_cup": 96.0,
-      "notes": null,
-      "purchase_tier": "bulk"
-    },
-    {
       "name": "Chutney podi",
       "category": "Spices & Seasonings",
       "canonical_unit": "g",
@@ -397,6 +365,14 @@
       "purchase_tier": "bulk"
     },
     {
+      "name": "Coconut pieces",
+      "category": "Coconut & derivatives",
+      "canonical_unit": "tbsp",
+      "grams_per_cup": null,
+      "purchase_tier": "fresh",
+      "notes": "Small diced"
+    },
+    {
       "name": "Coriander powder",
       "category": "Spices & Seasonings",
       "canonical_unit": "g",
@@ -409,14 +385,6 @@
       "category": "Spices & Seasonings",
       "canonical_unit": "g",
       "grams_per_cup": 80.0,
-      "notes": null,
-      "purchase_tier": "bulk"
-    },
-    {
-      "name": "Cream of Rice",
-      "category": "Grains & Flours",
-      "canonical_unit": "g",
-      "grams_per_cup": 180.0,
       "notes": null,
       "purchase_tier": "bulk"
     },
@@ -467,14 +435,6 @@
       "grams_per_cup": null,
       "notes": null,
       "purchase_tier": "fresh"
-    },
-    {
-      "name": "Ditalini pasta",
-      "category": "Grains & Flours",
-      "canonical_unit": "g",
-      "grams_per_cup": 73.33,
-      "notes": null,
-      "purchase_tier": "bulk"
     },
     {
       "name": "Dried coconut slices",
@@ -595,6 +555,14 @@
       "grams_per_cup": null,
       "notes": null,
       "purchase_tier": "fresh"
+    },
+    {
+      "name": "Frozen ripe jackfruit",
+      "category": "Frozen",
+      "canonical_unit": "cups",
+      "grams_per_cup": null,
+      "purchase_tier": "fresh",
+      "notes": null
     },
     {
       "name": "frozen yam",
@@ -739,14 +707,6 @@
       "grams_per_cup": null,
       "notes": null,
       "purchase_tier": "daily"
-    },
-    {
-      "name": "Idli Rava",
-      "category": "Grains & Flours",
-      "canonical_unit": "g",
-      "grams_per_cup": 220.0,
-      "notes": null,
-      "purchase_tier": "bulk"
     },
     {
       "name": "indian eggplants",
@@ -949,22 +909,6 @@
       "purchase_tier": "daily"
     },
     {
-      "name": "Milk powder",
-      "category": "Dairy & Refrigerated",
-      "canonical_unit": "g",
-      "grams_per_cup": 125.0,
-      "notes": null,
-      "purchase_tier": "bulk"
-    },
-    {
-      "name": "Millets",
-      "category": "Grains & Flours",
-      "canonical_unit": "g",
-      "grams_per_cup": 151.0,
-      "notes": null,
-      "purchase_tier": "bulk"
-    },
-    {
       "name": "Mint",
       "category": "Herbs",
       "canonical_unit": "bunches",
@@ -974,14 +918,6 @@
     },
     {
       "name": "Mung dal",
-      "category": "Pulses & Legumes",
-      "canonical_unit": "g",
-      "grams_per_cup": 200.0,
-      "notes": null,
-      "purchase_tier": "bulk"
-    },
-    {
-      "name": "Mung Dal (Green, Split)",
       "category": "Pulses & Legumes",
       "canonical_unit": "g",
       "grams_per_cup": 200.0,
@@ -1149,14 +1085,6 @@
       "purchase_tier": "bulk"
     },
     {
-      "name": "Pindi Chole Masala",
-      "category": "Spices & Seasonings",
-      "canonical_unit": "g",
-      "grams_per_cup": 96.0,
-      "notes": null,
-      "purchase_tier": "bulk"
-    },
-    {
       "name": "Pinto Beans",
       "category": "Pulses & Legumes",
       "canonical_unit": null,
@@ -1171,14 +1099,6 @@
       "grams_per_cup": null,
       "notes": null,
       "purchase_tier": "fresh"
-    },
-    {
-      "name": "Poppy seeds",
-      "category": "Nuts & Seeds",
-      "canonical_unit": "g",
-      "grams_per_cup": 140.0,
-      "notes": null,
-      "purchase_tier": "bulk"
     },
     {
       "name": "Potatoes",
@@ -1211,14 +1131,6 @@
       "grams_per_cup": null,
       "notes": null,
       "purchase_tier": "fresh"
-    },
-    {
-      "name": "Ragi Flour",
-      "category": "Grains & Flours",
-      "canonical_unit": "g",
-      "grams_per_cup": 130.0,
-      "notes": null,
-      "purchase_tier": "bulk"
     },
     {
       "name": "Raisins",
@@ -1381,14 +1293,6 @@
       "purchase_tier": "bulk"
     },
     {
-      "name": "Shredded Parmesan",
-      "category": "Dairy & Refrigerated",
-      "canonical_unit": "g",
-      "grams_per_cup": 80.0,
-      "notes": null,
-      "purchase_tier": "fresh"
-    },
-    {
       "name": "Smoked paprika",
       "category": "Spices & Seasonings",
       "canonical_unit": "g",
@@ -1411,14 +1315,6 @@
       "grams_per_cup": 167.0,
       "notes": null,
       "purchase_tier": "bulk"
-    },
-    {
-      "name": "Sour Cream",
-      "category": "Dairy & Refrigerated",
-      "canonical_unit": "g",
-      "grams_per_cup": 245.0,
-      "notes": null,
-      "purchase_tier": "daily"
     },
     {
       "name": "sour yellow cucumber",
@@ -1541,14 +1437,6 @@
       "purchase_tier": "fresh"
     },
     {
-      "name": "Tawa masala",
-      "category": "Spices & Seasonings",
-      "canonical_unit": "g",
-      "grams_per_cup": 96.0,
-      "notes": null,
-      "purchase_tier": "bulk"
-    },
-    {
       "name": "Tea packets",
       "category": "Beverages",
       "canonical_unit": null,
@@ -1637,14 +1525,6 @@
       "purchase_tier": "bulk"
     },
     {
-      "name": "Vegan Yogurt",
-      "category": "Dairy & Refrigerated",
-      "canonical_unit": "g",
-      "grams_per_cup": 245.0,
-      "notes": null,
-      "purchase_tier": "daily"
-    },
-    {
       "name": "vegetables",
       "category": "Produce",
       "canonical_unit": "kg",
@@ -1713,14 +1593,6 @@
       "category": "Grains & Flours",
       "canonical_unit": "g",
       "grams_per_cup": 130.0,
-      "notes": null,
-      "purchase_tier": "bulk"
-    },
-    {
-      "name": "Whole White Urad Dal",
-      "category": "Pulses & Legumes",
-      "canonical_unit": "g",
-      "grams_per_cup": 140.0,
       "notes": null,
       "purchase_tier": "bulk"
     },
@@ -1924,17 +1796,6 @@
       "notes": null
     },
     {
-      "item_name": "Black Eyed Peas",
-      "quantity_from": 1.0,
-      "unit_from": "cup",
-      "quantity_to": 260.0,
-      "unit_to": "g",
-      "context": "ingredient_specific",
-      "source_sheet": "useful conversions",
-      "source_row": 78,
-      "notes": null
-    },
-    {
       "item_name": "Black Pepper",
       "quantity_from": 1.0,
       "unit_from": "cup",
@@ -1943,28 +1804,6 @@
       "context": "ingredient_specific",
       "source_sheet": "useful conversions",
       "source_row": 55,
-      "notes": null
-    },
-    {
-      "item_name": "Black urad split dal",
-      "quantity_from": 1.0,
-      "unit_from": "cup",
-      "quantity_to": 140.0,
-      "unit_to": "g",
-      "context": "ingredient_specific",
-      "source_sheet": "useful conversions",
-      "source_row": 39,
-      "notes": null
-    },
-    {
-      "item_name": "Cannellini beans",
-      "quantity_from": 1.0,
-      "unit_from": "cup",
-      "quantity_to": 180.0,
-      "unit_to": "g",
-      "context": "ingredient_specific",
-      "source_sheet": "useful conversions",
-      "source_row": 92,
       "notes": null
     },
     {
@@ -2034,17 +1873,6 @@
       "notes": null
     },
     {
-      "item_name": "Chole Masala",
-      "quantity_from": 1.0,
-      "unit_from": "cup",
-      "quantity_to": 96.0,
-      "unit_to": "g",
-      "context": "ingredient_specific",
-      "source_sheet": "useful conversions",
-      "source_row": 95,
-      "notes": null
-    },
-    {
       "item_name": "Cinnamon",
       "quantity_from": 1.0,
       "unit_from": "cup",
@@ -2089,17 +1917,6 @@
       "notes": null
     },
     {
-      "item_name": "Cream of Rice",
-      "quantity_from": 1.0,
-      "unit_from": "cup",
-      "quantity_to": 180.0,
-      "unit_to": "g",
-      "context": "ingredient_specific",
-      "source_sheet": "useful conversions",
-      "source_row": 35,
-      "notes": null
-    },
-    {
       "item_name": "Cumin",
       "quantity_from": 1.0,
       "unit_from": "tsp",
@@ -2108,17 +1925,6 @@
       "context": "ingredient_specific",
       "source_sheet": "useful conversions",
       "source_row": 13,
-      "notes": null
-    },
-    {
-      "item_name": "Ditalini pasta",
-      "quantity_from": 1.0,
-      "unit_from": "cup",
-      "quantity_to": 73.33,
-      "unit_to": "g",
-      "context": "ingredient_specific",
-      "source_sheet": "useful conversions",
-      "source_row": 102,
       "notes": null
     },
     {
@@ -2254,17 +2060,6 @@
       "notes": null
     },
     {
-      "item_name": "Idli Rava",
-      "quantity_from": 1.0,
-      "unit_from": "cup",
-      "quantity_to": 220.0,
-      "unit_to": "g",
-      "context": "ingredient_specific",
-      "source_sheet": "useful conversions",
-      "source_row": 70,
-      "notes": null
-    },
-    {
       "item_name": "Italian seasoning",
       "quantity_from": 1.0,
       "unit_from": "tsp",
@@ -2386,28 +2181,6 @@
       "notes": null
     },
     {
-      "item_name": "Milk powder",
-      "quantity_from": 1.0,
-      "unit_from": "cup",
-      "quantity_to": 125.0,
-      "unit_to": "g",
-      "context": "ingredient_specific",
-      "source_sheet": "useful conversions",
-      "source_row": 68,
-      "notes": null
-    },
-    {
-      "item_name": "Millets",
-      "quantity_from": 1.0,
-      "unit_from": "cup",
-      "quantity_to": 151.0,
-      "unit_to": "g",
-      "context": "ingredient_specific",
-      "source_sheet": "useful conversions",
-      "source_row": 72,
-      "notes": null
-    },
-    {
       "item_name": "Mung dal",
       "quantity_from": 1.0,
       "unit_from": "cup",
@@ -2416,17 +2189,6 @@
       "context": "ingredient_specific",
       "source_sheet": "useful conversions",
       "source_row": 28,
-      "notes": null
-    },
-    {
-      "item_name": "Mung Dal (Green, Split)",
-      "quantity_from": 1.0,
-      "unit_from": "cup",
-      "quantity_to": 200.0,
-      "unit_to": "g",
-      "context": "ingredient_specific",
-      "source_sheet": "useful conversions",
-      "source_row": 29,
       "notes": null
     },
     {
@@ -2474,28 +2236,6 @@
       "notes": null
     },
     {
-      "item_name": "Pindi Chole Masala",
-      "quantity_from": 1.0,
-      "unit_from": "cup",
-      "quantity_to": 96.0,
-      "unit_to": "g",
-      "context": "ingredient_specific",
-      "source_sheet": "useful conversions",
-      "source_row": 96,
-      "notes": null
-    },
-    {
-      "item_name": "Poppy seeds",
-      "quantity_from": 1.0,
-      "unit_from": "cup",
-      "quantity_to": 140.0,
-      "unit_to": "g",
-      "context": "ingredient_specific",
-      "source_sheet": "useful conversions",
-      "source_row": 27,
-      "notes": null
-    },
-    {
       "item_name": "Quinoa",
       "quantity_from": 1.0,
       "unit_from": "cup",
@@ -2504,17 +2244,6 @@
       "context": "ingredient_specific",
       "source_sheet": "useful conversions",
       "source_row": 98,
-      "notes": null
-    },
-    {
-      "item_name": "Ragi Flour",
-      "quantity_from": 1.0,
-      "unit_from": "cup",
-      "quantity_to": 130.0,
-      "unit_to": "g",
-      "context": "ingredient_specific",
-      "source_sheet": "useful conversions",
-      "source_row": 89,
       "notes": null
     },
     {
@@ -2617,17 +2346,6 @@
       "notes": null
     },
     {
-      "item_name": "Shredded Parmesan",
-      "quantity_from": 1.0,
-      "unit_from": "cup",
-      "quantity_to": 80.0,
-      "unit_to": "g",
-      "context": "ingredient_specific",
-      "source_sheet": "useful conversions",
-      "source_row": 101,
-      "notes": null
-    },
-    {
       "item_name": "Smoked paprika",
       "quantity_from": 1.0,
       "unit_from": "cup",
@@ -2661,17 +2379,6 @@
       "notes": null
     },
     {
-      "item_name": "Sour Cream",
-      "quantity_from": 1.0,
-      "unit_from": "cup",
-      "quantity_to": 245.0,
-      "unit_to": "g",
-      "context": "ingredient_specific",
-      "source_sheet": "useful conversions",
-      "source_row": 58,
-      "notes": null
-    },
-    {
       "item_name": "Sugar",
       "quantity_from": 1.0,
       "unit_from": "cup",
@@ -2691,17 +2398,6 @@
       "context": "ingredient_specific",
       "source_sheet": "useful conversions",
       "source_row": 17,
-      "notes": null
-    },
-    {
-      "item_name": "Tawa masala",
-      "quantity_from": 1.0,
-      "unit_from": "cup",
-      "quantity_to": 96.0,
-      "unit_to": "g",
-      "context": "ingredient_specific",
-      "source_sheet": "useful conversions",
-      "source_row": 47,
       "notes": null
     },
     {
@@ -2760,17 +2456,6 @@
       "notes": null
     },
     {
-      "item_name": "Vegan Yogurt",
-      "quantity_from": 1.0,
-      "unit_from": "cup",
-      "quantity_to": 245.0,
-      "unit_to": "g",
-      "context": "ingredient_specific",
-      "source_sheet": "useful conversions",
-      "source_row": 50,
-      "notes": null
-    },
-    {
       "item_name": "Vermicelli",
       "quantity_from": 1.0,
       "unit_from": "cup",
@@ -2823,17 +2508,6 @@
       "context": "ingredient_specific",
       "source_sheet": "useful conversions",
       "source_row": 86,
-      "notes": null
-    },
-    {
-      "item_name": "Whole White Urad Dal",
-      "quantity_from": 1.0,
-      "unit_from": "cup",
-      "quantity_to": 140.0,
-      "unit_to": "g",
-      "context": "ingredient_specific",
-      "source_sheet": "useful conversions",
-      "source_row": 71,
       "notes": null
     },
     {
@@ -13845,6 +13519,82 @@
         }
       ],
       "steps": []
+    },
+    {
+      "name": "Jackfruit Payasam",
+      "category": "Desserts",
+      "base_servings": 6.0,
+      "notes": "South India. V/GF. Uses frozen ripe jackfruit.",
+      "ingredients": [
+        {
+          "ingredient_name": "Frozen ripe jackfruit",
+          "quantity": 2.0,
+          "unit": "cups",
+          "prep_notes": "chopped, seeds removed"
+        },
+        {
+          "ingredient_name": "Jaggery",
+          "quantity": 1.5,
+          "unit": "cups",
+          "prep_notes": "powdered or grated"
+        },
+        {
+          "ingredient_name": "Coconut milk",
+          "quantity": 2.0,
+          "unit": "cups",
+          "prep_notes": "thick, first extract"
+        },
+        {
+          "ingredient_name": "Coconut milk",
+          "quantity": 1.0,
+          "unit": "cups",
+          "prep_notes": "thin, second extract"
+        },
+        {
+          "ingredient_name": "Cardamom powder",
+          "quantity": 1.0,
+          "unit": "tsp",
+          "prep_notes": null
+        },
+        {
+          "ingredient_name": "Coconut Oil",
+          "quantity": 3.0,
+          "unit": "tbsp",
+          "prep_notes": null
+        },
+        {
+          "ingredient_name": "Cashews",
+          "quantity": 2.0,
+          "unit": "tbsp",
+          "prep_notes": null
+        },
+        {
+          "ingredient_name": "Raisins",
+          "quantity": 2.0,
+          "unit": "tbsp",
+          "prep_notes": null
+        },
+        {
+          "ingredient_name": "Coconut pieces",
+          "quantity": 2.0,
+          "unit": "tbsp",
+          "prep_notes": "small diced"
+        },
+        {
+          "ingredient_name": "Water",
+          "quantity": 0.25,
+          "unit": "cups",
+          "prep_notes": "for melting jaggery"
+        }
+      ],
+      "steps": [
+        "Blend 2 cups chopped frozen ripe jackfruit pods into a smooth paste with minimal water.",
+        "Heat jaggery with 1/4 cup water in a pan, stir until dissolved, then strain to remove impurities.",
+        "In a heavy-bottomed pan, add 1 tbsp coconut oil, add the jackfruit paste, and sauté for 5-7 minutes until the raw smell vanishes and it thickens.",
+        "Pour in the strained jaggery syrup and cook until the mixture thickens and leaves the sides of the pan.",
+        "Pour in 1 cup thin coconut milk and simmer for 5 minutes. Reduce heat to low, then add 2 cups thick coconut milk and cardamom powder. Do not boil after adding thick coconut milk, just warm it through.",
+        "Fry cashew nuts, raisins, and coconut pieces in 1-2 tbsp coconut oil until golden, then pour over the payasam."
+      ]
     }
   ]
 }

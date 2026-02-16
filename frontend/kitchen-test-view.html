@@ -1,0 +1,881 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Testing View</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+    <link rel="stylesheet" href="assets/header-theme.css" />
+    <style>
+      :root {
+        --bg: #faf8f5;
+        --ink: #292524;
+        --muted: #78716c;
+        --border: #e7e5e4;
+        --primary: #0f766e;
+        --primary-hover: #115e59;
+        --surface: #fffefb;
+      }
+      body {
+        font-family: "Plus Jakarta Sans", sans-serif;
+        background-color: var(--bg);
+        color: var(--ink);
+        padding-top: 70px;
+      }
+      h1, h2, h3, .navbar-brand {
+        font-family: "Instrument Serif", serif;
+      }
+      .navbar {
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(10px);
+        border-bottom: 1px solid var(--border);
+        box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+      }
+      .navbar-brand {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-size: 1.35rem;
+        font-weight: 600 !important;
+        color: var(--primary) !important;
+      }
+      .navbar .nav-link {
+        color: var(--muted);
+        letter-spacing: 0.02em;
+      }
+      .navbar .nav-link:hover {
+        color: var(--primary);
+      }
+      .navbar .nav-link.active {
+        color: var(--ink) !important;
+      }
+      .brand-logo {
+        width: 48px;
+        height: 48px;
+        object-fit: contain;
+        flex-shrink: 0;
+      }
+      .card {
+        border-radius: 1rem;
+        border: 1px solid var(--border);
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        margin-bottom: 1rem;
+      }
+      .hero-gradient {
+        background: linear-gradient(135deg, var(--surface) 0%, #dcfce7 100%);
+        border-color: #86efac;
+      }
+      .btn-primary {
+        background-color: var(--primary);
+        border-color: var(--primary);
+      }
+      .btn-primary:hover {
+        background-color: var(--primary-hover);
+        border-color: var(--primary-hover);
+      }
+      .menu-group {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 0.8rem;
+        padding: 0.8rem;
+      }
+      .menu-group-title {
+        font-weight: 700;
+        color: #0f766e;
+        margin-bottom: 0.5rem;
+      }
+      .dish-check-row {
+        padding: 0.25rem 0;
+      }
+      .meal-section {
+        margin-bottom: 1rem;
+      }
+      .meal-title {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 0.75rem;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-left: 4px solid var(--primary);
+        border-radius: 1rem;
+        padding: 0.9rem;
+        margin-bottom: 0.8rem;
+      }
+      .meal-title h2 {
+        margin: 0;
+        font-size: 1.2rem;
+      }
+      .recipe-count {
+        padding: 0.4rem 0.8rem;
+        border-radius: 1.25rem;
+        font-size: 0.85rem;
+        font-weight: 700;
+        white-space: nowrap;
+        background: #ecfeff;
+        color: #0f766e;
+      }
+      .recipe-card {
+        background: #fff;
+        border: 1px solid #e2e8f0;
+        border-radius: 1rem;
+        margin-bottom: 0.8rem;
+        overflow: hidden;
+      }
+      .recipe-header {
+        padding: 0.9rem 1rem;
+        border-bottom: 1px solid #e2e8f0;
+        display: flex;
+        justify-content: space-between;
+        gap: 0.5rem;
+        align-items: center;
+      }
+      .recipe-header h3 {
+        margin: 0;
+        font-size: 1.02rem;
+        font-weight: 700;
+      }
+      .recipe-meta {
+        display: inline-flex;
+        gap: 0.4rem;
+        flex-wrap: wrap;
+      }
+      .recipe-meta .badge {
+        background: #f1f5f9;
+        color: #64748b;
+        border-radius: 999px;
+        padding: 0.25rem 0.6rem;
+        font-size: 0.8rem;
+        font-weight: 700;
+      }
+      .recipe-content {
+        padding: 0.8rem 1rem 1rem;
+      }
+      .subhead {
+        font-size: 0.8rem;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: #64748b;
+        font-weight: 700;
+        margin-bottom: 0.4rem;
+      }
+      .ingredients-list {
+        list-style: none;
+        padding: 0;
+        margin: 0 0 0.8rem;
+      }
+      .ingredients-list li {
+        padding: 0.55rem 0;
+        border-bottom: 1px solid #e2e8f0;
+        display: flex;
+        justify-content: space-between;
+        gap: 0.6rem;
+      }
+      .ingredients-list li:last-child {
+        border-bottom: none;
+      }
+      .ingredient-name {
+        font-weight: 600;
+      }
+      .ingredient-qty {
+        color: #334155;
+        font-weight: 700;
+        white-space: nowrap;
+      }
+      .steps-list {
+        margin: 0;
+        padding-left: 1.2rem;
+      }
+      .steps-list li {
+        margin-bottom: 0.35rem;
+      }
+      .meta-chip {
+        display: inline-flex;
+        align-items: center;
+        border-radius: 999px;
+        border: 1px solid var(--border);
+        background: var(--bg);
+        color: var(--muted);
+        font-size: 0.76rem;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        padding: 0.25rem 0.6rem;
+      }
+      .empty {
+        background: var(--surface);
+        border: 1px dashed #d6d3d1;
+        border-radius: 1rem;
+        padding: 1.5rem;
+        color: var(--muted);
+        text-align: center;
+      }
+      @media (max-width: 768px) {
+        .meal-title {
+          flex-direction: column;
+          align-items: flex-start;
+        }
+        .recipe-header {
+          flex-direction: column;
+          align-items: flex-start;
+        }
+      }
+      @media print {
+        nav.navbar,
+        .hero-actions,
+        .picker-card,
+        .meta-bar {
+          display: none !important;
+        }
+        body {
+          background: #fff;
+          padding-top: 0 !important;
+        }
+        .card {
+          box-shadow: none;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <nav class="navbar navbar-expand-lg navbar-light fixed-top">
+      <div class="container">
+        <a class="navbar-brand" href="index.html">
+          <img class="brand-logo" src="assets/blossom-mark.png" alt="Blossom logo" />
+          <span>Blossom Foundation Spring 2026 Retreats</span>
+        </a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarContent">
+          <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarContent">
+          <ul class="navbar-nav ms-auto mb-2 mb-lg-0 fw-semibold small text-uppercase">
+            <li class="nav-item">
+              <a class="nav-link" href="index.html"><i class="fa-solid fa-house me-1"></i> Home</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" id="backToPlanner" href="retreat-planner-sample.html"><i class="fa-solid fa-calendar-days me-1"></i> Planner</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" id="kitchenViewLink" href="kitchen-service-view.html"><i class="fa-solid fa-fire-burner me-1"></i> Retreat View</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link active" href="kitchen-test-view.html"><i class="fa-solid fa-vial me-1"></i> Testing View</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="recipe-admin.html"><i class="fa-solid fa-book me-1"></i> Recipes</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="ingredient-admin.html"><i class="fa-solid fa-carrot me-1"></i> Ingredients</a>
+            </li>
+            <li class="nav-item d-flex align-items-center">
+              <span class="nav-link text-muted d-none" id="authUserLabel"></span>
+            </li>
+            <li class="nav-item d-flex align-items-center ms-lg-2">
+              <button class="btn btn-sm btn-outline-secondary d-none" id="logoutBtn" type="button">Logout</button>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </nav>
+
+    <main class="container py-4">
+      <section class="card hero-gradient p-4 mb-3 border-0">
+        <div class="d-flex flex-wrap align-items-center gap-3">
+          <div class="flex-grow-1">
+            <h1 class="fw-bold h4 mb-1" id="retreatTitle"><i class="fa-solid fa-vial text-success me-2"></i>Testing View</h1>
+            <p class="text-secondary mb-0 small" id="retreatSubtitle">Loading retreat menu...</p>
+          </div>
+          <div class="d-flex flex-wrap gap-2 hero-actions">
+            <button class="btn btn-primary btn-sm fw-bold" id="reloadData" type="button"><i class="fa-solid fa-arrows-rotate me-1"></i> Reload</button>
+            <button class="btn btn-outline-secondary btn-sm fw-bold" id="printSheet" type="button"><i class="fa-solid fa-print me-1"></i> Print</button>
+            <a class="btn btn-outline-secondary btn-sm fw-bold" id="openKitchenViewBtn" href="kitchen-service-view.html"><i class="fa-solid fa-fire-burner me-1"></i> Retreat View</a>
+          </div>
+        </div>
+      </section>
+
+      <section class="card p-4 picker-card" id="pickerCard">
+        <div class="d-flex flex-wrap align-items-end gap-3 justify-content-between mb-3">
+          <div class="d-flex align-items-end gap-3 flex-wrap">
+            <div>
+              <label class="form-label fw-bold small text-uppercase text-muted">Test Serves Per Dish</label>
+              <input id="testServes" type="number" min="1" step="1" class="form-control form-control-sm" value="4" />
+            </div>
+            <div class="d-flex gap-2">
+              <button class="btn btn-sm btn-light border" id="selectAllDishes" type="button">Select All</button>
+              <button class="btn btn-sm btn-light border" id="clearAllDishes" type="button">Clear</button>
+            </div>
+          </div>
+          <div class="small text-muted fw-semibold">
+            Selected dishes: <span id="selectedDishCount">0</span>
+          </div>
+        </div>
+        <div id="dishSelector" class="row row-cols-1 row-cols-md-2 g-3"></div>
+      </section>
+
+      <div class="d-flex flex-wrap gap-2 mb-3 meta-bar" id="metaBar"></div>
+
+      <section class="card p-4" id="testSheetCard">
+        <div id="mealSections">
+          <div class="empty">Select one or more dishes from the retreat menu to build the test cook sheet.</div>
+        </div>
+      </section>
+    </main>
+
+    <script src="assets/auth.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+      const MEAL_ORDER = ["Breakfast", "Lunch", "Dinner", "Evening Chai"];
+      const TEST_SERVES_MIN = 1;
+      const TEST_SERVES_DEFAULT = 4;
+      const API_BASE = resolveApiBase();
+      const params = new URLSearchParams(window.location.search);
+      const planIdParam = Number(params.get("plan") || 0);
+
+      const retreatTitle = document.getElementById("retreatTitle");
+      const retreatSubtitle = document.getElementById("retreatSubtitle");
+      const reloadData = document.getElementById("reloadData");
+      const printSheet = document.getElementById("printSheet");
+      const backToPlanner = document.getElementById("backToPlanner");
+      const kitchenViewLink = document.getElementById("kitchenViewLink");
+      const openKitchenViewBtn = document.getElementById("openKitchenViewBtn");
+      const testServesSelect = document.getElementById("testServes");
+      const selectAllDishesBtn = document.getElementById("selectAllDishes");
+      const clearAllDishesBtn = document.getElementById("clearAllDishes");
+      const selectedDishCount = document.getElementById("selectedDishCount");
+      const dishSelector = document.getElementById("dishSelector");
+      const metaBar = document.getElementById("metaBar");
+      const mealSections = document.getElementById("mealSections");
+
+      const initialServes = Number(params.get("test_serves") || TEST_SERVES_DEFAULT);
+
+      let retreatPlan = null;
+      let recipeByName = new Map();
+      let menuOptions = [];
+      let selectedDishKeys = new Set();
+
+      function resolveApiBase() {
+        const queryValue = new URLSearchParams(window.location.search).get("api");
+        const base = queryValue && queryValue.trim()
+          ? queryValue.trim()
+          : window.location.origin;
+        return base.replace(/\/+$/, "");
+      }
+
+      function apiUrl(path) {
+        return `${API_BASE}${path.startsWith("/") ? path : `/${path}`}`;
+      }
+
+      function normalizeRecipeKey(name) {
+        return String(name || "").trim().toLowerCase();
+      }
+
+      function mealOrderValue(meal) {
+        const index = MEAL_ORDER.indexOf(String(meal || "").trim());
+        return index === -1 ? MEAL_ORDER.length : index;
+      }
+
+      function normalizeTestServes(value) {
+        const numeric = Number(value);
+        if (!Number.isFinite(numeric)) {
+          return TEST_SERVES_DEFAULT;
+        }
+        const whole = Math.round(numeric);
+        return Math.max(TEST_SERVES_MIN, whole);
+      }
+
+      function formatLocalDateTime(value) {
+        if (!value) {
+          return "recently";
+        }
+        const candidate = value.includes("T") ? value : value.replace(" ", "T");
+        const date = new Date(candidate);
+        if (Number.isNaN(date.getTime())) {
+          return value;
+        }
+        return date.toLocaleString();
+      }
+
+      function formatKitchenQuantity(rawQty, rawUnit) {
+        const parsedQty = Number(rawQty);
+        let unit = String(rawUnit || "").trim().toLowerCase();
+        if (!Number.isFinite(parsedQty) || !unit) {
+          return `${rawQty ?? ""} ${rawUnit ?? ""}`.trim();
+        }
+
+        let qty = parsedQty;
+        if (unit === "g" && qty >= 1000) {
+          qty /= 1000;
+          unit = "kg";
+        } else if (unit === "ml" && qty >= 1000) {
+          qty /= 1000;
+          unit = "l";
+        }
+
+        let decimals = 2;
+        if (qty >= 100) {
+          decimals = 0;
+        } else if (qty >= 10) {
+          decimals = 1;
+        } else if (qty >= 1) {
+          decimals = 2;
+        } else {
+          decimals = 3;
+        }
+
+        const value = qty.toFixed(decimals).replace(/\.0+$/, "").replace(/(\.\d*?)0+$/, "$1");
+        return `${value} ${unit}`;
+      }
+
+      function showEmpty(message) {
+        mealSections.innerHTML = `<div class="empty">${message}</div>`;
+      }
+
+      function createMetaChip(text) {
+        const chip = document.createElement("span");
+        chip.className = "meta-chip";
+        chip.textContent = text;
+        return chip;
+      }
+
+      function createIngredientRow(item) {
+        const li = document.createElement("li");
+        const left = document.createElement("span");
+        left.className = "ingredient-name";
+        left.textContent = item.name;
+        const right = document.createElement("span");
+        right.className = "ingredient-qty";
+        right.textContent = formatKitchenQuantity(item.scaledQty, item.scaledUnit);
+        li.appendChild(left);
+        li.appendChild(right);
+        return li;
+      }
+
+      function createStepRow(step, index) {
+        const li = document.createElement("li");
+        li.textContent = step || `Step ${index + 1}`;
+        return li;
+      }
+
+      function createRecipeCard(meal, dish) {
+        const card = document.createElement("article");
+        card.className = "recipe-card";
+
+        const header = document.createElement("div");
+        header.className = "recipe-header";
+
+        const title = document.createElement("h3");
+        title.textContent = dish.name;
+
+        const meta = document.createElement("div");
+        meta.className = "recipe-meta";
+        const servesBadge = document.createElement("span");
+        servesBadge.className = "badge";
+        servesBadge.textContent = `Serve ${dish.serves}`;
+        const factorBadge = document.createElement("span");
+        factorBadge.className = "badge";
+        factorBadge.textContent = `${dish.factor.toFixed(2)}x`;
+        meta.appendChild(servesBadge);
+        meta.appendChild(factorBadge);
+
+        header.appendChild(title);
+        header.appendChild(meta);
+
+        const content = document.createElement("div");
+        content.className = "recipe-content";
+
+        const ingredientLabel = document.createElement("div");
+        ingredientLabel.className = "subhead";
+        ingredientLabel.textContent = "Ingredients";
+
+        const ingredientsList = document.createElement("ul");
+        ingredientsList.className = "ingredients-list";
+        dish.ingredients.forEach((item) => {
+          ingredientsList.appendChild(createIngredientRow(item));
+        });
+
+        const stepsLabel = document.createElement("div");
+        stepsLabel.className = "subhead";
+        stepsLabel.textContent = "Instructions";
+
+        const stepsList = document.createElement("ol");
+        stepsList.className = "steps-list";
+        dish.steps.forEach((step, index) => {
+          stepsList.appendChild(createStepRow(step, index));
+        });
+
+        content.appendChild(ingredientLabel);
+        content.appendChild(ingredientsList);
+        content.appendChild(stepsLabel);
+        content.appendChild(stepsList);
+
+        card.appendChild(header);
+        card.appendChild(content);
+        return card;
+      }
+
+      function renderDishSelector() {
+        dishSelector.innerHTML = "";
+        if (!menuOptions.length) {
+          dishSelector.innerHTML = '<div class="col"><div class="empty">No dishes found in this retreat menu.</div></div>';
+          selectedDishCount.textContent = "0";
+          return;
+        }
+
+        const groups = new Map();
+        menuOptions.forEach((option) => {
+          const groupKey = `${option.day}|${option.meal}`;
+          if (!groups.has(groupKey)) {
+            groups.set(groupKey, { day: option.day, meal: option.meal, options: [] });
+          }
+          groups.get(groupKey).options.push(option);
+        });
+
+        Array.from(groups.values())
+          .sort((a, b) => {
+            if (a.day !== b.day) {
+              return a.day - b.day;
+            }
+            return mealOrderValue(a.meal) - mealOrderValue(b.meal);
+          })
+          .forEach((group) => {
+            const col = document.createElement("div");
+            col.className = "col";
+
+            const box = document.createElement("div");
+            box.className = "menu-group";
+
+            const title = document.createElement("div");
+            title.className = "menu-group-title";
+            title.textContent = `Day ${group.day} - ${group.meal}`;
+
+            box.appendChild(title);
+            group.options
+              .sort((a, b) => a.dishName.localeCompare(b.dishName))
+              .forEach((option) => {
+                const row = document.createElement("div");
+                row.className = "form-check dish-check-row";
+
+                const checkbox = document.createElement("input");
+                checkbox.className = "form-check-input dish-check";
+                checkbox.type = "checkbox";
+                checkbox.id = `dish_${option.key}`;
+                checkbox.dataset.key = option.key;
+                checkbox.checked = selectedDishKeys.has(option.key);
+
+                const label = document.createElement("label");
+                label.className = "form-check-label";
+                label.htmlFor = checkbox.id;
+                label.textContent = option.dishName;
+
+                row.appendChild(checkbox);
+                row.appendChild(label);
+                box.appendChild(row);
+              });
+
+            col.appendChild(box);
+            dishSelector.appendChild(col);
+          });
+
+        selectedDishCount.textContent = String(selectedDishKeys.size);
+      }
+
+      function buildTestMeals() {
+        const testServes = normalizeTestServes(testServesSelect.value);
+        const grouped = new Map();
+        let missingRecipes = 0;
+
+        menuOptions.forEach((option) => {
+          if (!selectedDishKeys.has(option.key)) {
+            return;
+          }
+
+          const recipe = recipeByName.get(normalizeRecipeKey(option.dishName));
+          if (!recipe) {
+            missingRecipes += 1;
+            return;
+          }
+
+          const mealKey = `${option.day}|${option.meal}`;
+          if (!grouped.has(mealKey)) {
+            grouped.set(mealKey, {
+              day: option.day,
+              meal: option.meal,
+              people: testServes,
+              dishes: [],
+            });
+          }
+
+          const baseServings = Math.max(1, Number(recipe.base_servings || 1));
+          const factor = testServes / baseServings;
+          const dish = {
+            name: option.dishName,
+            serves: testServes,
+            baseServings,
+            factor,
+            ingredients: Array.isArray(recipe.ingredients)
+              ? recipe.ingredients.map((item) => ({
+                  name: item.name,
+                  scaledQty: Number(item.quantity || 0) * factor,
+                  scaledUnit: item.unit,
+                }))
+              : [],
+            steps: Array.isArray(recipe.steps) ? recipe.steps : [],
+          };
+          grouped.get(mealKey).dishes.push(dish);
+        });
+
+        const meals = Array.from(grouped.values())
+          .sort((a, b) => {
+            if (a.day !== b.day) {
+              return a.day - b.day;
+            }
+            return mealOrderValue(a.meal) - mealOrderValue(b.meal);
+          })
+          .map((meal) => ({
+            ...meal,
+            dishes: meal.dishes.sort((a, b) => a.name.localeCompare(b.name)),
+          }));
+
+        return { meals, missingRecipes };
+      }
+
+      function renderTestSheet() {
+        metaBar.innerHTML = "";
+        metaBar.appendChild(createMetaChip(`Selected: ${selectedDishKeys.size}`));
+        metaBar.appendChild(createMetaChip(`Test Serves: ${Number(testServesSelect.value || 4)}`));
+
+        if (!selectedDishKeys.size) {
+          showEmpty("Select one or more dishes from the retreat menu to build the test cook sheet.");
+          return;
+        }
+
+        const { meals, missingRecipes } = buildTestMeals();
+        if (!meals.length) {
+          showEmpty("No recipes could be rendered from the current selection.");
+          return;
+        }
+
+        if (missingRecipes > 0) {
+          metaBar.appendChild(createMetaChip(`Missing Recipes: ${missingRecipes}`));
+        }
+
+        mealSections.innerHTML = "";
+        meals.forEach((meal) => {
+          const section = document.createElement("section");
+          section.className = "meal-section";
+
+          const title = document.createElement("div");
+          title.className = "meal-title";
+          const heading = document.createElement("h2");
+          heading.textContent = `Day ${meal.day} - ${meal.meal}`;
+          const count = document.createElement("span");
+          count.className = "recipe-count";
+          count.textContent = `${meal.dishes.length} dishes · serves ${meal.people}`;
+
+          title.appendChild(heading);
+          title.appendChild(count);
+          section.appendChild(title);
+
+          meal.dishes.forEach((dish) => {
+            section.appendChild(createRecipeCard(meal, dish));
+          });
+
+          mealSections.appendChild(section);
+        });
+      }
+
+      async function fetchRetreatPlan() {
+        if (planIdParam > 0) {
+          const response = await fetch(apiUrl(`/api/retreat-plans/${planIdParam}`));
+          if (response.status === 404) {
+            return null;
+          }
+          if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+          }
+          return response.json();
+        }
+
+        const listResponse = await fetch(apiUrl("/api/retreat-plans"));
+        if (!listResponse.ok) {
+          throw new Error(`HTTP ${listResponse.status}`);
+        }
+        const plans = await listResponse.json();
+        if (!Array.isArray(plans) || !plans.length) {
+          return null;
+        }
+        const fallbackPlanId = Number(plans[0].id || 0);
+        if (!fallbackPlanId) {
+          return null;
+        }
+        const detailResponse = await fetch(apiUrl(`/api/retreat-plans/${fallbackPlanId}`));
+        if (!detailResponse.ok) {
+          throw new Error(`HTTP ${detailResponse.status}`);
+        }
+        return detailResponse.json();
+      }
+
+      async function fetchRecipesFull() {
+        const response = await fetch(apiUrl("/api/recipes/full"));
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`);
+        }
+        return response.json();
+      }
+
+      function buildMenuOptions(plan) {
+        const meals = Array.isArray(plan?.retreatMeals) && plan.retreatMeals.length
+          ? plan.retreatMeals
+          : (Array.isArray(plan?.meals) ? plan.meals : []);
+
+        const options = [];
+        const seen = new Set();
+
+        meals.forEach((mealEntry) => {
+          const day = Number(mealEntry?.day || 0);
+          const meal = String(mealEntry?.meal || "").trim();
+          if (day < 1 || !meal) {
+            return;
+          }
+          const dishes = Array.isArray(mealEntry?.dishes) ? mealEntry.dishes : [];
+          dishes.forEach((dishNameRaw) => {
+            const dishName = String(dishNameRaw || "").trim();
+            if (!dishName) {
+              return;
+            }
+            const key = `${day}|${meal}|${normalizeRecipeKey(dishName)}`;
+            if (seen.has(key)) {
+              return;
+            }
+            seen.add(key);
+            options.push({ key, day, meal, dishName });
+          });
+        });
+
+        return options.sort((a, b) => {
+          if (a.day !== b.day) {
+            return a.day - b.day;
+          }
+          const mealDiff = mealOrderValue(a.meal) - mealOrderValue(b.meal);
+          if (mealDiff !== 0) {
+            return mealDiff;
+          }
+          return a.dishName.localeCompare(b.dishName);
+        });
+      }
+
+      function syncNavigationLinks() {
+        const plannerUrl = new URL("retreat-planner-sample.html", window.location.href);
+        plannerUrl.searchParams.set("api", API_BASE);
+        if (retreatPlan?.id) {
+          plannerUrl.searchParams.set("plan", String(retreatPlan.id));
+        }
+        backToPlanner.href = plannerUrl.toString();
+
+        const kitchenUrl = new URL("kitchen-service-view.html", window.location.href);
+        kitchenUrl.searchParams.set("api", API_BASE);
+        if (retreatPlan?.id) {
+          kitchenUrl.searchParams.set("plan", String(retreatPlan.id));
+        }
+        kitchenViewLink.href = kitchenUrl.toString();
+        openKitchenViewBtn.href = kitchenUrl.toString();
+      }
+
+      async function loadData() {
+        try {
+          retreatSubtitle.textContent = "Loading retreat menu...";
+          const [plan, recipes] = await Promise.all([fetchRetreatPlan(), fetchRecipesFull()]);
+          if (!plan) {
+            retreatTitle.textContent = "Testing View";
+            retreatSubtitle.textContent = "No saved retreat menu found.";
+            dishSelector.innerHTML = '<div class="col"><div class="empty">Create a retreat plan first.</div></div>';
+            showEmpty("No retreat plan available to test.");
+            return;
+          }
+
+          retreatPlan = plan;
+          recipeByName = new Map();
+          if (Array.isArray(recipes)) {
+            recipes.forEach((recipe) => {
+              const key = normalizeRecipeKey(recipe?.name);
+              if (key) {
+                recipeByName.set(key, recipe);
+              }
+            });
+          }
+
+          menuOptions = buildMenuOptions(plan);
+          selectedDishKeys = new Set();
+
+          retreatTitle.textContent = `${plan.name || "Untitled Retreat"} - Testing View`;
+          retreatSubtitle.textContent = plan.updated_at
+            ? `Menu updated ${formatLocalDateTime(plan.updated_at)}.`
+            : "Select dishes to build a test cook sheet.";
+
+          syncNavigationLinks();
+          renderDishSelector();
+          renderTestSheet();
+        } catch (error) {
+          retreatTitle.textContent = "Testing View";
+          retreatSubtitle.textContent = "Could not load test menu.";
+          dishSelector.innerHTML = '<div class="col"><div class="empty">Could not load retreat menu.</div></div>';
+          showEmpty("Could not load data from API. Verify backend is running.");
+        }
+      }
+
+      dishSelector.addEventListener("change", (event) => {
+        const checkbox = event.target.closest(".dish-check");
+        if (!checkbox) {
+          return;
+        }
+        const key = String(checkbox.dataset.key || "");
+        if (!key) {
+          return;
+        }
+        if (checkbox.checked) {
+          selectedDishKeys.add(key);
+        } else {
+          selectedDishKeys.delete(key);
+        }
+        selectedDishCount.textContent = String(selectedDishKeys.size);
+        renderTestSheet();
+      });
+
+      selectAllDishesBtn.addEventListener("click", () => {
+        selectedDishKeys = new Set(menuOptions.map((option) => option.key));
+        renderDishSelector();
+        renderTestSheet();
+      });
+
+      clearAllDishesBtn.addEventListener("click", () => {
+        selectedDishKeys = new Set();
+        renderDishSelector();
+        renderTestSheet();
+      });
+
+      testServesSelect.addEventListener("change", () => {
+        const normalized = normalizeTestServes(testServesSelect.value);
+        testServesSelect.value = String(normalized);
+        renderTestSheet();
+      });
+
+      reloadData.addEventListener("click", () => {
+        void loadData();
+      });
+
+      printSheet.addEventListener("click", () => {
+        window.print();
+      });
+
+      testServesSelect.value = String(normalizeTestServes(initialServes));
+      void loadData();
+    </script>
+  </body>
+</html>

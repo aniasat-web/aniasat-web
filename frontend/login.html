@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Sign In - Retreat Ops</title>
+    <title>Sign In - Blossom Foundation Spring 2026 Retreats</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -11,6 +11,8 @@
       rel="stylesheet"
     />
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+    <link rel="stylesheet" href="assets/header-theme.css" />
     <style>
       :root {
         --bg: #faf8f5;
@@ -26,8 +28,7 @@
         background: radial-gradient(circle at top right, #fef3c7 0%, var(--bg) 45%);
         color: var(--ink);
         min-height: 100vh;
-        display: flex;
-        align-items: center;
+        padding-top: 70px;
       }
       h1, .brand-title {
         font-family: "Instrument Serif", serif;
@@ -43,19 +44,6 @@
         border-radius: 1rem;
         box-shadow: 0 10px 30px rgba(41, 37, 36, 0.08);
       }
-      .brand {
-        display: flex;
-        align-items: center;
-        gap: 0.65rem;
-        font-weight: 700;
-        color: var(--primary);
-        text-decoration: none;
-      }
-      .brand img {
-        width: 40px;
-        height: 40px;
-        object-fit: contain;
-      }
       .btn-primary {
         background-color: var(--primary);
         border-color: var(--primary);
@@ -67,14 +55,28 @@
     </style>
   </head>
   <body>
+    <nav class="navbar navbar-expand-lg navbar-light fixed-top">
+      <div class="container">
+        <a class="navbar-brand" href="index.html">
+          <img class="brand-logo" src="assets/blossom-mark.png" alt="Blossom logo" />
+          <span>Blossom Foundation Spring 2026 Retreats</span>
+        </a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarContent">
+          <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarContent">
+          <ul class="navbar-nav ms-auto mb-2 mb-lg-0 fw-semibold small text-uppercase">
+            <li class="nav-item">
+              <a class="nav-link" href="index.html"><i class="fa-solid fa-house me-1"></i> Home</a>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </nav>
+
     <main class="container py-5">
       <div class="auth-shell">
         <div class="auth-card p-4 p-md-5">
-          <a class="brand mb-3" href="#">
-            <img src="assets/blossom-mark.png" alt="Blossom logo" />
-            <span class="brand-title fs-4">Retreat Ops</span>
-          </a>
-
           <h1 class="h3 mb-2">Sign In</h1>
           <p class="text-muted mb-4">Use your account to access retreat planning and kitchen tools.</p>
 
@@ -95,6 +97,7 @@
       </div>
     </main>
 
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
     <script src="assets/auth.js"></script>
   </body>
 </html>

@@ -13,6 +13,7 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" />
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+    <link rel="stylesheet" href="assets/header-theme.css" />
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tom-select@2.4.3/dist/css/tom-select.bootstrap5.min.css" />
     <style>
       :root {
@@ -244,7 +245,7 @@
     <!-- Navbar -->
     <nav class="navbar navbar-expand-lg navbar-light fixed-top">
       <div class="container">
-        <a class="navbar-brand" href="#">
+        <a class="navbar-brand" href="index.html">
           <img class="brand-logo" src="assets/blossom-mark.png" alt="Blossom logo" />
           <span>Blossom Foundation Spring 2026 Retreats</span>
         </a>
@@ -254,19 +255,22 @@
         <div class="collapse navbar-collapse" id="navbarContent">
           <ul class="navbar-nav ms-auto mb-2 mb-lg-0 fw-semibold small text-uppercase">
             <li class="nav-item">
+              <a class="nav-link" href="index.html"><i class="fa-solid fa-house me-1"></i> Home</a>
+            </li>
+            <li class="nav-item">
               <a class="nav-link active" href="retreat-planner-sample.html"><i class="fa-solid fa-calendar-days me-1"></i> Planner</a>
             </li>
             <li class="nav-item">
-              <a class="nav-link" href="kitchen-service-view.html"><i class="fa-solid fa-fire-burner me-1"></i> Kitchen</a>
+              <a class="nav-link" href="kitchen-service-view.html"><i class="fa-solid fa-fire-burner me-1"></i> Retreat View</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="kitchen-test-view.html"><i class="fa-solid fa-vial me-1"></i> Testing View</a>
             </li>
             <li class="nav-item">
               <a class="nav-link" href="recipe-admin.html"><i class="fa-solid fa-book me-1"></i> Recipes</a>
             </li>
             <li class="nav-item">
               <a class="nav-link" href="ingredient-admin.html"><i class="fa-solid fa-carrot me-1"></i> Ingredients</a>
-            </li>
-            <li class="nav-item">
-              <a class="nav-link" href="recipe-scaling.html"><i class="fa-solid fa-scale-balanced me-1"></i> Scaling</a>
             </li>
             <li class="nav-item">
               <a class="nav-link" href="user-admin.html"><i class="fa-solid fa-users-gear me-1"></i> Users</a>
@@ -339,7 +343,7 @@
             <input id="dayCount" type="number" class="form-control" min="1" max="10" placeholder="1-10" />
           </div>
           <div class="col-md-3">
-            <label class="form-label fw-bold small text-muted text-uppercase">Headcount</label>
+            <label class="form-label fw-bold small text-muted text-uppercase">Retreat Headcount</label>
             <input id="defaultPeople" type="number" class="form-control" min="1" value="160" />
           </div>
         </div>
@@ -401,9 +405,14 @@
             <p class="small text-dark mb-0 opacity-75">Publish this menu to the kitchen display system (KDS) for live service.</p>
           </div>
           <div class="col-md-4 text-md-end mt-3 mt-md-0">
-             <button class="btn btn-warning fw-bold shadow-sm text-dark" id="openKitchenPage" type="button">
-               <i class="fa-solid fa-arrow-up-right-from-square me-2"></i>Open Kitchen View
-             </button>
+            <div class="d-inline-flex flex-wrap gap-2">
+              <button class="btn btn-warning fw-bold shadow-sm text-dark" id="openKitchenPage" type="button">
+                <i class="fa-solid fa-arrow-up-right-from-square me-2"></i>Open Retreat View
+              </button>
+              <button class="btn btn-light fw-bold shadow-sm text-dark border-warning" id="openKitchenTestPage" type="button">
+                <i class="fa-solid fa-vial me-2"></i>Open Testing View
+              </button>
+            </div>
           </div>
         </div>
         
@@ -426,6 +435,10 @@
     <script src="https://cdn.jsdelivr.net/npm/tom-select@2.4.3/dist/js/tom-select.complete.min.js"></script>
     <script>
       const MEALS = ["Breakfast", "Lunch", "Dinner", "Evening Chai"];
+      const PROFILE_RETREAT = "retreat";
+      const PROFILE_TEST = "test";
+      const PROFILE_OPTIONS = new Set([PROFILE_RETREAT, PROFILE_TEST]);
+      const DEFAULT_SHOPPING_PROFILE = PROFILE_RETREAT;
 
       let recipeCatalog = {};
       const gramsPerCupByIngredient = {};
@@ -457,6 +470,7 @@
       const dayPicker = document.getElementById("dayPicker");
       const showAllDaysToggle = document.getElementById("showAllDaysToggle");
       const openKitchenPage = document.getElementById("openKitchenPage");
+      const openKitchenTestPage = document.getElementById("openKitchenTestPage");
       const kitchenSection = document.getElementById("kitchenSection");
       const kitchenPublishStatus = document.getElementById("kitchenPublishStatus");
       const retreatStoreStatus = document.getElementById("retreatStoreStatus");
@@ -466,6 +480,8 @@
       const retreatPicker = document.getElementById("retreatPicker");
       const dayCountInput = document.getElementById("dayCount");
       const defaultPeopleInput = document.getElementById("defaultPeople");
+      const testDefaultPeopleInput = document.getElementById("testDefaultPeople");
+      const headcountProfileInput = document.getElementById("headcountProfile");
       const startDateInput = document.getElementById("startDate");
       const statDays = document.getElementById("statDays");
       const statMeals = document.getElementById("statMeals");
@@ -482,6 +498,7 @@
       let isApplyingLoadedRetreat = false;
       let lastSavedRetreatFingerprint = "";
       let currentRetreatPlanId = null;
+      let activeHeadcountProfile = PROFILE_RETREAT;
 
       function resolveApiBase() {
         const queryValue = new URLSearchParams(window.location.search).get("api");
@@ -519,16 +536,114 @@
         return date.toLocaleDateString();
       }
 
-      function retreatOptionSummary(plan) {
-        const summaryBits = [];
-        if (plan.start_date) {
-          summaryBits.push(`Starts ${formatLocalDate(plan.start_date)}`);
-        }
-        return summaryBits.join(" · ");
-      }
-
       function normalizeRetreatNameKey(name) {
         return String(name || "").trim().toLowerCase();
+      }
+
+      function normalizeHeadcountProfile(value) {
+        const normalized = String(value || "").trim().toLowerCase();
+        return PROFILE_OPTIONS.has(normalized) ? normalized : PROFILE_RETREAT;
+      }
+
+      function parsePositiveHeadcount(rawValue, fallbackValue) {
+        const numeric = Number(rawValue);
+        if (!Number.isFinite(numeric) || numeric <= 0) {
+          return fallbackValue;
+        }
+        return Math.max(1, numeric);
+      }
+
+      function getDefaultPeopleForProfile(profile) {
+        const normalized = normalizeHeadcountProfile(profile);
+        if (normalized === PROFILE_TEST) {
+          return parsePositiveHeadcount(testDefaultPeopleInput?.value, 4);
+        }
+        return parsePositiveHeadcount(defaultPeopleInput?.value, 160);
+      }
+
+      function profileDatasetField(profile) {
+        return normalizeHeadcountProfile(profile) === PROFILE_TEST ? "peopleTest" : "peopleRetreat";
+      }
+
+      function mealPeopleLabel(profile) {
+        return normalizeHeadcountProfile(profile) === PROFILE_TEST ? "Pax (Test)" : "Pax (Retreat)";
+      }
+
+      function readMealPeopleForProfile(mealCard, profile) {
+        if (!mealCard) {
+          return 0;
+        }
+        const field = profileDatasetField(profile);
+        const datasetValue = Number(mealCard.dataset[field] ?? Number.NaN);
+        if (Number.isFinite(datasetValue)) {
+          return Math.max(0, datasetValue);
+        }
+        const fallback = Math.max(0, getDefaultPeopleForProfile(profile));
+        mealCard.dataset[field] = String(fallback);
+        return fallback;
+      }
+
+      function writeMealPeopleForProfile(mealCard, profile, people) {
+        if (!mealCard) {
+          return;
+        }
+        const field = profileDatasetField(profile);
+        const numeric = Number(people);
+        mealCard.dataset[field] = String(Number.isFinite(numeric) ? Math.max(0, numeric) : 0);
+      }
+
+      function captureActiveProfilePeopleFromDom() {
+        const mealCards = Array.from(dayContainer.querySelectorAll(".meal-card"));
+        mealCards.forEach((mealCard) => {
+          const peopleInput = mealCard.querySelector(".meal-people");
+          const people = Number(peopleInput?.value || 0);
+          writeMealPeopleForProfile(mealCard, activeHeadcountProfile, people);
+        });
+      }
+
+      function updateMealPeopleLabels() {
+        const label = mealPeopleLabel(activeHeadcountProfile);
+        const labels = Array.from(dayContainer.querySelectorAll(".meal-people-label"));
+        labels.forEach((node) => {
+          node.textContent = label;
+        });
+      }
+
+      function applyActiveProfileToMealCards() {
+        const mealCards = Array.from(dayContainer.querySelectorAll(".meal-card"));
+        mealCards.forEach((mealCard) => {
+          const peopleInput = mealCard.querySelector(".meal-people");
+          if (!peopleInput) {
+            return;
+          }
+          const people = readMealPeopleForProfile(mealCard, activeHeadcountProfile);
+          peopleInput.value = String(people);
+        });
+        updateMealPeopleLabels();
+      }
+
+      function setActiveHeadcountProfile(profile, options = {}) {
+        const { scheduleSave = true, updateStatus = true } = options;
+        const nextProfile = normalizeHeadcountProfile(profile);
+        const changed = nextProfile !== activeHeadcountProfile;
+        if (changed) {
+          captureActiveProfilePeopleFromDom();
+          activeHeadcountProfile = nextProfile;
+        }
+        if (headcountProfileInput) {
+          headcountProfileInput.value = activeHeadcountProfile;
+        }
+        applyActiveProfileToMealCards();
+        if (changed && updateStatus) {
+          updateRetreatStoreStatus(
+            activeHeadcountProfile === PROFILE_TEST
+              ? "Editing Test profile headcounts."
+              : "Editing Retreat profile headcounts."
+          );
+        }
+        if (changed && scheduleSave) {
+          scheduleAutoSave();
+        }
       }
 
       function initRetreatPickerControl() {
@@ -1065,11 +1180,21 @@
         return Math.max(1, Math.round(defaultPeople));
       }
 
-      function createMealCard(dayIndex, meal, people, dishes) {
+      function createMealCard(dayIndex, meal, profilePeople, dishes) {
         const mealCard = document.createElement("div");
         mealCard.className = "meal-card pb-4 mb-4 border-bottom";
         mealCard.dataset.day = String(dayIndex);
         mealCard.dataset.meal = meal;
+        writeMealPeopleForProfile(
+          mealCard,
+          PROFILE_RETREAT,
+          Math.max(0, Number(profilePeople?.retreat || 0))
+        );
+        writeMealPeopleForProfile(
+          mealCard,
+          PROFILE_TEST,
+          Math.max(0, Number(profilePeople?.test || 0))
+        );
 
         const top = document.createElement("div");
         top.className = "d-flex flex-wrap align-items-center gap-3 mb-3 justify-content-between";
@@ -1081,12 +1206,12 @@
         const peopleWrap = document.createElement("div");
         peopleWrap.className = "d-flex align-items-center gap-2";
         const peopleLabel = document.createElement("span");
-        peopleLabel.className = "small fw-bold text-muted text-uppercase";
-        peopleLabel.textContent = "Pax";
+        peopleLabel.className = "small fw-bold text-muted text-uppercase meal-people-label";
+        peopleLabel.textContent = mealPeopleLabel(activeHeadcountProfile);
         const peopleInput = document.createElement("input");
         peopleInput.type = "number";
         peopleInput.min = "0";
-        peopleInput.value = String(people);
+        peopleInput.value = String(readMealPeopleForProfile(mealCard, activeHeadcountProfile));
         peopleInput.className = "form-control form-control-sm meal-people";
         peopleInput.style.width = "70px";
         peopleWrap.appendChild(peopleLabel);
@@ -1176,7 +1301,8 @@
       function buildSchedule(days, mealLookup = null) {
         const startValue = startDateInput.value;
         const startDate = startValue ? new Date(startValue + "T00:00:00") : new Date();
-        const defaultPeople = Number(defaultPeopleInput.value || 160);
+        const retreatDefaultPeople = getDefaultPeopleForProfile(PROFILE_RETREAT);
+        const testDefaultPeople = getDefaultPeopleForProfile(PROFILE_TEST);
 
         dayContainer.innerHTML = "";
 
@@ -1201,13 +1327,18 @@
           MEALS.forEach((meal) => {
             const mealKey = `${i + 1}|${meal}`;
             const loadedMeal = mealLookup?.get(mealKey) || null;
-            const people = loadedMeal
-              ? Math.max(0, Number(loadedMeal.people || 0))
-              : defaultPeopleByMeal(defaultPeople, meal);
+            const retreatPeople = loadedMeal && Number.isFinite(Number(loadedMeal.retreatPeople))
+              ? Math.max(0, Number(loadedMeal.retreatPeople))
+              : defaultPeopleByMeal(retreatDefaultPeople, meal);
+            const testPeople = loadedMeal && Number.isFinite(Number(loadedMeal.testPeople))
+              ? Math.max(0, Number(loadedMeal.testPeople))
+              : defaultPeopleByMeal(testDefaultPeople, meal);
             const dishes = loadedMeal
               ? (Array.isArray(loadedMeal.dishes) ? loadedMeal.dishes : [])
               : [];
-            mealGrid.appendChild(createMealCard(i + 1, meal, people, dishes));
+            mealGrid.appendChild(
+              createMealCard(i + 1, meal, { retreat: retreatPeople, test: testPeople }, dishes)
+            );
           });
 
           dayCard.appendChild(head);
@@ -1221,6 +1352,7 @@
         setMealPlanVisible(days > 0);
         updateKitchenPublishStatus("Plan changed. Open Kitchen Service Page to publish.");
         initAllTomSelects();
+        applyActiveProfileToMealCards();
         scheduleAutoSave();
       }
 
@@ -1247,7 +1379,7 @@
         return MEALS.indexOf(planA.meal) - MEALS.indexOf(planB.meal);
       }
 
-      function buildKitchenPayload(sortedPlan, retreatName) {
+      function buildKitchenPayload(sortedPlan, retreatName, profile = DEFAULT_SHOPPING_PROFILE) {
         const groupedMeals = new Map();
 
         sortedPlan.forEach((slot) => {
@@ -1293,13 +1425,14 @@
         return {
           version: 1,
           retreatName,
+          profile,
           generatedAt: new Date().toISOString(),
           meals: Array.from(groupedMeals.values()).sort(kitchenMealSort),
         };
       }
 
-      async function publishKitchenPayload(sortedPlan, retreatName) {
-        const payload = buildKitchenPayload(sortedPlan, retreatName);
+      async function publishKitchenPayload(sortedPlan, retreatName, profile = DEFAULT_SHOPPING_PROFILE) {
+        const payload = buildKitchenPayload(sortedPlan, retreatName, profile);
         if (!payload.meals.length) {
           clearKitchenPayload("No cookable meals found to publish.");
           return;
@@ -1360,7 +1493,7 @@
       }
 
       async function autoPublishKitchenSnapshot() {
-        const { slots: plan, invalidRecipes } = collectPlan();
+        const { slots: plan, invalidRecipes } = collectPlan(DEFAULT_SHOPPING_PROFILE);
         if (invalidRecipes.length || !plan.length) {
           return;
         }
@@ -1376,7 +1509,7 @@
           return a.recipe.localeCompare(b.recipe);
         });
 
-        const payload = buildKitchenPayload(sortedPlan, retreatName);
+        const payload = buildKitchenPayload(sortedPlan, retreatName, DEFAULT_SHOPPING_PROFILE);
         if (!payload.meals.length) {
           return;
         }
@@ -1430,26 +1563,38 @@
         }
       }
 
-      function buildMealLookup(meals) {
+      function buildMealProfileLookup(retreatMeals, testMeals) {
         const lookup = new Map();
-        if (!Array.isArray(meals)) {
-          return lookup;
+
+        function applyMeals(meals, profileKey) {
+          if (!Array.isArray(meals)) {
+            return;
+          }
+          meals.forEach((entry) => {
+            if (!entry || typeof entry !== "object") {
+              return;
+            }
+            const day = Number(entry.day || 0);
+            const meal = String(entry.meal || "").trim();
+            if (day < 1 || !meal) {
+              return;
+            }
+            const key = `${day}|${meal}`;
+            const current = lookup.get(key) || {
+              dishes: [],
+              retreatPeople: null,
+              testPeople: null,
+            };
+            if (!current.dishes.length && Array.isArray(entry.dishes)) {
+              current.dishes = entry.dishes.filter((dish) => String(dish || "").trim());
+            }
+            current[profileKey] = Math.max(0, Number(entry.people || 0));
+            lookup.set(key, current);
+          });
         }
 
-        meals.forEach((entry) => {
-          if (!entry || typeof entry !== "object") {
-            return;
-          }
-          const day = Number(entry.day || 0);
-          const meal = String(entry.meal || "").trim();
-          if (day < 1 || !meal) {
-            return;
-          }
-          lookup.set(`${day}|${meal}`, {
-            people: Math.max(0, Number(entry.people || 0)),
-            dishes: Array.isArray(entry.dishes) ? entry.dishes : [],
-          });
-        });
+        applyMeals(retreatMeals, "retreatPeople");
+        applyMeals(testMeals, "testPeople");
         return lookup;
       }
 
@@ -1459,24 +1604,36 @@
           return { payload: null, error: "Build schedule to start auto-save." };
         }
 
-        const meals = [];
+        captureActiveProfilePeopleFromDom();
+        const retreatMeals = [];
+        const testMeals = [];
         const mealCards = Array.from(dayContainer.querySelectorAll(".meal-card"));
         mealCards.forEach((mealCard) => {
           const day = Number(mealCard.dataset.day || 0);
           const meal = String(mealCard.dataset.meal || "").trim();
-          const people = Math.max(0, Number(mealCard.querySelector(".meal-people")?.value || 0));
           const dishes = Array.from(mealCard.querySelectorAll(".dish-select"))
             .map((select) => String(select.value || "").trim())
             .filter(Boolean);
-          meals.push({ day, meal, people, dishes });
+          const retreatPeople = readMealPeopleForProfile(mealCard, PROFILE_RETREAT);
+          const testPeople = readMealPeopleForProfile(mealCard, PROFILE_TEST);
+          retreatMeals.push({ day, meal, people: retreatPeople, dishes });
+          testMeals.push({ day, meal, people: testPeople, dishes });
         });
 
+        const retreatDefaultPeople = getDefaultPeopleForProfile(PROFILE_RETREAT);
+        const testDefaultPeople = getDefaultPeopleForProfile(PROFILE_TEST);
         const payload = {
           name: activeRetreatName(),
           startDate: startDateInput.value || null,
           dayCount: dayCards.length,
-          defaultPeople: Math.max(1, Number(defaultPeopleInput.value || 160)),
-          meals,
+          defaultPeople: retreatDefaultPeople,
+          retreatDefaultPeople,
+          testDefaultPeople,
+          activeProfile: activeHeadcountProfile,
+          shoppingProfile: DEFAULT_SHOPPING_PROFILE,
+          meals: retreatMeals,
+          retreatMeals,
+          testMeals,
         };
         return { payload, error: null };
       }
@@ -1488,17 +1645,26 @@
         }
         lastSavedRetreatFingerprint = "";
         currentRetreatPlanId = null;
-        setRetreatPickerValue("Untitled Retreat");
+        setRetreatPickerValue("");
         setStartDateValue("");
         dayCountInput.value = "";
         defaultPeopleInput.value = "160";
+        if (testDefaultPeopleInput) {
+          testDefaultPeopleInput.value = "4";
+        }
+        setActiveHeadcountProfile(PROFILE_RETREAT, { scheduleSave: false, updateStatus: false });
         dayContainer.innerHTML = "";
         setMealPlanVisible(false);
         setKitchenSectionVisible(false);
         updateHeroStats(0);
         refreshDayVisibility();
         updateDeleteRetreatButtonState();
-        updateRetreatStoreStatus("Ready for a new retreat.");
+        if (retreatPickerControl) {
+          retreatPickerControl.focus();
+        } else {
+          retreatPicker?.focus();
+        }
+        updateRetreatStoreStatus("Ready for a new retreat. Type a name above.");
       }
 
       async function refreshRetreatPlanOptions(selectedName = null, selectedPlanId = null) {
@@ -1523,10 +1689,9 @@
             }
             retreatPlanIdByName.set(key, planId);
             retreatPlanNameById.set(planId, planName);
-            const summary = retreatOptionSummary(plan);
             optionRows.push({
               value: planName,
-              text: summary ? `${planName} - ${summary}` : planName,
+              text: planName,
             });
           });
 
@@ -1667,18 +1832,35 @@
           setStartDateValue(plan.startDate || "");
           const days = Math.max(1, Math.min(10, Number(plan.dayCount || 1)));
           dayCountInput.value = String(days);
-          defaultPeopleInput.value = String(Math.max(1, Number(plan.defaultPeople || 160)));
+          const retreatDefaultPeople = Math.max(
+            1,
+            Number(plan.retreatDefaultPeople || plan.defaultPeople || 160)
+          );
+          const testDefaultPeople = Math.max(1, Number(plan.testDefaultPeople || 4));
+          defaultPeopleInput.value = String(retreatDefaultPeople);
+          if (testDefaultPeopleInput) {
+            testDefaultPeopleInput.value = String(testDefaultPeople);
+          }
 
-          buildSchedule(days, buildMealLookup(plan.meals));
-          
-          const loadedPayload = {
-            name: planName,
-            startDate: startDateInput.value || null,
-            dayCount: days,
-            defaultPeople: Math.max(1, Number(defaultPeopleInput.value || 160)),
-            meals: Array.isArray(plan.meals) ? plan.meals : [],
-          };
-          lastSavedRetreatFingerprint = fingerprintRetreatPayload(loadedPayload);
+          const retreatMeals = Array.isArray(plan.retreatMeals) && plan.retreatMeals.length
+            ? plan.retreatMeals
+            : (Array.isArray(plan.meals) ? plan.meals : []);
+          const testMeals = Array.isArray(plan.testMeals) ? plan.testMeals : [];
+          const loadedProfile = PROFILE_RETREAT;
+
+          activeHeadcountProfile = loadedProfile;
+          if (headcountProfileInput) {
+            headcountProfileInput.value = loadedProfile;
+          }
+          buildSchedule(days, buildMealProfileLookup(retreatMeals, testMeals));
+          setActiveHeadcountProfile(loadedProfile, { scheduleSave: false, updateStatus: false });
+
+          const payloadSnapshot = collectRetreatPlanPayload();
+          if (!payloadSnapshot.error && payloadSnapshot.payload) {
+            lastSavedRetreatFingerprint = fingerprintRetreatPayload(payloadSnapshot.payload);
+          } else {
+            lastSavedRetreatFingerprint = "";
+          }
           currentRetreatPlanId = selectedId;
           setKitchenSectionVisible(true);
           updateShareableUrl();
@@ -1813,7 +1995,9 @@
         }
       }
 
-      function collectPlan() {
+      function collectPlan(profile = activeHeadcountProfile) {
+        const normalizedProfile = normalizeHeadcountProfile(profile);
+        captureActiveProfilePeopleFromDom();
         const retreatName = activeRetreatName();
         const mealCards = Array.from(dayContainer.querySelectorAll(".meal-card"));
         const slots = [];
@@ -1823,7 +2007,7 @@
         mealCards.forEach((mealCard) => {
           const day = Number(mealCard.dataset.day);
           const meal = mealCard.dataset.meal;
-          const people = Number(mealCard.querySelector(".meal-people")?.value || 0);
+          const people = readMealPeopleForProfile(mealCard, normalizedProfile);
           if (people <= 0) {
             return;
           }
@@ -1846,7 +2030,7 @@
       }
 
       async function generateBlurb() {
-        const { slots: plan, invalidRecipes } = collectPlan();
+        const { slots: plan, invalidRecipes } = collectPlan(DEFAULT_SHOPPING_PROFILE);
 
         if (invalidRecipes.length) {
           updateKitchenPublishStatus(`Unknown recipes: ${invalidRecipes.length}`);
@@ -1868,7 +2052,7 @@
           return a.recipe.localeCompare(b.recipe);
         });
 
-        await publishKitchenPayload(sortedPlan, retreatName);
+        await publishKitchenPayload(sortedPlan, retreatName, DEFAULT_SHOPPING_PROFILE);
         return true;
       }
 
@@ -1945,6 +2129,10 @@
         setStartDateValue("2026-10-09");
         dayCountInput.value = "3";
         defaultPeopleInput.value = "160";
+        if (testDefaultPeopleInput) {
+          testDefaultPeopleInput.value = "4";
+        }
+        setActiveHeadcountProfile(PROFILE_RETREAT, { scheduleSave: false, updateStatus: false });
         buildSchedule(3);
       });
 
@@ -1956,18 +2144,31 @@
         void deleteSelectedRetreat();
       });
       retreatPicker?.addEventListener("change", async () => {
+        if (retreatPickerControl) {
+          return;
+        }
         await handleRetreatPickerChange(retreatPicker.value);
       });
       startDateInput.addEventListener("change", () => {
         scheduleAutoSave();
       });
+      headcountProfileInput?.addEventListener("change", () => {
+        setActiveHeadcountProfile(headcountProfileInput.value);
+      });
       defaultPeopleInput.addEventListener("change", () => {
+        scheduleAutoSave();
+      });
+      testDefaultPeopleInput?.addEventListener("change", () => {
         scheduleAutoSave();
       });
 
       dayContainer.addEventListener("click", handleDayContainerClick);
       dayContainer.addEventListener("input", (event) => {
         if (event.target instanceof HTMLInputElement && event.target.classList.contains("meal-people")) {
+          const mealCard = event.target.closest(".meal-card");
+          if (mealCard) {
+            writeMealPeopleForProfile(mealCard, activeHeadcountProfile, Number(event.target.value || 0));
+          }
           scheduleAutoSave();
         }
       });
@@ -2013,6 +2214,19 @@
         window.location.href = kitchenUrl.toString();
       });
 
+      openKitchenTestPage?.addEventListener("click", async () => {
+        const didSave = await persistRetreatPlan("manual");
+        if (!didSave || !currentRetreatPlanId) {
+          return;
+        }
+        const testUrl = new URL("kitchen-test-view.html", window.location.href);
+        testUrl.searchParams.set("plan", String(currentRetreatPlanId));
+        if (API_BASE !== window.location.origin) {
+          testUrl.searchParams.set("api", API_BASE);
+        }
+        window.location.href = testUrl.toString();
+      });
+
       document.getElementById("copyKitchenUrl").addEventListener("click", async () => {
         const shareInput = document.getElementById("kitchenShareUrl");
         if (!shareInput || !shareInput.value) {
@@ -2030,11 +2244,14 @@
       });
 
       async function initializePlanner() {
+        initRetreatPickerControl();
         initializeStartDatePicker();
+        setActiveHeadcountProfile(PROFILE_RETREAT, { scheduleSave: false, updateStatus: false });
         updateHeroStats(0);
         setMealPlanVisible(false);
         refreshDayVisibility();
         void refreshRetreatPlanOptions();
+        updateDeleteRetreatButtonState();
         await loadConversionDataFromApi();
         await loadRecipesFromApi();
         await loadKitchenPublishStatus();

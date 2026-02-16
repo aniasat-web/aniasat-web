@@ -5,11 +5,14 @@
   const PUBLIC_PAGES = new Set(["/kitchen-service-view.html"]);
 
   const PAGE_ROLE_REQUIREMENTS = {
+    "/": ["viewer", "planner", "admin"],
+    "/index.html": ["viewer", "planner", "admin"],
     "/retreat-planner-sample.html": ["planner", "admin"],
     "/recipe-admin.html": ["admin"],
     "/ingredient-admin.html": ["admin"],
     "/user-admin.html": ["admin"],
     "/kitchen-service-view.html": ["viewer", "planner", "admin"],
+    "/kitchen-test-view.html": ["viewer", "planner", "admin"],
     "/recipe-scaling.html": ["viewer", "planner", "admin"],
   };
 
@@ -36,10 +39,7 @@
   }
 
   function routeForRole(role) {
-    if (role === "planner" || role === "admin") {
-      return "/retreat-planner-sample.html";
-    }
-    return "/kitchen-service-view.html";
+    return "/index.html";
   }
 
   function isRoleAllowedForPage(pathname, role) {

@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 from typing import Annotated
 from typing import Any
+from typing import Literal
 
 from fastapi import Depends, FastAPI, HTTPException, Query, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
@@ -104,6 +105,10 @@ PUBLIC_API_GET_PATHS = {
     "/api/service-snapshots/latest",
 }
 
+HEADCOUNT_PROFILES = {"retreat", "test"}
+DEFAULT_TEST_HEADCOUNT = 4.0
+DEFAULT_SHOPPING_PROFILE = "retreat"
+
 
 class IngredientInput(BaseModel):
     name: str = Field(min_length=1)
@@ -164,6 +169,12 @@ class RetreatPlanPayload(BaseModel):
     dayCount: int = Field(ge=1, le=10)
     defaultPeople: float = Field(gt=0)
     meals: list[RetreatPlanMeal] = Field(min_length=1)
+    retreatDefaultPeople: float | None = Field(default=None, gt=0)
+    testDefaultPeople: float = Field(default=4, gt=0)
+    activeProfile: Literal["retreat", "test"] = "retreat"
+    shoppingProfile: Literal["retreat", "test"] = "retreat"
+    retreatMeals: list[RetreatPlanMeal] | None = None
+    testMeals: list[RetreatPlanMeal] | None = None
 
 
 class RetreatPlanDuplicatePayload(BaseModel):
@@ -227,6 +238,7 @@ class ServiceSnapshotPayload(BaseModel):
     generatedAt: str | None = None
     meals: list[ServiceSnapshotMeal] = Field(min_length=1)
     retreatPlanId: int | None = None
+    profile: Literal["retreat", "test"] | None = None
 
 
 @app.on_event("startup")
@@ -812,12 +824,38 @@ def get_retreat_plan(plan_id: int) -> dict[str, Any]:
     if not isinstance(payload, dict):
         payload = {}
 
+    retreat_meals = payload.get("retreatMeals")
+    if not isinstance(retreat_meals, list):
+        retreat_meals = payload.get("meals") if isinstance(payload.get("meals"), list) else []
+
+    test_meals = payload.get("testMeals")
+    if not isinstance(test_meals, list):
+        test_meals = []
+
+    default_people = float(payload.get("defaultPeople") or row["default_people"])
+    retreat_default_people = float(payload.get("retreatDefaultPeople") or default_people)
+    test_default_people = float(payload.get("testDefaultPeople") or DEFAULT_TEST_HEADCOUNT)
+
+    active_profile = payload.get("activeProfile")
+    if active_profile not in HEADCOUNT_PROFILES:
+        active_profile = "retreat"
+
+    shopping_profile = payload.get("shoppingProfile")
+    if shopping_profile not in HEADCOUNT_PROFILES:
+        shopping_profile = DEFAULT_SHOPPING_PROFILE
+
     payload["id"] = int(row["id"])
     payload["name"] = payload.get("name") or row["name"]
     payload["startDate"] = payload.get("startDate", row["start_date"])
     payload["dayCount"] = int(payload.get("dayCount") or row["day_count"])
-    payload["defaultPeople"] = float(payload.get("defaultPeople") or row["default_people"])
-    payload["meals"] = payload.get("meals") or []
+    payload["defaultPeople"] = default_people
+    payload["retreatDefaultPeople"] = retreat_default_people
+    payload["testDefaultPeople"] = test_default_people
+    payload["activeProfile"] = active_profile
+    payload["shoppingProfile"] = shopping_profile
+    payload["retreatMeals"] = retreat_meals
+    payload["testMeals"] = test_meals
+    payload["meals"] = retreat_meals
     payload["created_at"] = row["created_at"]
     payload["updated_at"] = row["updated_at"]
     return payload
@@ -832,11 +870,22 @@ def upsert_retreat_plan(
     if not plan_name:
         raise HTTPException(status_code=400, detail="Retreat name cannot be blank")
 
-    if any(meal.day > payload.dayCount for meal in payload.meals):
+    retreat_meals = payload.retreatMeals if payload.retreatMeals is not None else payload.meals
+    test_meals = payload.testMeals if payload.testMeals is not None else []
+    meal_lists = [payload.meals, retreat_meals, test_meals]
+    if any(meal.day > payload.dayCount for meal_list in meal_lists for meal in meal_list):
         raise HTTPException(status_code=400, detail="Meal day cannot exceed dayCount")
 
     payload_dict = payload.model_dump()
     payload_dict["name"] = plan_name
+    payload_dict["defaultPeople"] = float(payload.defaultPeople)
+    payload_dict["retreatDefaultPeople"] = float(payload.retreatDefaultPeople or payload.defaultPeople)
+    payload_dict["testDefaultPeople"] = float(payload.testDefaultPeople)
+    payload_dict["activeProfile"] = payload.activeProfile
+    payload_dict["shoppingProfile"] = DEFAULT_SHOPPING_PROFILE
+    payload_dict["retreatMeals"] = [meal.model_dump() for meal in retreat_meals]
+    payload_dict["testMeals"] = [meal.model_dump() for meal in test_meals]
+    payload_dict["meals"] = [meal.model_dump() for meal in retreat_meals]
     payload_json = json.dumps(payload_dict)
 
     with get_connection() as conn:
@@ -856,7 +905,7 @@ def upsert_retreat_plan(
                     plan_name,
                     payload.startDate,
                     payload.dayCount,
-                    payload.defaultPeople,
+                    payload_dict["defaultPeople"],
                     payload_json,
                     existing["id"],
                 ),
@@ -870,7 +919,13 @@ def upsert_retreat_plan(
                 VALUES (?, ?, ?, ?, ?)
                 RETURNING id
                 """,
-                (plan_name, payload.startDate, payload.dayCount, payload.defaultPeople, payload_json),
+                (
+                    plan_name,
+                    payload.startDate,
+                    payload.dayCount,
+                    payload_dict["defaultPeople"],
+                    payload_json,
+                ),
             ).fetchone()
             plan_id = int(created["id"])
             action = "created"
@@ -921,8 +976,28 @@ def duplicate_retreat_plan(
         source_payload["defaultPeople"] = float(
             source_payload.get("defaultPeople") or source["default_people"]
         )
-        if not isinstance(source_payload.get("meals"), list):
-            source_payload["meals"] = []
+        source_payload["retreatDefaultPeople"] = float(
+            source_payload.get("retreatDefaultPeople") or source_payload["defaultPeople"]
+        )
+        source_payload["testDefaultPeople"] = float(
+            source_payload.get("testDefaultPeople") or DEFAULT_TEST_HEADCOUNT
+        )
+        active_profile = source_payload.get("activeProfile")
+        source_payload["activeProfile"] = active_profile if active_profile in HEADCOUNT_PROFILES else "retreat"
+        shopping_profile = source_payload.get("shoppingProfile")
+        source_payload["shoppingProfile"] = (
+            shopping_profile if shopping_profile in HEADCOUNT_PROFILES else DEFAULT_SHOPPING_PROFILE
+        )
+
+        retreat_meals = source_payload.get("retreatMeals")
+        if not isinstance(retreat_meals, list):
+            retreat_meals = source_payload.get("meals") if isinstance(source_payload.get("meals"), list) else []
+        test_meals = source_payload.get("testMeals")
+        if not isinstance(test_meals, list):
+            test_meals = []
+        source_payload["retreatMeals"] = retreat_meals
+        source_payload["testMeals"] = test_meals
+        source_payload["meals"] = retreat_meals
 
         created = conn.execute(
             """

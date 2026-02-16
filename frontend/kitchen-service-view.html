@@ -238,6 +238,9 @@
               <a class="nav-link" href="recipe-admin.html"><i class="fa-solid fa-book me-1"></i> Recipes</a>
             </li>
             <li class="nav-item">
+              <a class="nav-link" href="ingredient-admin.html"><i class="fa-solid fa-carrot me-1"></i> Ingredients</a>
+            </li>
+            <li class="nav-item">
               <a class="nav-link" href="recipe-scaling.html"><i class="fa-solid fa-scale-balanced me-1"></i> Scaling</a>
             </li>
             <li class="nav-item">
@@ -336,7 +339,7 @@
           unit = "l";
         }
 
-        const decimals = unit === "kg" || unit === "l" ? 1 : 2;
+        const decimals = unit === "kg" || unit === "l" ? 1 : 0;
         return `${qty.toFixed(decimals)} ${unit}`;
       }
 

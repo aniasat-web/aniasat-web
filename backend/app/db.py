@@ -31,6 +31,30 @@ def init_db() -> None:
     with get_connection() as conn:
         conn.executescript(schema)
 
+        ingredient_columns = {row[1] for row in conn.execute("PRAGMA table_info(ingredients)").fetchall()}
+        if "category" not in ingredient_columns:
+            conn.execute("ALTER TABLE ingredients ADD COLUMN category TEXT")
+
+        if "purchase_tier" not in ingredient_columns:
+            conn.execute("ALTER TABLE ingredients ADD COLUMN purchase_tier TEXT")
+            conn.execute(
+                """
+                UPDATE ingredients SET purchase_tier = 'bulk'
+                WHERE category IN (
+                    'Grains & Flours', 'Pulses & Legumes', 'Spices & Seasonings',
+                    'Nuts & Seeds', 'Oils & Fats', 'Pantry Staples',
+                    'Sweeteners', 'Condiments & Sauces', 'Beverages'
+                ) AND purchase_tier IS NULL
+                """
+            )
+            conn.execute(
+                """
+                UPDATE ingredients SET purchase_tier = 'fresh'
+                WHERE category IN ('Produce', 'Herbs', 'Dairy & Refrigerated')
+                AND purchase_tier IS NULL
+                """
+            )
+
         recipe_columns = {row[1] for row in conn.execute("PRAGMA table_info(recipes)").fetchall()}
         if "category" not in recipe_columns:
             conn.execute("ALTER TABLE recipes ADD COLUMN category TEXT")
@@ -167,6 +191,8 @@ def upsert_ingredient(conn: sqlite3.Connection, ingredient: dict[str, Any]) -> i
     if not ingredient_name:
         raise ValueError("Ingredient name is required")
 
+    category = clean_text(ingredient.get("category"))
+    purchase_tier = clean_text(ingredient.get("purchase_tier"))
     canonical_unit = clean_text(ingredient.get("canonical_unit"))
     grams_per_cup = as_optional_float(ingredient.get("grams_per_cup"), "ingredient.grams_per_cup")
     notes = clean_text(ingredient.get("notes"))
@@ -180,20 +206,20 @@ def upsert_ingredient(conn: sqlite3.Connection, ingredient: dict[str, Any]) -> i
         conn.execute(
             """
             UPDATE ingredients
-            SET name = ?, canonical_unit = ?, grams_per_cup = ?, notes = ?
+            SET name = ?, category = ?, purchase_tier = ?, canonical_unit = ?, grams_per_cup = ?, notes = ?
             WHERE id = ?
             """,
-            (ingredient_name, canonical_unit, grams_per_cup, notes, ingredient_id),
+            (ingredient_name, category, purchase_tier, canonical_unit, grams_per_cup, notes, ingredient_id),
         )
         return ingredient_id
 
     created = conn.execute(
         """
-        INSERT INTO ingredients(name, canonical_unit, grams_per_cup, notes)
-        VALUES (?, ?, ?, ?)
+        INSERT INTO ingredients(name, category, purchase_tier, canonical_unit, grams_per_cup, notes)
+        VALUES (?, ?, ?, ?, ?, ?)
         RETURNING id
         """,
-        (ingredient_name, canonical_unit, grams_per_cup, notes),
+        (ingredient_name, category, purchase_tier, canonical_unit, grams_per_cup, notes),
     ).fetchone()
     return int(created["id"])
 

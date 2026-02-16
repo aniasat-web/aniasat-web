@@ -31,7 +31,7 @@ def parse_args() -> argparse.Namespace:
 def fetch_ingredients(conn: Any) -> list[dict[str, Any]]:
     rows = conn.execute(
         """
-        SELECT name, canonical_unit, grams_per_cup, notes
+        SELECT name, category, purchase_tier, canonical_unit, grams_per_cup, notes
         FROM ingredients
         ORDER BY lower(name), id
         """
@@ -39,6 +39,8 @@ def fetch_ingredients(conn: Any) -> list[dict[str, Any]]:
     return [
         {
             "name": row["name"],
+            "category": row["category"],
+            "purchase_tier": row["purchase_tier"],
             "canonical_unit": row["canonical_unit"],
             "grams_per_cup": float(row["grams_per_cup"]) if row["grams_per_cup"] is not None else None,
             "notes": row["notes"],

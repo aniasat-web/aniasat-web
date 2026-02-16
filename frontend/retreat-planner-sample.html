@@ -263,6 +263,9 @@
               <a class="nav-link" href="recipe-admin.html"><i class="fa-solid fa-book me-1"></i> Recipes</a>
             </li>
             <li class="nav-item">
+              <a class="nav-link" href="ingredient-admin.html"><i class="fa-solid fa-carrot me-1"></i> Ingredients</a>
+            </li>
+            <li class="nav-item">
               <a class="nav-link" href="recipe-scaling.html"><i class="fa-solid fa-scale-balanced me-1"></i> Scaling</a>
             </li>
             <li class="nav-item">
@@ -315,12 +318,14 @@
         
         <div class="row g-3">
           <div class="col-md-3">
-            <label class="form-label fw-bold small text-muted text-uppercase">Retreat Name</label>
+            <label class="form-label fw-bold small text-muted text-uppercase">Retreat</label>
             <div class="input-group">
-              <span class="input-group-text bg-white"><i class="fa-solid fa-tag text-muted"></i></span>
-              <input id="retreatName" type="text" class="form-control" value="Untitled Retreat" list="retreatNameOptions" />
+              <span class="input-group-text bg-white"><i class="fa-solid fa-folder-open text-muted"></i></span>
+              <select id="retreatPicker" class="form-select">
+                <option value="">Loading saved retreats...</option>
+              </select>
             </div>
-            <datalist id="retreatNameOptions"></datalist>
+            <div class="form-text">Select a saved retreat or type a new one in this same field.</div>
           </div>
           <div class="col-md-3">
             <label class="form-label fw-bold small text-muted text-uppercase">Start Date</label>
@@ -338,7 +343,6 @@
             <input id="defaultPeople" type="number" class="form-control" min="1" value="160" />
           </div>
         </div>
-        
         <div class="mt-4 d-flex flex-wrap gap-2 justify-content-between align-items-center border-top pt-4">
           <div class="d-flex gap-2">
             <button class="btn btn-primary fw-bold shadow-sm" id="buildSchedule">
@@ -354,6 +358,9 @@
             </button>
             <button class="btn btn-sm btn-light border text-muted" id="duplicateRetreatBtn" type="button">
               <i class="fa-regular fa-copy me-1"></i> Duplicate
+            </button>
+            <button class="btn btn-sm btn-outline-danger" id="deleteRetreatBtn" type="button">
+              <i class="fa-regular fa-trash-can me-1"></i> Delete
             </button>
             <span class="small fw-semibold text-primary ms-2" id="retreatStoreStatus">Ready.</span>
           </div>
@@ -455,8 +462,8 @@
       const retreatStoreStatus = document.getElementById("retreatStoreStatus");
       const newRetreatBtn = document.getElementById("newRetreatBtn");
       const duplicateRetreatBtn = document.getElementById("duplicateRetreatBtn");
-      const retreatNameOptions = document.getElementById("retreatNameOptions");
-      const retreatNameInput = document.getElementById("retreatName");
+      const deleteRetreatBtn = document.getElementById("deleteRetreatBtn");
+      const retreatPicker = document.getElementById("retreatPicker");
       const dayCountInput = document.getElementById("dayCount");
       const defaultPeopleInput = document.getElementById("defaultPeople");
       const startDateInput = document.getElementById("startDate");
@@ -469,6 +476,8 @@
       let showAllDays = false;
       let startDatePicker = null;
       let retreatPlanIdByName = new Map();
+      let retreatPlanNameById = new Map();
+      let retreatPickerControl = null;
       let retreatAutoSaveTimer = null;
       let isApplyingLoadedRetreat = false;
       let lastSavedRetreatFingerprint = "";
@@ -498,8 +507,110 @@
         return date.toLocaleString();
       }
 
+      function formatLocalDate(value) {
+        if (!value) {
+          return "";
+        }
+        const candidate = value.includes("T") ? value : `${value}T00:00:00`;
+        const date = new Date(candidate);
+        if (Number.isNaN(date.getTime())) {
+          return value;
+        }
+        return date.toLocaleDateString();
+      }
+
+      function retreatOptionSummary(plan) {
+        const summaryBits = [];
+        if (plan.start_date) {
+          summaryBits.push(`Starts ${formatLocalDate(plan.start_date)}`);
+        }
+        return summaryBits.join(" · ");
+      }
+
       function normalizeRetreatNameKey(name) {
         return String(name || "").trim().toLowerCase();
+      }
+
+      function initRetreatPickerControl() {
+        if (!retreatPicker || retreatPicker.tomselect || typeof TomSelect === "undefined") {
+          return;
+        }
+
+        retreatPickerControl = new TomSelect(retreatPicker, {
+          create: (input) => {
+            const name = String(input || "").trim();
+            if (!name) {
+              return false;
+            }
+            return { value: name, text: name };
+          },
+          persist: false,
+          createOnBlur: true,
+          allowEmptyOption: true,
+          maxOptions: null,
+          placeholder: "Select saved retreat or type a new name",
+          render: {
+            no_results: function() {
+              return '<div class="no-results">Type and press Enter to create a new retreat</div>';
+            },
+          },
+          onChange: (value) => {
+            void handleRetreatPickerChange(value);
+          },
+        });
+      }
+
+      function getRetreatPickerValue() {
+        if (retreatPickerControl) {
+          return String(retreatPickerControl.getValue() || "").trim();
+        }
+        return String(retreatPicker?.value || "").trim();
+      }
+
+      function setRetreatPickerValue(name, silent = true) {
+        const normalized = String(name || "").trim();
+        if (!retreatPicker) {
+          return;
+        }
+
+        if (retreatPickerControl) {
+          if (!normalized) {
+            retreatPickerControl.clear(silent);
+            return;
+          }
+          if (!retreatPickerControl.options[normalized]) {
+            retreatPickerControl.addOption({ value: normalized, text: normalized });
+          }
+          retreatPickerControl.setValue(normalized, silent);
+          return;
+        }
+
+        if (!normalized) {
+          retreatPicker.value = "";
+          return;
+        }
+        const matchingOption = Array.from(retreatPicker.options).find((option) => option.value === normalized);
+        if (!matchingOption) {
+          const option = document.createElement("option");
+          option.value = normalized;
+          option.textContent = normalized;
+          retreatPicker.appendChild(option);
+        }
+        retreatPicker.value = normalized;
+      }
+
+      function updateDeleteRetreatButtonState() {
+        if (!deleteRetreatBtn) {
+          return;
+        }
+        const selectedName = getRetreatPickerValue();
+        const selectedId = retreatPlanIdByName.get(normalizeRetreatNameKey(selectedName));
+        const canDelete = Boolean(selectedId);
+        deleteRetreatBtn.disabled = !canDelete;
+      }
+
+      function activeRetreatName() {
+        return getRetreatPickerValue() || "Untitled Retreat";
       }
 
       function fingerprintRetreatPayload(payload) {
@@ -629,8 +740,12 @@
         return { qty: canonicalQty, unit: canonicalUnit };
       }
 
-      function formatNumber(value) {
-        return Number(value).toFixed(value >= 10 ? 1 : 2).replace(/\.00$/, "");
+      function formatNumber(value, unit) {
+        const u = (unit || "").trim().toLowerCase();
+        if (u === "kg" || u === "l") {
+          return Number(value).toFixed(1);
+        }
+        return Number(value).toFixed(0);
       }
 
       function suggestShoppingUnit(name, qty, unit) {
@@ -1164,9 +1279,9 @@
               const suggestion = suggestShoppingUnit(item.name, scaledQty, item.unit);
               return {
                 name: item.name,
-                scaledQty: formatNumber(scaledQty),
+                scaledQty: formatNumber(scaledQty, normalizeUnit(item.unit)),
                 scaledUnit: normalizeUnit(item.unit),
-                shopQty: formatNumber(suggestion.qty),
+                shopQty: formatNumber(suggestion.qty, suggestion.unit),
                 shopUnit: suggestion.unit,
               };
             }),
@@ -1357,7 +1472,7 @@
         });
 
         const payload = {
-          name: retreatNameInput.value.trim() || "Untitled Retreat",
+          name: activeRetreatName(),
           startDate: startDateInput.value || null,
           dayCount: dayCards.length,
           defaultPeople: Math.max(1, Number(defaultPeopleInput.value || 160)),
@@ -1373,7 +1488,7 @@
         }
         lastSavedRetreatFingerprint = "";
         currentRetreatPlanId = null;
-        retreatNameInput.value = "Untitled Retreat";
+        setRetreatPickerValue("Untitled Retreat");
         setStartDateValue("");
         dayCountInput.value = "";
         defaultPeopleInput.value = "160";
@@ -1382,10 +1497,11 @@
         setKitchenSectionVisible(false);
         updateHeroStats(0);
         refreshDayVisibility();
+        updateDeleteRetreatButtonState();
         updateRetreatStoreStatus("Ready for a new retreat.");
       }
 
-      async function refreshRetreatPlanOptions(selectedName = null) {
+      async function refreshRetreatPlanOptions(selectedName = null, selectedPlanId = null) {
         try {
           const response = await fetch(apiUrl("/api/retreat-plans"));
           if (!response.ok) {
@@ -1393,32 +1509,74 @@
           }
           const plans = await response.json();
           retreatPlanIdByName = new Map();
-          if (retreatNameOptions) {
-            retreatNameOptions.innerHTML = "";
-          }
-
+          retreatPlanNameById = new Map();
+          const optionRows = [];
           plans.forEach((plan) => {
             const planName = String(plan.name || "").trim();
             if (!planName) {
               return;
             }
-            retreatPlanIdByName.set(normalizeRetreatNameKey(planName), Number(plan.id));
-            if (retreatNameOptions) {
-              const option = document.createElement("option");
-              option.value = planName;
-              option.label = `Updated ${formatLocalDateTime(plan.updated_at)}`;
-              retreatNameOptions.appendChild(option);
+            const planId = Number(plan.id || 0);
+            const key = normalizeRetreatNameKey(planName);
+            if (!key || !planId) {
+              return;
             }
+            retreatPlanIdByName.set(key, planId);
+            retreatPlanNameById.set(planId, planName);
+            const summary = retreatOptionSummary(plan);
+            optionRows.push({
+              value: planName,
+              text: summary ? `${planName} - ${summary}` : planName,
+            });
           });
 
-          if (selectedName !== null && selectedName !== undefined) {
-            retreatNameInput.value = String(selectedName);
+          const desiredPlanId = Number(selectedPlanId || currentRetreatPlanId || 0);
+          let desiredName = "";
+          if (desiredPlanId && retreatPlanNameById.has(desiredPlanId)) {
+            desiredName = retreatPlanNameById.get(desiredPlanId) || "";
+          } else if (selectedName !== null && selectedName !== undefined) {
+            desiredName = String(selectedName).trim();
+          } else {
+            desiredName = getRetreatPickerValue();
           }
+
+          if (retreatPickerControl) {
+            retreatPickerControl.clearOptions();
+            optionRows.forEach((row) => retreatPickerControl.addOption(row));
+            if (desiredName) {
+              if (!retreatPickerControl.options[desiredName]) {
+                retreatPickerControl.addOption({ value: desiredName, text: desiredName });
+              }
+              retreatPickerControl.setValue(desiredName, true);
+            } else {
+              retreatPickerControl.clear(true);
+            }
+            retreatPickerControl.refreshOptions(false);
+          } else if (retreatPicker) {
+            retreatPicker.innerHTML = "";
+            optionRows.forEach((row) => {
+              const option = document.createElement("option");
+              option.value = row.value;
+              option.textContent = row.text;
+              retreatPicker.appendChild(option);
+            });
+            if (desiredName) {
+              setRetreatPickerValue(desiredName);
+            }
+          }
+
+          updateDeleteRetreatButtonState();
 
           if (plans.length) {
             updateRetreatStoreStatus(`Loaded ${plans.length} saved retreats.`);
+          } else {
+            updateRetreatStoreStatus("No saved retreats yet.");
           }
         } catch (error) {
+          retreatPlanIdByName = new Map();
+          retreatPlanNameById = new Map();
+          setRetreatPickerValue(getRetreatPickerValue() || "Untitled Retreat");
+          updateDeleteRetreatButtonState();
           updateRetreatStoreStatus("Could not load retreats.");
         }
       }
@@ -1466,7 +1624,7 @@
           );
           setKitchenSectionVisible(true);
           updateShareableUrl();
-          await refreshRetreatPlanOptions(result.name);
+          await refreshRetreatPlanOptions(result.name, Number(result.id));
           void autoPublishKitchenSnapshot();
           return true;
         } catch (error) {
@@ -1505,7 +1663,7 @@
           }
 
           const plan = await response.json();
-          retreatNameInput.value = String(plan.name || "Untitled Retreat");
+          const planName = String(plan.name || "Untitled Retreat");
           setStartDateValue(plan.startDate || "");
           const days = Math.max(1, Math.min(10, Number(plan.dayCount || 1)));
           dayCountInput.value = String(days);
@@ -1514,7 +1672,7 @@
           buildSchedule(days, buildMealLookup(plan.meals));
           
           const loadedPayload = {
-            name: retreatNameInput.value.trim() || "Untitled Retreat",
+            name: planName,
             startDate: startDateInput.value || null,
             dayCount: days,
             defaultPeople: Math.max(1, Number(defaultPeopleInput.value || 160)),
@@ -1524,7 +1682,9 @@
           currentRetreatPlanId = selectedId;
           setKitchenSectionVisible(true);
           updateShareableUrl();
-          updateRetreatStoreStatus(`Loaded "${retreatNameInput.value}".`);
+          setRetreatPickerValue(planName);
+          updateDeleteRetreatButtonState();
+          updateRetreatStoreStatus(`Loaded "${planName}".`);
           return true;
         } catch (error) {
           updateRetreatStoreStatus("Could not load selected retreat.");
@@ -1534,18 +1694,75 @@
         }
       }
 
-      async function maybeLoadRetreatByName() {
-        const retreatName = retreatNameInput.value.trim();
-        if (!retreatName) {
-          return false;
+      async function handleRetreatPickerChange(rawValue) {
+        if (isApplyingLoadedRetreat) {
+          return;
         }
 
-        const selectedId = retreatPlanIdByName.get(normalizeRetreatNameKey(retreatName));
+        const selectedName = String(rawValue || "").trim();
+        if (!selectedName) {
+          currentRetreatPlanId = null;
+          lastSavedRetreatFingerprint = "";
+          updateDeleteRetreatButtonState();
+          return;
+        }
+
+        const selectedId = retreatPlanIdByName.get(normalizeRetreatNameKey(selectedName));
+        if (selectedId) {
+          await loadRetreatPlanById(selectedId);
+          return;
+        }
+
+        currentRetreatPlanId = null;
+        lastSavedRetreatFingerprint = "";
+        updateDeleteRetreatButtonState();
+        updateRetreatStoreStatus(`Creating new retreat "${selectedName}".`);
+      }
+
+      async function deleteSelectedRetreat() {
+        const selectedName = getRetreatPickerValue();
+        const selectedId = retreatPlanIdByName.get(normalizeRetreatNameKey(selectedName));
         if (!selectedId) {
+          updateRetreatStoreStatus("Select a saved retreat to delete.");
           return false;
         }
 
-        return loadRetreatPlanById(selectedId);
+        const retreatName = retreatPlanNameById.get(selectedId) || "this retreat";
+        const confirmed = window.confirm(`Delete retreat "${retreatName}"? This cannot be undone.`);
+        if (!confirmed) {
+          return false;
+        }
+
+        if (retreatAutoSaveTimer) {
+          clearTimeout(retreatAutoSaveTimer);
+          retreatAutoSaveTimer = null;
+        }
+
+        try {
+          updateRetreatStoreStatus(`Deleting "${retreatName}"...`);
+          const response = await fetch(apiUrl(`/api/retreat-plans/${selectedId}`), {
+            method: "DELETE",
+          });
+          if (!response.ok) {
+            const detail = await response.text();
+            throw new Error(detail || `HTTP ${response.status}`);
+          }
+
+          const result = await response.json();
+          if (currentRetreatPlanId === selectedId) {
+            resetPlannerForNewRetreat();
+          }
+          const fallbackName = selectedName && normalizeRetreatNameKey(selectedName) !== normalizeRetreatNameKey(retreatName)
+            ? selectedName
+            : "Untitled Retreat";
+          await refreshRetreatPlanOptions(fallbackName);
+          updateRetreatStoreStatus(`Deleted retreat "${result.name}".`);
+          return true;
+        } catch (error) {
+          const detail = error instanceof Error ? error.message : String(error);
+          updateRetreatStoreStatus(`Could not delete retreat: ${detail}`);
+          return false;
+        }
       }
 
       async function duplicateCurrentRetreat() {
@@ -1580,7 +1797,7 @@
           }
 
           const result = await response.json();
-          await refreshRetreatPlanOptions(result.name);
+          await refreshRetreatPlanOptions(result.name, Number(result.id));
           const didLoad = await loadRetreatPlanById(Number(result.id));
           if (!didLoad) {
             throw new Error("Duplicate created but could not be loaded.");
@@ -1597,7 +1814,7 @@
       }
 
       function collectPlan() {
-        const retreatName = document.getElementById("retreatName").value.trim() || "Untitled Retreat";
+        const retreatName = activeRetreatName();
         const mealCards = Array.from(dayContainer.querySelectorAll(".meal-card"));
         const slots = [];
         const invalidRecipes = [];
@@ -1721,7 +1938,10 @@
       });
 
       document.getElementById("loadSample").addEventListener("click", () => {
-        retreatNameInput.value = "Fall Kriya + Upanishad Retreat";
+        currentRetreatPlanId = null;
+        lastSavedRetreatFingerprint = "";
+        setRetreatPickerValue("Fall Kriya + Upanishad Retreat");
+        updateDeleteRetreatButtonState();
         setStartDateValue("2026-10-09");
         dayCountInput.value = "3";
         defaultPeopleInput.value = "160";
@@ -1732,11 +1952,11 @@
       duplicateRetreatBtn.addEventListener("click", () => {
         void duplicateCurrentRetreat();
       });
-      retreatNameInput.addEventListener("change", async () => {
-        const loadedExisting = await maybeLoadRetreatByName();
-        if (!loadedExisting) {
-          scheduleAutoSave();
-        }
+      deleteRetreatBtn?.addEventListener("click", () => {
+        void deleteSelectedRetreat();
+      });
+      retreatPicker?.addEventListener("change", async () => {
+        await handleRetreatPickerChange(retreatPicker.value);
       });
       startDateInput.addEventListener("change", () => {
         scheduleAutoSave();

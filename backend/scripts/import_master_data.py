@@ -54,6 +54,8 @@ def upsert_ingredient(conn: Any, ingredient: dict[str, Any]) -> int:
     if not name:
         raise ValueError("Ingredient name is required")
 
+    category = clean_text(ingredient.get("category"))
+    purchase_tier = clean_text(ingredient.get("purchase_tier"))
     canonical_unit = clean_text(ingredient.get("canonical_unit"))
     grams_per_cup_raw = ingredient.get("grams_per_cup")
     grams_per_cup = float(grams_per_cup_raw) if grams_per_cup_raw is not None else None
@@ -68,20 +70,20 @@ def upsert_ingredient(conn: Any, ingredient: dict[str, Any]) -> int:
         conn.execute(
             """
             UPDATE ingredients
-            SET name = ?, canonical_unit = ?, grams_per_cup = ?, notes = ?
+            SET name = ?, category = ?, purchase_tier = ?, canonical_unit = ?, grams_per_cup = ?, notes = ?
             WHERE id = ?
             """,
-            (name, canonical_unit, grams_per_cup, notes, ingredient_id),
+            (name, category, purchase_tier, canonical_unit, grams_per_cup, notes, ingredient_id),
         )
         return ingredient_id
 
     row = conn.execute(
         """
-        INSERT INTO ingredients(name, canonical_unit, grams_per_cup, notes)
-        VALUES (?, ?, ?, ?)
+        INSERT INTO ingredients(name, category, purchase_tier, canonical_unit, grams_per_cup, notes)
+        VALUES (?, ?, ?, ?, ?, ?)
         RETURNING id
         """,
-        (name, canonical_unit, grams_per_cup, notes),
+        (name, category, purchase_tier, canonical_unit, grams_per_cup, notes),
     ).fetchone()
     return int(row["id"])
 

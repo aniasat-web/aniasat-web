@@ -7,6 +7,7 @@
   const PAGE_ROLE_REQUIREMENTS = {
     "/retreat-planner-sample.html": ["planner", "admin"],
     "/recipe-admin.html": ["admin"],
+    "/ingredient-admin.html": ["admin"],
     "/user-admin.html": ["admin"],
     "/kitchen-service-view.html": ["viewer", "planner", "admin"],
     "/recipe-scaling.html": ["viewer", "planner", "admin"],

@@ -87,6 +87,7 @@ RECIPE_CATEGORIES = [
     "Desserts",
     "Chai & Coffee",
     "Pickles",
+    "Ready to Serve",
 ]
 
 PUBLIC_API_PATHS = {
@@ -185,6 +186,15 @@ class AuthUserUpdatePayload(BaseModel):
     password: str | None = None
     role: str | None = None
     is_active: bool | None = None
+
+
+class IngredientUpdatePayload(BaseModel):
+    name: str = Field(min_length=1)
+    canonical_unit: str | None = None
+    grams_per_cup: float | None = None
+    notes: str | None = None
+    category: str | None = None
+    purchase_tier: str | None = None
 
 
 class ServiceSnapshotIngredient(BaseModel):
@@ -445,9 +455,61 @@ def auth_update_user(
 def list_ingredients() -> list[dict[str, Any]]:
     with get_connection() as conn:
         rows = conn.execute(
-            "SELECT id, name, canonical_unit, grams_per_cup, notes FROM ingredients ORDER BY name"
+            "SELECT id, name, category, purchase_tier, canonical_unit, grams_per_cup, notes FROM ingredients ORDER BY name"
         ).fetchall()
     return [dict(r) for r in rows]
+
+
+PURCHASE_TIERS = ["bulk", "fresh", "daily"]
+
+
+@app.get("/api/purchase-tiers")
+def list_purchase_tiers() -> list[str]:
+    return PURCHASE_TIERS
+
+
+@app.put("/api/ingredients/{ingredient_id}")
+def update_ingredient(
+    ingredient_id: int,
+    payload: IngredientUpdatePayload,
+    _user: Annotated[AuthUser, Depends(require_roles(ROLE_ADMIN))],
+) -> dict[str, Any]:
+    ingredient_name = payload.name.strip()
+    if not ingredient_name:
+        raise HTTPException(status_code=400, detail="Ingredient name cannot be blank")
+
+    canonical_unit = payload.canonical_unit.strip() if payload.canonical_unit and payload.canonical_unit.strip() else None
+    notes = payload.notes.strip() if payload.notes and payload.notes.strip() else None
+    category = payload.category.strip() if payload.category and payload.category.strip() else None
+    purchase_tier = payload.purchase_tier.strip() if payload.purchase_tier and payload.purchase_tier.strip() else None
+
+    with get_connection() as conn:
+        existing = conn.execute("SELECT id FROM ingredients WHERE id = ?", (ingredient_id,)).fetchone()
+        if not existing:
+            raise HTTPException(status_code=404, detail="Ingredient not found")
+
+        duplicate = conn.execute(
+            "SELECT id FROM ingredients WHERE lower(name) = lower(?) AND id != ?",
+            (ingredient_name, ingredient_id),
+        ).fetchone()
+        if duplicate:
+            raise HTTPException(status_code=400, detail=f"An ingredient named '{ingredient_name}' already exists")
+
+        conn.execute(
+            """
+            UPDATE ingredients
+            SET name = ?, canonical_unit = ?, grams_per_cup = ?, notes = ?, category = ?, purchase_tier = ?
+            WHERE id = ?
+            """,
+            (ingredient_name, canonical_unit, payload.grams_per_cup, notes, category, purchase_tier, ingredient_id),
+        )
+        updated = conn.execute(
+            "SELECT id, name, category, purchase_tier, canonical_unit, grams_per_cup, notes FROM ingredients WHERE id = ?",
+            (ingredient_id,),
+        ).fetchone()
+        conn.commit()
+
+    return dict(updated)
 
 
 @app.get("/api/unit-conversions")
@@ -885,6 +947,29 @@ def duplicate_retreat_plan(
         "source_plan_id": int(source["id"]),
         "created_at": created["created_at"],
         "updated_at": created["updated_at"],
+    }
+
+
+@app.delete("/api/retreat-plans/{plan_id}")
+def delete_retreat_plan(
+    plan_id: int,
+    _user: Annotated[AuthUser, Depends(require_roles(ROLE_PLANNER, ROLE_ADMIN))],
+) -> dict[str, Any]:
+    with get_connection() as conn:
+        existing = conn.execute(
+            "SELECT id, name FROM retreat_plans WHERE id = ?",
+            (plan_id,),
+        ).fetchone()
+        if not existing:
+            raise HTTPException(status_code=404, detail="Retreat plan not found")
+
+        conn.execute("DELETE FROM retreat_plans WHERE id = ?", (plan_id,))
+        conn.commit()
+
+    return {
+        "id": int(existing["id"]),
+        "name": existing["name"],
+        "status": "deleted",
     }
 
 

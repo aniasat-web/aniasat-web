@@ -1,1676 +1,1760 @@
 {
   "format": "retreat_ops_master_data",
   "version": 1,
-  "generated_at": "2026-02-15T06:22:34.612652+00:00",
+  "generated_at": "2026-02-16T07:01:46.712173+00:00",
   "source_db": "backend/data/retreat_ops.db",
   "ingredients": [
     {
       "name": "Achaar masala",
+      "category": "Spices & Seasonings",
       "canonical_unit": "g",
       "grams_per_cup": 96.0,
-      "notes": null
+      "notes": null,
+      "purchase_tier": "bulk"
     },
     {
       "name": "Ajwain",
+      "category": "Spices & Seasonings",
+      "canonical_unit": "g",
+      "grams_per_cup": null,
+      "notes": null,
+      "purchase_tier": "bulk"
+    },
+    {
+      "name": "Almond Milk",
+      "category": "Dairy & Refrigerated",
       "canonical_unit": null,
       "grams_per_cup": null,
-      "notes": null
+      "notes": null,
+      "purchase_tier": "fresh"
     },
     {
       "name": "Almonds",
-      "canonical_unit": null,
+      "category": "Nuts & Seeds",
+      "canonical_unit": "g",
       "grams_per_cup": null,
-      "notes": null
+      "notes": null,
+      "purchase_tier": "bulk"
     },
     {
       "name": "Ambe Mor Rice",
+      "category": "Grains & Flours",
       "canonical_unit": "g",
       "grams_per_cup": 185.0,
-      "notes": null
+      "notes": null,
+      "purchase_tier": "bulk"
     },
     {
-      "name": "asafoetida",
-      "canonical_unit": null,
+      "name": "Amchur",
+      "category": "Spices & Seasonings",
+      "canonical_unit": "g",
       "grams_per_cup": null,
-      "notes": null
+      "notes": null,
+      "purchase_tier": "bulk"
     },
     {
       "name": "Asafoetida (hing)",
-      "canonical_unit": null,
+      "category": "Spices & Seasonings",
+      "canonical_unit": "g",
       "grams_per_cup": null,
-      "notes": null
+      "notes": null,
+      "purchase_tier": "bulk"
     },
     {
       "name": "Avocado",
-      "canonical_unit": null,
-      "grams_per_cup": null,
-      "notes": null
-    },
-    {
-      "name": "Avocado medium",
-      "canonical_unit": "g",
+      "category": "Produce",
+      "canonical_unit": "pieces",
       "grams_per_cup": 150.0,
-      "notes": null
+      "notes": null,
+      "purchase_tier": "fresh"
     },
     {
       "name": "Balsamic Vinegar",
+      "category": "Condiments & Sauces",
       "canonical_unit": null,
       "grams_per_cup": null,
-      "notes": null
+      "notes": null,
+      "purchase_tier": "bulk"
     },
     {
       "name": "bamboo shoots",
-      "canonical_unit": null,
+      "category": "Produce",
+      "canonical_unit": "kg",
       "grams_per_cup": null,
-      "notes": null
+      "notes": null,
+      "purchase_tier": "fresh"
+    },
+    {
+      "name": "Bananas",
+      "category": "Produce",
+      "canonical_unit": "pieces",
+      "grams_per_cup": null,
+      "notes": null,
+      "purchase_tier": "fresh"
     },
     {
       "name": "Basmati Rice",
+      "category": "Grains & Flours",
       "canonical_unit": "g",
       "grams_per_cup": 196.0,
-      "notes": null
+      "notes": null,
+      "purchase_tier": "bulk"
     },
     {
-      "name": "Bay leaf",
-      "canonical_unit": null,
+      "name": "Bay leaves",
+      "category": "Spices & Seasonings",
+      "canonical_unit": "g",
       "grams_per_cup": null,
-      "notes": null
-    },
-    {
-      "name": "bay leaves",
-      "canonical_unit": null,
-      "grams_per_cup": null,
-      "notes": null
+      "notes": null,
+      "purchase_tier": "bulk"
     },
     {
       "name": "Beetroot",
-      "canonical_unit": null,
+      "category": "Produce",
+      "canonical_unit": "kg",
       "grams_per_cup": null,
-      "notes": null
+      "notes": null,
+      "purchase_tier": "fresh"
     },
     {
       "name": "Bell pepper",
-      "canonical_unit": null,
+      "category": "Produce",
+      "canonical_unit": "kg",
       "grams_per_cup": null,
-      "notes": null
+      "notes": null,
+      "purchase_tier": "fresh"
     },
     {
       "name": "Besan",
+      "category": "Grains & Flours",
       "canonical_unit": "g",
       "grams_per_cup": 92.0,
-      "notes": null
+      "notes": null,
+      "purchase_tier": "bulk"
     },
     {
       "name": "Black Beans",
+      "category": "Pulses & Legumes",
       "canonical_unit": null,
       "grams_per_cup": null,
-      "notes": null
+      "notes": null,
+      "purchase_tier": "bulk"
     },
     {
       "name": "Black chana",
+      "category": "Pulses & Legumes",
       "canonical_unit": "g",
       "grams_per_cup": 164.0,
-      "notes": null
-    },
-    {
-      "name": "black chana dried",
-      "canonical_unit": null,
-      "grams_per_cup": null,
-      "notes": null
+      "notes": null,
+      "purchase_tier": "bulk"
     },
     {
       "name": "Black Eyed Peas",
+      "category": "Pulses & Legumes",
       "canonical_unit": "g",
       "grams_per_cup": 260.0,
-      "notes": null
+      "notes": null,
+      "purchase_tier": "bulk"
     },
     {
       "name": "Black pepper",
+      "category": "Spices & Seasonings",
       "canonical_unit": "g",
       "grams_per_cup": 134.0,
-      "notes": null
+      "notes": null,
+      "purchase_tier": "bulk"
     },
     {
-      "name": "black peppercorns",
+      "name": "Black tea",
+      "category": "Beverages",
       "canonical_unit": null,
       "grams_per_cup": null,
-      "notes": null
-    },
-    {
-      "name": "black tea loose leaf",
-      "canonical_unit": null,
-      "grams_per_cup": null,
-      "notes": null
-    },
-    {
-      "name": "black tea powder dust",
-      "canonical_unit": null,
-      "grams_per_cup": null,
-      "notes": null
+      "notes": null,
+      "purchase_tier": "bulk"
     },
     {
       "name": "Black urad split dal",
+      "category": "Pulses & Legumes",
       "canonical_unit": "g",
       "grams_per_cup": 140.0,
-      "notes": null
+      "notes": null,
+      "purchase_tier": "bulk"
     },
     {
       "name": "Bottle Gourd",
-      "canonical_unit": null,
+      "category": "Produce",
+      "canonical_unit": "kg",
       "grams_per_cup": null,
-      "notes": null
+      "notes": null,
+      "purchase_tier": "fresh"
     },
     {
       "name": "Bouillon",
+      "category": "Condiments & Sauces",
       "canonical_unit": null,
       "grams_per_cup": null,
-      "notes": null
+      "notes": null,
+      "purchase_tier": "bulk"
     },
     {
       "name": "broccoli",
+      "category": "Produce",
+      "canonical_unit": "kg",
+      "grams_per_cup": null,
+      "notes": null,
+      "purchase_tier": "fresh"
+    },
+    {
+      "name": "Bru",
+      "category": "Beverages",
       "canonical_unit": null,
       "grams_per_cup": null,
-      "notes": null
+      "notes": null,
+      "purchase_tier": "bulk"
+    },
+    {
+      "name": "Butter",
+      "category": "Dairy & Refrigerated",
+      "canonical_unit": null,
+      "grams_per_cup": null,
+      "notes": null,
+      "purchase_tier": "fresh"
     },
     {
       "name": "Cabbage",
-      "canonical_unit": null,
+      "category": "Produce",
+      "canonical_unit": "kg",
       "grams_per_cup": null,
-      "notes": null
+      "notes": null,
+      "purchase_tier": "fresh"
     },
     {
       "name": "Canned chickpeas",
+      "category": "Pulses & Legumes",
       "canonical_unit": null,
       "grams_per_cup": null,
-      "notes": null
+      "notes": null,
+      "purchase_tier": "bulk"
     },
     {
       "name": "Cannellini beans",
+      "category": "Pulses & Legumes",
       "canonical_unit": "g",
       "grams_per_cup": 180.0,
-      "notes": null
+      "notes": null,
+      "purchase_tier": "bulk"
     },
     {
       "name": "Capers",
+      "category": "Condiments & Sauces",
       "canonical_unit": null,
       "grams_per_cup": null,
-      "notes": null
+      "notes": null,
+      "purchase_tier": "bulk"
     },
     {
       "name": "Cardamom",
-      "canonical_unit": null,
+      "category": "Spices & Seasonings",
+      "canonical_unit": "g",
       "grams_per_cup": null,
-      "notes": null
+      "notes": null,
+      "purchase_tier": "bulk"
     },
     {
-      "name": "cardamom pods",
-      "canonical_unit": null,
+      "name": "Cardamom powder",
+      "category": "Spices & Seasonings",
+      "canonical_unit": "g",
       "grams_per_cup": null,
-      "notes": null
-    },
-    {
-      "name": "cardamom powder",
-      "canonical_unit": null,
-      "grams_per_cup": null,
-      "notes": null
-    },
-    {
-      "name": "carom seeds",
-      "canonical_unit": null,
-      "grams_per_cup": null,
-      "notes": null
-    },
-    {
-      "name": "Carrot",
-      "canonical_unit": null,
-      "grams_per_cup": null,
-      "notes": null
+      "notes": null,
+      "purchase_tier": "bulk"
     },
     {
       "name": "Carrots",
-      "canonical_unit": null,
+      "category": "Produce",
+      "canonical_unit": "kg",
       "grams_per_cup": null,
-      "notes": null
-    },
-    {
-      "name": "Cashew",
-      "canonical_unit": "g",
-      "grams_per_cup": 136.0,
-      "notes": null
-    },
-    {
-      "name": "cashew nuts",
-      "canonical_unit": null,
-      "grams_per_cup": null,
-      "notes": null
+      "notes": null,
+      "purchase_tier": "fresh"
     },
     {
       "name": "Cashews",
-      "canonical_unit": null,
-      "grams_per_cup": null,
-      "notes": null
+      "category": "Nuts & Seeds",
+      "canonical_unit": "g",
+      "grams_per_cup": 136.0,
+      "notes": null,
+      "purchase_tier": "bulk"
     },
     {
       "name": "Cauliflower",
-      "canonical_unit": null,
+      "category": "Produce",
+      "canonical_unit": "kg",
       "grams_per_cup": null,
-      "notes": null
+      "notes": null,
+      "purchase_tier": "fresh"
     },
     {
       "name": "Chai Masala",
-      "canonical_unit": null,
+      "category": "Spices & Seasonings",
+      "canonical_unit": "g",
       "grams_per_cup": null,
-      "notes": null
+      "notes": null,
+      "purchase_tier": "bulk"
     },
     {
       "name": "Chana Dal",
+      "category": "Pulses & Legumes",
       "canonical_unit": "g",
       "grams_per_cup": 200.0,
-      "notes": null
+      "notes": null,
+      "purchase_tier": "bulk"
     },
     {
       "name": "Chana masala",
+      "category": "Spices & Seasonings",
       "canonical_unit": "g",
       "grams_per_cup": 96.0,
-      "notes": null
+      "notes": null,
+      "purchase_tier": "bulk"
     },
     {
       "name": "Charred Corn",
-      "canonical_unit": null,
+      "category": "Produce",
+      "canonical_unit": "kg",
       "grams_per_cup": null,
-      "notes": null
+      "notes": null,
+      "purchase_tier": "fresh"
     },
     {
       "name": "Chayote squash",
-      "canonical_unit": null,
+      "category": "Produce",
+      "canonical_unit": "kg",
       "grams_per_cup": null,
-      "notes": null
+      "notes": null,
+      "purchase_tier": "fresh"
     },
     {
       "name": "Chickpeas",
+      "category": "Pulses & Legumes",
       "canonical_unit": "g",
       "grams_per_cup": 211.0,
-      "notes": null
+      "notes": null,
+      "purchase_tier": "bulk"
     },
     {
       "name": "Chole Masala",
+      "category": "Spices & Seasonings",
       "canonical_unit": "g",
       "grams_per_cup": 96.0,
-      "notes": null
+      "notes": null,
+      "purchase_tier": "bulk"
     },
     {
       "name": "Chutney podi",
-      "canonical_unit": null,
+      "category": "Spices & Seasonings",
+      "canonical_unit": "g",
       "grams_per_cup": null,
-      "notes": null
+      "notes": null,
+      "purchase_tier": "bulk"
     },
     {
       "name": "Cilantro",
+      "category": "Herbs",
       "canonical_unit": "bunches",
       "grams_per_cup": null,
-      "notes": null
+      "notes": null,
+      "purchase_tier": "fresh"
     },
     {
       "name": "Cinnamon",
+      "category": "Spices & Seasonings",
       "canonical_unit": "g",
       "grams_per_cup": 153.0,
-      "notes": null
-    },
-    {
-      "name": "cinnamon stick",
-      "canonical_unit": null,
-      "grams_per_cup": null,
-      "notes": null
+      "notes": null,
+      "purchase_tier": "bulk"
     },
     {
       "name": "Cloves",
+      "category": "Spices & Seasonings",
       "canonical_unit": "g",
       "grams_per_cup": 100.8,
-      "notes": null
-    },
-    {
-      "name": "Coarsely crushed roasted peanuts",
-      "canonical_unit": null,
-      "grams_per_cup": null,
-      "notes": null
+      "notes": null,
+      "purchase_tier": "bulk"
     },
     {
       "name": "Coconut milk",
+      "category": "Dairy & Refrigerated",
       "canonical_unit": null,
       "grams_per_cup": null,
-      "notes": null
+      "notes": null,
+      "purchase_tier": "bulk"
     },
     {
       "name": "Coconut Oil",
-      "canonical_unit": null,
+      "category": "Oils & Fats",
+      "canonical_unit": "ml",
       "grams_per_cup": null,
-      "notes": null
-    },
-    {
-      "name": "Coconut oil or ghee",
-      "canonical_unit": null,
-      "grams_per_cup": null,
-      "notes": null
+      "notes": null,
+      "purchase_tier": "bulk"
     },
     {
       "name": "Coriander powder",
+      "category": "Spices & Seasonings",
       "canonical_unit": "g",
       "grams_per_cup": 96.0,
-      "notes": null
+      "notes": null,
+      "purchase_tier": "bulk"
     },
     {
       "name": "Coriander seeds",
+      "category": "Spices & Seasonings",
       "canonical_unit": "g",
       "grams_per_cup": 80.0,
-      "notes": null
+      "notes": null,
+      "purchase_tier": "bulk"
     },
     {
       "name": "Cream of Rice",
+      "category": "Grains & Flours",
       "canonical_unit": "g",
       "grams_per_cup": 180.0,
-      "notes": null
-    },
-    {
-      "name": "Cream of Wheat (sooji)",
-      "canonical_unit": null,
-      "grams_per_cup": null,
-      "notes": null
+      "notes": null,
+      "purchase_tier": "bulk"
     },
     {
       "name": "Crushed roasted peanuts",
-      "canonical_unit": null,
+      "category": "Nuts & Seeds",
+      "canonical_unit": "g",
       "grams_per_cup": null,
-      "notes": null
+      "notes": null,
+      "purchase_tier": "bulk"
     },
     {
       "name": "Cucumber",
-      "canonical_unit": null,
+      "category": "Produce",
+      "canonical_unit": "kg",
       "grams_per_cup": null,
-      "notes": null
+      "notes": null,
+      "purchase_tier": "fresh"
     },
     {
       "name": "Cumin seeds",
-      "canonical_unit": null,
+      "category": "Spices & Seasonings",
+      "canonical_unit": "g",
       "grams_per_cup": null,
-      "notes": null
+      "notes": null,
+      "purchase_tier": "bulk"
     },
     {
       "name": "Curry leaves",
-      "canonical_unit": null,
+      "category": "Herbs",
+      "canonical_unit": "sprigs",
       "grams_per_cup": null,
-      "notes": null
+      "notes": null,
+      "purchase_tier": "fresh"
     },
     {
       "name": "Date Palm Jaggery",
+      "category": "Sweeteners",
       "canonical_unit": null,
       "grams_per_cup": null,
-      "notes": null
+      "notes": null,
+      "purchase_tier": "bulk"
+    },
+    {
+      "name": "Dhokla",
+      "category": "Prepared & Packaged",
+      "canonical_unit": null,
+      "grams_per_cup": null,
+      "notes": null,
+      "purchase_tier": "fresh"
     },
     {
       "name": "Ditalini pasta",
+      "category": "Grains & Flours",
       "canonical_unit": "g",
       "grams_per_cup": 73.33,
-      "notes": null
+      "notes": null,
+      "purchase_tier": "bulk"
     },
     {
-      "name": "dried coconut slices",
-      "canonical_unit": null,
-      "grams_per_cup": null,
-      "notes": null
+      "name": "Dried coconut slices",
+      "category": "Produce",
+      "canonical_unit": "kg",
+      "grams_per_cup": 100.0,
+      "notes": null,
+      "purchase_tier": "fresh"
     },
     {
       "name": "Dried Dill",
-      "canonical_unit": null,
+      "category": "Herbs",
+      "canonical_unit": "bunches",
       "grams_per_cup": null,
-      "notes": null
-    },
-    {
-      "name": "dried fenugreek leaves",
-      "canonical_unit": null,
-      "grams_per_cup": null,
-      "notes": null
-    },
-    {
-      "name": "Dried fenugreek leaves (kasuri methi)",
-      "canonical_unit": null,
-      "grams_per_cup": null,
-      "notes": null
-    },
-    {
-      "name": "dried raw mango powder",
-      "canonical_unit": null,
-      "grams_per_cup": null,
-      "notes": null
-    },
-    {
-      "name": "Dried raw mango powder (amchur)",
-      "canonical_unit": null,
-      "grams_per_cup": null,
-      "notes": null
+      "notes": null,
+      "purchase_tier": "bulk"
     },
     {
       "name": "Dried red chilies",
-      "canonical_unit": null,
-      "grams_per_cup": null,
-      "notes": null
+      "category": "Spices & Seasonings",
+      "canonical_unit": "g",
+      "grams_per_cup": 35.0,
+      "notes": null,
+      "purchase_tier": "bulk"
     },
     {
       "name": "Drumstick",
-      "canonical_unit": null,
+      "category": "Produce",
+      "canonical_unit": "pieces",
       "grams_per_cup": null,
-      "notes": null
-    },
-    {
-      "name": "drumsticks",
-      "canonical_unit": null,
-      "grams_per_cup": null,
-      "notes": null
-    },
-    {
-      "name": "Dry Coconut Slices",
-      "canonical_unit": "g",
-      "grams_per_cup": 100.0,
-      "notes": null
+      "notes": null,
+      "purchase_tier": "fresh"
     },
     {
       "name": "Dry ginger powder",
-      "canonical_unit": null,
+      "category": "Spices & Seasonings",
+      "canonical_unit": "g",
       "grams_per_cup": null,
-      "notes": null
+      "notes": null,
+      "purchase_tier": "bulk"
     },
     {
       "name": "Eggplant",
-      "canonical_unit": null,
+      "category": "Produce",
+      "canonical_unit": "kg",
       "grams_per_cup": null,
-      "notes": null
+      "notes": null,
+      "purchase_tier": "fresh"
     },
     {
       "name": "extra-firm tofu",
+      "category": "Dairy & Refrigerated",
       "canonical_unit": null,
       "grams_per_cup": null,
-      "notes": null
+      "notes": null,
+      "purchase_tier": "daily"
     },
     {
       "name": "Fennel",
-      "canonical_unit": null,
+      "category": "Spices & Seasonings",
+      "canonical_unit": "g",
       "grams_per_cup": null,
-      "notes": null
+      "notes": null,
+      "purchase_tier": "bulk"
     },
     {
       "name": "Fennel seeds",
-      "canonical_unit": null,
+      "category": "Spices & Seasonings",
+      "canonical_unit": "g",
       "grams_per_cup": null,
-      "notes": null
+      "notes": null,
+      "purchase_tier": "bulk"
     },
     {
-      "name": "Fenugreek",
-      "canonical_unit": null,
+      "name": "Fenugreek powder",
+      "category": "Spices & Seasonings",
+      "canonical_unit": "g",
       "grams_per_cup": null,
-      "notes": null
+      "notes": null,
+      "purchase_tier": "bulk"
     },
     {
-      "name": "fenugreek powder",
-      "canonical_unit": null,
-      "grams_per_cup": null,
-      "notes": null
+      "name": "Fenugreek seeds",
+      "category": "Spices & Seasonings",
+      "canonical_unit": "g",
+      "grams_per_cup": 177.0,
+      "notes": null,
+      "purchase_tier": "bulk"
     },
     {
-      "name": "filter coffee",
+      "name": "Filter coffee",
+      "category": "Beverages",
       "canonical_unit": null,
       "grams_per_cup": null,
-      "notes": null
+      "notes": null,
+      "purchase_tier": "bulk"
     },
     {
       "name": "French green beans",
+      "category": "Pulses & Legumes",
       "canonical_unit": null,
       "grams_per_cup": null,
-      "notes": null
-    },
-    {
-      "name": "Fresh cilantro",
-      "canonical_unit": null,
-      "grams_per_cup": null,
-      "notes": null
-    },
-    {
-      "name": "Fresh ginger",
-      "canonical_unit": null,
-      "grams_per_cup": null,
-      "notes": null
-    },
-    {
-      "name": "fresh mint",
-      "canonical_unit": null,
-      "grams_per_cup": null,
-      "notes": null
-    },
-    {
-      "name": "fresh mint leaves",
-      "canonical_unit": null,
-      "grams_per_cup": null,
-      "notes": null
+      "notes": null,
+      "purchase_tier": "bulk"
     },
     {
       "name": "fresh red chilies",
-      "canonical_unit": null,
+      "category": "Spices & Seasonings",
+      "canonical_unit": "g",
       "grams_per_cup": null,
-      "notes": null
+      "notes": null,
+      "purchase_tier": "bulk"
     },
     {
       "name": "Frozen coconut",
-      "canonical_unit": null,
+      "category": "Produce",
+      "canonical_unit": "kg",
       "grams_per_cup": null,
-      "notes": null
-    },
-    {
-      "name": "frozen fine-textured coconut",
-      "canonical_unit": null,
-      "grams_per_cup": null,
-      "notes": null
-    },
-    {
-      "name": "Frozen green peas",
-      "canonical_unit": null,
-      "grams_per_cup": null,
-      "notes": null
-    },
-    {
-      "name": "frozen peas",
-      "canonical_unit": null,
-      "grams_per_cup": null,
-      "notes": null
-    },
-    {
-      "name": "frozen shredded coconut",
-      "canonical_unit": null,
-      "grams_per_cup": null,
-      "notes": null
+      "notes": null,
+      "purchase_tier": "fresh"
     },
     {
       "name": "frozen yam",
-      "canonical_unit": null,
+      "category": "Produce",
+      "canonical_unit": "kg",
       "grams_per_cup": null,
-      "notes": null
+      "notes": null,
+      "purchase_tier": "fresh"
     },
     {
       "name": "Garam masala",
+      "category": "Spices & Seasonings",
       "canonical_unit": "g",
       "grams_per_cup": 96.0,
-      "notes": null
+      "notes": null,
+      "purchase_tier": "bulk"
     },
     {
       "name": "Garlic",
-      "canonical_unit": "g",
+      "category": "Produce",
+      "canonical_unit": "kg",
       "grams_per_cup": 254.0,
-      "notes": null
-    },
-    {
-      "name": "garlic cloves",
-      "canonical_unit": null,
-      "grams_per_cup": null,
-      "notes": null
+      "notes": null,
+      "purchase_tier": "fresh"
     },
     {
       "name": "Ghee",
-      "canonical_unit": null,
+      "category": "Oils & Fats",
+      "canonical_unit": "ml",
       "grams_per_cup": null,
-      "notes": null
+      "notes": null,
+      "purchase_tier": "bulk"
     },
     {
       "name": "Ginger",
-      "canonical_unit": "g",
+      "category": "Produce",
+      "canonical_unit": "kg",
       "grams_per_cup": 97.0,
-      "notes": null
+      "notes": null,
+      "purchase_tier": "fresh"
+    },
+    {
+      "name": "Gluten-free bread",
+      "category": "Prepared & Packaged",
+      "canonical_unit": null,
+      "grams_per_cup": null,
+      "notes": null,
+      "purchase_tier": "daily"
+    },
+    {
+      "name": "Gluten-free cereal",
+      "category": "Prepared & Packaged",
+      "canonical_unit": null,
+      "grams_per_cup": null,
+      "notes": null,
+      "purchase_tier": "fresh"
     },
     {
       "name": "Gobindobhog Rice",
+      "category": "Grains & Flours",
       "canonical_unit": null,
       "grams_per_cup": null,
-      "notes": null
+      "notes": null,
+      "purchase_tier": "bulk"
     },
     {
       "name": "Goda masala",
-      "canonical_unit": null,
+      "category": "Spices & Seasonings",
+      "canonical_unit": "g",
       "grams_per_cup": null,
-      "notes": null
-    },
-    {
-      "name": "gram flour",
-      "canonical_unit": null,
-      "grams_per_cup": null,
-      "notes": null
+      "notes": null,
+      "purchase_tier": "bulk"
     },
     {
       "name": "Green Bell Pepper",
-      "canonical_unit": null,
+      "category": "Produce",
+      "canonical_unit": "kg",
       "grams_per_cup": null,
-      "notes": null
+      "notes": null,
+      "purchase_tier": "fresh"
     },
     {
       "name": "Green cabbage",
-      "canonical_unit": null,
+      "category": "Produce",
+      "canonical_unit": "kg",
       "grams_per_cup": null,
-      "notes": null
+      "notes": null,
+      "purchase_tier": "fresh"
     },
     {
       "name": "Green chilies",
-      "canonical_unit": null,
-      "grams_per_cup": null,
-      "notes": null
-    },
-    {
-      "name": "Green chillies",
+      "category": "Spices & Seasonings",
       "canonical_unit": "g",
       "grams_per_cup": 240.0,
-      "notes": null
+      "notes": null,
+      "purchase_tier": "bulk"
     },
     {
       "name": "Green Grapes",
-      "canonical_unit": null,
+      "category": "Produce",
+      "canonical_unit": "pieces",
       "grams_per_cup": null,
-      "notes": null
+      "notes": null,
+      "purchase_tier": "fresh"
     },
     {
-      "name": "green moong dal",
-      "canonical_unit": null,
-      "grams_per_cup": null,
-      "notes": null
-    },
-    {
-      "name": "Green Mung Dal",
+      "name": "Green mung dal",
+      "category": "Pulses & Legumes",
       "canonical_unit": "g",
       "grams_per_cup": 180.0,
-      "notes": null
+      "notes": null,
+      "purchase_tier": "bulk"
     },
     {
       "name": "Green papaya",
-      "canonical_unit": null,
+      "category": "Produce",
+      "canonical_unit": "kg",
       "grams_per_cup": null,
-      "notes": null
+      "notes": null,
+      "purchase_tier": "fresh"
     },
     {
-      "name": "green peas",
-      "canonical_unit": null,
-      "grams_per_cup": null,
-      "notes": null
-    },
-    {
-      "name": "green plantain",
-      "canonical_unit": null,
-      "grams_per_cup": null,
-      "notes": null
-    },
-    {
-      "name": "Green plantains",
-      "canonical_unit": null,
-      "grams_per_cup": null,
-      "notes": null
-    },
-    {
-      "name": "ground cardamom",
-      "canonical_unit": null,
-      "grams_per_cup": null,
-      "notes": null
-    },
-    {
-      "name": "Ground coriander",
-      "canonical_unit": null,
-      "grams_per_cup": null,
-      "notes": null
+      "name": "Green peas",
+      "category": "Pulses & Legumes",
+      "canonical_unit": "g",
+      "grams_per_cup": 144.0,
+      "notes": null,
+      "purchase_tier": "bulk"
     },
     {
       "name": "Ground cumin",
-      "canonical_unit": null,
-      "grams_per_cup": null,
-      "notes": null
+      "category": "Spices & Seasonings",
+      "canonical_unit": "g",
+      "grams_per_cup": 96.0,
+      "notes": null,
+      "purchase_tier": "bulk"
     },
     {
       "name": "heavy cream",
+      "category": "Dairy & Refrigerated",
       "canonical_unit": null,
       "grams_per_cup": null,
-      "notes": null
-    },
-    {
-      "name": "Hing",
-      "canonical_unit": null,
-      "grams_per_cup": null,
-      "notes": null
+      "notes": null,
+      "purchase_tier": "daily"
     },
     {
       "name": "Idli Rava",
+      "category": "Grains & Flours",
       "canonical_unit": "g",
       "grams_per_cup": 220.0,
-      "notes": null
+      "notes": null,
+      "purchase_tier": "bulk"
     },
     {
       "name": "indian eggplants",
+      "category": "Produce",
+      "canonical_unit": "kg",
+      "grams_per_cup": null,
+      "notes": null,
+      "purchase_tier": "fresh"
+    },
+    {
+      "name": "Instant decaf coffee",
+      "category": "Beverages",
       "canonical_unit": null,
       "grams_per_cup": null,
-      "notes": null
+      "notes": null,
+      "purchase_tier": "bulk"
     },
     {
       "name": "Jaggery",
+      "category": "Sweeteners",
       "canonical_unit": "g",
       "grams_per_cup": 112.0,
-      "notes": null
+      "notes": null,
+      "purchase_tier": "bulk"
     },
     {
       "name": "Jaggery or brown sugar or maple syrup",
+      "category": "Sweeteners",
       "canonical_unit": null,
       "grams_per_cup": null,
-      "notes": null
+      "notes": null,
+      "purchase_tier": "bulk"
     },
     {
       "name": "Jalapeno",
-      "canonical_unit": null,
+      "category": "Produce",
+      "canonical_unit": "kg",
       "grams_per_cup": null,
-      "notes": null
+      "notes": null,
+      "purchase_tier": "fresh"
     },
     {
       "name": "Jasmine Rice",
+      "category": "Grains & Flours",
       "canonical_unit": "g",
       "grams_per_cup": 185.0,
-      "notes": null
+      "notes": null,
+      "purchase_tier": "bulk"
     },
     {
-      "name": "Jeera",
-      "canonical_unit": null,
-      "grams_per_cup": null,
-      "notes": null
-    },
-    {
-      "name": "Jeera Powder",
+      "name": "Jelly",
+      "category": "Pantry Staples",
       "canonical_unit": "g",
-      "grams_per_cup": 96.0,
-      "notes": null
+      "grams_per_cup": null,
+      "notes": null,
+      "purchase_tier": "bulk"
     },
     {
       "name": "Kasuri methi",
-      "canonical_unit": null,
+      "category": "Herbs",
+      "canonical_unit": "bunches",
       "grams_per_cup": null,
-      "notes": null
+      "notes": null,
+      "purchase_tier": "bulk"
     },
     {
       "name": "Kerala Matta Rice",
+      "category": "Grains & Flours",
       "canonical_unit": "g",
       "grams_per_cup": 185.0,
-      "notes": null
+      "notes": null,
+      "purchase_tier": "bulk"
     },
     {
       "name": "Khakhra",
+      "category": "Grains & Flours",
       "canonical_unit": null,
       "grams_per_cup": null,
-      "notes": null
-    },
-    {
-      "name": "Khakra",
-      "canonical_unit": null,
-      "grams_per_cup": null,
-      "notes": null
+      "notes": null,
+      "purchase_tier": "bulk"
     },
     {
       "name": "kidney beans",
+      "category": "Pulses & Legumes",
       "canonical_unit": null,
       "grams_per_cup": null,
-      "notes": null
+      "notes": null,
+      "purchase_tier": "bulk"
     },
     {
       "name": "labra masala",
-      "canonical_unit": null,
+      "category": "Spices & Seasonings",
+      "canonical_unit": "g",
       "grams_per_cup": null,
-      "notes": null
-    },
-    {
-      "name": "large tomatoes",
-      "canonical_unit": null,
-      "grams_per_cup": null,
-      "notes": null
+      "notes": null,
+      "purchase_tier": "bulk"
     },
     {
       "name": "lemon",
-      "canonical_unit": null,
+      "category": "Produce",
+      "canonical_unit": "pieces",
       "grams_per_cup": null,
-      "notes": null
+      "notes": null,
+      "purchase_tier": "fresh"
     },
     {
       "name": "Lemon juice",
+      "category": "Condiments & Sauces",
       "canonical_unit": null,
       "grams_per_cup": null,
-      "notes": null
+      "notes": null,
+      "purchase_tier": "bulk"
     },
     {
       "name": "Lemon juice concentrate",
+      "category": "Condiments & Sauces",
       "canonical_unit": null,
       "grams_per_cup": null,
-      "notes": null
+      "notes": null,
+      "purchase_tier": "bulk"
     },
     {
       "name": "Lemon or lime",
-      "canonical_unit": null,
+      "category": "Produce",
+      "canonical_unit": "pieces",
       "grams_per_cup": null,
-      "notes": null
-    },
-    {
-      "name": "Lemon or lime juice",
-      "canonical_unit": null,
-      "grams_per_cup": null,
-      "notes": null
+      "notes": null,
+      "purchase_tier": "fresh"
     },
     {
       "name": "Lemongrass",
-      "canonical_unit": null,
+      "category": "Herbs",
+      "canonical_unit": "bunches",
       "grams_per_cup": null,
-      "notes": null
+      "notes": null,
+      "purchase_tier": "fresh"
     },
     {
       "name": "Lima Beans",
+      "category": "Pulses & Legumes",
       "canonical_unit": null,
       "grams_per_cup": null,
-      "notes": null
+      "notes": null,
+      "purchase_tier": "bulk"
     },
     {
       "name": "Lime",
-      "canonical_unit": null,
+      "category": "Produce",
+      "canonical_unit": "pieces",
       "grams_per_cup": null,
-      "notes": null
-    },
-    {
-      "name": "Lime or lemon",
-      "canonical_unit": null,
-      "grams_per_cup": null,
-      "notes": null
+      "notes": null,
+      "purchase_tier": "fresh"
     },
     {
       "name": "Long Beans",
+      "category": "Pulses & Legumes",
       "canonical_unit": null,
       "grams_per_cup": null,
-      "notes": null
-    },
-    {
-      "name": "loose leaf black tea",
-      "canonical_unit": null,
-      "grams_per_cup": null,
-      "notes": null
+      "notes": null,
+      "purchase_tier": "bulk"
     },
     {
       "name": "Loose leaf tea",
+      "category": "Beverages",
       "canonical_unit": "g",
       "grams_per_cup": 114.0,
-      "notes": null
+      "notes": null,
+      "purchase_tier": "bulk"
     },
     {
       "name": "Maple syrup",
+      "category": "Sweeteners",
       "canonical_unit": null,
       "grams_per_cup": null,
-      "notes": null
+      "notes": null,
+      "purchase_tier": "bulk"
     },
     {
       "name": "Masoor dal",
+      "category": "Pulses & Legumes",
       "canonical_unit": "g",
       "grams_per_cup": 180.0,
-      "notes": null
-    },
-    {
-      "name": "Methi seeds",
-      "canonical_unit": "g",
-      "grams_per_cup": 177.0,
-      "notes": null
+      "notes": null,
+      "purchase_tier": "bulk"
     },
     {
       "name": "Mexican dried oregano",
+      "category": "Spices & Seasonings",
       "canonical_unit": "g",
       "grams_per_cup": 90.0,
-      "notes": null
+      "notes": null,
+      "purchase_tier": "bulk"
     },
     {
       "name": "Milk",
+      "category": "Dairy & Refrigerated",
       "canonical_unit": "ml",
       "grams_per_cup": 245.0,
-      "notes": null
+      "notes": null,
+      "purchase_tier": "daily"
     },
     {
       "name": "Milk powder",
+      "category": "Dairy & Refrigerated",
       "canonical_unit": "g",
       "grams_per_cup": 125.0,
-      "notes": null
+      "notes": null,
+      "purchase_tier": "bulk"
     },
     {
       "name": "Millets",
+      "category": "Grains & Flours",
       "canonical_unit": "g",
       "grams_per_cup": 151.0,
-      "notes": null
+      "notes": null,
+      "purchase_tier": "bulk"
     },
     {
       "name": "Mint",
-      "canonical_unit": null,
+      "category": "Herbs",
+      "canonical_unit": "bunches",
       "grams_per_cup": null,
-      "notes": null
-    },
-    {
-      "name": "mint leaves",
-      "canonical_unit": null,
-      "grams_per_cup": null,
-      "notes": null
+      "notes": null,
+      "purchase_tier": "fresh"
     },
     {
       "name": "Mung dal",
+      "category": "Pulses & Legumes",
       "canonical_unit": "g",
       "grams_per_cup": 200.0,
-      "notes": null
+      "notes": null,
+      "purchase_tier": "bulk"
     },
     {
       "name": "Mung Dal (Green, Split)",
+      "category": "Pulses & Legumes",
       "canonical_unit": "g",
       "grams_per_cup": 200.0,
-      "notes": null
+      "notes": null,
+      "purchase_tier": "bulk"
     },
     {
       "name": "Mustard Oil",
-      "canonical_unit": null,
+      "category": "Oils & Fats",
+      "canonical_unit": "ml",
       "grams_per_cup": null,
-      "notes": null
+      "notes": null,
+      "purchase_tier": "bulk"
     },
     {
-      "name": "mustard seed powder",
-      "canonical_unit": null,
+      "name": "Mustard powder",
+      "category": "Spices & Seasonings",
+      "canonical_unit": "g",
       "grams_per_cup": null,
-      "notes": null
+      "notes": null,
+      "purchase_tier": "bulk"
     },
     {
       "name": "Mustard Seeds",
+      "category": "Spices & Seasonings",
       "canonical_unit": "g",
       "grams_per_cup": 176.0,
-      "notes": null
+      "notes": null,
+      "purchase_tier": "bulk"
     },
     {
       "name": "Muthiya",
+      "category": "Prepared & Packaged",
       "canonical_unit": null,
       "grams_per_cup": null,
-      "notes": null
+      "notes": null,
+      "purchase_tier": "fresh"
     },
     {
       "name": "Nigella Seeds",
-      "canonical_unit": null,
+      "category": "Nuts & Seeds",
+      "canonical_unit": "g",
       "grams_per_cup": null,
-      "notes": null
+      "notes": null,
+      "purchase_tier": "bulk"
     },
     {
-      "name": "nutmeg",
-      "canonical_unit": null,
+      "name": "Nutmeg",
+      "category": "Spices & Seasonings",
+      "canonical_unit": "g",
       "grams_per_cup": null,
-      "notes": null
-    },
-    {
-      "name": "Nutmeg (whole)",
-      "canonical_unit": null,
-      "grams_per_cup": null,
-      "notes": null
+      "notes": null,
+      "purchase_tier": "bulk"
     },
     {
       "name": "Nutritional Yeast",
-      "canonical_unit": null,
+      "category": "Pantry Staples",
+      "canonical_unit": "g",
       "grams_per_cup": null,
-      "notes": null
+      "notes": null,
+      "purchase_tier": "bulk"
     },
     {
-      "name": "okra",
-      "canonical_unit": null,
+      "name": "Okra",
+      "category": "Produce",
+      "canonical_unit": "kg",
       "grams_per_cup": null,
-      "notes": null
-    },
-    {
-      "name": "Okra (bhindi)",
-      "canonical_unit": null,
-      "grams_per_cup": null,
-      "notes": null
+      "notes": null,
+      "purchase_tier": "fresh"
     },
     {
       "name": "Olive Oil",
-      "canonical_unit": null,
+      "category": "Oils & Fats",
+      "canonical_unit": "ml",
       "grams_per_cup": null,
-      "notes": null
+      "notes": null,
+      "purchase_tier": "bulk"
     },
     {
       "name": "Onion",
-      "canonical_unit": null,
+      "category": "Produce",
+      "canonical_unit": "kg",
       "grams_per_cup": null,
-      "notes": null
+      "notes": null,
+      "purchase_tier": "fresh"
     },
     {
-      "name": "Organic rolled oats",
-      "canonical_unit": null,
+      "name": "Oranges",
+      "category": "Produce",
+      "canonical_unit": "pieces",
       "grams_per_cup": null,
-      "notes": null
+      "notes": null,
+      "purchase_tier": "fresh"
     },
     {
       "name": "Palm sugar",
+      "category": "Sweeteners",
       "canonical_unit": null,
       "grams_per_cup": null,
-      "notes": null
+      "notes": null,
+      "purchase_tier": "bulk"
     },
     {
       "name": "Panch phoran",
-      "canonical_unit": null,
+      "category": "Spices & Seasonings",
+      "canonical_unit": "g",
       "grams_per_cup": null,
-      "notes": null
-    },
-    {
-      "name": "panch phoron",
-      "canonical_unit": null,
-      "grams_per_cup": null,
-      "notes": null
+      "notes": null,
+      "purchase_tier": "bulk"
     },
     {
       "name": "paneer",
+      "category": "Dairy & Refrigerated",
       "canonical_unit": null,
       "grams_per_cup": null,
-      "notes": null
+      "notes": null,
+      "purchase_tier": "daily"
     },
     {
       "name": "Papdi Lillva (Frozen)",
+      "category": "Pulses & Legumes",
       "canonical_unit": null,
       "grams_per_cup": null,
-      "notes": null
+      "notes": null,
+      "purchase_tier": "bulk"
+    },
+    {
+      "name": "Peanut Butter",
+      "category": "Pantry Staples",
+      "canonical_unit": "g",
+      "grams_per_cup": null,
+      "notes": null,
+      "purchase_tier": "bulk"
     },
     {
       "name": "Peanuts",
-      "canonical_unit": null,
+      "category": "Nuts & Seeds",
+      "canonical_unit": "g",
       "grams_per_cup": null,
-      "notes": null
+      "notes": null,
+      "purchase_tier": "bulk"
     },
     {
       "name": "pearl onions",
-      "canonical_unit": null,
+      "category": "Produce",
+      "canonical_unit": "kg",
       "grams_per_cup": null,
-      "notes": null
-    },
-    {
-      "name": "Peas",
-      "canonical_unit": "g",
-      "grams_per_cup": 144.0,
-      "notes": null
+      "notes": null,
+      "purchase_tier": "fresh"
     },
     {
       "name": "Pecans",
+      "category": "Nuts & Seeds",
+      "canonical_unit": "g",
+      "grams_per_cup": null,
+      "notes": null,
+      "purchase_tier": "bulk"
+    },
+    {
+      "name": "Pickle",
+      "category": "Condiments & Sauces",
       "canonical_unit": null,
       "grams_per_cup": null,
-      "notes": null
+      "notes": null,
+      "purchase_tier": "bulk"
     },
     {
       "name": "Pindi Chole Masala",
+      "category": "Spices & Seasonings",
       "canonical_unit": "g",
       "grams_per_cup": 96.0,
-      "notes": null
+      "notes": null,
+      "purchase_tier": "bulk"
     },
     {
       "name": "Pinto Beans",
+      "category": "Pulses & Legumes",
       "canonical_unit": null,
       "grams_per_cup": null,
-      "notes": null
+      "notes": null,
+      "purchase_tier": "bulk"
     },
     {
       "name": "Plantain",
-      "canonical_unit": null,
+      "category": "Produce",
+      "canonical_unit": "pieces",
       "grams_per_cup": null,
-      "notes": null
+      "notes": null,
+      "purchase_tier": "fresh"
     },
     {
       "name": "Poppy seeds",
+      "category": "Nuts & Seeds",
       "canonical_unit": "g",
       "grams_per_cup": 140.0,
-      "notes": null
-    },
-    {
-      "name": "Potato",
-      "canonical_unit": null,
-      "grams_per_cup": null,
-      "notes": null
+      "notes": null,
+      "purchase_tier": "bulk"
     },
     {
       "name": "Potatoes",
-      "canonical_unit": null,
+      "category": "Produce",
+      "canonical_unit": "kg",
       "grams_per_cup": null,
-      "notes": null
+      "notes": null,
+      "purchase_tier": "fresh"
     },
     {
       "name": "Purple Cabbage",
-      "canonical_unit": null,
+      "category": "Produce",
+      "canonical_unit": "kg",
       "grams_per_cup": null,
-      "notes": null
+      "notes": null,
+      "purchase_tier": "fresh"
     },
     {
       "name": "Quinoa",
+      "category": "Grains & Flours",
       "canonical_unit": "g",
       "grams_per_cup": 170.0,
-      "notes": null
+      "notes": null,
+      "purchase_tier": "bulk"
     },
     {
       "name": "Radish",
-      "canonical_unit": null,
+      "category": "Produce",
+      "canonical_unit": "kg",
       "grams_per_cup": null,
-      "notes": null
-    },
-    {
-      "name": "Radishes",
-      "canonical_unit": null,
-      "grams_per_cup": null,
-      "notes": null
+      "notes": null,
+      "purchase_tier": "fresh"
     },
     {
       "name": "Ragi Flour",
+      "category": "Grains & Flours",
       "canonical_unit": "g",
       "grams_per_cup": 130.0,
-      "notes": null
-    },
-    {
-      "name": "Raisin",
-      "canonical_unit": "g",
-      "grams_per_cup": 159.0,
-      "notes": null
+      "notes": null,
+      "purchase_tier": "bulk"
     },
     {
       "name": "Raisins",
-      "canonical_unit": null,
-      "grams_per_cup": null,
-      "notes": null
+      "category": "Pantry Staples",
+      "canonical_unit": "g",
+      "grams_per_cup": 159.0,
+      "notes": null,
+      "purchase_tier": "bulk"
     },
     {
       "name": "Rajma",
+      "category": "Pulses & Legumes",
       "canonical_unit": "g",
       "grams_per_cup": 264.0,
-      "notes": null
-    },
-    {
-      "name": "raw mustard powder",
-      "canonical_unit": null,
-      "grams_per_cup": null,
-      "notes": null
-    },
-    {
-      "name": "raw tamarind",
-      "canonical_unit": null,
-      "grams_per_cup": null,
-      "notes": null
+      "notes": null,
+      "purchase_tier": "bulk"
     },
     {
       "name": "red bell pepper",
-      "canonical_unit": null,
+      "category": "Produce",
+      "canonical_unit": "kg",
       "grams_per_cup": null,
-      "notes": null
+      "notes": null,
+      "purchase_tier": "fresh"
     },
     {
       "name": "Red cabbage",
-      "canonical_unit": null,
+      "category": "Produce",
+      "canonical_unit": "kg",
       "grams_per_cup": null,
-      "notes": null
+      "notes": null,
+      "purchase_tier": "fresh"
     },
     {
       "name": "Red chili powder",
-      "canonical_unit": null,
-      "grams_per_cup": null,
-      "notes": null
-    },
-    {
-      "name": "Red chillies",
-      "canonical_unit": "g",
-      "grams_per_cup": 35.0,
-      "notes": null
-    },
-    {
-      "name": "Red chilly powder",
+      "category": "Spices & Seasonings",
       "canonical_unit": "g",
       "grams_per_cup": 95.0,
-      "notes": null
+      "notes": null,
+      "purchase_tier": "bulk"
     },
     {
       "name": "Red onion",
-      "canonical_unit": null,
+      "category": "Produce",
+      "canonical_unit": "kg",
       "grams_per_cup": null,
-      "notes": null
+      "notes": null,
+      "purchase_tier": "fresh"
     },
     {
       "name": "Red pumpkin",
+      "category": "Produce",
+      "canonical_unit": "kg",
+      "grams_per_cup": null,
+      "notes": null,
+      "purchase_tier": "fresh"
+    },
+    {
+      "name": "Regular cereal",
+      "category": "Prepared & Packaged",
       "canonical_unit": null,
       "grams_per_cup": null,
-      "notes": null
+      "notes": null,
+      "purchase_tier": "fresh"
     },
     {
       "name": "Rice",
+      "category": "Grains & Flours",
       "canonical_unit": null,
       "grams_per_cup": null,
-      "notes": null
-    },
-    {
-      "name": "Rice (Sona Masoori)",
-      "canonical_unit": "g",
-      "grams_per_cup": 185.0,
-      "notes": null
+      "notes": null,
+      "purchase_tier": "bulk"
     },
     {
       "name": "Rice vinegar",
+      "category": "Condiments & Sauces",
       "canonical_unit": null,
       "grams_per_cup": null,
-      "notes": null
+      "notes": null,
+      "purchase_tier": "bulk"
     },
     {
       "name": "Roasted daliya (roasted bengal gram)",
+      "category": "Grains & Flours",
       "canonical_unit": null,
       "grams_per_cup": null,
-      "notes": null
+      "notes": null,
+      "purchase_tier": "bulk"
     },
     {
-      "name": "roasted fenugreek powder",
-      "canonical_unit": null,
-      "grams_per_cup": null,
-      "notes": null
-    },
-    {
-      "name": "Roasted ground cumin",
-      "canonical_unit": null,
-      "grams_per_cup": null,
-      "notes": null
-    },
-    {
-      "name": "Rolled Oats",
+      "name": "Rolled oats",
+      "category": "Grains & Flours",
       "canonical_unit": "g",
       "grams_per_cup": 90.0,
-      "notes": null
+      "notes": null,
+      "purchase_tier": "bulk"
     },
     {
       "name": "Romaine Lettuce",
-      "canonical_unit": null,
+      "category": "Produce",
+      "canonical_unit": "kg",
       "grams_per_cup": null,
-      "notes": null
+      "notes": null,
+      "purchase_tier": "fresh"
     },
     {
       "name": "rose petals",
+      "category": "Herbs",
+      "canonical_unit": "bunches",
+      "grams_per_cup": null,
+      "notes": null,
+      "purchase_tier": "fresh"
+    },
+    {
+      "name": "Rotis",
+      "category": "Prepared & Packaged",
       "canonical_unit": null,
       "grams_per_cup": null,
-      "notes": null
+      "notes": null,
+      "purchase_tier": "daily"
     },
     {
       "name": "Saffron",
+      "category": "Spices & Seasonings",
       "canonical_unit": "g",
       "grams_per_cup": 34.0,
-      "notes": null
-    },
-    {
-      "name": "saffron strands",
-      "canonical_unit": null,
-      "grams_per_cup": null,
-      "notes": null
+      "notes": null,
+      "purchase_tier": "bulk"
     },
     {
       "name": "Salt",
-      "canonical_unit": null,
+      "category": "Pantry Staples",
+      "canonical_unit": "g",
       "grams_per_cup": null,
-      "notes": null
+      "notes": null,
+      "purchase_tier": "bulk"
     },
     {
       "name": "Sambar powder",
-      "canonical_unit": null,
+      "category": "Spices & Seasonings",
+      "canonical_unit": "g",
       "grams_per_cup": null,
-      "notes": null
+      "notes": null,
+      "purchase_tier": "bulk"
     },
     {
-      "name": "Sesame (Gingelly) Oil",
-      "canonical_unit": null,
+      "name": "Sesame oil",
+      "category": "Oils & Fats",
+      "canonical_unit": "ml",
       "grams_per_cup": null,
-      "notes": null
-    },
-    {
-      "name": "sesame and peanut oil",
-      "canonical_unit": null,
-      "grams_per_cup": null,
-      "notes": null
-    },
-    {
-      "name": "sesame oil",
-      "canonical_unit": null,
-      "grams_per_cup": null,
-      "notes": null
+      "notes": null,
+      "purchase_tier": "bulk"
     },
     {
       "name": "Sesame seeds",
+      "category": "Nuts & Seeds",
       "canonical_unit": "g",
       "grams_per_cup": 154.0,
-      "notes": null
+      "notes": null,
+      "purchase_tier": "bulk"
     },
     {
       "name": "Shredded Parmesan",
+      "category": "Dairy & Refrigerated",
       "canonical_unit": "g",
       "grams_per_cup": 80.0,
-      "notes": null
+      "notes": null,
+      "purchase_tier": "fresh"
     },
     {
       "name": "Smoked paprika",
+      "category": "Spices & Seasonings",
       "canonical_unit": "g",
       "grams_per_cup": 95.0,
-      "notes": null
+      "notes": null,
+      "purchase_tier": "bulk"
     },
     {
       "name": "Sona Masoori Rice",
+      "category": "Grains & Flours",
       "canonical_unit": "g",
       "grams_per_cup": 185.0,
-      "notes": null
+      "notes": null,
+      "purchase_tier": "bulk"
     },
     {
       "name": "Sooji",
+      "category": "Grains & Flours",
       "canonical_unit": "g",
       "grams_per_cup": 167.0,
-      "notes": null
+      "notes": null,
+      "purchase_tier": "bulk"
     },
     {
       "name": "Sour Cream",
+      "category": "Dairy & Refrigerated",
       "canonical_unit": "g",
       "grams_per_cup": 245.0,
-      "notes": null
+      "notes": null,
+      "purchase_tier": "daily"
     },
     {
       "name": "sour yellow cucumber",
-      "canonical_unit": null,
+      "category": "Produce",
+      "canonical_unit": "kg",
       "grams_per_cup": null,
-      "notes": null
+      "notes": null,
+      "purchase_tier": "fresh"
     },
     {
       "name": "Soy sauce",
+      "category": "Condiments & Sauces",
       "canonical_unit": null,
       "grams_per_cup": null,
-      "notes": null
+      "notes": null,
+      "purchase_tier": "bulk"
     },
     {
       "name": "Spinach",
-      "canonical_unit": null,
+      "category": "Produce",
+      "canonical_unit": "kg",
       "grams_per_cup": null,
-      "notes": null
-    },
-    {
-      "name": "split masoor dal",
-      "canonical_unit": null,
-      "grams_per_cup": null,
-      "notes": null
+      "notes": null,
+      "purchase_tier": "fresh"
     },
     {
       "name": "Split urad dal",
+      "category": "Pulses & Legumes",
       "canonical_unit": null,
       "grams_per_cup": null,
-      "notes": null
+      "notes": null,
+      "purchase_tier": "bulk"
     },
     {
       "name": "Split white urad dal",
+      "category": "Pulses & Legumes",
       "canonical_unit": null,
       "grams_per_cup": null,
-      "notes": null
+      "notes": null,
+      "purchase_tier": "bulk"
     },
     {
       "name": "Spring Mix",
-      "canonical_unit": null,
+      "category": "Produce",
+      "canonical_unit": "kg",
       "grams_per_cup": null,
-      "notes": null
+      "notes": null,
+      "purchase_tier": "fresh"
     },
     {
       "name": "Spring onions",
-      "canonical_unit": null,
+      "category": "Produce",
+      "canonical_unit": "kg",
       "grams_per_cup": null,
-      "notes": null
+      "notes": null,
+      "purchase_tier": "fresh"
     },
     {
       "name": "Sugar",
+      "category": "Sweeteners",
       "canonical_unit": "g",
       "grams_per_cup": 220.0,
-      "notes": null
+      "notes": null,
+      "purchase_tier": "bulk"
     },
     {
       "name": "Sunflower oil",
-      "canonical_unit": null,
+      "category": "Oils & Fats",
+      "canonical_unit": "ml",
       "grams_per_cup": null,
-      "notes": null
-    },
-    {
-      "name": "sunflower oil or ghee",
-      "canonical_unit": null,
-      "grams_per_cup": null,
-      "notes": null
+      "notes": null,
+      "purchase_tier": "bulk"
     },
     {
       "name": "Sunflower seeds",
-      "canonical_unit": null,
+      "category": "Nuts & Seeds",
+      "canonical_unit": "g",
       "grams_per_cup": null,
-      "notes": null
+      "notes": null,
+      "purchase_tier": "bulk"
     },
     {
       "name": "Surti papdi",
+      "category": "Pulses & Legumes",
       "canonical_unit": null,
       "grams_per_cup": null,
-      "notes": null
+      "notes": null,
+      "purchase_tier": "bulk"
     },
     {
       "name": "Sweet potato",
-      "canonical_unit": null,
+      "category": "Produce",
+      "canonical_unit": "kg",
       "grams_per_cup": null,
-      "notes": null
+      "notes": null,
+      "purchase_tier": "fresh"
     },
     {
       "name": "Tamari or soy sauce",
+      "category": "Condiments & Sauces",
       "canonical_unit": null,
       "grams_per_cup": null,
-      "notes": null
+      "notes": null,
+      "purchase_tier": "bulk"
     },
     {
       "name": "Tamarind",
+      "category": "Condiments & Sauces",
       "canonical_unit": null,
       "grams_per_cup": null,
-      "notes": null
+      "notes": null,
+      "purchase_tier": "bulk"
     },
     {
       "name": "taro roots",
-      "canonical_unit": null,
+      "category": "Produce",
+      "canonical_unit": "kg",
       "grams_per_cup": null,
-      "notes": null
+      "notes": null,
+      "purchase_tier": "fresh"
     },
     {
       "name": "Tawa masala",
+      "category": "Spices & Seasonings",
       "canonical_unit": "g",
       "grams_per_cup": 96.0,
-      "notes": null
+      "notes": null,
+      "purchase_tier": "bulk"
+    },
+    {
+      "name": "Tea packets",
+      "category": "Beverages",
+      "canonical_unit": null,
+      "grams_per_cup": null,
+      "notes": null,
+      "purchase_tier": "bulk"
     },
     {
       "name": "tender sour mango",
-      "canonical_unit": null,
+      "category": "Produce",
+      "canonical_unit": "pieces",
       "grams_per_cup": null,
-      "notes": null
+      "notes": null,
+      "purchase_tier": "fresh"
     },
     {
       "name": "thai curry paste",
+      "category": "Condiments & Sauces",
       "canonical_unit": null,
       "grams_per_cup": null,
-      "notes": null
-    },
-    {
-      "name": "Thai green chili",
-      "canonical_unit": null,
-      "grams_per_cup": null,
-      "notes": null
-    },
-    {
-      "name": "Thai green chilies",
-      "canonical_unit": null,
-      "grams_per_cup": null,
-      "notes": null
+      "notes": null,
+      "purchase_tier": "bulk"
     },
     {
       "name": "Thick poha",
+      "category": "Grains & Flours",
       "canonical_unit": null,
       "grams_per_cup": null,
-      "notes": null
+      "notes": null,
+      "purchase_tier": "bulk"
     },
     {
       "name": "Tomatillos",
-      "canonical_unit": null,
+      "category": "Produce",
+      "canonical_unit": "pieces",
       "grams_per_cup": null,
-      "notes": null
-    },
-    {
-      "name": "Tomato",
-      "canonical_unit": null,
-      "grams_per_cup": null,
-      "notes": null
+      "notes": null,
+      "purchase_tier": "fresh"
     },
     {
       "name": "Tomato paste",
+      "category": "Condiments & Sauces",
       "canonical_unit": "g",
       "grams_per_cup": 225.0,
-      "notes": null
+      "notes": null,
+      "purchase_tier": "bulk"
     },
     {
       "name": "Tomatoes",
-      "canonical_unit": null,
+      "category": "Produce",
+      "canonical_unit": "kg",
       "grams_per_cup": null,
-      "notes": null
+      "notes": null,
+      "purchase_tier": "fresh"
     },
     {
       "name": "Tone's Cilantro Lime",
+      "category": "Condiments & Sauces",
       "canonical_unit": null,
       "grams_per_cup": null,
-      "notes": null
+      "notes": null,
+      "purchase_tier": "bulk"
     },
     {
       "name": "Toor Dal",
+      "category": "Pulses & Legumes",
       "canonical_unit": "g",
       "grams_per_cup": 192.0,
-      "notes": null
+      "notes": null,
+      "purchase_tier": "bulk"
     },
     {
       "name": "Turmeric",
-      "canonical_unit": null,
+      "category": "Spices & Seasonings",
+      "canonical_unit": "g",
       "grams_per_cup": null,
-      "notes": null
-    },
-    {
-      "name": "Turmeric Powder",
-      "canonical_unit": null,
-      "grams_per_cup": null,
-      "notes": null
+      "notes": null,
+      "purchase_tier": "bulk"
     },
     {
       "name": "Urad dal",
+      "category": "Pulses & Legumes",
       "canonical_unit": "g",
       "grams_per_cup": 140.0,
-      "notes": null
+      "notes": null,
+      "purchase_tier": "bulk"
     },
     {
       "name": "Vegan Yogurt",
+      "category": "Dairy & Refrigerated",
       "canonical_unit": "g",
       "grams_per_cup": 245.0,
-      "notes": null
+      "notes": null,
+      "purchase_tier": "daily"
     },
     {
       "name": "vegetables",
-      "canonical_unit": null,
+      "category": "Produce",
+      "canonical_unit": "kg",
       "grams_per_cup": null,
-      "notes": null
+      "notes": null,
+      "purchase_tier": "fresh"
     },
     {
       "name": "Vermicelli",
+      "category": "Grains & Flours",
       "canonical_unit": "g",
       "grams_per_cup": 100.0,
-      "notes": null
+      "notes": null,
+      "purchase_tier": "bulk"
     },
     {
       "name": "Water",
+      "category": "Beverages",
       "canonical_unit": null,
       "grams_per_cup": null,
-      "notes": null
+      "notes": null,
+      "purchase_tier": "bulk"
     },
     {
       "name": "Whole Black Urad Dal",
+      "category": "Pulses & Legumes",
       "canonical_unit": "g",
       "grams_per_cup": 148.0,
-      "notes": null
+      "notes": null,
+      "purchase_tier": "bulk"
     },
     {
-      "name": "whole cardamom pods",
+      "name": "Whole grain bread",
+      "category": "Prepared & Packaged",
       "canonical_unit": null,
       "grams_per_cup": null,
-      "notes": null
+      "notes": null,
+      "purchase_tier": "daily"
     },
     {
-      "name": "whole cloves",
-      "canonical_unit": null,
-      "grams_per_cup": null,
-      "notes": null
-    },
-    {
-      "name": "Whole green moong",
-      "canonical_unit": null,
-      "grams_per_cup": null,
-      "notes": null
-    },
-    {
-      "name": "Whole Green Mung",
+      "name": "Whole green mung",
+      "category": "Pulses & Legumes",
       "canonical_unit": "g",
       "grams_per_cup": 180.0,
-      "notes": null
+      "notes": null,
+      "purchase_tier": "bulk"
     },
     {
       "name": "Whole Masoor",
+      "category": "Pulses & Legumes",
       "canonical_unit": "g",
       "grams_per_cup": 200.0,
-      "notes": null
+      "notes": null,
+      "purchase_tier": "bulk"
     },
     {
       "name": "whole milk",
+      "category": "Dairy & Refrigerated",
       "canonical_unit": null,
       "grams_per_cup": null,
-      "notes": null
+      "notes": null,
+      "purchase_tier": "daily"
     },
     {
       "name": "Whole wheat flour",
+      "category": "Grains & Flours",
       "canonical_unit": "g",
       "grams_per_cup": 130.0,
-      "notes": null
+      "notes": null,
+      "purchase_tier": "bulk"
     },
     {
       "name": "Whole White Urad Dal",
+      "category": "Pulses & Legumes",
       "canonical_unit": "g",
       "grams_per_cup": 140.0,
-      "notes": null
+      "notes": null,
+      "purchase_tier": "bulk"
     },
     {
       "name": "Winter Melon",
-      "canonical_unit": null,
+      "category": "Produce",
+      "canonical_unit": "kg",
       "grams_per_cup": null,
-      "notes": null
+      "notes": null,
+      "purchase_tier": "fresh"
     },
     {
-      "name": "yellow moong dal",
+      "name": "Yellow moong dal",
+      "category": "Pulses & Legumes",
       "canonical_unit": null,
       "grams_per_cup": null,
-      "notes": null
-    },
-    {
-      "name": "yellow onion",
-      "canonical_unit": null,
-      "grams_per_cup": null,
-      "notes": null
-    },
-    {
-      "name": "Yellow split moong dal",
-      "canonical_unit": null,
-      "grams_per_cup": null,
-      "notes": null
+      "notes": null,
+      "purchase_tier": "bulk"
     },
     {
       "name": "Yogurt",
+      "category": "Dairy & Refrigerated",
       "canonical_unit": "g",
       "grams_per_cup": 245.0,
-      "notes": null
+      "notes": null,
+      "purchase_tier": "daily"
     },
     {
       "name": "Zucchini",
-      "canonical_unit": null,
+      "category": "Produce",
+      "canonical_unit": "kg",
       "grams_per_cup": null,
-      "notes": null
+      "notes": null,
+      "purchase_tier": "fresh"
     }
   ],
   "unit_conversions": [
@@ -2802,7 +2886,7 @@
           "prep_notes": null
         },
         {
-          "ingredient_name": "Ground coriander",
+          "ingredient_name": "Coriander powder",
           "quantity": 2.0,
           "unit": "tsp",
           "prep_notes": null
@@ -2844,13 +2928,13 @@
           "prep_notes": "sprigs, finely chopped"
         },
         {
-          "ingredient_name": "Thai green chilies",
+          "ingredient_name": "Green chilies",
           "quantity": 4.0,
           "unit": "piece",
           "prep_notes": "for chili paste"
         },
         {
-          "ingredient_name": "Fresh ginger",
+          "ingredient_name": "Ginger",
           "quantity": 1.0,
           "unit": "piece",
           "prep_notes": "1-inch piece, peeled, for chili paste"
@@ -2904,7 +2988,7 @@
           "prep_notes": null
         },
         {
-          "ingredient_name": "Ground coriander",
+          "ingredient_name": "Coriander powder",
           "quantity": 2.0,
           "unit": "tsp",
           "prep_notes": null
@@ -2946,13 +3030,13 @@
           "prep_notes": "finely chopped"
         },
         {
-          "ingredient_name": "Thai green chilies",
+          "ingredient_name": "Green chilies",
           "quantity": 4.0,
           "unit": "pieces",
           "prep_notes": "chili paste"
         },
         {
-          "ingredient_name": "Fresh ginger",
+          "ingredient_name": "Ginger",
           "quantity": 1.0,
           "unit": "pieces",
           "prep_notes": "1-inch, peeled; chili paste"
@@ -2983,7 +3067,7 @@
           "prep_notes": null
         },
         {
-          "ingredient_name": "Potato",
+          "ingredient_name": "Potatoes",
           "quantity": 400.0,
           "unit": "g",
           "prep_notes": null
@@ -2995,13 +3079,13 @@
           "prep_notes": null
         },
         {
-          "ingredient_name": "Peas",
+          "ingredient_name": "Green peas",
           "quantity": 1.0,
           "unit": "cup",
           "prep_notes": null
         },
         {
-          "ingredient_name": "Green chillies",
+          "ingredient_name": "Green chilies",
           "quantity": 5.0,
           "unit": "g",
           "prep_notes": null
@@ -3031,37 +3115,37 @@
           "prep_notes": null
         },
         {
-          "ingredient_name": "Sesame (Gingelly) Oil",
+          "ingredient_name": "Sesame oil",
           "quantity": 75.0,
           "unit": "ml",
           "prep_notes": null
         },
         {
-          "ingredient_name": "Jeera",
+          "ingredient_name": "Cumin seeds",
           "quantity": 2.0,
           "unit": "tsp",
           "prep_notes": null
         },
         {
-          "ingredient_name": "Turmeric Powder",
+          "ingredient_name": "Turmeric",
           "quantity": 2.0,
           "unit": "tsp",
           "prep_notes": null
         },
         {
-          "ingredient_name": "Red chilly powder",
+          "ingredient_name": "Red chili powder",
           "quantity": 2.0,
           "unit": "tsp",
           "prep_notes": null
         },
         {
-          "ingredient_name": "Hing",
+          "ingredient_name": "Asafoetida (hing)",
           "quantity": 0.5,
           "unit": "tsp",
           "prep_notes": null
         },
         {
-          "ingredient_name": "Jeera Powder",
+          "ingredient_name": "Ground cumin",
           "quantity": 2.0,
           "unit": "tsp",
           "prep_notes": null
@@ -3109,19 +3193,19 @@
           "prep_notes": null
         },
         {
-          "ingredient_name": "asafoetida",
+          "ingredient_name": "Asafoetida (hing)",
           "quantity": 0.25,
           "unit": "tsp",
           "prep_notes": "hing"
         },
         {
-          "ingredient_name": "Thai green chilies",
+          "ingredient_name": "Green chilies",
           "quantity": 3.0,
           "unit": "piece",
           "prep_notes": "crushed"
         },
         {
-          "ingredient_name": "Fresh ginger",
+          "ingredient_name": "Ginger",
           "quantity": 1.0,
           "unit": "piece",
           "prep_notes": "1-inch piece, peeled and crushed"
@@ -3139,7 +3223,7 @@
           "prep_notes": null
         },
         {
-          "ingredient_name": "Ground coriander",
+          "ingredient_name": "Coriander powder",
           "quantity": 1.0,
           "unit": "tsp",
           "prep_notes": null
@@ -3210,7 +3294,7 @@
           "prep_notes": null
         },
         {
-          "ingredient_name": "Thai green chilies",
+          "ingredient_name": "Green chilies",
           "quantity": 3.0,
           "unit": "pieces",
           "prep_notes": "crushed"
@@ -3228,7 +3312,7 @@
           "prep_notes": null
         },
         {
-          "ingredient_name": "Ground coriander",
+          "ingredient_name": "Coriander powder",
           "quantity": 1.0,
           "unit": "tbsp",
           "prep_notes": null
@@ -3246,19 +3330,19 @@
           "prep_notes": "finely chopped; range listed as 5-6"
         },
         {
-          "ingredient_name": "Frozen green peas",
+          "ingredient_name": "Green peas",
           "quantity": 1.0,
           "unit": "cup",
           "prep_notes": null
         },
         {
-          "ingredient_name": "Tomato",
+          "ingredient_name": "Tomatoes",
           "quantity": 1.0,
           "unit": "pieces",
           "prep_notes": "medium, finely chopped"
         },
         {
-          "ingredient_name": "Roasted ground cumin",
+          "ingredient_name": "Ground cumin",
           "quantity": 0.5,
           "unit": "tsp",
           "prep_notes": null
@@ -3299,7 +3383,7 @@
           "prep_notes": null
         },
         {
-          "ingredient_name": "Green chillies",
+          "ingredient_name": "Green chilies",
           "quantity": 5.0,
           "unit": "g",
           "prep_notes": null
@@ -3311,7 +3395,7 @@
           "prep_notes": null
         },
         {
-          "ingredient_name": "Sesame (Gingelly) Oil",
+          "ingredient_name": "Sesame oil",
           "quantity": 2.0,
           "unit": "tbsp",
           "prep_notes": null
@@ -3323,25 +3407,25 @@
           "prep_notes": null
         },
         {
-          "ingredient_name": "Jeera",
+          "ingredient_name": "Cumin seeds",
           "quantity": 1.0,
           "unit": "tsp",
           "prep_notes": null
         },
         {
-          "ingredient_name": "Hing",
+          "ingredient_name": "Asafoetida (hing)",
           "quantity": 0.25,
           "unit": "tsp",
           "prep_notes": null
         },
         {
-          "ingredient_name": "Turmeric Powder",
+          "ingredient_name": "Turmeric",
           "quantity": 1.0,
           "unit": "tsp",
           "prep_notes": null
         },
         {
-          "ingredient_name": "Red chilly powder",
+          "ingredient_name": "Red chili powder",
           "quantity": 0.5,
           "unit": "tsp",
           "prep_notes": null
@@ -3382,7 +3466,7 @@
       "notes": "Kerala. V (option)/GF",
       "ingredients": [
         {
-          "ingredient_name": "green plantain",
+          "ingredient_name": "Plantain",
           "quantity": 1.0,
           "unit": "piece",
           "prep_notes": "unripe, outer skin peeled, cut into slices"
@@ -3394,7 +3478,7 @@
           "prep_notes": null
         },
         {
-          "ingredient_name": "drumsticks",
+          "ingredient_name": "Drumstick",
           "quantity": 2.0,
           "unit": "piece",
           "prep_notes": "or half packet if using frozen"
@@ -3448,13 +3532,13 @@
           "prep_notes": "sprigs"
         },
         {
-          "ingredient_name": "frozen shredded coconut",
+          "ingredient_name": "Frozen coconut",
           "quantity": 1.0,
           "unit": "piece",
           "prep_notes": "3-inch block, thawed, for coconut paste"
         },
         {
-          "ingredient_name": "Thai green chilies",
+          "ingredient_name": "Green chilies",
           "quantity": 4.0,
           "unit": "piece",
           "prep_notes": "or to taste, for coconut paste"
@@ -3500,7 +3584,7 @@
           "prep_notes": null
         },
         {
-          "ingredient_name": "Green chillies",
+          "ingredient_name": "Green chilies",
           "quantity": 5.0,
           "unit": "g",
           "prep_notes": null
@@ -3512,7 +3596,7 @@
           "prep_notes": null
         },
         {
-          "ingredient_name": "Jeera",
+          "ingredient_name": "Cumin seeds",
           "quantity": 2.0,
           "unit": "tsp",
           "prep_notes": null
@@ -3530,7 +3614,7 @@
           "prep_notes": null
         },
         {
-          "ingredient_name": "Turmeric Powder",
+          "ingredient_name": "Turmeric",
           "quantity": 0.5,
           "unit": "tsp",
           "prep_notes": null
@@ -3553,7 +3637,7 @@
       "notes": "North India. V/GF",
       "ingredients": [
         {
-          "ingredient_name": "okra",
+          "ingredient_name": "Okra",
           "quantity": 2.0,
           "unit": "lb",
           "prep_notes": "cut into 1-inch pieces"
@@ -3589,7 +3673,7 @@
           "prep_notes": "medium, diced"
         },
         {
-          "ingredient_name": "Potato",
+          "ingredient_name": "Potatoes",
           "quantity": 1.0,
           "unit": "piece",
           "prep_notes": "large, cut into 1-inch cubes"
@@ -3607,13 +3691,13 @@
           "prep_notes": null
         },
         {
-          "ingredient_name": "Ground coriander",
+          "ingredient_name": "Coriander powder",
           "quantity": 2.0,
           "unit": "tsp",
           "prep_notes": null
         },
         {
-          "ingredient_name": "dried raw mango powder",
+          "ingredient_name": "Amchur",
           "quantity": 2.0,
           "unit": "tsp",
           "prep_notes": "amchur"
@@ -3689,7 +3773,7 @@
           "prep_notes": null
         },
         {
-          "ingredient_name": "Jeera Powder",
+          "ingredient_name": "Ground cumin",
           "quantity": 2.0,
           "unit": "tsp",
           "prep_notes": null
@@ -3729,8 +3813,8 @@
         "Soak black and pinto beans overnight and add a bit of salt and baking soda to the soaking solution. Drain in the morning and wash once",
         "Pressure cook the beans with bay leaves, 1/3 of the onion, some garlic. Once the pressure cook has its first whistle lower the flame to minimum and cook the beans for 45 minutes",
         "Let the pressure drop normally. Open the cooker and discard the bay leaves and take out extra liquid and store on the side",
-        "Heat a large saut\u00e9 pan over medium heat with half the oil. Once hot, add the onion and garlic with a pinch of salt and cook until the onion has softened and is golden",
-        "Add the garlic, jalape\u00f1o, cumin powder, mexican oregano, black pepper, and paprika. Cook for 1 to 2 minutes, stirring frequently.",
+        "Heat a large sauté pan over medium heat with half the oil. Once hot, add the onion and garlic with a pinch of salt and cook until the onion has softened and is golden",
+        "Add the garlic, jalapeño, cumin powder, mexican oregano, black pepper, and paprika. Cook for 1 to 2 minutes, stirring frequently.",
         "Add the black beans with some of liquid and bring to a simmer until thickened and saucy. If it gets too thick, add the reserve water from the pressure cooker",
         "Add lemon juice, Garnish with cilantro, and adjust for salt",
         "Final texture of the beans should be saucy, not dry, separate beans"
@@ -3773,7 +3857,7 @@
           "prep_notes": null
         },
         {
-          "ingredient_name": "Jeera Powder",
+          "ingredient_name": "Ground cumin",
           "quantity": 2.0,
           "unit": "tsp",
           "prep_notes": null
@@ -3814,9 +3898,9 @@
         "Pressure cook the beans with bay leaves, 1/3 of the onion, some garlic. Once the pressure cook has its first whistle lower the",
         "flame to minimum and cook the beans for 45 minutes",
         "Let the pressure drop normally. Open the cooker and discard the bay leaves and take out extra liquid and store on the side",
-        "Heat a large saut\u00e9 pan over medium heat with half the oil. Once hot, add the onion and garlic with a pinch of salt and cook until the onion",
+        "Heat a large sauté pan over medium heat with half the oil. Once hot, add the onion and garlic with a pinch of salt and cook until the onion",
         "has softened and is golden",
-        "Add the garlic, jalape\u00f1o, cumin powder, mexican oregano, black pepper, and paprika. Cook for 1 to 2 minutes, stirring frequently.",
+        "Add the garlic, jalapeño, cumin powder, mexican oregano, black pepper, and paprika. Cook for 1 to 2 minutes, stirring frequently.",
         "Add the black beans with some of liquid and bring to a simmer until thickened and saucy. If it gets too thick,",
         "add the reserve water from the pressure cooker",
         "Add lemon juice, Garnish with cilantro, and adjust for salt",
@@ -3830,7 +3914,7 @@
       "notes": "Gujarat. V/GF.",
       "ingredients": [
         {
-          "ingredient_name": "black chana dried",
+          "ingredient_name": "Black chana",
           "quantity": 1.5,
           "unit": "cup",
           "prep_notes": null
@@ -3848,19 +3932,19 @@
           "prep_notes": null
         },
         {
-          "ingredient_name": "carom seeds",
+          "ingredient_name": "Ajwain",
           "quantity": 1.0,
           "unit": "tsp",
           "prep_notes": "ajwain"
         },
         {
-          "ingredient_name": "gram flour",
+          "ingredient_name": "Besan",
           "quantity": 1.5,
           "unit": "tbsp",
           "prep_notes": "besan"
         },
         {
-          "ingredient_name": "asafoetida",
+          "ingredient_name": "Asafoetida (hing)",
           "quantity": 0.25,
           "unit": "tsp",
           "prep_notes": null
@@ -3884,7 +3968,7 @@
           "prep_notes": null
         },
         {
-          "ingredient_name": "Ground coriander",
+          "ingredient_name": "Coriander powder",
           "quantity": 1.0,
           "unit": "tsp",
           "prep_notes": null
@@ -3896,7 +3980,7 @@
           "prep_notes": null
         },
         {
-          "ingredient_name": "Thai green chilies",
+          "ingredient_name": "Green chilies",
           "quantity": 2.0,
           "unit": "piece",
           "prep_notes": null
@@ -3943,7 +4027,7 @@
           "prep_notes": null
         },
         {
-          "ingredient_name": "sunflower oil or ghee",
+          "ingredient_name": "Sunflower oil",
           "quantity": 1.0,
           "unit": "tbsp",
           "prep_notes": null
@@ -3955,7 +4039,7 @@
           "prep_notes": null
         },
         {
-          "ingredient_name": "asafoetida",
+          "ingredient_name": "Asafoetida (hing)",
           "quantity": 0.25,
           "unit": "tsp",
           "prep_notes": null
@@ -3973,13 +4057,13 @@
           "prep_notes": "cloves, crushed"
         },
         {
-          "ingredient_name": "Fresh ginger",
+          "ingredient_name": "Ginger",
           "quantity": 1.0,
           "unit": "piece",
           "prep_notes": "1-inch piece, peeled and crushed"
         },
         {
-          "ingredient_name": "Thai green chilies",
+          "ingredient_name": "Green chilies",
           "quantity": 2.0,
           "unit": "piece",
           "prep_notes": "crushed"
@@ -3997,7 +4081,7 @@
           "prep_notes": null
         },
         {
-          "ingredient_name": "Ground coriander",
+          "ingredient_name": "Coriander powder",
           "quantity": 1.0,
           "unit": "tsp",
           "prep_notes": null
@@ -4027,7 +4111,7 @@
           "prep_notes": null
         },
         {
-          "ingredient_name": "dried fenugreek leaves",
+          "ingredient_name": "Kasuri methi",
           "quantity": 1.0,
           "unit": "tsp",
           "prep_notes": "kasuri methi"
@@ -4088,7 +4172,7 @@
           "prep_notes": "sprigs, finely chopped"
         },
         {
-          "ingredient_name": "asafoetida",
+          "ingredient_name": "Asafoetida (hing)",
           "quantity": 0.25,
           "unit": "tsp",
           "prep_notes": "hing"
@@ -4183,7 +4267,7 @@
           "prep_notes": null
         },
         {
-          "ingredient_name": "Thai green chili",
+          "ingredient_name": "Green chilies",
           "quantity": 1.0,
           "unit": "pieces",
           "prep_notes": "slit"
@@ -4195,7 +4279,7 @@
           "prep_notes": "finely chopped"
         },
         {
-          "ingredient_name": "Tomato",
+          "ingredient_name": "Tomatoes",
           "quantity": 1.0,
           "unit": "pieces",
           "prep_notes": "medium, diced"
@@ -4219,7 +4303,7 @@
           "prep_notes": null
         },
         {
-          "ingredient_name": "Ground coriander",
+          "ingredient_name": "Coriander powder",
           "quantity": 0.5,
           "unit": "tsp",
           "prep_notes": null
@@ -4302,7 +4386,7 @@
           "prep_notes": null
         },
         {
-          "ingredient_name": "Hing",
+          "ingredient_name": "Asafoetida (hing)",
           "quantity": 0.25,
           "unit": "g",
           "prep_notes": null
@@ -4326,7 +4410,7 @@
           "prep_notes": null
         },
         {
-          "ingredient_name": "Turmeric Powder",
+          "ingredient_name": "Turmeric",
           "quantity": 1.0,
           "unit": "tsp",
           "prep_notes": null
@@ -4350,7 +4434,7 @@
           "prep_notes": null
         },
         {
-          "ingredient_name": "Green chillies",
+          "ingredient_name": "Green chilies",
           "quantity": 6.0,
           "unit": "g",
           "prep_notes": null
@@ -4362,7 +4446,7 @@
           "prep_notes": null
         },
         {
-          "ingredient_name": "Sesame (Gingelly) Oil",
+          "ingredient_name": "Sesame oil",
           "quantity": 1.0,
           "unit": "tbsp",
           "prep_notes": null
@@ -4394,7 +4478,7 @@
           "prep_notes": "2-inch square, thawed"
         },
         {
-          "ingredient_name": "Yellow split moong dal",
+          "ingredient_name": "Yellow moong dal",
           "quantity": 0.3333,
           "unit": "cup",
           "prep_notes": null
@@ -4412,7 +4496,7 @@
           "prep_notes": null
         },
         {
-          "ingredient_name": "Thai green chili",
+          "ingredient_name": "Green chilies",
           "quantity": 1.0,
           "unit": "pieces",
           "prep_notes": "finely chopped"
@@ -4514,13 +4598,13 @@
           "prep_notes": "for spice mix"
         },
         {
-          "ingredient_name": "Fenugreek",
+          "ingredient_name": "Fenugreek seeds",
           "quantity": 0.5,
           "unit": "tsp",
           "prep_notes": "for spice mix"
         },
         {
-          "ingredient_name": "sesame oil",
+          "ingredient_name": "Sesame oil",
           "quantity": 0.75,
           "unit": "cup",
           "prep_notes": "or peanut oil, for tadka"
@@ -4568,7 +4652,7 @@
           "prep_notes": "sprigs, for tadka"
         },
         {
-          "ingredient_name": "asafoetida",
+          "ingredient_name": "Asafoetida (hing)",
           "quantity": 0.25,
           "unit": "tsp",
           "prep_notes": "hing, for tadka"
@@ -4649,7 +4733,7 @@
       "steps": [
         "Take one big vessel for the above mentioned quantities. If not, divide it into two small pots.",
         "Boil water with ginger, chai masala and mint leaves. Let it boil for good 10 minutes. Then add chai patti and let it boil for 5 minutes.",
-        "Add Milk and just before it comes to boil add lemongrass, cardamom powder. Let it all boil together for 10 minutes and it\u2019s ready to serve.",
+        "Add Milk and just before it comes to boil add lemongrass, cardamom powder. Let it all boil together for 10 minutes and it’s ready to serve.",
         "Ambe mor rice",
         "Mung Dal (Green, Split)",
         "Water",
@@ -4686,7 +4770,7 @@
           "prep_notes": null
         },
         {
-          "ingredient_name": "black tea powder dust",
+          "ingredient_name": "Black tea",
           "quantity": 6.0,
           "unit": "tsp",
           "prep_notes": "such as Brooke Bond Red Label tea powder"
@@ -4731,7 +4815,7 @@
           "prep_notes": null
         },
         {
-          "ingredient_name": "Nutmeg (whole)",
+          "ingredient_name": "Nutmeg",
           "quantity": 5.0,
           "unit": "g",
           "prep_notes": null
@@ -4764,7 +4848,7 @@
           "prep_notes": null
         },
         {
-          "ingredient_name": "black tea loose leaf",
+          "ingredient_name": "Black tea",
           "quantity": 3.0,
           "unit": "tsp",
           "prep_notes": null
@@ -4776,7 +4860,7 @@
           "prep_notes": "1 inch"
         },
         {
-          "ingredient_name": "cardamom pods",
+          "ingredient_name": "Cardamom",
           "quantity": 2.0,
           "unit": "piece",
           "prep_notes": null
@@ -4828,7 +4912,7 @@
           "prep_notes": null
         },
         {
-          "ingredient_name": "Hing",
+          "ingredient_name": "Asafoetida (hing)",
           "quantity": 0.25,
           "unit": "tsp",
           "prep_notes": null
@@ -4846,13 +4930,13 @@
           "prep_notes": null
         },
         {
-          "ingredient_name": "Bay leaf",
+          "ingredient_name": "Bay leaves",
           "quantity": 1.0,
           "unit": "g",
           "prep_notes": null
         },
         {
-          "ingredient_name": "Jeera",
+          "ingredient_name": "Cumin seeds",
           "quantity": 1.0,
           "unit": "tsp",
           "prep_notes": null
@@ -4894,13 +4978,13 @@
           "prep_notes": null
         },
         {
-          "ingredient_name": "Red chilly powder",
+          "ingredient_name": "Red chili powder",
           "quantity": 1.0,
           "unit": "tsp",
           "prep_notes": null
         },
         {
-          "ingredient_name": "Turmeric Powder",
+          "ingredient_name": "Turmeric",
           "quantity": 1.0,
           "unit": "tsp",
           "prep_notes": null
@@ -4969,7 +5053,7 @@
           "prep_notes": "finely chopped; range listed as 8-10"
         },
         {
-          "ingredient_name": "Thai green chilies",
+          "ingredient_name": "Green chilies",
           "quantity": 2.0,
           "unit": "pieces",
           "prep_notes": "crushed"
@@ -5033,7 +5117,7 @@
           "prep_notes": null
         },
         {
-          "ingredient_name": "Jeera",
+          "ingredient_name": "Cumin seeds",
           "quantity": 1.0,
           "unit": "tsp",
           "prep_notes": null
@@ -5213,7 +5297,7 @@
           "prep_notes": null
         },
         {
-          "ingredient_name": "cardamom pods",
+          "ingredient_name": "Cardamom",
           "quantity": 2.0,
           "unit": "piece",
           "prep_notes": null
@@ -5225,7 +5309,7 @@
           "prep_notes": null
         },
         {
-          "ingredient_name": "bay leaves",
+          "ingredient_name": "Bay leaves",
           "quantity": 2.0,
           "unit": "piece",
           "prep_notes": null
@@ -5237,13 +5321,13 @@
           "prep_notes": null
         },
         {
-          "ingredient_name": "cinnamon stick",
+          "ingredient_name": "Cinnamon",
           "quantity": 1.0,
           "unit": "piece",
           "prep_notes": "1 inch"
         },
         {
-          "ingredient_name": "Thai green chilies",
+          "ingredient_name": "Green chilies",
           "quantity": 2.0,
           "unit": "piece",
           "prep_notes": "slit"
@@ -5267,19 +5351,19 @@
           "prep_notes": "medium, thinly sliced"
         },
         {
-          "ingredient_name": "green peas",
+          "ingredient_name": "Green peas",
           "quantity": 0.5,
           "unit": "cup",
           "prep_notes": null
         },
         {
-          "ingredient_name": "Carrot",
+          "ingredient_name": "Carrots",
           "quantity": 1.0,
           "unit": "piece",
           "prep_notes": "medium, diced"
         },
         {
-          "ingredient_name": "fresh mint leaves",
+          "ingredient_name": "Mint",
           "quantity": 2.0,
           "unit": "piece",
           "prep_notes": "sprigs, finely chopped"
@@ -5344,19 +5428,19 @@
           "prep_notes": "finely chopped; range listed as 3-4"
         },
         {
-          "ingredient_name": "Fresh ginger",
+          "ingredient_name": "Ginger",
           "quantity": 1.0,
           "unit": "pieces",
           "prep_notes": "1 inch, peeled and minced"
         },
         {
-          "ingredient_name": "Thai green chilies",
+          "ingredient_name": "Green chilies",
           "quantity": 1.5,
           "unit": "pieces",
           "prep_notes": "minced; range listed as 1-2"
         },
         {
-          "ingredient_name": "Lime or lemon",
+          "ingredient_name": "Lemon or lime",
           "quantity": 1.0,
           "unit": "pieces",
           "prep_notes": "juice"
@@ -5368,7 +5452,7 @@
           "prep_notes": null
         },
         {
-          "ingredient_name": "Roasted ground cumin",
+          "ingredient_name": "Ground cumin",
           "quantity": 1.0,
           "unit": "tsp",
           "prep_notes": null
@@ -5423,7 +5507,7 @@
           "prep_notes": "2-inch block, thawed"
         },
         {
-          "ingredient_name": "Thai green chilies",
+          "ingredient_name": "Green chilies",
           "quantity": 2.0,
           "unit": "pieces",
           "prep_notes": null
@@ -5488,7 +5572,7 @@
           "prep_notes": "regular or Greek; or plant-based yogurt for vegan"
         },
         {
-          "ingredient_name": "Roasted ground cumin",
+          "ingredient_name": "Ground cumin",
           "quantity": 1.0,
           "unit": "tsp",
           "prep_notes": null
@@ -5544,19 +5628,19 @@
           "prep_notes": "small, finely chopped, optional"
         },
         {
-          "ingredient_name": "Coarsely crushed roasted peanuts",
+          "ingredient_name": "Crushed roasted peanuts",
           "quantity": 2.0,
           "unit": "tbsp",
           "prep_notes": null
         },
         {
-          "ingredient_name": "Lime or lemon",
+          "ingredient_name": "Lemon or lime",
           "quantity": 1.0,
           "unit": "pieces",
           "prep_notes": "juice"
         },
         {
-          "ingredient_name": "Thai green chili",
+          "ingredient_name": "Green chilies",
           "quantity": 1.0,
           "unit": "pieces",
           "prep_notes": "crushed"
@@ -5655,7 +5739,7 @@
           "prep_notes": null
         },
         {
-          "ingredient_name": "Roasted ground cumin",
+          "ingredient_name": "Ground cumin",
           "quantity": 1.0,
           "unit": "tsp",
           "prep_notes": null
@@ -5766,7 +5850,7 @@
           "prep_notes": null
         },
         {
-          "ingredient_name": "asafoetida",
+          "ingredient_name": "Asafoetida (hing)",
           "quantity": 0.25,
           "unit": "tsp",
           "prep_notes": null
@@ -5820,13 +5904,13 @@
           "prep_notes": "cloves, minced, for chili paste"
         },
         {
-          "ingredient_name": "Fresh ginger",
+          "ingredient_name": "Ginger",
           "quantity": 1.0,
           "unit": "piece",
           "prep_notes": "1-inch piece, peeled and minced, for chili paste"
         },
         {
-          "ingredient_name": "Thai green chilies",
+          "ingredient_name": "Green chilies",
           "quantity": 2.0,
           "unit": "piece",
           "prep_notes": "minced, for chili paste"
@@ -5861,7 +5945,7 @@
           "prep_notes": null
         },
         {
-          "ingredient_name": "Turmeric Powder",
+          "ingredient_name": "Turmeric",
           "quantity": 1.0,
           "unit": "tsp",
           "prep_notes": null
@@ -5885,31 +5969,31 @@
           "prep_notes": null
         },
         {
-          "ingredient_name": "Jeera",
+          "ingredient_name": "Cumin seeds",
           "quantity": 2.0,
           "unit": "tsp",
           "prep_notes": null
         },
         {
-          "ingredient_name": "Hing",
+          "ingredient_name": "Asafoetida (hing)",
           "quantity": 0.25,
           "unit": "tsp",
           "prep_notes": null
         },
         {
-          "ingredient_name": "Turmeric Powder",
+          "ingredient_name": "Turmeric",
           "quantity": 1.0,
           "unit": "tsp",
           "prep_notes": null
         },
         {
-          "ingredient_name": "Red chilly powder",
+          "ingredient_name": "Red chili powder",
           "quantity": 1.0,
           "unit": "tsp",
           "prep_notes": null
         },
         {
-          "ingredient_name": "Red chillies",
+          "ingredient_name": "Dried red chilies",
           "quantity": 5.0,
           "unit": "g",
           "prep_notes": null
@@ -5927,7 +6011,7 @@
           "prep_notes": null
         },
         {
-          "ingredient_name": "Green chillies",
+          "ingredient_name": "Green chilies",
           "quantity": 5.0,
           "unit": "g",
           "prep_notes": null
@@ -6009,7 +6093,7 @@
           "prep_notes": null
         },
         {
-          "ingredient_name": "asafoetida",
+          "ingredient_name": "Asafoetida (hing)",
           "quantity": 0.25,
           "unit": "tsp",
           "prep_notes": null
@@ -6021,7 +6105,7 @@
           "prep_notes": null
         },
         {
-          "ingredient_name": "Lime or lemon",
+          "ingredient_name": "Lemon or lime",
           "quantity": 0.5,
           "unit": "piece",
           "prep_notes": "juiced"
@@ -6065,7 +6149,7 @@
           "prep_notes": null
         },
         {
-          "ingredient_name": "Turmeric Powder",
+          "ingredient_name": "Turmeric",
           "quantity": 1.0,
           "unit": "tsp",
           "prep_notes": null
@@ -6101,13 +6185,13 @@
           "prep_notes": null
         },
         {
-          "ingredient_name": "Sesame (Gingelly) Oil",
+          "ingredient_name": "Sesame oil",
           "quantity": 2.0,
           "unit": "tbsp",
           "prep_notes": null
         },
         {
-          "ingredient_name": "Methi seeds",
+          "ingredient_name": "Fenugreek seeds",
           "quantity": 0.5,
           "unit": "tsp",
           "prep_notes": null
@@ -6119,19 +6203,19 @@
           "prep_notes": null
         },
         {
-          "ingredient_name": "Jeera",
+          "ingredient_name": "Cumin seeds",
           "quantity": 1.0,
           "unit": "tsp",
           "prep_notes": null
         },
         {
-          "ingredient_name": "Hing",
+          "ingredient_name": "Asafoetida (hing)",
           "quantity": 0.25,
           "unit": "tsp",
           "prep_notes": null
         },
         {
-          "ingredient_name": "Red chillies",
+          "ingredient_name": "Dried red chilies",
           "quantity": 5.0,
           "unit": "g",
           "prep_notes": null
@@ -6171,7 +6255,7 @@
           "prep_notes": "0.5 cup + 1 cup"
         },
         {
-          "ingredient_name": "filter coffee",
+          "ingredient_name": "Filter coffee",
           "quantity": 4.0,
           "unit": "tsp",
           "prep_notes": "brands such as Narasu, Cothas, Kumbakonam, Idhayam; typically 80% coffee 20% chicory powder"
@@ -6213,7 +6297,7 @@
           "prep_notes": null
         },
         {
-          "ingredient_name": "Fresh ginger",
+          "ingredient_name": "Ginger",
           "quantity": 4.0,
           "unit": "tsp",
           "prep_notes": "peeled and grated, organic is most flavorful"
@@ -6225,7 +6309,7 @@
           "prep_notes": null
         },
         {
-          "ingredient_name": "loose leaf black tea",
+          "ingredient_name": "Black tea",
           "quantity": 3.0,
           "unit": "tsp",
           "prep_notes": "Brooke Bond Red Label preferred"
@@ -6288,13 +6372,13 @@
           "prep_notes": null
         },
         {
-          "ingredient_name": "Green chillies",
+          "ingredient_name": "Green chilies",
           "quantity": 5.0,
           "unit": "g",
           "prep_notes": null
         },
         {
-          "ingredient_name": "Hing",
+          "ingredient_name": "Asafoetida (hing)",
           "quantity": 0.25,
           "unit": "tsp",
           "prep_notes": null
@@ -6346,7 +6430,7 @@
           "prep_notes": "small, finely chopped"
         },
         {
-          "ingredient_name": "Fresh cilantro",
+          "ingredient_name": "Cilantro",
           "quantity": 6.5,
           "unit": "sprigs",
           "prep_notes": "finely chopped; range listed as 6-7"
@@ -6416,7 +6500,7 @@
           "prep_notes": "any variety works"
         },
         {
-          "ingredient_name": "green moong dal",
+          "ingredient_name": "Green mung dal",
           "quantity": 0.75,
           "unit": "cup",
           "prep_notes": null
@@ -6440,7 +6524,7 @@
           "prep_notes": "chopped into 1-inch cubes, such as peas, cauliflower, carrots, butternut squash, sweet potato, fava beans"
         },
         {
-          "ingredient_name": "dried coconut slices",
+          "ingredient_name": "Dried coconut slices",
           "quantity": 0.25,
           "unit": "cup",
           "prep_notes": "for coconut paste"
@@ -6458,7 +6542,7 @@
           "prep_notes": "sprigs, for coconut paste"
         },
         {
-          "ingredient_name": "Thai green chilies",
+          "ingredient_name": "Green chilies",
           "quantity": 2.0,
           "unit": "piece",
           "prep_notes": "for coconut paste"
@@ -6476,13 +6560,13 @@
           "prep_notes": "or oil (peanut and coconut work well), for seasoning"
         },
         {
-          "ingredient_name": "bay leaves",
+          "ingredient_name": "Bay leaves",
           "quantity": 2.0,
           "unit": "piece",
           "prep_notes": "for seasoning"
         },
         {
-          "ingredient_name": "cinnamon stick",
+          "ingredient_name": "Cinnamon",
           "quantity": 1.0,
           "unit": "piece",
           "prep_notes": "1 inch, for seasoning"
@@ -6494,7 +6578,7 @@
           "prep_notes": "for seasoning"
         },
         {
-          "ingredient_name": "asafoetida",
+          "ingredient_name": "Asafoetida (hing)",
           "quantity": 1.0,
           "unit": "pinch",
           "prep_notes": "hing, for seasoning"
@@ -6529,7 +6613,7 @@
           "prep_notes": "cut into 1-inch pieces; range listed as 8-10"
         },
         {
-          "ingredient_name": "Carrot",
+          "ingredient_name": "Carrots",
           "quantity": 1.0,
           "unit": "pieces",
           "prep_notes": "medium, peeled and grated"
@@ -6541,7 +6625,7 @@
           "prep_notes": "thinly shredded"
         },
         {
-          "ingredient_name": "Tomato",
+          "ingredient_name": "Tomatoes",
           "quantity": 1.0,
           "unit": "pieces",
           "prep_notes": "medium, diced"
@@ -6583,7 +6667,7 @@
           "prep_notes": "cloves, minced"
         },
         {
-          "ingredient_name": "Thai green chili",
+          "ingredient_name": "Green chilies",
           "quantity": 1.0,
           "unit": "pieces",
           "prep_notes": "dressing"
@@ -6622,7 +6706,7 @@
       "notes": "South India. V/GF",
       "ingredients": [
         {
-          "ingredient_name": "Green plantains",
+          "ingredient_name": "Plantain",
           "quantity": 2.0,
           "unit": "piece",
           "prep_notes": "unripe"
@@ -6658,7 +6742,7 @@
           "prep_notes": null
         },
         {
-          "ingredient_name": "asafoetida",
+          "ingredient_name": "Asafoetida (hing)",
           "quantity": 0.25,
           "unit": "tsp",
           "prep_notes": "hing"
@@ -6700,7 +6784,7 @@
           "prep_notes": "for coconut paste"
         },
         {
-          "ingredient_name": "Thai green chilies",
+          "ingredient_name": "Green chilies",
           "quantity": 3.0,
           "unit": "piece",
           "prep_notes": "finely chopped, for coconut paste"
@@ -6772,7 +6856,7 @@
           "prep_notes": null
         },
         {
-          "ingredient_name": "Jeera Powder",
+          "ingredient_name": "Ground cumin",
           "quantity": 1.0,
           "unit": "tsp",
           "prep_notes": null
@@ -6976,7 +7060,7 @@
           "prep_notes": null
         },
         {
-          "ingredient_name": "Green chillies",
+          "ingredient_name": "Green chilies",
           "quantity": 5.0,
           "unit": "g",
           "prep_notes": null
@@ -7026,25 +7110,25 @@
           "prep_notes": null
         },
         {
-          "ingredient_name": "Sesame (Gingelly) Oil",
+          "ingredient_name": "Sesame oil",
           "quantity": 3.0,
           "unit": "tbsp",
           "prep_notes": null
         },
         {
-          "ingredient_name": "Jeera",
+          "ingredient_name": "Cumin seeds",
           "quantity": 2.0,
           "unit": "tsp",
           "prep_notes": null
         },
         {
-          "ingredient_name": "Hing",
+          "ingredient_name": "Asafoetida (hing)",
           "quantity": 0.5,
           "unit": "tsp",
           "prep_notes": null
         },
         {
-          "ingredient_name": "Methi seeds",
+          "ingredient_name": "Fenugreek seeds",
           "quantity": 1.0,
           "unit": "tsp",
           "prep_notes": null
@@ -7056,19 +7140,19 @@
           "prep_notes": null
         },
         {
-          "ingredient_name": "Turmeric Powder",
+          "ingredient_name": "Turmeric",
           "quantity": 1.5,
           "unit": "tsp",
           "prep_notes": null
         },
         {
-          "ingredient_name": "Red chilly powder",
+          "ingredient_name": "Red chili powder",
           "quantity": 1.0,
           "unit": "tsp",
           "prep_notes": null
         },
         {
-          "ingredient_name": "Red chillies",
+          "ingredient_name": "Dried red chilies",
           "quantity": 2.0,
           "unit": "g",
           "prep_notes": null
@@ -7092,7 +7176,7 @@
           "prep_notes": null
         },
         {
-          "ingredient_name": "Jeera Powder",
+          "ingredient_name": "Ground cumin",
           "quantity": 1.0,
           "unit": "tbsp",
           "prep_notes": null
@@ -7128,7 +7212,7 @@
           "prep_notes": null
         },
         {
-          "ingredient_name": "Green chillies",
+          "ingredient_name": "Green chilies",
           "quantity": 3.0,
           "unit": "g",
           "prep_notes": null
@@ -7155,7 +7239,7 @@
       "steps": [
         "Wash Toor dal and soak for 1-2 hours. Chop tomatoes into 1 inch cubes",
         "Pressure Cook dal with turmeric and a little salt (1:3 water ratio) and then whisk it into a paste and keep it aside.",
-        "Heat oil \u2013 add mustard seeds, cumin seeds, cloves, cinnamon, methi seeds, dried red chillies, hing",
+        "Heat oil – add mustard seeds, cumin seeds, cloves, cinnamon, methi seeds, dried red chillies, hing",
         "Add curry leaves, ginger paste, green chilli paste and saute well",
         "Then add tomatoes, turmeric powder, coriander cumin powder, red chilli powder and cook till the tomatoes turn mushy",
         "Add jaggery and tamarind paste. Add cooked dal to this tempering",
@@ -7194,7 +7278,7 @@
           "prep_notes": null
         },
         {
-          "ingredient_name": "Green chillies",
+          "ingredient_name": "Green chilies",
           "quantity": 3.0,
           "unit": "g",
           "prep_notes": null
@@ -7206,19 +7290,19 @@
           "prep_notes": null
         },
         {
-          "ingredient_name": "Jeera",
+          "ingredient_name": "Cumin seeds",
           "quantity": 2.0,
           "unit": "tsp",
           "prep_notes": null
         },
         {
-          "ingredient_name": "Hing",
+          "ingredient_name": "Asafoetida (hing)",
           "quantity": 0.5,
           "unit": "tsp",
           "prep_notes": null
         },
         {
-          "ingredient_name": "Methi seeds",
+          "ingredient_name": "Fenugreek seeds",
           "quantity": 1.0,
           "unit": "tsp",
           "prep_notes": null
@@ -7242,7 +7326,7 @@
           "prep_notes": null
         },
         {
-          "ingredient_name": "Red chillies",
+          "ingredient_name": "Dried red chilies",
           "quantity": 3.0,
           "unit": "g",
           "prep_notes": null
@@ -7277,7 +7361,7 @@
       "notes": "Imported from workbook (Pranams)",
       "ingredients": [
         {
-          "ingredient_name": "Potato",
+          "ingredient_name": "Potatoes",
           "quantity": 1000.0,
           "unit": "g",
           "prep_notes": null
@@ -7295,7 +7379,7 @@
           "prep_notes": null
         },
         {
-          "ingredient_name": "Jeera",
+          "ingredient_name": "Cumin seeds",
           "quantity": 2.0,
           "unit": "tsp",
           "prep_notes": null
@@ -7307,19 +7391,19 @@
           "prep_notes": null
         },
         {
-          "ingredient_name": "Hing",
+          "ingredient_name": "Asafoetida (hing)",
           "quantity": 0.25,
           "unit": "tsp",
           "prep_notes": null
         },
         {
-          "ingredient_name": "Turmeric Powder",
+          "ingredient_name": "Turmeric",
           "quantity": 1.0,
           "unit": "tsp",
           "prep_notes": null
         },
         {
-          "ingredient_name": "Red chilly powder",
+          "ingredient_name": "Red chili powder",
           "quantity": 0.25,
           "unit": "tsp",
           "prep_notes": null
@@ -7337,7 +7421,7 @@
           "prep_notes": null
         },
         {
-          "ingredient_name": "Green chillies",
+          "ingredient_name": "Green chilies",
           "quantity": 5.0,
           "unit": "g",
           "prep_notes": null
@@ -7368,19 +7452,19 @@
       "notes": "V / GF.",
       "ingredients": [
         {
-          "ingredient_name": "sesame oil",
+          "ingredient_name": "Sesame oil",
           "quantity": 0.5,
           "unit": "cup",
           "prep_notes": null
         },
         {
-          "ingredient_name": "large tomatoes",
+          "ingredient_name": "Tomatoes",
           "quantity": 5.0,
           "unit": "piece",
           "prep_notes": "diced"
         },
         {
-          "ingredient_name": "Turmeric Powder",
+          "ingredient_name": "Turmeric",
           "quantity": 1.0,
           "unit": "tsp",
           "prep_notes": null
@@ -7410,13 +7494,13 @@
           "prep_notes": "plus 1 tsp"
         },
         {
-          "ingredient_name": "Fenugreek",
+          "ingredient_name": "Fenugreek seeds",
           "quantity": 0.5,
           "unit": "tbsp",
           "prep_notes": null
         },
         {
-          "ingredient_name": "asafoetida",
+          "ingredient_name": "Asafoetida (hing)",
           "quantity": 0.5,
           "unit": "tsp",
           "prep_notes": "hing"
@@ -7501,13 +7585,13 @@
           "prep_notes": null
         },
         {
-          "ingredient_name": "Jeera",
+          "ingredient_name": "Cumin seeds",
           "quantity": 3.0,
           "unit": "tbsp",
           "prep_notes": null
         },
         {
-          "ingredient_name": "Bay leaf",
+          "ingredient_name": "Bay leaves",
           "quantity": 5.0,
           "unit": "g",
           "prep_notes": null
@@ -7575,7 +7659,7 @@
           "prep_notes": null
         },
         {
-          "ingredient_name": "Turmeric Powder",
+          "ingredient_name": "Turmeric",
           "quantity": 1.0,
           "unit": "tsp",
           "prep_notes": null
@@ -7617,7 +7701,7 @@
           "prep_notes": null
         },
         {
-          "ingredient_name": "Red chillies",
+          "ingredient_name": "Dried red chilies",
           "quantity": 10.0,
           "unit": "g",
           "prep_notes": null
@@ -7635,7 +7719,7 @@
           "prep_notes": null
         },
         {
-          "ingredient_name": "Hing",
+          "ingredient_name": "Asafoetida (hing)",
           "quantity": 0.5,
           "unit": "tsp",
           "prep_notes": null
@@ -7666,7 +7750,7 @@
       "notes": "Bengal. V/GF",
       "ingredients": [
         {
-          "ingredient_name": "panch phoron",
+          "ingredient_name": "Panch phoran",
           "quantity": 3.0,
           "unit": "tsp",
           "prep_notes": null
@@ -7684,19 +7768,19 @@
           "prep_notes": null
         },
         {
-          "ingredient_name": "bay leaves",
+          "ingredient_name": "Bay leaves",
           "quantity": 2.0,
           "unit": "piece",
           "prep_notes": null
         },
         {
-          "ingredient_name": "Thai green chilies",
+          "ingredient_name": "Green chilies",
           "quantity": 3.0,
           "unit": "piece",
           "prep_notes": "slit"
         },
         {
-          "ingredient_name": "Potato",
+          "ingredient_name": "Potatoes",
           "quantity": 1.0,
           "unit": "piece",
           "prep_notes": "medium, cut into 1-inch cubes"
@@ -7744,7 +7828,7 @@
           "prep_notes": null
         },
         {
-          "ingredient_name": "Turmeric Powder",
+          "ingredient_name": "Turmeric",
           "quantity": 0.25,
           "unit": "tsp",
           "prep_notes": null
@@ -7825,7 +7909,7 @@
           "prep_notes": "or sunflower oil, for tempering"
         },
         {
-          "ingredient_name": "Bay leaf",
+          "ingredient_name": "Bay leaves",
           "quantity": 1.0,
           "unit": "piece",
           "prep_notes": "for tempering"
@@ -7837,7 +7921,7 @@
           "prep_notes": "for tempering"
         },
         {
-          "ingredient_name": "asafoetida",
+          "ingredient_name": "Asafoetida (hing)",
           "quantity": 0.25,
           "unit": "tsp",
           "prep_notes": "for tempering"
@@ -7861,19 +7945,19 @@
           "prep_notes": "for tempering"
         },
         {
-          "ingredient_name": "Ground coriander",
+          "ingredient_name": "Coriander powder",
           "quantity": 1.0,
           "unit": "tsp",
           "prep_notes": "for tempering"
         },
         {
-          "ingredient_name": "Tomato",
+          "ingredient_name": "Tomatoes",
           "quantity": 1.0,
           "unit": "piece",
           "prep_notes": "medium, pureed, for tempering"
         },
         {
-          "ingredient_name": "Fresh ginger",
+          "ingredient_name": "Ginger",
           "quantity": 1.0,
           "unit": "piece",
           "prep_notes": "1-inch piece, for chili paste"
@@ -7885,7 +7969,7 @@
           "prep_notes": "cloves, for chili paste"
         },
         {
-          "ingredient_name": "Thai green chilies",
+          "ingredient_name": "Green chilies",
           "quantity": 2.0,
           "unit": "piece",
           "prep_notes": "or to taste, for chili paste"
@@ -7927,7 +8011,7 @@
           "prep_notes": null
         },
         {
-          "ingredient_name": "asafoetida",
+          "ingredient_name": "Asafoetida (hing)",
           "quantity": 1.0,
           "unit": "piece",
           "prep_notes": "pinch, hing"
@@ -7969,7 +8053,7 @@
           "prep_notes": null
         },
         {
-          "ingredient_name": "Ground coriander",
+          "ingredient_name": "Coriander powder",
           "quantity": 1.0,
           "unit": "tsp",
           "prep_notes": null
@@ -7993,13 +8077,13 @@
           "prep_notes": "sprigs, finely chopped"
         },
         {
-          "ingredient_name": "Fresh ginger",
+          "ingredient_name": "Ginger",
           "quantity": 1.0,
           "unit": "piece",
           "prep_notes": "1-inch, crushed, for chili paste"
         },
         {
-          "ingredient_name": "Thai green chilies",
+          "ingredient_name": "Green chilies",
           "quantity": 2.0,
           "unit": "piece",
           "prep_notes": "crushed, for chili paste"
@@ -8052,25 +8136,25 @@
           "prep_notes": null
         },
         {
-          "ingredient_name": "Jeera",
+          "ingredient_name": "Cumin seeds",
           "quantity": 1.5,
           "unit": "tsp",
           "prep_notes": null
         },
         {
-          "ingredient_name": "Hing",
+          "ingredient_name": "Asafoetida (hing)",
           "quantity": 0.25,
           "unit": "tsp",
           "prep_notes": null
         },
         {
-          "ingredient_name": "Turmeric Powder",
+          "ingredient_name": "Turmeric",
           "quantity": 1.0,
           "unit": "tsp",
           "prep_notes": null
         },
         {
-          "ingredient_name": "Red chilly powder",
+          "ingredient_name": "Red chili powder",
           "quantity": 2.0,
           "unit": "tsp",
           "prep_notes": null
@@ -8082,7 +8166,7 @@
           "prep_notes": null
         },
         {
-          "ingredient_name": "Jeera Powder",
+          "ingredient_name": "Ground cumin",
           "quantity": 2.0,
           "unit": "tsp",
           "prep_notes": null
@@ -8094,7 +8178,7 @@
           "prep_notes": null
         },
         {
-          "ingredient_name": "Sesame (Gingelly) Oil",
+          "ingredient_name": "Sesame oil",
           "quantity": 2.0,
           "unit": "tbsp",
           "prep_notes": null
@@ -8131,7 +8215,7 @@
           "prep_notes": null
         },
         {
-          "ingredient_name": "asafoetida",
+          "ingredient_name": "Asafoetida (hing)",
           "quantity": 1.0,
           "unit": "piece",
           "prep_notes": "pinch, hing"
@@ -8143,13 +8227,13 @@
           "prep_notes": "medium, finely chopped"
         },
         {
-          "ingredient_name": "dried coconut slices",
+          "ingredient_name": "Dried coconut slices",
           "quantity": 2.0,
           "unit": "tbsp",
           "prep_notes": null
         },
         {
-          "ingredient_name": "Thai green chilies",
+          "ingredient_name": "Green chilies",
           "quantity": 2.0,
           "unit": "piece",
           "prep_notes": "finely chopped"
@@ -8199,7 +8283,7 @@
           "prep_notes": null
         },
         {
-          "ingredient_name": "Organic rolled oats",
+          "ingredient_name": "Rolled oats",
           "quantity": 0.75,
           "unit": "cup",
           "prep_notes": null
@@ -8238,7 +8322,7 @@
           "prep_notes": "small, finely chopped"
         },
         {
-          "ingredient_name": "Thai green chilies",
+          "ingredient_name": "Green chilies",
           "quantity": 5.0,
           "unit": "pieces",
           "prep_notes": "finely chopped; range listed as 4-6"
@@ -8250,7 +8334,7 @@
           "prep_notes": null
         },
         {
-          "ingredient_name": "Dried raw mango powder (amchur)",
+          "ingredient_name": "Amchur",
           "quantity": 0.5,
           "unit": "tsp",
           "prep_notes": null
@@ -8262,7 +8346,7 @@
           "prep_notes": "or to taste"
         },
         {
-          "ingredient_name": "Okra (bhindi)",
+          "ingredient_name": "Okra",
           "quantity": 1.0,
           "unit": "lb",
           "prep_notes": "sliced into 1/2-inch rounds"
@@ -8383,25 +8467,25 @@
           "prep_notes": "finely chopped"
         },
         {
-          "ingredient_name": "Tomato",
+          "ingredient_name": "Tomatoes",
           "quantity": 1.0,
           "unit": "pieces",
           "prep_notes": "pureed"
         },
         {
-          "ingredient_name": "Dried fenugreek leaves (kasuri methi)",
+          "ingredient_name": "Kasuri methi",
           "quantity": 1.0,
           "unit": "tsp",
           "prep_notes": null
         },
         {
-          "ingredient_name": "Thai green chilies",
+          "ingredient_name": "Green chilies",
           "quantity": 5.0,
           "unit": "pieces",
           "prep_notes": "chili paste; range listed as 4-6"
         },
         {
-          "ingredient_name": "Fresh ginger",
+          "ingredient_name": "Ginger",
           "quantity": 1.0,
           "unit": "pieces",
           "prep_notes": "1-inch piece, peeled; chili paste"
@@ -8442,7 +8526,7 @@
           "prep_notes": "small, finely chopped"
         },
         {
-          "ingredient_name": "Thai green chilies",
+          "ingredient_name": "Green chilies",
           "quantity": 5.0,
           "unit": "pieces",
           "prep_notes": "finely chopped; range listed as 4-6"
@@ -8460,7 +8544,7 @@
           "prep_notes": "or to taste"
         },
         {
-          "ingredient_name": "Green plantains",
+          "ingredient_name": "Plantain",
           "quantity": 1.0,
           "unit": "lb",
           "prep_notes": "peeled and sliced into 1/4-inch rounds"
@@ -8481,7 +8565,7 @@
       "notes": "Maharashtra. V / GF.",
       "ingredients": [
         {
-          "ingredient_name": "gram flour",
+          "ingredient_name": "Besan",
           "quantity": 0.25,
           "unit": "cup",
           "prep_notes": "besan"
@@ -8517,7 +8601,7 @@
           "prep_notes": "sprigs, finely chopped"
         },
         {
-          "ingredient_name": "Thai green chilies",
+          "ingredient_name": "Green chilies",
           "quantity": 2.0,
           "unit": "piece",
           "prep_notes": "crushed, for chili paste"
@@ -8535,7 +8619,7 @@
           "prep_notes": "for seasoning"
         },
         {
-          "ingredient_name": "Fenugreek",
+          "ingredient_name": "Fenugreek seeds",
           "quantity": 0.5,
           "unit": "tsp",
           "prep_notes": "for seasoning"
@@ -8547,7 +8631,7 @@
           "prep_notes": "for seasoning"
         },
         {
-          "ingredient_name": "asafoetida",
+          "ingredient_name": "Asafoetida (hing)",
           "quantity": 1.0,
           "unit": "pinch",
           "prep_notes": "hing, for seasoning"
@@ -8580,13 +8664,13 @@
           "prep_notes": null
         },
         {
-          "ingredient_name": "loose leaf black tea",
+          "ingredient_name": "Black tea",
           "quantity": 1.5,
           "unit": "tsp",
           "prep_notes": null
         },
         {
-          "ingredient_name": "Fresh ginger",
+          "ingredient_name": "Ginger",
           "quantity": 1.0,
           "unit": "piece",
           "prep_notes": "2-inch piece, peeled"
@@ -8604,13 +8688,13 @@
           "prep_notes": null
         },
         {
-          "ingredient_name": "cardamom powder",
+          "ingredient_name": "Cardamom powder",
           "quantity": 0.5,
           "unit": "tsp",
           "prep_notes": null
         },
         {
-          "ingredient_name": "mint leaves",
+          "ingredient_name": "Mint",
           "quantity": 6.0,
           "unit": "piece",
           "prep_notes": "fresh leaves only, no stem"
@@ -8636,19 +8720,19 @@
           "prep_notes": null
         },
         {
-          "ingredient_name": "Fresh ginger",
+          "ingredient_name": "Ginger",
           "quantity": 1.0,
           "unit": "piece",
           "prep_notes": "2-inch piece, peeled and grated or pounded"
         },
         {
-          "ingredient_name": "cardamom pods",
+          "ingredient_name": "Cardamom",
           "quantity": 20.0,
           "unit": "piece",
           "prep_notes": "powdered"
         },
         {
-          "ingredient_name": "loose leaf black tea",
+          "ingredient_name": "Black tea",
           "quantity": 4.0,
           "unit": "tsp",
           "prep_notes": null
@@ -8706,7 +8790,7 @@
           "prep_notes": null
         },
         {
-          "ingredient_name": "Peas",
+          "ingredient_name": "Green peas",
           "quantity": 1.0,
           "unit": "cup",
           "prep_notes": null
@@ -8736,7 +8820,7 @@
           "prep_notes": null
         },
         {
-          "ingredient_name": "Bay leaf",
+          "ingredient_name": "Bay leaves",
           "quantity": 1.0,
           "unit": "g",
           "prep_notes": null
@@ -8748,19 +8832,19 @@
           "prep_notes": null
         },
         {
-          "ingredient_name": "Jeera",
+          "ingredient_name": "Cumin seeds",
           "quantity": 1.0,
           "unit": "tsp",
           "prep_notes": null
         },
         {
-          "ingredient_name": "Hing",
+          "ingredient_name": "Asafoetida (hing)",
           "quantity": 0.25,
           "unit": "tsp",
           "prep_notes": null
         },
         {
-          "ingredient_name": "Turmeric Powder",
+          "ingredient_name": "Turmeric",
           "quantity": 1.0,
           "unit": "tsp",
           "prep_notes": null
@@ -8772,7 +8856,7 @@
           "prep_notes": null
         },
         {
-          "ingredient_name": "Jeera Powder",
+          "ingredient_name": "Ground cumin",
           "quantity": 1.0,
           "unit": "tsp",
           "prep_notes": null
@@ -8809,7 +8893,7 @@
           "prep_notes": null
         },
         {
-          "ingredient_name": "Fresh ginger",
+          "ingredient_name": "Ginger",
           "quantity": 1.0,
           "unit": "piece",
           "prep_notes": "1-inch piece, peeled and crushed"
@@ -8821,13 +8905,13 @@
           "prep_notes": null
         },
         {
-          "ingredient_name": "fresh mint leaves",
+          "ingredient_name": "Mint",
           "quantity": 5.0,
           "unit": "piece",
           "prep_notes": null
         },
         {
-          "ingredient_name": "loose leaf black tea",
+          "ingredient_name": "Black tea",
           "quantity": 4.0,
           "unit": "tsp",
           "prep_notes": null
@@ -8845,7 +8929,7 @@
           "prep_notes": "2-inch stalk"
         },
         {
-          "ingredient_name": "cardamom pods",
+          "ingredient_name": "Cardamom",
           "quantity": 3.0,
           "unit": "piece",
           "prep_notes": "powdered"
@@ -8877,25 +8961,25 @@
           "prep_notes": null
         },
         {
-          "ingredient_name": "Red chillies",
+          "ingredient_name": "Dried red chilies",
           "quantity": 2.0,
           "unit": "g",
           "prep_notes": null
         },
         {
-          "ingredient_name": "Green chillies",
+          "ingredient_name": "Green chilies",
           "quantity": 1.0,
           "unit": "g",
           "prep_notes": null
         },
         {
-          "ingredient_name": "Bay leaf",
+          "ingredient_name": "Bay leaves",
           "quantity": 1.0,
           "unit": "g",
           "prep_notes": null
         },
         {
-          "ingredient_name": "Turmeric Powder",
+          "ingredient_name": "Turmeric",
           "quantity": 0.5,
           "unit": "tsp",
           "prep_notes": null
@@ -8936,7 +9020,7 @@
       "notes": "Bengal. V/GF.",
       "ingredients": [
         {
-          "ingredient_name": "split masoor dal",
+          "ingredient_name": "Masoor dal",
           "quantity": 1.0,
           "unit": "cup",
           "prep_notes": null
@@ -8978,7 +9062,7 @@
           "prep_notes": "or to taste, for tempering"
         },
         {
-          "ingredient_name": "Bay leaf",
+          "ingredient_name": "Bay leaves",
           "quantity": 1.0,
           "unit": "piece",
           "prep_notes": "for tempering"
@@ -8990,7 +9074,7 @@
           "prep_notes": "for tempering"
         },
         {
-          "ingredient_name": "Thai green chilies",
+          "ingredient_name": "Green chilies",
           "quantity": 2.0,
           "unit": "piece",
           "prep_notes": "for tempering"
@@ -9025,7 +9109,7 @@
           "prep_notes": "3-inch cube, or 1 packet extra-firm tofu, cut into 3/4-inch cubes"
         },
         {
-          "ingredient_name": "green peas",
+          "ingredient_name": "Green peas",
           "quantity": 1.25,
           "unit": "cup",
           "prep_notes": null
@@ -9091,7 +9175,7 @@
           "prep_notes": null
         },
         {
-          "ingredient_name": "Ground coriander",
+          "ingredient_name": "Coriander powder",
           "quantity": 1.0,
           "unit": "tsp",
           "prep_notes": null
@@ -9109,7 +9193,7 @@
           "prep_notes": "sprigs, finely chopped"
         },
         {
-          "ingredient_name": "dried fenugreek leaves",
+          "ingredient_name": "Kasuri methi",
           "quantity": 1.0,
           "unit": "tsp",
           "prep_notes": "kasuri methi"
@@ -9228,7 +9312,7 @@
           "prep_notes": null
         },
         {
-          "ingredient_name": "Turmeric Powder",
+          "ingredient_name": "Turmeric",
           "quantity": 1.0,
           "unit": "tsp",
           "prep_notes": null
@@ -9270,13 +9354,13 @@
           "prep_notes": null
         },
         {
-          "ingredient_name": "Sesame (Gingelly) Oil",
+          "ingredient_name": "Sesame oil",
           "quantity": 2.0,
           "unit": "tbsp",
           "prep_notes": null
         },
         {
-          "ingredient_name": "Methi seeds",
+          "ingredient_name": "Fenugreek seeds",
           "quantity": 0.5,
           "unit": "tsp",
           "prep_notes": null
@@ -9288,19 +9372,19 @@
           "prep_notes": null
         },
         {
-          "ingredient_name": "Jeera",
+          "ingredient_name": "Cumin seeds",
           "quantity": 1.0,
           "unit": "tsp",
           "prep_notes": null
         },
         {
-          "ingredient_name": "Hing",
+          "ingredient_name": "Asafoetida (hing)",
           "quantity": 0.25,
           "unit": "tsp",
           "prep_notes": null
         },
         {
-          "ingredient_name": "Red chillies",
+          "ingredient_name": "Dried red chilies",
           "quantity": 5.0,
           "unit": "g",
           "prep_notes": null
@@ -9443,7 +9527,7 @@
           "prep_notes": "sesame ginger dressing"
         },
         {
-          "ingredient_name": "Fresh ginger",
+          "ingredient_name": "Ginger",
           "quantity": 1.0,
           "unit": "pieces",
           "prep_notes": "1-inch; sesame ginger dressing"
@@ -9548,7 +9632,7 @@
       "notes": "Imported from workbook (Pranams)",
       "ingredients": [
         {
-          "ingredient_name": "Potato",
+          "ingredient_name": "Potatoes",
           "quantity": 225.0,
           "unit": "g",
           "prep_notes": null
@@ -9596,25 +9680,25 @@
           "prep_notes": null
         },
         {
-          "ingredient_name": "Red chillies",
+          "ingredient_name": "Dried red chilies",
           "quantity": 0.5,
           "unit": "g",
           "prep_notes": null
         },
         {
-          "ingredient_name": "Bay leaf",
+          "ingredient_name": "Bay leaves",
           "quantity": 0.25,
           "unit": "g",
           "prep_notes": null
         },
         {
-          "ingredient_name": "Green chillies",
+          "ingredient_name": "Green chilies",
           "quantity": 0.5,
           "unit": "g",
           "prep_notes": null
         },
         {
-          "ingredient_name": "Turmeric Powder",
+          "ingredient_name": "Turmeric",
           "quantity": 0.5,
           "unit": "tsp",
           "prep_notes": null
@@ -9673,7 +9757,7 @@
           "prep_notes": null
         },
         {
-          "ingredient_name": "Bay leaf",
+          "ingredient_name": "Bay leaves",
           "quantity": 1.0,
           "unit": "piece",
           "prep_notes": null
@@ -9685,7 +9769,7 @@
           "prep_notes": null
         },
         {
-          "ingredient_name": "whole cardamom pods",
+          "ingredient_name": "Cardamom",
           "quantity": 2.0,
           "unit": "piece",
           "prep_notes": null
@@ -9703,7 +9787,7 @@
           "prep_notes": "medium, finely chopped"
         },
         {
-          "ingredient_name": "Fresh ginger",
+          "ingredient_name": "Ginger",
           "quantity": 1.0,
           "unit": "piece",
           "prep_notes": "1-inch piece, peeled and crushed"
@@ -9721,7 +9805,7 @@
           "prep_notes": "medium, finely chopped"
         },
         {
-          "ingredient_name": "Turmeric Powder",
+          "ingredient_name": "Turmeric",
           "quantity": 1.0,
           "unit": "tsp",
           "prep_notes": null
@@ -9763,13 +9847,13 @@
           "prep_notes": "medium, cut into 1-inch florets"
         },
         {
-          "ingredient_name": "Potato",
+          "ingredient_name": "Potatoes",
           "quantity": 1.0,
           "unit": "piece",
           "prep_notes": "cut into 1-inch cubes"
         },
         {
-          "ingredient_name": "frozen peas",
+          "ingredient_name": "Green peas",
           "quantity": 0.75,
           "unit": "cup",
           "prep_notes": null
@@ -9781,7 +9865,7 @@
           "prep_notes": "half packet, thawed, for coconut paste"
         },
         {
-          "ingredient_name": "Thai green chilies",
+          "ingredient_name": "Green chilies",
           "quantity": 2.0,
           "unit": "piece",
           "prep_notes": "for coconut paste"
@@ -9848,7 +9932,7 @@
           "prep_notes": null
         },
         {
-          "ingredient_name": "Dry Coconut Slices",
+          "ingredient_name": "Dried coconut slices",
           "quantity": 0.2,
           "unit": "cup",
           "prep_notes": null
@@ -9954,7 +10038,7 @@
       "notes": "Imported from workbook (Common Recipes)",
       "ingredients": [
         {
-          "ingredient_name": "Rolled Oats",
+          "ingredient_name": "Rolled oats",
           "quantity": 1.5,
           "unit": "cup",
           "prep_notes": null
@@ -10036,7 +10120,7 @@
           "prep_notes": null
         },
         {
-          "ingredient_name": "Green chillies",
+          "ingredient_name": "Green chilies",
           "quantity": 3.0,
           "unit": "g",
           "prep_notes": null
@@ -10048,25 +10132,25 @@
           "prep_notes": null
         },
         {
-          "ingredient_name": "Jeera",
+          "ingredient_name": "Cumin seeds",
           "quantity": 2.0,
           "unit": "tsp",
           "prep_notes": null
         },
         {
-          "ingredient_name": "Hing",
+          "ingredient_name": "Asafoetida (hing)",
           "quantity": 0.5,
           "unit": "tsp",
           "prep_notes": null
         },
         {
-          "ingredient_name": "Turmeric Powder",
+          "ingredient_name": "Turmeric",
           "quantity": 1.0,
           "unit": "tsp",
           "prep_notes": null
         },
         {
-          "ingredient_name": "Red chilly powder",
+          "ingredient_name": "Red chili powder",
           "quantity": 1.0,
           "unit": "tsp",
           "prep_notes": null
@@ -10139,7 +10223,7 @@
           "prep_notes": null
         },
         {
-          "ingredient_name": "Potato",
+          "ingredient_name": "Potatoes",
           "quantity": 100.0,
           "unit": "g",
           "prep_notes": null
@@ -10169,7 +10253,7 @@
           "prep_notes": null
         },
         {
-          "ingredient_name": "Sesame (Gingelly) Oil",
+          "ingredient_name": "Sesame oil",
           "quantity": 3.0,
           "unit": "tbsp",
           "prep_notes": null
@@ -10181,25 +10265,25 @@
           "prep_notes": null
         },
         {
-          "ingredient_name": "Jeera",
+          "ingredient_name": "Cumin seeds",
           "quantity": 1.0,
           "unit": "tsp",
           "prep_notes": null
         },
         {
-          "ingredient_name": "Hing",
+          "ingredient_name": "Asafoetida (hing)",
           "quantity": 0.25,
           "unit": "tsp",
           "prep_notes": null
         },
         {
-          "ingredient_name": "Turmeric Powder",
+          "ingredient_name": "Turmeric",
           "quantity": 1.0,
           "unit": "tsp",
           "prep_notes": null
         },
         {
-          "ingredient_name": "Red chilly powder",
+          "ingredient_name": "Red chili powder",
           "quantity": 2.0,
           "unit": "tsp",
           "prep_notes": null
@@ -10211,7 +10295,7 @@
           "prep_notes": null
         },
         {
-          "ingredient_name": "Jeera Powder",
+          "ingredient_name": "Ground cumin",
           "quantity": 1.0,
           "unit": "tsp",
           "prep_notes": null
@@ -10286,37 +10370,37 @@
           "prep_notes": null
         },
         {
-          "ingredient_name": "Green chillies",
+          "ingredient_name": "Green chilies",
           "quantity": 10.0,
           "unit": "g",
           "prep_notes": null
         },
         {
-          "ingredient_name": "Red chillies",
+          "ingredient_name": "Dried red chilies",
           "quantity": 5.0,
           "unit": "g",
           "prep_notes": null
         },
         {
-          "ingredient_name": "Jeera",
+          "ingredient_name": "Cumin seeds",
           "quantity": 1.0,
           "unit": "tsp",
           "prep_notes": null
         },
         {
-          "ingredient_name": "Bay leaf",
+          "ingredient_name": "Bay leaves",
           "quantity": 1.0,
           "unit": "g",
           "prep_notes": null
         },
         {
-          "ingredient_name": "Red chilly powder",
+          "ingredient_name": "Red chili powder",
           "quantity": 1.0,
           "unit": "tsp",
           "prep_notes": null
         },
         {
-          "ingredient_name": "Turmeric Powder",
+          "ingredient_name": "Turmeric",
           "quantity": 1.0,
           "unit": "tsp",
           "prep_notes": null
@@ -10328,7 +10412,7 @@
           "prep_notes": null
         },
         {
-          "ingredient_name": "Sesame (Gingelly) Oil",
+          "ingredient_name": "Sesame oil",
           "quantity": 4.0,
           "unit": "tbsp",
           "prep_notes": null
@@ -10368,7 +10452,7 @@
           "prep_notes": "or any rice on hand"
         },
         {
-          "ingredient_name": "yellow moong dal",
+          "ingredient_name": "Yellow moong dal",
           "quantity": 0.75,
           "unit": "cup",
           "prep_notes": null
@@ -10386,7 +10470,7 @@
           "prep_notes": null
         },
         {
-          "ingredient_name": "black peppercorns",
+          "ingredient_name": "Black pepper",
           "quantity": 1.0,
           "unit": "tsp",
           "prep_notes": null
@@ -10495,7 +10579,7 @@
           "prep_notes": "pinch"
         },
         {
-          "ingredient_name": "Thai green chilies",
+          "ingredient_name": "Green chilies",
           "quantity": 2.5,
           "unit": "pieces",
           "prep_notes": "finely chopped; range listed as 2-3"
@@ -10519,7 +10603,7 @@
           "prep_notes": null
         },
         {
-          "ingredient_name": "Potato",
+          "ingredient_name": "Potatoes",
           "quantity": 1.0,
           "unit": "pieces",
           "prep_notes": "medium, peeled and cubed"
@@ -10560,7 +10644,7 @@
       "notes": "Maharashtra/Gujarat. V/GF",
       "ingredients": [
         {
-          "ingredient_name": "frozen fine-textured coconut",
+          "ingredient_name": "Frozen coconut",
           "quantity": 1.0,
           "unit": "piece",
           "prep_notes": "1-inch block, thawed"
@@ -10590,7 +10674,7 @@
           "prep_notes": null
         },
         {
-          "ingredient_name": "asafoetida",
+          "ingredient_name": "Asafoetida (hing)",
           "quantity": 0.25,
           "unit": "tsp",
           "prep_notes": "hing"
@@ -10632,13 +10716,13 @@
           "prep_notes": "juiced"
         },
         {
-          "ingredient_name": "Thai green chilies",
+          "ingredient_name": "Green chilies",
           "quantity": 4.0,
           "unit": "piece",
           "prep_notes": "for chili paste"
         },
         {
-          "ingredient_name": "Fresh ginger",
+          "ingredient_name": "Ginger",
           "quantity": 1.0,
           "unit": "piece",
           "prep_notes": "1 1/2-inch piece, peeled, for chili paste"
@@ -10692,7 +10776,7 @@
           "prep_notes": null
         },
         {
-          "ingredient_name": "Hing",
+          "ingredient_name": "Asafoetida (hing)",
           "quantity": 0.25,
           "unit": "tsp",
           "prep_notes": null
@@ -10716,7 +10800,7 @@
           "prep_notes": null
         },
         {
-          "ingredient_name": "Green chillies",
+          "ingredient_name": "Green chilies",
           "quantity": 1.0,
           "unit": "g",
           "prep_notes": null
@@ -10780,13 +10864,13 @@
           "prep_notes": "dressing"
         },
         {
-          "ingredient_name": "Lime or lemon",
+          "ingredient_name": "Lemon or lime",
           "quantity": 1.0,
           "unit": "pieces",
           "prep_notes": "juice; dressing"
         },
         {
-          "ingredient_name": "Fresh ginger",
+          "ingredient_name": "Ginger",
           "quantity": 1.0,
           "unit": "pieces",
           "prep_notes": "1-inch, peeled; dressing"
@@ -10821,7 +10905,7 @@
       "notes": "Cookbook PDF p.59 (manual entry)",
       "ingredients": [
         {
-          "ingredient_name": "Radishes",
+          "ingredient_name": "Radish",
           "quantity": 2.0,
           "unit": "pieces",
           "prep_notes": "medium white or red, thinly sliced or grated"
@@ -10863,7 +10947,7 @@
           "prep_notes": null
         },
         {
-          "ingredient_name": "Jeera",
+          "ingredient_name": "Cumin seeds",
           "quantity": 2.0,
           "unit": "tsp",
           "prep_notes": null
@@ -10899,13 +10983,13 @@
           "prep_notes": null
         },
         {
-          "ingredient_name": "Turmeric Powder",
+          "ingredient_name": "Turmeric",
           "quantity": 2.0,
           "unit": "tsp",
           "prep_notes": null
         },
         {
-          "ingredient_name": "Red chilly powder",
+          "ingredient_name": "Red chili powder",
           "quantity": 1.0,
           "unit": "tsp",
           "prep_notes": null
@@ -10972,13 +11056,13 @@
           "prep_notes": null
         },
         {
-          "ingredient_name": "mustard seed powder",
+          "ingredient_name": "Mustard powder",
           "quantity": 0.25,
           "unit": "cup",
           "prep_notes": null
         },
         {
-          "ingredient_name": "fenugreek powder",
+          "ingredient_name": "Fenugreek powder",
           "quantity": 1.0,
           "unit": "tbsp",
           "prep_notes": "dry roasted and finely ground"
@@ -10990,19 +11074,19 @@
           "prep_notes": null
         },
         {
-          "ingredient_name": "garlic cloves",
+          "ingredient_name": "Garlic",
           "quantity": 0.25,
           "unit": "cup",
           "prep_notes": "whole, peeled, optional"
         },
         {
-          "ingredient_name": "asafoetida",
+          "ingredient_name": "Asafoetida (hing)",
           "quantity": 0.25,
           "unit": "tsp",
           "prep_notes": "hing"
         },
         {
-          "ingredient_name": "sesame oil",
+          "ingredient_name": "Sesame oil",
           "quantity": 0.75,
           "unit": "cup",
           "prep_notes": null
@@ -11029,7 +11113,7 @@
           "prep_notes": "2-inch piece, thawed"
         },
         {
-          "ingredient_name": "Thai green chili",
+          "ingredient_name": "Green chilies",
           "quantity": 1.0,
           "unit": "pieces",
           "prep_notes": "finely chopped"
@@ -11053,7 +11137,7 @@
           "prep_notes": "small, finely chopped, optional"
         },
         {
-          "ingredient_name": "Fresh cilantro",
+          "ingredient_name": "Cilantro",
           "quantity": 2.5,
           "unit": "sprigs",
           "prep_notes": "finely chopped; range listed as 2-3"
@@ -11065,7 +11149,7 @@
           "prep_notes": "juice"
         },
         {
-          "ingredient_name": "Fresh ginger",
+          "ingredient_name": "Ginger",
           "quantity": 1.0,
           "unit": "pieces",
           "prep_notes": "1-inch, peeled and grated"
@@ -11077,7 +11161,7 @@
           "prep_notes": null
         },
         {
-          "ingredient_name": "Coconut oil or ghee",
+          "ingredient_name": "Coconut Oil",
           "quantity": 1.0,
           "unit": "tbsp",
           "prep_notes": "tempering"
@@ -11136,13 +11220,13 @@
           "prep_notes": null
         },
         {
-          "ingredient_name": "bay leaves",
+          "ingredient_name": "Bay leaves",
           "quantity": 2.0,
           "unit": "piece",
           "prep_notes": null
         },
         {
-          "ingredient_name": "Fenugreek",
+          "ingredient_name": "Fenugreek seeds",
           "quantity": 0.25,
           "unit": "tsp",
           "prep_notes": null
@@ -11154,7 +11238,7 @@
           "prep_notes": null
         },
         {
-          "ingredient_name": "asafoetida",
+          "ingredient_name": "Asafoetida (hing)",
           "quantity": 1.0,
           "unit": "piece",
           "prep_notes": "pinch, hing"
@@ -11166,7 +11250,7 @@
           "prep_notes": null
         },
         {
-          "ingredient_name": "Thai green chilies",
+          "ingredient_name": "Green chilies",
           "quantity": 2.0,
           "unit": "piece",
           "prep_notes": "finely chopped"
@@ -11190,7 +11274,7 @@
           "prep_notes": null
         },
         {
-          "ingredient_name": "Ground coriander",
+          "ingredient_name": "Coriander powder",
           "quantity": 1.0,
           "unit": "tsp",
           "prep_notes": null
@@ -11220,13 +11304,13 @@
           "prep_notes": null
         },
         {
-          "ingredient_name": "dried fenugreek leaves",
+          "ingredient_name": "Kasuri methi",
           "quantity": 0.25,
           "unit": "tsp",
           "prep_notes": "kasuri methi"
         },
         {
-          "ingredient_name": "dried raw mango powder",
+          "ingredient_name": "Amchur",
           "quantity": 0.5,
           "unit": "tsp",
           "prep_notes": "amchur; alternatively use lemon juice"
@@ -11386,7 +11470,7 @@
           "prep_notes": null
         },
         {
-          "ingredient_name": "cashew nuts",
+          "ingredient_name": "Cashews",
           "quantity": 10.0,
           "unit": "piece",
           "prep_notes": "roughly chopped"
@@ -11416,7 +11500,7 @@
           "prep_notes": null
         },
         {
-          "ingredient_name": "cardamom powder",
+          "ingredient_name": "Cardamom powder",
           "quantity": 0.5,
           "unit": "tsp",
           "prep_notes": null
@@ -11489,7 +11573,7 @@
       ],
       "steps": [
         "Slice red onions, finely chop the jalapenos, dice the tomatoes. Thaw the charred corn to room temperature",
-        "In a bowl, mix together the onions, jalape\u00f1os, lemon juice, olive oil, salt and pepper. Keep aside for 20 minutes to 1 hour to let it marinate",
+        "In a bowl, mix together the onions, jalapeños, lemon juice, olive oil, salt and pepper. Keep aside for 20 minutes to 1 hour to let it marinate",
         "Add the charred corn to the marinated onions. Add in the diced tomatoes",
         "Season to taste with salt and pepper and a squeeze of extra lemon juice",
         "Wash and shred the romaine lettuce and serve on the side"
@@ -11508,19 +11592,19 @@
           "prep_notes": null
         },
         {
-          "ingredient_name": "saffron strands",
+          "ingredient_name": "Saffron",
           "quantity": 7.0,
           "unit": "piece",
           "prep_notes": null
         },
         {
-          "ingredient_name": "loose leaf black tea",
+          "ingredient_name": "Black tea",
           "quantity": 5.0,
           "unit": "tsp",
           "prep_notes": null
         },
         {
-          "ingredient_name": "cardamom pods",
+          "ingredient_name": "Cardamom",
           "quantity": 2.0,
           "unit": "piece",
           "prep_notes": "crushed"
@@ -11532,7 +11616,7 @@
           "prep_notes": null
         },
         {
-          "ingredient_name": "nutmeg",
+          "ingredient_name": "Nutmeg",
           "quantity": 1.0,
           "unit": "piece",
           "prep_notes": "a few scrapings"
@@ -11570,7 +11654,7 @@
           "prep_notes": null
         },
         {
-          "ingredient_name": "asafoetida",
+          "ingredient_name": "Asafoetida (hing)",
           "quantity": 1.0,
           "unit": "piece",
           "prep_notes": "pinch"
@@ -11582,7 +11666,7 @@
           "prep_notes": "lemon-sized piece"
         },
         {
-          "ingredient_name": "drumsticks",
+          "ingredient_name": "Drumstick",
           "quantity": 2.0,
           "unit": "piece",
           "prep_notes": "fresh, or half packet frozen, cut into 1 1/2-inch pieces"
@@ -11594,7 +11678,7 @@
           "prep_notes": "medium, outer skin peeled, cut into 1-inch cubes"
         },
         {
-          "ingredient_name": "Tomato",
+          "ingredient_name": "Tomatoes",
           "quantity": 1.0,
           "unit": "piece",
           "prep_notes": "medium, finely chopped"
@@ -11606,7 +11690,7 @@
           "prep_notes": "arbi, peeled and cut into 1-inch pieces"
         },
         {
-          "ingredient_name": "Turmeric Powder",
+          "ingredient_name": "Turmeric",
           "quantity": 1.0,
           "unit": "tsp",
           "prep_notes": null
@@ -11630,7 +11714,7 @@
           "prep_notes": "sprigs, finely chopped"
         },
         {
-          "ingredient_name": "sesame oil",
+          "ingredient_name": "Sesame oil",
           "quantity": 1.0,
           "unit": "tbsp",
           "prep_notes": "gingelly, for tempering"
@@ -11648,13 +11732,13 @@
           "prep_notes": "for tempering"
         },
         {
-          "ingredient_name": "Fenugreek",
+          "ingredient_name": "Fenugreek seeds",
           "quantity": 0.5,
           "unit": "tsp",
           "prep_notes": "for tempering"
         },
         {
-          "ingredient_name": "asafoetida",
+          "ingredient_name": "Asafoetida (hing)",
           "quantity": 0.25,
           "unit": "tsp",
           "prep_notes": "for tempering"
@@ -11700,7 +11784,7 @@
           "prep_notes": null
         },
         {
-          "ingredient_name": "Tomato",
+          "ingredient_name": "Tomatoes",
           "quantity": 1.0,
           "unit": "piece",
           "prep_notes": "small, cut into 1-inch cubes"
@@ -11736,7 +11820,7 @@
           "prep_notes": "sprigs, finely chopped"
         },
         {
-          "ingredient_name": "sesame oil",
+          "ingredient_name": "Sesame oil",
           "quantity": 2.0,
           "unit": "tbsp",
           "prep_notes": "gingelly, for tempering"
@@ -11754,13 +11838,13 @@
           "prep_notes": "for tempering"
         },
         {
-          "ingredient_name": "Fenugreek",
+          "ingredient_name": "Fenugreek seeds",
           "quantity": 0.25,
           "unit": "tsp",
           "prep_notes": "for tempering"
         },
         {
-          "ingredient_name": "asafoetida",
+          "ingredient_name": "Asafoetida (hing)",
           "quantity": 0.25,
           "unit": "tsp",
           "prep_notes": "for tempering"
@@ -11807,7 +11891,7 @@
       "notes": "Tamil Nadu. V/GF.",
       "ingredients": [
         {
-          "ingredient_name": "raw tamarind",
+          "ingredient_name": "Tamarind",
           "quantity": 1.0,
           "unit": "tbsp",
           "prep_notes": null
@@ -11819,7 +11903,7 @@
           "prep_notes": null
         },
         {
-          "ingredient_name": "sesame oil",
+          "ingredient_name": "Sesame oil",
           "quantity": 1.0,
           "unit": "tbsp",
           "prep_notes": "gingelly"
@@ -11837,13 +11921,13 @@
           "prep_notes": null
         },
         {
-          "ingredient_name": "Fenugreek",
+          "ingredient_name": "Fenugreek seeds",
           "quantity": 0.25,
           "unit": "tsp",
           "prep_notes": null
         },
         {
-          "ingredient_name": "asafoetida",
+          "ingredient_name": "Asafoetida (hing)",
           "quantity": 0.25,
           "unit": "tsp",
           "prep_notes": null
@@ -11873,7 +11957,7 @@
           "prep_notes": "whole, or 1 medium red onion diced"
         },
         {
-          "ingredient_name": "Tomato",
+          "ingredient_name": "Tomatoes",
           "quantity": 1.0,
           "unit": "piece",
           "prep_notes": "medium, diced"
@@ -11920,7 +12004,7 @@
           "prep_notes": null
         },
         {
-          "ingredient_name": "asafoetida",
+          "ingredient_name": "Asafoetida (hing)",
           "quantity": 1.0,
           "unit": "piece",
           "prep_notes": "pinch"
@@ -11932,7 +12016,7 @@
           "prep_notes": "small ball"
         },
         {
-          "ingredient_name": "drumsticks",
+          "ingredient_name": "Drumstick",
           "quantity": 2.0,
           "unit": "piece",
           "prep_notes": "cut into 2-inch pieces"
@@ -11944,7 +12028,7 @@
           "prep_notes": "small, diced"
         },
         {
-          "ingredient_name": "Tomato",
+          "ingredient_name": "Tomatoes",
           "quantity": 1.0,
           "unit": "piece",
           "prep_notes": "medium, diced"
@@ -11998,7 +12082,7 @@
           "prep_notes": "for coconut paste"
         },
         {
-          "ingredient_name": "Fenugreek",
+          "ingredient_name": "Fenugreek seeds",
           "quantity": 0.25,
           "unit": "tsp",
           "prep_notes": "for coconut paste"
@@ -12040,7 +12124,7 @@
           "prep_notes": "for tempering"
         },
         {
-          "ingredient_name": "Fenugreek",
+          "ingredient_name": "Fenugreek seeds",
           "quantity": 0.25,
           "unit": "tsp",
           "prep_notes": "for tempering"
@@ -12052,7 +12136,7 @@
           "prep_notes": "for tempering"
         },
         {
-          "ingredient_name": "asafoetida",
+          "ingredient_name": "Asafoetida (hing)",
           "quantity": 1.0,
           "unit": "piece",
           "prep_notes": "pinch, for tempering"
@@ -12081,7 +12165,7 @@
       "notes": "Imported from workbook (Common Recipes)",
       "ingredients": [
         {
-          "ingredient_name": "Red chillies",
+          "ingredient_name": "Dried red chilies",
           "quantity": 3.0,
           "unit": "cup",
           "prep_notes": null
@@ -12093,13 +12177,13 @@
           "prep_notes": null
         },
         {
-          "ingredient_name": "Methi seeds",
+          "ingredient_name": "Fenugreek seeds",
           "quantity": 0.25,
           "unit": "cup",
           "prep_notes": null
         },
         {
-          "ingredient_name": "Jeera",
+          "ingredient_name": "Cumin seeds",
           "quantity": 0.25,
           "unit": "cup",
           "prep_notes": null
@@ -12123,7 +12207,7 @@
           "prep_notes": null
         },
         {
-          "ingredient_name": "Hing",
+          "ingredient_name": "Asafoetida (hing)",
           "quantity": 1.0,
           "unit": "tsp",
           "prep_notes": null
@@ -12149,7 +12233,7 @@
           "prep_notes": null
         },
         {
-          "ingredient_name": "Sesame (Gingelly) Oil",
+          "ingredient_name": "Sesame oil",
           "quantity": 1.0,
           "unit": "tbsp",
           "prep_notes": null
@@ -12161,25 +12245,25 @@
           "prep_notes": null
         },
         {
-          "ingredient_name": "Jeera",
+          "ingredient_name": "Cumin seeds",
           "quantity": 2.0,
           "unit": "tsp",
           "prep_notes": null
         },
         {
-          "ingredient_name": "Hing",
+          "ingredient_name": "Asafoetida (hing)",
           "quantity": 0.5,
           "unit": "tsp",
           "prep_notes": null
         },
         {
-          "ingredient_name": "Turmeric Powder",
+          "ingredient_name": "Turmeric",
           "quantity": 1.5,
           "unit": "tsp",
           "prep_notes": null
         },
         {
-          "ingredient_name": "Red chillies",
+          "ingredient_name": "Dried red chilies",
           "quantity": 2.0,
           "unit": "g",
           "prep_notes": null
@@ -12257,13 +12341,13 @@
       "notes": "Imported from workbook (Common Recipes)",
       "ingredients": [
         {
-          "ingredient_name": "Whole Green Mung",
+          "ingredient_name": "Whole green mung",
           "quantity": 1.5,
           "unit": "cup",
           "prep_notes": null
         },
         {
-          "ingredient_name": "Turmeric Powder",
+          "ingredient_name": "Turmeric",
           "quantity": 1.0,
           "unit": "tsp",
           "prep_notes": null
@@ -12287,19 +12371,19 @@
           "prep_notes": null
         },
         {
-          "ingredient_name": "Jeera",
+          "ingredient_name": "Cumin seeds",
           "quantity": 1.0,
           "unit": "tsp",
           "prep_notes": null
         },
         {
-          "ingredient_name": "Hing",
+          "ingredient_name": "Asafoetida (hing)",
           "quantity": 0.25,
           "unit": "tsp",
           "prep_notes": null
         },
         {
-          "ingredient_name": "Red chilly powder",
+          "ingredient_name": "Red chili powder",
           "quantity": 0.5,
           "unit": "tsp",
           "prep_notes": null
@@ -12323,7 +12407,7 @@
           "prep_notes": null
         },
         {
-          "ingredient_name": "Khakra",
+          "ingredient_name": "Khakhra",
           "quantity": 8.0,
           "unit": "pieces",
           "prep_notes": null
@@ -12354,7 +12438,7 @@
       "notes": "Cookbook PDF p.34 (manual entry)",
       "ingredients": [
         {
-          "ingredient_name": "Whole green moong",
+          "ingredient_name": "Whole green mung",
           "quantity": 1.0,
           "unit": "cup",
           "prep_notes": null
@@ -12396,7 +12480,7 @@
           "prep_notes": "pinch"
         },
         {
-          "ingredient_name": "Ground coriander",
+          "ingredient_name": "Coriander powder",
           "quantity": 1.0,
           "unit": "tbsp",
           "prep_notes": null
@@ -12414,7 +12498,7 @@
           "prep_notes": null
         },
         {
-          "ingredient_name": "Lemon or lime juice",
+          "ingredient_name": "Lemon or lime",
           "quantity": 1.0,
           "unit": "tbsp",
           "prep_notes": null
@@ -12669,7 +12753,7 @@
           "prep_notes": null
         },
         {
-          "ingredient_name": "Potato",
+          "ingredient_name": "Potatoes",
           "quantity": 100.0,
           "unit": "g",
           "prep_notes": null
@@ -12693,7 +12777,7 @@
           "prep_notes": null
         },
         {
-          "ingredient_name": "Green chillies",
+          "ingredient_name": "Green chilies",
           "quantity": 5.0,
           "unit": "g",
           "prep_notes": null
@@ -12729,13 +12813,13 @@
           "prep_notes": null
         },
         {
-          "ingredient_name": "Red chilly powder",
+          "ingredient_name": "Red chili powder",
           "quantity": 2.0,
           "unit": "tsp",
           "prep_notes": null
         },
         {
-          "ingredient_name": "Sesame (Gingelly) Oil",
+          "ingredient_name": "Sesame oil",
           "quantity": 4.0,
           "unit": "tbsp",
           "prep_notes": null
@@ -12747,13 +12831,13 @@
           "prep_notes": null
         },
         {
-          "ingredient_name": "Jeera",
+          "ingredient_name": "Cumin seeds",
           "quantity": 1.0,
           "unit": "tsp",
           "prep_notes": null
         },
         {
-          "ingredient_name": "Hing",
+          "ingredient_name": "Asafoetida (hing)",
           "quantity": 0.25,
           "unit": "tsp",
           "prep_notes": null
@@ -12765,13 +12849,13 @@
           "prep_notes": null
         },
         {
-          "ingredient_name": "Turmeric Powder",
+          "ingredient_name": "Turmeric",
           "quantity": 1.0,
           "unit": "tsp",
           "prep_notes": null
         },
         {
-          "ingredient_name": "Jeera Powder",
+          "ingredient_name": "Ground cumin",
           "quantity": 1.0,
           "unit": "tsp",
           "prep_notes": null
@@ -12834,7 +12918,7 @@
           "prep_notes": null
         },
         {
-          "ingredient_name": "Fenugreek",
+          "ingredient_name": "Fenugreek seeds",
           "quantity": 0.5,
           "unit": "tsp",
           "prep_notes": null
@@ -12858,7 +12942,7 @@
           "prep_notes": "pinch"
         },
         {
-          "ingredient_name": "Thai green chilies",
+          "ingredient_name": "Green chilies",
           "quantity": 3.5,
           "unit": "pieces",
           "prep_notes": "finely chopped; range listed as 3-4"
@@ -12888,7 +12972,7 @@
           "prep_notes": "to taste"
         },
         {
-          "ingredient_name": "Cream of Wheat (sooji)",
+          "ingredient_name": "Sooji",
           "quantity": 1.0,
           "unit": "cup",
           "prep_notes": "or Cream of Rice for GF"
@@ -12926,13 +13010,13 @@
           "prep_notes": null
         },
         {
-          "ingredient_name": "Turmeric Powder",
+          "ingredient_name": "Turmeric",
           "quantity": 1.0,
           "unit": "tsp",
           "prep_notes": null
         },
         {
-          "ingredient_name": "asafoetida",
+          "ingredient_name": "Asafoetida (hing)",
           "quantity": 0.5,
           "unit": "tsp",
           "prep_notes": "hing"
@@ -13014,13 +13098,13 @@
           "prep_notes": "or ghee"
         },
         {
-          "ingredient_name": "cinnamon stick",
+          "ingredient_name": "Cinnamon",
           "quantity": 1.0,
           "unit": "piece",
           "prep_notes": "1 inch"
         },
         {
-          "ingredient_name": "bay leaves",
+          "ingredient_name": "Bay leaves",
           "quantity": 2.0,
           "unit": "piece",
           "prep_notes": null
@@ -13038,19 +13122,19 @@
           "prep_notes": null
         },
         {
-          "ingredient_name": "yellow onion",
+          "ingredient_name": "Onion",
           "quantity": 1.0,
           "unit": "piece",
           "prep_notes": "large, thinly sliced"
         },
         {
-          "ingredient_name": "Tomato",
+          "ingredient_name": "Tomatoes",
           "quantity": 1.0,
           "unit": "piece",
           "prep_notes": "pureed"
         },
         {
-          "ingredient_name": "fresh mint",
+          "ingredient_name": "Mint",
           "quantity": 6.0,
           "unit": "piece",
           "prep_notes": "sprigs, finely chopped"
@@ -13086,7 +13170,7 @@
           "prep_notes": "half a head medium, cut into medium florets"
         },
         {
-          "ingredient_name": "green peas",
+          "ingredient_name": "Green peas",
           "quantity": 0.5,
           "unit": "cup",
           "prep_notes": null
@@ -13098,7 +13182,7 @@
           "prep_notes": "handful, cut into 1-inch pieces"
         },
         {
-          "ingredient_name": "Thai green chilies",
+          "ingredient_name": "Green chilies",
           "quantity": 4.0,
           "unit": "piece",
           "prep_notes": "for chili paste"
@@ -13110,7 +13194,7 @@
           "prep_notes": "1-inch piece, peeled, for chili paste"
         },
         {
-          "ingredient_name": "garlic cloves",
+          "ingredient_name": "Garlic",
           "quantity": 4.0,
           "unit": "piece",
           "prep_notes": "for chili paste"
@@ -13179,7 +13263,7 @@
           "prep_notes": null
         },
         {
-          "ingredient_name": "ground cardamom",
+          "ingredient_name": "Cardamom powder",
           "quantity": 0.5,
           "unit": "tsp",
           "prep_notes": "best if freshly ground"
@@ -13222,13 +13306,13 @@
           "prep_notes": null
         },
         {
-          "ingredient_name": "raw mustard powder",
+          "ingredient_name": "Mustard powder",
           "quantity": 3.0,
           "unit": "tbsp",
           "prep_notes": null
         },
         {
-          "ingredient_name": "roasted fenugreek powder",
+          "ingredient_name": "Fenugreek powder",
           "quantity": 1.0,
           "unit": "tsp",
           "prep_notes": "dry roasted, ground"
@@ -13240,7 +13324,7 @@
           "prep_notes": null
         },
         {
-          "ingredient_name": "sesame and peanut oil",
+          "ingredient_name": "Sesame oil",
           "quantity": 0.75,
           "unit": "cup",
           "prep_notes": "mixed"
@@ -13266,7 +13350,7 @@
           "prep_notes": "see note"
         },
         {
-          "ingredient_name": "yellow moong dal",
+          "ingredient_name": "Yellow moong dal",
           "quantity": 0.75,
           "unit": "cup",
           "prep_notes": null
@@ -13278,13 +13362,13 @@
           "prep_notes": null
         },
         {
-          "ingredient_name": "whole cloves",
+          "ingredient_name": "Cloves",
           "quantity": 2.0,
           "unit": "piece",
           "prep_notes": null
         },
         {
-          "ingredient_name": "cinnamon stick",
+          "ingredient_name": "Cinnamon",
           "quantity": 1.0,
           "unit": "piece",
           "prep_notes": "1 inch"
@@ -13296,7 +13380,7 @@
           "prep_notes": null
         },
         {
-          "ingredient_name": "asafoetida",
+          "ingredient_name": "Asafoetida (hing)",
           "quantity": 0.5,
           "unit": "tsp",
           "prep_notes": "hing"
@@ -13320,7 +13404,7 @@
           "prep_notes": null
         },
         {
-          "ingredient_name": "Ground coriander",
+          "ingredient_name": "Coriander powder",
           "quantity": 1.0,
           "unit": "tsp",
           "prep_notes": null
@@ -13368,7 +13452,7 @@
           "prep_notes": "1 inch, for chili paste"
         },
         {
-          "ingredient_name": "Thai green chilies",
+          "ingredient_name": "Green chilies",
           "quantity": 2.0,
           "unit": "piece",
           "prep_notes": "for chili paste"
@@ -13433,19 +13517,19 @@
           "prep_notes": null
         },
         {
-          "ingredient_name": "Hing",
+          "ingredient_name": "Asafoetida (hing)",
           "quantity": 0.25,
           "unit": "tsp",
           "prep_notes": null
         },
         {
-          "ingredient_name": "Turmeric Powder",
+          "ingredient_name": "Turmeric",
           "quantity": 2.0,
           "unit": "tsp",
           "prep_notes": null
         },
         {
-          "ingredient_name": "Red chilly powder",
+          "ingredient_name": "Red chili powder",
           "quantity": 2.0,
           "unit": "tsp",
           "prep_notes": null
@@ -13515,19 +13599,19 @@
           "prep_notes": null
         },
         {
-          "ingredient_name": "Hing",
+          "ingredient_name": "Asafoetida (hing)",
           "quantity": 0.25,
           "unit": "tsp",
           "prep_notes": null
         },
         {
-          "ingredient_name": "Turmeric Powder",
+          "ingredient_name": "Turmeric",
           "quantity": 2.0,
           "unit": "tsp",
           "prep_notes": null
         },
         {
-          "ingredient_name": "Red chilly powder",
+          "ingredient_name": "Red chili powder",
           "quantity": 2.0,
           "unit": "tsp",
           "prep_notes": null
@@ -13546,6 +13630,221 @@
         "Cook on medium high flame until the zucchini and tomato is cooked and most of the water evaporates. Keep turning in the interim to prevent it from burning",
         "Add garam masala and cilantro and give it a good mix. And you are done!"
       ]
+    },
+    {
+      "name": "Ven Pongal (Khara Pongal)",
+      "category": "Breakfast",
+      "base_servings": 8.0,
+      "notes": "South India. V/GF. Savory rice and moong dal porridge with ghee tempering. Source: hebbarskitchen.com",
+      "ingredients": [
+        {
+          "ingredient_name": "Yellow moong dal",
+          "quantity": 1.33,
+          "unit": "cup",
+          "prep_notes": "rinsed"
+        },
+        {
+          "ingredient_name": "Rice",
+          "quantity": 1.33,
+          "unit": "cup",
+          "prep_notes": "rinsed"
+        },
+        {
+          "ingredient_name": "Water",
+          "quantity": 10.0,
+          "unit": "cup",
+          "prep_notes": null
+        },
+        {
+          "ingredient_name": "Salt",
+          "quantity": 2.67,
+          "unit": "tsp",
+          "prep_notes": null
+        },
+        {
+          "ingredient_name": "Ghee",
+          "quantity": 1.33,
+          "unit": "cup",
+          "prep_notes": null
+        },
+        {
+          "ingredient_name": "Black pepper",
+          "quantity": 5.33,
+          "unit": "tsp",
+          "prep_notes": "coarsely crushed"
+        },
+        {
+          "ingredient_name": "Cumin seeds",
+          "quantity": 2.67,
+          "unit": "tsp",
+          "prep_notes": null
+        },
+        {
+          "ingredient_name": "Ginger",
+          "quantity": 2.67,
+          "unit": "inch",
+          "prep_notes": "chopped"
+        },
+        {
+          "ingredient_name": "Green chilies",
+          "quantity": 5.0,
+          "unit": "piece",
+          "prep_notes": "slit"
+        },
+        {
+          "ingredient_name": "Cashews",
+          "quantity": 5.33,
+          "unit": "tbsp",
+          "prep_notes": null
+        },
+        {
+          "ingredient_name": "Asafoetida (hing)",
+          "quantity": 0.125,
+          "unit": "tsp",
+          "prep_notes": null
+        },
+        {
+          "ingredient_name": "Curry leaves",
+          "quantity": 20.0,
+          "unit": "piece",
+          "prep_notes": null
+        }
+      ],
+      "steps": [
+        "Prepare 4/1 quantities of regular vs vegan pongal. Only difference in the two versions is that regular version uses ghee for tempering and the vegan version uses coconut oil.",
+        "Wash the rice and dal, add water and let it soak for 30 minutes (if time allows).",
+        "Start cooking in an open pot on medium flame. Once water is almost absorbed, cover with low flame for 15 minutes.",
+        "Stir the cooked mixture until it is a thick consistency (like cooked oatmeal).",
+        "Roughly crush the black pepper.",
+        "Prepare tempering by heating up ghee, adding jeera, hing, black pepper, curry leaves, and ginger.",
+        "Add the tempering to the rice and dal mixture and add salt to taste."
+      ]
+    },
+    {
+      "name": "All Other Breakfast Items",
+      "category": "Breakfast",
+      "base_servings": 8.0,
+      "notes": null,
+      "ingredients": [
+        {
+          "ingredient_name": "Whole grain bread",
+          "quantity": 0.3,
+          "unit": "loaves",
+          "prep_notes": null
+        },
+        {
+          "ingredient_name": "Gluten-free bread",
+          "quantity": 0.07,
+          "unit": "loaves",
+          "prep_notes": null
+        },
+        {
+          "ingredient_name": "Peanut Butter",
+          "quantity": 15.0,
+          "unit": "g",
+          "prep_notes": null
+        },
+        {
+          "ingredient_name": "Jelly",
+          "quantity": 15.0,
+          "unit": "g",
+          "prep_notes": null
+        },
+        {
+          "ingredient_name": "Butter",
+          "quantity": 25.0,
+          "unit": "g",
+          "prep_notes": null
+        },
+        {
+          "ingredient_name": "Bananas",
+          "quantity": 0.5,
+          "unit": "kg",
+          "prep_notes": null
+        },
+        {
+          "ingredient_name": "Oranges",
+          "quantity": 0.5,
+          "unit": "kg",
+          "prep_notes": null
+        },
+        {
+          "ingredient_name": "Regular cereal",
+          "quantity": 25.0,
+          "unit": "g",
+          "prep_notes": null
+        },
+        {
+          "ingredient_name": "Gluten-free cereal",
+          "quantity": 10.0,
+          "unit": "g",
+          "prep_notes": null
+        },
+        {
+          "ingredient_name": "Milk",
+          "quantity": 0.1,
+          "unit": "l",
+          "prep_notes": null
+        },
+        {
+          "ingredient_name": "Almond Milk",
+          "quantity": 0.1,
+          "unit": "l",
+          "prep_notes": null
+        },
+        {
+          "ingredient_name": "Bru",
+          "quantity": 50.0,
+          "unit": "g",
+          "prep_notes": null
+        },
+        {
+          "ingredient_name": "Instant decaf coffee",
+          "quantity": 50.0,
+          "unit": "g",
+          "prep_notes": null
+        },
+        {
+          "ingredient_name": "Tea packets",
+          "quantity": 8.0,
+          "unit": "bags",
+          "prep_notes": null
+        },
+        {
+          "ingredient_name": "Sugar",
+          "quantity": 100.0,
+          "unit": "g",
+          "prep_notes": null
+        }
+      ],
+      "steps": []
+    },
+    {
+      "name": "Lunch Add Ons",
+      "category": null,
+      "base_servings": 8.0,
+      "notes": null,
+      "ingredients": [
+        {
+          "ingredient_name": "Pickle",
+          "quantity": 25.0,
+          "unit": "g",
+          "prep_notes": null
+        },
+        {
+          "ingredient_name": "Ghee",
+          "quantity": 50.0,
+          "unit": "ml",
+          "prep_notes": null
+        },
+        {
+          "ingredient_name": "Sugar",
+          "quantity": 10.0,
+          "unit": "tsp",
+          "prep_notes": null
+        }
+      ],
+      "steps": []
     }
   ]
 }

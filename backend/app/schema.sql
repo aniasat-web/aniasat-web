@@ -3,6 +3,8 @@ PRAGMA foreign_keys = ON;
 CREATE TABLE IF NOT EXISTS ingredients (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL UNIQUE,
+    category TEXT,
+    purchase_tier TEXT,
     canonical_unit TEXT,
     grams_per_cup REAL,
     notes TEXT,

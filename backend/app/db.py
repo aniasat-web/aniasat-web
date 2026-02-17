@@ -17,6 +17,19 @@ AUTO_SEED_DISABLED_VALUES = {"0", "false", "off", "no"}
 
 LOGGER = logging.getLogger(__name__)
 
+DEFAULT_VENDOR_NAMES = [
+    "OmProduce",
+    "Costco",
+    "Sams",
+    "Other Indian Store",
+    "Amazon",
+    "Webstaurant",
+    "Braums",
+    "SunriseNatural",
+    "Walmart",
+    "American grocery store",
+]
+
 
 def get_connection() -> sqlite3.Connection:
     DATA_DIR.mkdir(parents=True, exist_ok=True)
@@ -65,8 +78,69 @@ def init_db() -> None:
                 "ALTER TABLE service_snapshots ADD COLUMN retreat_plan_id INTEGER REFERENCES retreat_plans(id) ON DELETE SET NULL"
             )
 
+        shopping_list_columns = {row[1] for row in conn.execute("PRAGMA table_info(shopping_lists)").fetchall()}
+        if "retreat_plan_id" not in shopping_list_columns:
+            conn.execute(
+                "ALTER TABLE shopping_lists ADD COLUMN retreat_plan_id INTEGER REFERENCES retreat_plans(id) ON DELETE SET NULL"
+            )
+        if "phase" not in shopping_list_columns:
+            conn.execute("ALTER TABLE shopping_lists ADD COLUMN phase TEXT NOT NULL DEFAULT 'bulk'")
+
+        shopping_item_columns = {row[1] for row in conn.execute("PRAGMA table_info(shopping_list_items)").fetchall()}
+        if "ordered" not in shopping_item_columns:
+            conn.execute("ALTER TABLE shopping_list_items ADD COLUMN ordered INTEGER NOT NULL DEFAULT 0")
+        if "ordered_at" not in shopping_item_columns:
+            conn.execute("ALTER TABLE shopping_list_items ADD COLUMN ordered_at TEXT")
+        if "received" not in shopping_item_columns:
+            conn.execute("ALTER TABLE shopping_list_items ADD COLUMN received INTEGER NOT NULL DEFAULT 0")
+        if "received_at" not in shopping_item_columns:
+            conn.execute("ALTER TABLE shopping_list_items ADD COLUMN received_at TEXT")
+
+        conn.execute(
+            """
+            UPDATE shopping_list_items
+            SET ordered = 1
+            WHERE lower(COALESCE(status, '')) IN ('ordered', 'received') AND ordered = 0
+            """
+        )
+        conn.execute(
+            """
+            UPDATE shopping_list_items
+            SET received = 1, ordered = 1
+            WHERE lower(COALESCE(status, '')) = 'received' AND received = 0
+            """
+        )
+        conn.execute(
+            """
+            UPDATE shopping_list_items
+            SET status = CASE
+                WHEN received = 1 THEN 'received'
+                WHEN ordered = 1 THEN 'ordered'
+                ELSE 'open'
+            END
+            """
+        )
+
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_shopping_lists_retreat_plan_id ON shopping_lists(retreat_plan_id)")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_shopping_items_vendor_id ON shopping_list_items(vendor_id)")
+        seed_default_vendors(conn)
+
         maybe_seed_master_data(conn)
         conn.commit()
+
+
+def seed_default_vendors(conn: sqlite3.Connection) -> None:
+    for name in DEFAULT_VENDOR_NAMES:
+        conn.execute(
+            """
+            INSERT INTO vendors(name)
+            SELECT ?
+            WHERE NOT EXISTS (
+                SELECT 1 FROM vendors WHERE lower(name) = lower(?)
+            )
+            """,
+            (name, name),
+        )
 
 
 def maybe_seed_master_data(conn: sqlite3.Connection) -> None:
@@ -86,13 +160,8 @@ def maybe_seed_master_data(conn: sqlite3.Connection) -> None:
 
     payload = json.loads(MASTER_SEED_PATH.read_text(encoding="utf-8"))
     imported = apply_master_seed_payload(conn, payload)
-    LOGGER.info(
-        "Auto-seeded master data from %s (ingredients=%d, unit_conversions=%d, recipes=%d).",
-        MASTER_SEED_PATH,
-        imported["ingredients"],
-        imported["unit_conversions"],
-        imported["recipes"],
-    )
+    counts_str = ", ".join(f"{k}={v}" for k, v in imported.items())
+    LOGGER.info("Auto-seeded master data from %s (%s).", MASTER_SEED_PATH, counts_str)
 
 
 def auto_seed_master_data_enabled() -> bool:
@@ -101,6 +170,9 @@ def auto_seed_master_data_enabled() -> bool:
 
 
 def read_master_data_counts(conn: sqlite3.Connection) -> dict[str, int]:
+    # Only check core reference tables — vendors are independently seeded by
+    # seed_default_vendors() which runs before this check, so including them
+    # would cause the seed to be skipped on a fresh DB.
     return {
         "ingredients": table_count(conn, "ingredients"),
         "unit_conversions": table_count(conn, "unit_conversions"),
@@ -179,10 +251,22 @@ def apply_master_seed_payload(conn: sqlite3.Connection, payload: dict[str, Any])
         upsert_recipe(conn, recipe, ingredient_index)
         recipe_count += 1
 
+    vendor_count = seed_vendors(conn, payload.get("vendors") or [])
+    retreat_plan_count = seed_retreat_plans(conn, payload.get("retreat_plans") or [])
+    inventory_count = seed_inventory_items(conn, payload.get("inventory_items") or [])
+    shopping_list_count, shopping_item_count = seed_shopping_lists(conn, payload.get("shopping_lists") or [])
+    snapshot_count = seed_service_snapshots(conn, payload.get("service_snapshots") or [])
+
     return {
         "ingredients": ingredient_count,
         "unit_conversions": conversion_count,
         "recipes": recipe_count,
+        "vendors": vendor_count,
+        "retreat_plans": retreat_plan_count,
+        "inventory_items": inventory_count,
+        "shopping_lists": shopping_list_count,
+        "shopping_list_items": shopping_item_count,
+        "service_snapshots": snapshot_count,
     }
 
 
@@ -378,3 +462,215 @@ def upsert_recipe(
         )
 
     return recipe_id
+
+
+def seed_vendors(conn: sqlite3.Connection, vendors: list[Any]) -> int:
+    count = 0
+    for item in vendors:
+        if not isinstance(item, dict):
+            continue
+        name = clean_text(item.get("name"))
+        if not name:
+            continue
+        notes = clean_text(item.get("notes"))
+        existing = conn.execute(
+            "SELECT id FROM vendors WHERE lower(name) = lower(?)", (name,)
+        ).fetchone()
+        if existing:
+            conn.execute("UPDATE vendors SET notes = ? WHERE id = ?", (notes, existing["id"]))
+        else:
+            conn.execute("INSERT INTO vendors(name, notes) VALUES (?, ?)", (name, notes))
+        count += 1
+    return count
+
+
+def seed_retreat_plans(conn: sqlite3.Connection, plans: list[Any]) -> int:
+    count = 0
+    for item in plans:
+        if not isinstance(item, dict):
+            continue
+        name = clean_text(item.get("name"))
+        if not name:
+            continue
+        start_date = clean_text(item.get("start_date"))
+        day_count = int(item.get("day_count", 1))
+        default_people = float(item.get("default_people", 1))
+        plan_json = item.get("plan_json", "[]")
+        created_at = clean_text(item.get("created_at"))
+        updated_at = clean_text(item.get("updated_at"))
+
+        existing = conn.execute(
+            "SELECT id FROM retreat_plans WHERE lower(name) = lower(?)", (name,)
+        ).fetchone()
+        if existing:
+            conn.execute(
+                """
+                UPDATE retreat_plans
+                SET start_date = ?, day_count = ?, default_people = ?,
+                    plan_json = ?, created_at = COALESCE(?, created_at),
+                    updated_at = COALESCE(?, updated_at)
+                WHERE id = ?
+                """,
+                (start_date, day_count, default_people, plan_json, created_at, updated_at, existing["id"]),
+            )
+        else:
+            conn.execute(
+                """
+                INSERT INTO retreat_plans(name, start_date, day_count, default_people, plan_json, created_at, updated_at)
+                VALUES (?, ?, ?, ?, ?, COALESCE(?, CURRENT_TIMESTAMP), COALESCE(?, CURRENT_TIMESTAMP))
+                """,
+                (name, start_date, day_count, default_people, plan_json, created_at, updated_at),
+            )
+        count += 1
+    return count
+
+
+def seed_inventory_items(conn: sqlite3.Connection, items: list[Any]) -> int:
+    count = 0
+    for item in items:
+        if not isinstance(item, dict):
+            continue
+        ingredient_name = clean_text(item.get("ingredient_name"))
+        if not ingredient_name:
+            continue
+        ingredient = conn.execute(
+            "SELECT id FROM ingredients WHERE lower(name) = lower(?)", (ingredient_name,)
+        ).fetchone()
+        if not ingredient:
+            LOGGER.warning("Skipping inventory item: ingredient %r not found", ingredient_name)
+            continue
+        quantity = float(item.get("quantity", 0))
+        unit = clean_text(item.get("unit")) or ""
+        source = clean_text(item.get("source"))
+        updated_at = clean_text(item.get("updated_at"))
+        conn.execute(
+            """
+            INSERT INTO inventory_items(ingredient_id, quantity, unit, source, updated_at)
+            VALUES (?, ?, ?, ?, COALESCE(?, CURRENT_TIMESTAMP))
+            """,
+            (ingredient["id"], quantity, unit, source, updated_at),
+        )
+        count += 1
+    return count
+
+
+def seed_shopping_lists(conn: sqlite3.Connection, lists: list[Any]) -> tuple[int, int]:
+    list_count = 0
+    item_count = 0
+    for sl in lists:
+        if not isinstance(sl, dict):
+            continue
+        name = clean_text(sl.get("name"))
+        if not name:
+            continue
+        phase = clean_text(sl.get("phase")) or "bulk"
+        status = clean_text(sl.get("status")) or "draft"
+        created_at = clean_text(sl.get("created_at"))
+
+        retreat_plan_id = None
+        retreat_plan_name = clean_text(sl.get("retreat_plan_name"))
+        if retreat_plan_name:
+            rp = conn.execute(
+                "SELECT id FROM retreat_plans WHERE lower(name) = lower(?)", (retreat_plan_name,)
+            ).fetchone()
+            if rp:
+                retreat_plan_id = rp["id"]
+
+        row = conn.execute(
+            """
+            INSERT INTO shopping_lists(name, phase, status, retreat_plan_id, created_at)
+            VALUES (?, ?, ?, ?, COALESCE(?, CURRENT_TIMESTAMP))
+            RETURNING id
+            """,
+            (name, phase, status, retreat_plan_id, created_at),
+        ).fetchone()
+        list_id = int(row["id"])
+        list_count += 1
+
+        for sli in sl.get("items") or []:
+            if not isinstance(sli, dict):
+                continue
+            ingredient_name = clean_text(sli.get("ingredient_name"))
+            if not ingredient_name:
+                continue
+            ingredient = conn.execute(
+                "SELECT id FROM ingredients WHERE lower(name) = lower(?)", (ingredient_name,)
+            ).fetchone()
+            if not ingredient:
+                LOGGER.warning("Skipping shopping list item: ingredient %r not found", ingredient_name)
+                continue
+
+            vendor_id = None
+            vendor_name = clean_text(sli.get("vendor_name"))
+            if vendor_name:
+                v = conn.execute(
+                    "SELECT id FROM vendors WHERE lower(name) = lower(?)", (vendor_name,)
+                ).fetchone()
+                if v:
+                    vendor_id = v["id"]
+
+            conn.execute(
+                """
+                INSERT INTO shopping_list_items(
+                    shopping_list_id, ingredient_id, required_qty, required_unit,
+                    in_stock_qty, in_stock_unit, to_buy_qty, to_buy_unit,
+                    vendor_id, owner, pickup_date,
+                    ordered, ordered_at, received, received_at,
+                    status, notes
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    list_id,
+                    ingredient["id"],
+                    float(sli.get("required_qty", 0)),
+                    clean_text(sli.get("required_unit")) or "",
+                    float(sli["in_stock_qty"]) if sli.get("in_stock_qty") is not None else None,
+                    clean_text(sli.get("in_stock_unit")),
+                    float(sli["to_buy_qty"]) if sli.get("to_buy_qty") is not None else None,
+                    clean_text(sli.get("to_buy_unit")),
+                    vendor_id,
+                    clean_text(sli.get("owner")),
+                    clean_text(sli.get("pickup_date")),
+                    int(sli.get("ordered", 0)),
+                    clean_text(sli.get("ordered_at")),
+                    int(sli.get("received", 0)),
+                    clean_text(sli.get("received_at")),
+                    clean_text(sli.get("status")) or "open",
+                    clean_text(sli.get("notes")),
+                ),
+            )
+            item_count += 1
+
+    return list_count, item_count
+
+
+def seed_service_snapshots(conn: sqlite3.Connection, snapshots: list[Any]) -> int:
+    count = 0
+    for item in snapshots:
+        if not isinstance(item, dict):
+            continue
+        retreat_name = clean_text(item.get("retreat_name"))
+        if not retreat_name:
+            continue
+        payload_json = item.get("payload_json", "{}")
+        created_at = clean_text(item.get("created_at"))
+
+        retreat_plan_id = None
+        retreat_plan_name = clean_text(item.get("retreat_plan_name"))
+        if retreat_plan_name:
+            rp = conn.execute(
+                "SELECT id FROM retreat_plans WHERE lower(name) = lower(?)", (retreat_plan_name,)
+            ).fetchone()
+            if rp:
+                retreat_plan_id = rp["id"]
+
+        conn.execute(
+            """
+            INSERT INTO service_snapshots(retreat_name, payload_json, retreat_plan_id, created_at)
+            VALUES (?, ?, ?, COALESCE(?, CURRENT_TIMESTAMP))
+            """,
+            (retreat_name, payload_json, retreat_plan_id, created_at),
+        )
+        count += 1
+    return count

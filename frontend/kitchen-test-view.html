@@ -94,6 +94,10 @@
       .dish-check-row {
         padding: 0.25rem 0;
       }
+      .dish-check-row .form-check-label {
+        font-weight: 700;
+        color: #1f2937;
+      }
       .meal-section {
         margin-bottom: 1rem;
       }
@@ -140,7 +144,8 @@
       .recipe-header h3 {
         margin: 0;
         font-size: 1.02rem;
-        font-weight: 700;
+        font-weight: 800;
+        color: #0f172a;
       }
       .recipe-meta {
         display: inline-flex;
@@ -174,8 +179,9 @@
       .ingredients-list li {
         padding: 0.55rem 0;
         border-bottom: 1px solid #e2e8f0;
-        display: flex;
-        justify-content: space-between;
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        align-items: start;
         gap: 0.6rem;
       }
       .ingredients-list li:last-child {
@@ -218,28 +224,131 @@
         text-align: center;
       }
       @media (max-width: 768px) {
+        .container {
+          padding-left: 0.75rem;
+          padding-right: 0.75rem;
+        }
+        .display-recipes-bar {
+          top: 68px;
+          gap: 0.5rem;
+          padding: 0.45rem;
+        }
+        .display-recipes-bar .btn {
+          flex: 1 1 auto;
+        }
         .meal-title {
           flex-direction: column;
           align-items: flex-start;
+          padding: 0.75rem;
+        }
+        .recipe-content {
+          padding: 0.75rem 0.8rem 0.85rem;
         }
         .recipe-header {
           flex-direction: column;
           align-items: flex-start;
+          padding: 0.75rem 0.8rem;
+        }
+        .recipe-header h3 {
+          font-size: 1rem;
+        }
+        .steps-list {
+          padding-left: 1rem;
+        }
+        .steps-list li {
+          line-height: 1.45;
         }
       }
+      @media (max-width: 576px) {
+        .ingredients-list li {
+          grid-template-columns: 1fr;
+          gap: 0.25rem;
+        }
+        .ingredient-qty {
+          justify-self: start;
+          font-size: 0.88rem;
+          border: 1px solid #dbe3ea;
+          border-radius: 999px;
+          padding: 0.1rem 0.5rem;
+          background: #f8fafc;
+        }
+      }
+      .picker-card {
+        transition: max-height 0.35s ease, padding 0.35s ease, opacity 0.25s ease;
+        overflow: hidden;
+      }
+      .picker-card.collapsed {
+        max-height: 0 !important;
+        padding-top: 0 !important;
+        padding-bottom: 0 !important;
+        border-color: transparent;
+        opacity: 0;
+        margin-bottom: 0;
+      }
+      .display-recipes-bar {
+        display: flex;
+        justify-content: center;
+        gap: 0.75rem;
+        position: sticky;
+        top: 76px;
+        z-index: 50;
+        background: rgba(250, 248, 245, 0.92);
+        backdrop-filter: blur(4px);
+        padding: 0.35rem 0;
+        border-radius: 0.75rem;
+        margin-bottom: 1rem;
+      }
       @media print {
+        @page {
+          margin: 12mm;
+        }
         nav.navbar,
         .hero-actions,
         .picker-card,
-        .meta-bar {
+        .meta-bar,
+        .display-recipes-bar {
           display: none !important;
         }
         body {
           background: #fff;
+          color: #000;
           padding-top: 0 !important;
+          font-size: 11pt;
+          line-height: 1.3;
+        }
+        .container {
+          max-width: 100% !important;
+          width: 100% !important;
+          padding: 0 !important;
         }
         .card {
-          box-shadow: none;
+          box-shadow: none !important;
+          border: 1px solid #bfbfbf !important;
+          margin-bottom: 5mm !important;
+          break-inside: avoid-page;
+          page-break-inside: avoid;
+        }
+        .meal-section,
+        .recipe-card,
+        .meal-title {
+          break-inside: avoid-page;
+          page-break-inside: avoid;
+        }
+        .meal-title {
+          border-left: 3px solid #000 !important;
+          background: #fff !important;
+        }
+        .recipe-header,
+        .recipe-content {
+          padding-left: 0.75rem;
+          padding-right: 0.75rem;
+        }
+        .ingredients-list li {
+          padding: 0.25rem 0;
+          border-color: #d9d9d9;
+        }
+        .steps-list li {
+          margin-bottom: 0.15rem;
         }
       }
     </style>
@@ -261,6 +370,9 @@
             </li>
             <li class="nav-item">
               <a class="nav-link" id="backToPlanner" href="retreat-planner-sample.html"><i class="fa-solid fa-calendar-days me-1"></i> Planner</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="shopping-list.html"><i class="fa-solid fa-cart-shopping me-1"></i> Shopping</a>
             </li>
             <li class="nav-item">
               <a class="nav-link" id="kitchenViewLink" href="kitchen-service-view.html"><i class="fa-solid fa-fire-burner me-1"></i> Retreat View</a>
@@ -300,6 +412,12 @@
         </div>
       </section>
 
+      <div class="display-recipes-bar" id="displayRecipesBar" style="display:none;">
+        <button class="btn btn-outline-secondary btn-sm fw-bold px-3" id="editSelectionBtn" type="button" style="display:none;">
+          <i class="fa-solid fa-pen me-1"></i> Edit Selection
+        </button>
+      </div>
+
       <section class="card p-4 picker-card" id="pickerCard">
         <div class="d-flex flex-wrap align-items-end gap-3 justify-content-between mb-3">
           <div class="d-flex align-items-end gap-3 flex-wrap">
@@ -310,10 +428,16 @@
             <div class="d-flex gap-2">
               <button class="btn btn-sm btn-light border" id="selectAllDishes" type="button">Select All</button>
               <button class="btn btn-sm btn-light border" id="clearAllDishes" type="button">Clear</button>
+              <button class="btn btn-sm btn-primary fw-bold" id="displayRecipesBtn" type="button" disabled>
+                <i class="fa-solid fa-utensils me-1"></i> Get Recipes
+              </button>
             </div>
           </div>
           <div class="small text-muted fw-semibold">
             Selected dishes: <span id="selectedDishCount">0</span>
+            <div id="selectionInstructions" class="small text-muted mt-1">
+              Step 1: Select dishes. Step 2: Click <strong>Get Recipes</strong>.
+            </div>
           </div>
         </div>
         <div id="dishSelector" class="row row-cols-1 row-cols-md-2 g-3"></div>
@@ -331,7 +455,7 @@
     <script src="assets/auth.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-      const MEAL_ORDER = ["Breakfast", "Lunch", "Dinner", "Evening Chai"];
+      const MEAL_ORDER = ["Breakfast", "Lunch", "Evening Chai", "Dinner"];
       const TEST_SERVES_MIN = 1;
       const TEST_SERVES_DEFAULT = 4;
       const API_BASE = resolveApiBase();
@@ -349,9 +473,14 @@
       const selectAllDishesBtn = document.getElementById("selectAllDishes");
       const clearAllDishesBtn = document.getElementById("clearAllDishes");
       const selectedDishCount = document.getElementById("selectedDishCount");
+      const selectionInstructions = document.getElementById("selectionInstructions");
       const dishSelector = document.getElementById("dishSelector");
       const metaBar = document.getElementById("metaBar");
       const mealSections = document.getElementById("mealSections");
+      const displayRecipesBar = document.getElementById("displayRecipesBar");
+      const displayRecipesBtn = document.getElementById("displayRecipesBtn");
+      const editSelectionBtn = document.getElementById("editSelectionBtn");
+      const pickerCard = document.getElementById("pickerCard");
 
       const initialServes = Number(params.get("test_serves") || TEST_SERVES_DEFAULT);
 
@@ -402,7 +531,34 @@
         return date.toLocaleString();
       }
 
-      function formatKitchenQuantity(rawQty, rawUnit) {
+      // Ingredient categories that should display volume instead of weight
+      const VOLUME_PREFERRED_CATEGORIES = new Set([
+        "Spices & Seasonings",
+        "Oils & Fats",
+        "Herbs",
+        "Condiments & Sauces",
+      ]);
+
+      const MASS_TO_G = { g: 1, kg: 1000 };
+      const ML_PER_CUP = 240;
+      const ML_PER_TBSP = 15;
+      const ML_PER_TSP = 5;
+
+      function gramsToVolume(grams, gramsPerCup) {
+        const ml = (grams / gramsPerCup) * ML_PER_CUP;
+        if (ml >= ML_PER_CUP) {
+          const cups = ml / ML_PER_CUP;
+          return { qty: cups, unit: "cups" };
+        }
+        if (ml >= ML_PER_TBSP) {
+          const tbsp = ml / ML_PER_TBSP;
+          return { qty: tbsp, unit: "tbsp" };
+        }
+        const tsp = ml / ML_PER_TSP;
+        return { qty: tsp, unit: "tsp" };
+      }
+
+      function formatKitchenQuantity(rawQty, rawUnit, category, gramsPerCup) {
         const parsedQty = Number(rawQty);
         let unit = String(rawUnit || "").trim().toLowerCase();
         if (!Number.isFinite(parsedQty) || !unit) {
@@ -410,6 +566,20 @@
         }
 
         let qty = parsedQty;
+
+        // Convert weight → volume for spices, oils, herbs, condiments
+        if (
+          category &&
+          VOLUME_PREFERRED_CATEGORIES.has(category) &&
+          gramsPerCup &&
+          unit in MASS_TO_G
+        ) {
+          const grams = qty * MASS_TO_G[unit];
+          const vol = gramsToVolume(grams, gramsPerCup);
+          qty = vol.qty;
+          unit = vol.unit;
+        }
+
         if (unit === "g" && qty >= 1000) {
           qty /= 1000;
           unit = "kg";
@@ -418,16 +588,8 @@
           unit = "l";
         }
 
-        let decimals = 2;
-        if (qty >= 100) {
-          decimals = 0;
-        } else if (qty >= 10) {
-          decimals = 1;
-        } else if (qty >= 1) {
-          decimals = 2;
-        } else {
-          decimals = 3;
-        }
+        // Show decimals only for kg/l. Everything else should be whole numbers.
+        const decimals = unit === "kg" || unit === "l" ? 1 : 0;
 
         const value = qty.toFixed(decimals).replace(/\.0+$/, "").replace(/(\.\d*?)0+$/, "$1");
         return `${value} ${unit}`;
@@ -451,7 +613,9 @@
         left.textContent = item.name;
         const right = document.createElement("span");
         right.className = "ingredient-qty";
-        right.textContent = formatKitchenQuantity(item.scaledQty, item.scaledUnit);
+        right.textContent = formatKitchenQuantity(
+          item.scaledQty, item.scaledUnit, item.category, item.gramsPerCup
+        );
         li.appendChild(left);
         li.appendChild(right);
         return li;
@@ -624,6 +788,8 @@
                   name: item.name,
                   scaledQty: Number(item.quantity || 0) * factor,
                   scaledUnit: item.unit,
+                  category: item.category || null,
+                  gramsPerCup: item.grams_per_cup || null,
                 }))
               : [],
             steps: Array.isArray(recipe.steps) ? recipe.steps : [],
@@ -640,7 +806,7 @@
           })
           .map((meal) => ({
             ...meal,
-            dishes: meal.dishes.sort((a, b) => a.name.localeCompare(b.name)),
+            dishes: meal.dishes,
           }));
 
         return { meals, missingRecipes };
@@ -813,6 +979,7 @@
 
           menuOptions = buildMenuOptions(plan);
           selectedDishKeys = new Set();
+          pickerCard.classList.remove("collapsed");
 
           retreatTitle.textContent = `${plan.name || "Untitled Retreat"} - Testing View`;
           retreatSubtitle.textContent = plan.updated_at
@@ -821,6 +988,7 @@
 
           syncNavigationLinks();
           renderDishSelector();
+          updateDisplayRecipesBar();
           renderTestSheet();
         } catch (error) {
           retreatTitle.textContent = "Testing View";
@@ -829,6 +997,50 @@
           showEmpty("Could not load data from API. Verify backend is running.");
         }
       }
+
+      function updateDisplayRecipesBar() {
+        const hasSelection = selectedDishKeys.size > 0;
+        displayRecipesBtn.disabled = !hasSelection;
+
+        if (hasSelection) {
+          displayRecipesBtn.innerHTML = `<i class="fa-solid fa-utensils me-1"></i> Get Recipes (${selectedDishKeys.size})`;
+          if (selectionInstructions) {
+            selectionInstructions.innerHTML = "Ready to view. Click <strong>Get Recipes</strong> to collapse this panel.";
+          }
+        } else {
+          displayRecipesBtn.innerHTML = '<i class="fa-solid fa-utensils me-1"></i> Get Recipes';
+          if (selectionInstructions) {
+            selectionInstructions.innerHTML = "Step 1: Select dishes. Step 2: Click <strong>Get Recipes</strong>.";
+          }
+        }
+
+        if (pickerCard.classList.contains("collapsed")) {
+          displayRecipesBar.style.display = "";
+          editSelectionBtn.style.display = "";
+        } else {
+          displayRecipesBar.style.display = "none";
+          editSelectionBtn.style.display = "none";
+        }
+      }
+
+      displayRecipesBtn.addEventListener("click", () => {
+        if (!selectedDishKeys.size) {
+          return;
+        }
+        pickerCard.classList.add("collapsed");
+        updateDisplayRecipesBar();
+        renderTestSheet();
+        const testSheetCard = document.getElementById("testSheetCard");
+        setTimeout(() => {
+          testSheetCard.scrollIntoView({ behavior: "smooth", block: "start" });
+        }, 100);
+      });
+
+      editSelectionBtn.addEventListener("click", () => {
+        pickerCard.classList.remove("collapsed");
+        updateDisplayRecipesBar();
+        pickerCard.scrollIntoView({ behavior: "smooth", block: "start" });
+      });
 
       dishSelector.addEventListener("change", (event) => {
         const checkbox = event.target.closest(".dish-check");
@@ -845,18 +1057,22 @@
           selectedDishKeys.delete(key);
         }
         selectedDishCount.textContent = String(selectedDishKeys.size);
+        updateDisplayRecipesBar();
         renderTestSheet();
       });
 
       selectAllDishesBtn.addEventListener("click", () => {
         selectedDishKeys = new Set(menuOptions.map((option) => option.key));
         renderDishSelector();
+        updateDisplayRecipesBar();
         renderTestSheet();
       });
 
       clearAllDishesBtn.addEventListener("click", () => {
         selectedDishKeys = new Set();
+        pickerCard.classList.remove("collapsed");
         renderDishSelector();
+        updateDisplayRecipesBar();
         renderTestSheet();
       });
 

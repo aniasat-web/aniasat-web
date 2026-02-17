@@ -314,6 +314,9 @@
               <a class="nav-link" href="retreat-planner-sample.html"><i class="fa-solid fa-calendar-days me-1"></i> Planner</a>
             </li>
             <li class="nav-item">
+              <a class="nav-link" href="shopping-list.html"><i class="fa-solid fa-cart-shopping me-1"></i> Shopping</a>
+            </li>
+            <li class="nav-item">
               <a class="nav-link" href="kitchen-service-view.html"><i class="fa-solid fa-fire-burner me-1"></i> Retreat View</a>
             </li>
             <li class="nav-item">
@@ -399,7 +402,7 @@
                 </div>
                 <div class="col-md-2">
                   <label class="form-label fw-bold small text-muted text-uppercase">Base Servings</label>
-                  <input id="baseServings" type="number" min="0.1" step="0.1" class="form-control" value="6" required />
+                  <input id="baseServings" type="number" min="1" step="1" class="form-control" value="6" required />
                 </div>
                 <div class="col-md-2">
                   <label class="form-label fw-bold small text-muted text-uppercase">Recipe ID</label>
@@ -556,13 +559,70 @@
       }
 
       function initIngredientSelect(selectEl) {
-        if (!selectEl || selectEl.tomselect || typeof TomSelect === "undefined") return;
+        if (!selectEl) return;
+        rebuildNativeIngredientOptions(selectEl);
+        if (selectEl.tomselect || typeof TomSelect === "undefined") return;
         new TomSelect(selectEl, {
           options: ingredientOptions,
           items: selectEl.value ? [selectEl.value] : [],
           create: true,
+          createOnBlur: true,
           sortField: { field: "text", direction: "asc" },
           placeholder: "e.g. Toor Dal",
+        });
+      }
+
+      function rebuildNativeIngredientOptions(selectEl) {
+        if (!selectEl) return;
+        const currentValue = String(selectEl.value || "").trim();
+        const hasCurrent = Boolean(currentValue);
+        const existsInOptions = ingredientOptions.some((option) => option.value === currentValue);
+
+        selectEl.innerHTML = "";
+
+        const blank = document.createElement("option");
+        blank.value = "";
+        blank.textContent = "";
+        selectEl.appendChild(blank);
+
+        if (hasCurrent && !existsInOptions) {
+          const preserved = document.createElement("option");
+          preserved.value = currentValue;
+          preserved.textContent = currentValue;
+          selectEl.appendChild(preserved);
+        }
+
+        ingredientOptions.forEach((option) => {
+          const el = document.createElement("option");
+          el.value = option.value;
+          el.textContent = option.text;
+          selectEl.appendChild(el);
+        });
+
+        selectEl.value = currentValue;
+      }
+
+      function refreshIngredientOptionsForRows() {
+        ingredientBody.querySelectorAll(".ing-name").forEach((selectEl) => {
+          const currentValue = selectEl.tomselect
+            ? String(selectEl.tomselect.getValue() || "").trim()
+            : String(selectEl.value || "").trim();
+
+          if (selectEl.tomselect) {
+            selectEl.tomselect.clearOptions();
+            selectEl.tomselect.addOptions(ingredientOptions);
+            if (currentValue && !ingredientOptions.some((option) => option.value === currentValue)) {
+              selectEl.tomselect.addOption({ value: currentValue, text: currentValue });
+            }
+            if (currentValue) {
+              selectEl.tomselect.setValue(currentValue, true);
+            } else {
+              selectEl.tomselect.clear(true);
+            }
+            return;
+          }
+
+          rebuildNativeIngredientOptions(selectEl);
         });
       }
 
@@ -767,7 +827,20 @@
         const ingredients = [];
         const rows = Array.from(ingredientBody.querySelectorAll("tr"));
         rows.forEach((row) => {
-          const ingredient_name = String(row.querySelector(".ing-name")?.value || "").trim();
+          const nameSelect = row.querySelector(".ing-name");
+          let ingredient_name = "";
+          if (nameSelect?.tomselect) {
+            const tom = nameSelect.tomselect;
+            const pendingText = String(tom.control_input?.value || "").trim();
+            if (!tom.getValue() && pendingText) {
+              tom.addOption({ value: pendingText, text: pendingText });
+              tom.addItem(pendingText, true);
+              tom.clearTextbox();
+            }
+            ingredient_name = String(tom.getValue() || "").trim();
+          } else {
+            ingredient_name = String(nameSelect?.value || "").trim();
+          }
           const quantityRaw = String(row.querySelector(".ing-qty")?.value || "").trim();
           const unit = String(row.querySelector(".ing-unit")?.value || "").trim();
           const prep_notes_raw = String(row.querySelector(".ing-prep")?.value || "").trim();
@@ -969,13 +1042,17 @@
       async function fetchIngredientOptions() {
         try {
           const response = await fetch(apiUrl("/api/ingredients"));
-          if (!response.ok) return;
+          if (!response.ok) {
+            throw new Error(await parseApiError(response));
+          }
           const data = await response.json();
           ingredientOptions = (Array.isArray(data) ? data : [])
             .map((ing) => ({ value: ing.name, text: ing.name }))
             .sort((a, b) => a.text.localeCompare(b.text));
+          refreshIngredientOptionsForRows();
         } catch (_) {
-          // non-critical — autocomplete just won't have options
+          ingredientOptions = [];
+          refreshIngredientOptionsForRows();
         }
       }
 

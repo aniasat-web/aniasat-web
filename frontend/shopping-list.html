@@ -1,0 +1,1126 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Shopping Lists</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+    <link rel="stylesheet" href="assets/header-theme.css" />
+    <style>
+      :root {
+        --bg: #f8f7f3;
+        --card: #ffffff;
+        --line: #e7e5df;
+        --ink: #1f2937;
+        --muted: #6b7280;
+        --accent: #0f766e;
+        --accent-soft: #ccfbf1;
+        --warn: #7c2d12;
+        --warn-soft: #ffedd5;
+      }
+
+      body {
+        font-family: "Plus Jakarta Sans", sans-serif;
+        background: linear-gradient(180deg, #fdfcf8 0%, var(--bg) 100%);
+        color: var(--ink);
+        padding-top: 70px;
+      }
+
+      h1, h2, h3, .navbar-brand {
+        font-family: "Fraunces", serif;
+      }
+
+      .card-shell {
+        border: 1px solid var(--line);
+        border-radius: 1rem;
+        background: var(--card);
+        box-shadow: 0 8px 24px rgba(15, 23, 42, 0.05);
+      }
+
+      .hero-card {
+        background:
+          radial-gradient(680px 280px at -8% -30%, #d1fae5 0%, rgba(209, 250, 229, 0) 68%),
+          radial-gradient(580px 280px at 110% -35%, #fed7aa 0%, rgba(254, 215, 170, 0) 64%),
+          #fff;
+      }
+
+      .muted-note {
+        color: var(--muted);
+        font-size: 0.9rem;
+      }
+
+      .status-pill {
+        border-radius: 999px;
+        padding: 0.34rem 0.75rem;
+        font-size: 0.8rem;
+        font-weight: 700;
+        border: 1px solid transparent;
+      }
+
+      .status-pill.info {
+        color: #1e3a8a;
+        background: #dbeafe;
+        border-color: #bfdbfe;
+      }
+
+      .status-pill.ok {
+        color: #166534;
+        background: #dcfce7;
+        border-color: #86efac;
+      }
+
+      .status-pill.err {
+        color: #991b1b;
+        background: #fee2e2;
+        border-color: #fecaca;
+      }
+
+      .metric-card {
+        border: 1px solid var(--line);
+        border-radius: 0.8rem;
+        padding: 0.7rem 0.9rem;
+        background: #fff;
+      }
+
+      .metric-card .label {
+        color: var(--muted);
+        font-size: 0.74rem;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        font-weight: 700;
+      }
+
+      .metric-card .value {
+        font-size: 1.25rem;
+        font-weight: 700;
+      }
+
+      .table thead th {
+        position: sticky;
+        top: 0;
+        background: #f8fafc;
+        z-index: 3;
+        border-bottom: 2px solid #dbe2ea;
+      }
+
+      .shopping-table-wrap {
+        max-height: 68vh;
+        overflow: auto;
+        border-radius: 0.85rem;
+        border: 1px solid #e2e8f0;
+      }
+
+      .qty-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.25rem;
+        border-radius: 999px;
+        border: 1px solid #d1d5db;
+        padding: 0.22rem 0.55rem;
+        font-weight: 700;
+        font-size: 0.8rem;
+        background: #fff;
+      }
+
+      .qty-chip.buy {
+        color: var(--warn);
+        background: var(--warn-soft);
+        border-color: #fdba74;
+      }
+
+      .ingredient-name {
+        font-weight: 600;
+        color: #1f2937;
+      }
+
+      .table td, .table th {
+        vertical-align: middle;
+      }
+
+      .inventory-editor {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+      }
+
+      .inventory-editor input {
+        width: 96px;
+      }
+
+      .category-row td {
+        background: linear-gradient(90deg, #e2e8f0 0%, #f1f5f9 100%);
+        color: #0f172a;
+        border-top: 3px solid #94a3b8;
+        border-bottom: 1px solid #cbd5e1;
+        padding-top: 0.58rem;
+        padding-bottom: 0.58rem;
+        font-weight: 900;
+      }
+
+      .category-heading {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.45rem;
+        font-size: 0.8rem;
+        font-weight: 900;
+        text-transform: uppercase;
+        letter-spacing: 0.09em;
+      }
+
+      .category-count {
+        display: inline-flex;
+        align-items: center;
+        border-radius: 999px;
+        border: 1px solid #cbd5e1;
+        background: #ffffff;
+        color: #334155;
+        font-size: 0.68rem;
+        font-weight: 700;
+        letter-spacing: 0.01em;
+        padding: 0.08rem 0.45rem;
+      }
+
+      .source-row td {
+        background: #ecfeff;
+        color: #155e75;
+        font-weight: 800;
+        border-top: 2px solid #a5f3fc;
+      }
+
+      .item-row td:first-child {
+        padding-left: 1.15rem;
+      }
+
+      @media (max-width: 991.98px) {
+        .shopping-table-wrap {
+          max-height: none;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <nav class="navbar navbar-expand-lg navbar-light fixed-top">
+      <div class="container">
+        <a class="navbar-brand" href="index.html">
+          <img class="brand-logo" src="assets/blossom-mark.png" alt="Blossom logo" />
+          <span>Blossom Foundation Spring 2026 Retreats</span>
+        </a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarContent">
+          <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarContent">
+          <ul class="navbar-nav ms-auto mb-2 mb-lg-0 fw-semibold small text-uppercase">
+            <li class="nav-item">
+              <a class="nav-link" href="index.html"><i class="fa-solid fa-house me-1"></i> Home</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="retreat-planner-sample.html"><i class="fa-solid fa-calendar-days me-1"></i> Planner</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link active" href="shopping-list.html"><i class="fa-solid fa-cart-shopping me-1"></i> Shopping</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="kitchen-service-view.html"><i class="fa-solid fa-fire-burner me-1"></i> Retreat View</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="kitchen-test-view.html"><i class="fa-solid fa-vial me-1"></i> Testing View</a>
+            </li>
+            <li class="nav-item d-flex align-items-center">
+              <span class="nav-link text-muted d-none" id="authUserLabel"></span>
+            </li>
+            <li class="nav-item d-flex align-items-center ms-lg-2">
+              <button class="btn btn-sm btn-outline-secondary d-none" id="logoutBtn" type="button">Logout</button>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </nav>
+
+    <main class="container py-4 d-grid gap-3">
+      <section class="card-shell hero-card p-4">
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
+          <div>
+            <h1 class="h3 mb-1"><i class="fa-solid fa-cart-shopping me-2 text-success"></i>Shopping Lists</h1>
+            <p class="muted-note mb-0">Generate bulk/fresh/daily orders from retreat plans and track ordered and received items.</p>
+          </div>
+          <span id="statusPill" class="status-pill info">Ready.</span>
+        </div>
+      </section>
+
+      <section class="card-shell p-3 p-lg-4">
+        <div class="row g-3 align-items-end">
+          <div class="col-12 col-lg-4">
+            <div class="d-flex align-items-center justify-content-between gap-2">
+              <label class="form-label small text-uppercase fw-bold text-muted mb-0">Retreat Plans</label>
+              <div class="d-flex gap-1">
+                <button id="selectAllRetreatsBtn" type="button" class="btn btn-sm btn-light border">Select All</button>
+                <button id="clearRetreatsBtn" type="button" class="btn btn-sm btn-light border">Clear</button>
+              </div>
+            </div>
+            <select id="retreatPlanSelect" class="form-select mt-1" multiple size="6"></select>
+            <div class="muted-note mt-1">Select one or more retreats, or choose "All Retreats (Combined)".</div>
+          </div>
+          <div class="col-6 col-lg-2">
+            <label class="form-label small text-uppercase fw-bold text-muted">Phase</label>
+            <select id="phaseSelect" class="form-select">
+              <option value="bulk" selected>Bulk</option>
+              <option value="fresh">Fresh</option>
+              <option value="daily">Daily</option>
+              <option value="custom">Custom</option>
+            </select>
+          </div>
+          <div class="col-12 col-lg-6">
+            <label class="form-label small text-uppercase fw-bold text-muted">List Name (Optional)</label>
+            <input id="listNameInput" type="text" class="form-control" placeholder="Auto-generated if blank" />
+          </div>
+          <div class="col-12 col-lg-4">
+            <label class="form-label small text-uppercase fw-bold text-muted">Purchase Tiers</label>
+            <select id="purchaseTierSelect" class="form-select" multiple size="3">
+              <option value="bulk" selected>bulk</option>
+              <option value="fresh">fresh</option>
+              <option value="daily">daily</option>
+            </select>
+            <div class="muted-note mt-1">For custom phase, pick one or more tiers.</div>
+          </div>
+          <div class="col-6 col-lg-2">
+            <label class="form-label small text-uppercase fw-bold text-muted">Inventory</label>
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" id="subtractInventoryCheck" checked />
+              <label class="form-check-label" for="subtractInventoryCheck">Subtract stock</label>
+            </div>
+          </div>
+          <div class="col-6 col-lg-2">
+            <label class="form-label small text-uppercase fw-bold text-muted">Include</label>
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" id="includeZeroCheck" />
+              <label class="form-check-label" for="includeZeroCheck">Show zero-to-buy</label>
+            </div>
+          </div>
+          <div class="col-12 col-lg-4 d-grid">
+            <button id="generateBtn" class="btn btn-success">
+              <i class="fa-solid fa-wand-magic-sparkles me-2"></i>Generate Shopping List
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <section class="card-shell p-3 p-lg-4">
+        <div class="row g-3 align-items-end mb-3">
+          <div class="col-12 col-lg-4">
+            <label class="form-label small text-uppercase fw-bold text-muted">Existing Shopping Lists</label>
+            <select id="shoppingListSelect" class="form-select"></select>
+          </div>
+          <div class="col-6 col-lg-2 d-grid">
+            <button id="loadListBtn" class="btn btn-outline-primary">
+              <i class="fa-solid fa-list-check me-2"></i>Load
+            </button>
+          </div>
+          <div class="col-6 col-lg-2 d-grid">
+            <button id="applyInventoryBtn" class="btn btn-outline-warning" disabled>
+              <i class="fa-solid fa-boxes-stacked me-2"></i>Apply Inventory
+            </button>
+          </div>
+          <div class="col-6 col-lg-2 d-grid">
+            <button id="carryForwardBtn" class="btn btn-outline-success" disabled>
+              <i class="fa-solid fa-forward me-2"></i>Step 2 Order
+            </button>
+          </div>
+          <div class="col-6 col-lg-2 d-grid">
+            <button id="refreshListsBtn" class="btn btn-outline-secondary">
+              <i class="fa-solid fa-rotate me-2"></i>Refresh
+            </button>
+          </div>
+        </div>
+
+        <div class="d-flex flex-wrap gap-2 mb-3">
+          <div class="metric-card">
+            <div class="label">Items</div>
+            <div id="metricItems" class="value">0</div>
+          </div>
+          <div class="metric-card">
+            <div class="label">Ordered</div>
+            <div id="metricOrdered" class="value">0</div>
+          </div>
+          <div class="metric-card">
+            <div class="label">Received</div>
+            <div id="metricReceived" class="value">0</div>
+          </div>
+          <div class="metric-card">
+            <div class="label">List Status</div>
+            <div id="metricStatus" class="value text-capitalize">draft</div>
+          </div>
+        </div>
+
+        <div class="row g-2 align-items-end mb-3">
+          <div class="col-12 col-lg-4">
+            <label class="form-label small text-uppercase fw-bold text-muted">Grouping</label>
+            <select id="groupModeSelect" class="form-select form-select-sm">
+              <option value="category" selected>Category -> Quantity (Desc)</option>
+              <option value="source">Source -> Category -> Quantity (Desc)</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="shopping-table-wrap">
+          <table class="table table-sm align-middle mb-0">
+            <thead>
+              <tr class="small text-uppercase text-muted">
+                <th>Ingredient</th>
+                <th>Amount Needed</th>
+                <th>Current Inventory</th>
+                <th>Amount To Order</th>
+                <th>Source</th>
+                <th>Ordered</th>
+                <th>Received</th>
+                <th>Notes</th>
+              </tr>
+            </thead>
+            <tbody id="shoppingBody"></tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="assets/auth.js"></script>
+    <script>
+      const retreatPlanSelect = document.getElementById("retreatPlanSelect");
+      const selectAllRetreatsBtn = document.getElementById("selectAllRetreatsBtn");
+      const clearRetreatsBtn = document.getElementById("clearRetreatsBtn");
+      const phaseSelect = document.getElementById("phaseSelect");
+      const purchaseTierSelect = document.getElementById("purchaseTierSelect");
+      const listNameInput = document.getElementById("listNameInput");
+      const subtractInventoryCheck = document.getElementById("subtractInventoryCheck");
+      const includeZeroCheck = document.getElementById("includeZeroCheck");
+      const generateBtn = document.getElementById("generateBtn");
+      const shoppingListSelect = document.getElementById("shoppingListSelect");
+      const loadListBtn = document.getElementById("loadListBtn");
+      const applyInventoryBtn = document.getElementById("applyInventoryBtn");
+      const carryForwardBtn = document.getElementById("carryForwardBtn");
+      const refreshListsBtn = document.getElementById("refreshListsBtn");
+      const shoppingBody = document.getElementById("shoppingBody");
+      const statusPill = document.getElementById("statusPill");
+      const metricItems = document.getElementById("metricItems");
+      const metricOrdered = document.getElementById("metricOrdered");
+      const metricReceived = document.getElementById("metricReceived");
+      const metricStatus = document.getElementById("metricStatus");
+      const groupModeSelect = document.getElementById("groupModeSelect");
+
+      const API_BASE = resolveApiBase();
+      const ALL_RETREATS_VALUE = "__ALL_RETREATS__";
+      let vendors = [];
+      let shoppingLists = [];
+      let activeListId = null;
+      let activeListPhase = null;
+      let activeShoppingDetail = null;
+      let currentGroupMode = "category";
+
+      function resolveApiBase() {
+        const queryValue = new URLSearchParams(window.location.search).get("api");
+        const base = queryValue && queryValue.trim() ? queryValue.trim() : window.location.origin;
+        return base.replace(/\/+$/, "");
+      }
+
+      function apiUrl(path) {
+        return `${API_BASE}${path.startsWith("/") ? path : `/${path}`}`;
+      }
+
+      function setStatus(message, mode = "info") {
+        statusPill.textContent = message;
+        statusPill.classList.remove("info", "ok", "err");
+        statusPill.classList.add(mode);
+      }
+
+      async function parseApiError(response) {
+        const raw = await response.text();
+        if (!raw) return `HTTP ${response.status}`;
+        try {
+          const parsed = JSON.parse(raw);
+          if (parsed && typeof parsed === "object" && typeof parsed.detail === "string") {
+            return parsed.detail;
+          }
+        } catch (_err) {}
+        return raw;
+      }
+
+      function formatQty(qty, unit) {
+        if (qty == null || !unit) return "—";
+        const numeric = Number(qty);
+        if (!Number.isFinite(numeric)) return "—";
+        if (unit === "kg" || unit === "l") {
+          return `${numeric.toFixed(2).replace(/\.00$/, "")} ${unit}`;
+        }
+        if (Math.abs(numeric - Math.round(numeric)) < 1e-9) {
+          return `${Math.round(numeric)} ${unit}`;
+        }
+        return `${numeric.toFixed(1).replace(/\.0$/, "")} ${unit}`;
+      }
+
+      function formatNeededQty(qty, unit) {
+        if (qty == null || !unit) return "—";
+        const numeric = Number(qty);
+        if (!Number.isFinite(numeric)) return "—";
+        return `${Math.round(numeric)} ${unit}`;
+      }
+
+      function syncTierSelectionForPhase() {
+        const phase = phaseSelect.value;
+        if (phase === "bulk" || phase === "fresh" || phase === "daily") {
+          Array.from(purchaseTierSelect.options).forEach((opt) => {
+            opt.selected = opt.value === phase;
+          });
+          purchaseTierSelect.disabled = true;
+          return;
+        }
+        purchaseTierSelect.disabled = false;
+      }
+
+      function selectedPurchaseTiers() {
+        return Array.from(purchaseTierSelect.selectedOptions)
+          .map((opt) => String(opt.value || "").trim())
+          .filter(Boolean);
+      }
+
+      async function loadRetreatPlans() {
+        const response = await fetch(apiUrl("/api/retreat-plans"), { credentials: "include" });
+        if (!response.ok) {
+          throw new Error(await parseApiError(response));
+        }
+        const plans = await response.json();
+        retreatPlanSelect.innerHTML = "";
+
+        const allOption = document.createElement("option");
+        allOption.value = ALL_RETREATS_VALUE;
+        allOption.textContent = "All Retreats (Combined)";
+        allOption.selected = true;
+        retreatPlanSelect.appendChild(allOption);
+
+        if (!Array.isArray(plans) || !plans.length) {
+          return;
+        }
+        const sorted = [...plans].sort((a, b) => {
+          const da = a.start_date || "";
+          const db = b.start_date || "";
+          if (da !== db) return da.localeCompare(db);
+          return (a.name || "").localeCompare(b.name || "");
+        });
+        sorted.forEach((plan) => {
+          const option = document.createElement("option");
+          option.value = String(plan.id);
+          option.textContent = plan.name;
+          retreatPlanSelect.appendChild(option);
+        });
+      }
+
+      function selectedRetreatPlanValues() {
+        return Array.from(retreatPlanSelect.selectedOptions)
+          .map((opt) => String(opt.value || "").trim())
+          .filter(Boolean);
+      }
+
+      async function loadVendors() {
+        const response = await fetch(apiUrl("/api/vendors"), { credentials: "include" });
+        if (!response.ok) {
+          throw new Error(await parseApiError(response));
+        }
+        vendors = await response.json();
+      }
+
+      function renderShoppingListOptions() {
+        shoppingListSelect.innerHTML = "";
+        if (!shoppingLists.length) {
+          const option = document.createElement("option");
+          option.value = "";
+          option.textContent = "No shopping lists yet";
+          shoppingListSelect.appendChild(option);
+          return;
+        }
+
+        shoppingLists.forEach((list) => {
+          const option = document.createElement("option");
+          option.value = String(list.id);
+          const label = `${list.name} • ${list.item_count} items • ${list.status}`;
+          option.textContent = label;
+          if (activeListId && Number(activeListId) === Number(list.id)) {
+            option.selected = true;
+          }
+          shoppingListSelect.appendChild(option);
+        });
+      }
+
+      async function loadShoppingLists() {
+        const response = await fetch(apiUrl("/api/shopping-lists"), { credentials: "include" });
+        if (!response.ok) {
+          throw new Error(await parseApiError(response));
+        }
+        shoppingLists = await response.json();
+        renderShoppingListOptions();
+      }
+
+      function isInventoryEditablePhase(phase) {
+        const normalized = String(phase || "").trim().toLowerCase();
+        return normalized === "fresh" || normalized === "daily";
+      }
+
+      function updateListActionStates() {
+        const hasList = Boolean(activeListId);
+        carryForwardBtn.disabled = !hasList;
+        applyInventoryBtn.disabled = !(hasList && isInventoryEditablePhase(activeListPhase));
+      }
+
+      function setSummary(detail) {
+        metricItems.textContent = String(detail?.item_count || 0);
+        metricOrdered.textContent = String(detail?.ordered_count || 0);
+        metricReceived.textContent = String(detail?.received_count || 0);
+        metricStatus.textContent = String(detail?.status || "draft").replace(/_/g, " ");
+      }
+
+      function setGroupMode(mode) {
+        currentGroupMode = mode === "source" ? "source" : "category";
+        if (groupModeSelect) {
+          groupModeSelect.value = currentGroupMode;
+        }
+      }
+
+      function isStepTwoList(detail) {
+        const name = String(detail?.name || "").trim().toLowerCase();
+        return name.includes("step 2");
+      }
+
+      function createVendorSelect(item) {
+        const select = document.createElement("select");
+        select.className = "form-select form-select-sm";
+
+        const none = document.createElement("option");
+        none.value = "";
+        none.textContent = "Select source";
+        select.appendChild(none);
+
+        vendors.forEach((vendor) => {
+          const option = document.createElement("option");
+          option.value = String(vendor.id);
+          option.textContent = vendor.name;
+          if (item.vendor_id && Number(item.vendor_id) === Number(vendor.id)) {
+            option.selected = true;
+          }
+          select.appendChild(option);
+        });
+
+        select.addEventListener("change", () => {
+          const raw = String(select.value || "").trim();
+          const vendorId = raw ? Number(raw) : null;
+          void updateShoppingItem(item.id, { vendorId });
+        });
+        return select;
+      }
+
+      function createToggle(checked, onChange) {
+        const input = document.createElement("input");
+        input.type = "checkbox";
+        input.className = "form-check-input";
+        input.checked = Boolean(checked);
+        input.addEventListener("change", () => onChange(Boolean(input.checked)));
+        return input;
+      }
+
+      function inventoryInputStep(_unit) {
+        return "1";
+      }
+
+      function createInventoryEditor(item) {
+        const wrapper = document.createElement("div");
+        wrapper.className = "inventory-editor";
+
+        const input = document.createElement("input");
+        input.type = "number";
+        input.className = "form-control form-control-sm";
+        input.min = "0";
+        input.step = inventoryInputStep(String(item.in_stock_unit || item.required_unit || "").trim());
+        input.value = item.in_stock_qty != null && Number.isFinite(Number(item.in_stock_qty))
+          ? String(Math.round(Number(item.in_stock_qty)))
+          : "0";
+
+        let lastGoodValue = input.value;
+        input.addEventListener("change", () => {
+          const value = Number(input.value);
+          if (!Number.isFinite(value) || value < 0) {
+            input.value = lastGoodValue;
+            setStatus("Current inventory must be a non-negative number.", "err");
+            return;
+          }
+          const rounded = Math.round(value);
+          input.value = String(rounded);
+          lastGoodValue = String(rounded);
+          void updateShoppingItem(item.id, { inStockQty: rounded });
+        });
+
+        const unit = document.createElement("span");
+        unit.className = "qty-chip";
+        unit.textContent = String(item.in_stock_unit || item.required_unit || "").trim() || "unit";
+
+        wrapper.appendChild(input);
+        wrapper.appendChild(unit);
+        return wrapper;
+      }
+
+      function toSortCanonical(qty, unit) {
+        const numeric = Number(qty);
+        if (!Number.isFinite(numeric)) {
+          return { value: 0, kind: "other" };
+        }
+        const normalizedUnit = String(unit || "").trim().toLowerCase();
+        const mass = { g: 1, kg: 1000, lb: 453.59237, oz: 28.349523125 };
+        const volume = { ml: 1, l: 1000, cup: 240, tbsp: 14.7868, tsp: 4.92892 };
+        if (Object.prototype.hasOwnProperty.call(mass, normalizedUnit)) {
+          return { value: numeric * mass[normalizedUnit], kind: "mass" };
+        }
+        if (Object.prototype.hasOwnProperty.call(volume, normalizedUnit)) {
+          return { value: numeric * volume[normalizedUnit], kind: "volume" };
+        }
+        return { value: numeric, kind: "count" };
+      }
+
+      function sortItemsByToBuyDesc(items) {
+        const kindRank = { mass: 3, volume: 2, count: 1, other: 0 };
+        return [...items].sort((a, b) => {
+          const aCanonical = toSortCanonical(a.to_buy_qty, a.to_buy_unit);
+          const bCanonical = toSortCanonical(b.to_buy_qty, b.to_buy_unit);
+          if (aCanonical.kind !== bCanonical.kind) {
+            return (kindRank[bCanonical.kind] || 0) - (kindRank[aCanonical.kind] || 0);
+          }
+          if (aCanonical.value !== bCanonical.value) {
+            return bCanonical.value - aCanonical.value;
+          }
+          return String(a.ingredient_name || "").localeCompare(String(b.ingredient_name || ""));
+        });
+      }
+
+      function sortedCategoryEntries(items) {
+        const grouped = new Map();
+        items.forEach((item) => {
+          const category = String(item.ingredient_category || "").trim() || "Uncategorized";
+          const bucket = grouped.get(category) || [];
+          bucket.push(item);
+          grouped.set(category, bucket);
+        });
+
+        const categories = Array.from(grouped.entries());
+        categories.sort((a, b) => {
+          const aName = a[0];
+          const bName = b[0];
+          if (aName === "Uncategorized") return 1;
+          if (bName === "Uncategorized") return -1;
+          return aName.localeCompare(bName);
+        });
+
+        return categories.map(([category, rows]) => [category, sortItemsByToBuyDesc(rows)]);
+      }
+
+      function sourceLabel(item) {
+        return String(item.vendor_name || "").trim() || "Unassigned Source";
+      }
+
+      function sortedSourceEntries(items) {
+        const grouped = new Map();
+        items.forEach((item) => {
+          const source = sourceLabel(item);
+          const bucket = grouped.get(source) || [];
+          bucket.push(item);
+          grouped.set(source, bucket);
+        });
+
+        const sources = Array.from(grouped.entries());
+        sources.sort((a, b) => {
+          const aName = a[0];
+          const bName = b[0];
+          if (aName === "Unassigned Source") return 1;
+          if (bName === "Unassigned Source") return -1;
+          return aName.localeCompare(bName);
+        });
+
+        return sources.map(([source, rows]) => ({
+          source,
+          totalItems: rows.length,
+          categories: sortedCategoryEntries(rows),
+        }));
+      }
+
+      function renderShoppingItemRow(item, inventoryEditable) {
+        const tr = document.createElement("tr");
+        tr.className = "item-row";
+
+        const ingredientTd = document.createElement("td");
+        ingredientTd.innerHTML = `<div class="ingredient-name">${item.ingredient_name}</div>`;
+        tr.appendChild(ingredientTd);
+
+        const requiredTd = document.createElement("td");
+        requiredTd.innerHTML = `<span class="qty-chip">${formatNeededQty(item.required_qty, item.required_unit)}</span>`;
+        tr.appendChild(requiredTd);
+
+        const stockTd = document.createElement("td");
+        if (inventoryEditable) {
+          stockTd.appendChild(createInventoryEditor(item));
+        } else {
+          stockTd.innerHTML = `<span class="qty-chip">${formatNeededQty(item.in_stock_qty, item.in_stock_unit)}</span>`;
+        }
+        tr.appendChild(stockTd);
+
+        const buyTd = document.createElement("td");
+        buyTd.innerHTML = `<span class="qty-chip buy">${formatNeededQty(item.to_buy_qty, item.to_buy_unit)}</span>`;
+        tr.appendChild(buyTd);
+
+        const sourceTd = document.createElement("td");
+        sourceTd.appendChild(createVendorSelect(item));
+        tr.appendChild(sourceTd);
+
+        const orderedTd = document.createElement("td");
+        orderedTd.className = "text-center";
+        orderedTd.appendChild(createToggle(item.ordered, (value) => {
+          void updateShoppingItem(item.id, { ordered: value });
+        }));
+        tr.appendChild(orderedTd);
+
+        const receivedTd = document.createElement("td");
+        receivedTd.className = "text-center";
+        receivedTd.appendChild(createToggle(item.received, (value) => {
+          void updateShoppingItem(item.id, { received: value });
+        }));
+        tr.appendChild(receivedTd);
+
+        const notesTd = document.createElement("td");
+        const notesInput = document.createElement("input");
+        notesInput.type = "text";
+        notesInput.className = "form-control form-control-sm";
+        notesInput.placeholder = "optional";
+        notesInput.value = item.notes || "";
+        notesInput.addEventListener("change", () => {
+          void updateShoppingItem(item.id, { notes: notesInput.value.trim() || null });
+        });
+        notesTd.appendChild(notesInput);
+        tr.appendChild(notesTd);
+
+        return tr;
+      }
+
+      function renderCategoryHeaderRow(category, itemCount) {
+        const headerTr = document.createElement("tr");
+        headerTr.className = "category-row";
+        const headerTd = document.createElement("td");
+        headerTd.colSpan = 8;
+
+        const heading = document.createElement("div");
+        heading.className = "category-heading";
+        const name = document.createElement("span");
+        name.textContent = String(category);
+        const count = document.createElement("span");
+        count.className = "category-count";
+        count.textContent = `${Number(itemCount || 0)} items`;
+        heading.appendChild(name);
+        heading.appendChild(count);
+        headerTd.appendChild(heading);
+
+        headerTr.appendChild(headerTd);
+        return headerTr;
+      }
+
+      function renderShoppingRows(detail) {
+        shoppingBody.innerHTML = "";
+        const inventoryEditable = isInventoryEditablePhase(detail?.phase || activeListPhase);
+
+        if (!detail?.items?.length) {
+          const tr = document.createElement("tr");
+          const td = document.createElement("td");
+          td.colSpan = 8;
+          td.className = "text-muted small py-3";
+          td.textContent = "No items found for this shopping list.";
+          tr.appendChild(td);
+          shoppingBody.appendChild(tr);
+          return;
+        }
+
+        if (currentGroupMode === "source") {
+          sortedSourceEntries(detail.items).forEach((sourceEntry) => {
+            const sourceTr = document.createElement("tr");
+            sourceTr.className = "source-row";
+            const sourceTd = document.createElement("td");
+            sourceTd.colSpan = 8;
+            sourceTd.textContent = `Source: ${sourceEntry.source} (${sourceEntry.totalItems} items)`;
+            sourceTr.appendChild(sourceTd);
+            shoppingBody.appendChild(sourceTr);
+
+            sourceEntry.categories.forEach(([category, items]) => {
+              shoppingBody.appendChild(renderCategoryHeaderRow(category, items.length));
+
+              items.forEach((item) => {
+                shoppingBody.appendChild(renderShoppingItemRow(item, inventoryEditable));
+              });
+            });
+          });
+          return;
+        }
+
+        sortedCategoryEntries(detail.items).forEach(([category, items]) => {
+          shoppingBody.appendChild(renderCategoryHeaderRow(category, items.length));
+
+          items.forEach((item) => {
+            shoppingBody.appendChild(renderShoppingItemRow(item, inventoryEditable));
+          });
+        });
+      }
+
+      async function loadShoppingListDetail(listId) {
+        const response = await fetch(apiUrl(`/api/shopping-lists/${listId}`), {
+          credentials: "include",
+        });
+        if (!response.ok) {
+          throw new Error(await parseApiError(response));
+        }
+        const detail = await response.json();
+        activeShoppingDetail = detail;
+        activeListId = detail.id;
+        activeListPhase = String(detail.phase || "").trim().toLowerCase() || null;
+        if (isStepTwoList(detail)) {
+          setGroupMode("source");
+        }
+        updateListActionStates();
+        setSummary(detail);
+        renderShoppingRows(detail);
+      }
+
+      async function updateShoppingItem(itemId, payload) {
+        if (!activeListId) return;
+        try {
+          setStatus("Saving item...", "info");
+          const response = await fetch(apiUrl(`/api/shopping-lists/${activeListId}/items/${itemId}`), {
+            method: "PATCH",
+            credentials: "include",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          });
+          if (!response.ok) {
+            throw new Error(await parseApiError(response));
+          }
+          const detail = await response.json();
+          activeShoppingDetail = detail;
+          activeListPhase = String(detail.phase || "").trim().toLowerCase() || null;
+          if (isStepTwoList(detail)) {
+            setGroupMode("source");
+          }
+          setSummary(detail);
+          renderShoppingRows(detail);
+          await loadShoppingLists();
+          setStatus("Saved.", "ok");
+        } catch (error) {
+          setStatus(error instanceof Error ? error.message : String(error), "err");
+        }
+      }
+
+      async function generateShoppingList() {
+        const selectedValues = selectedRetreatPlanValues();
+        const allRetreats = selectedValues.includes(ALL_RETREATS_VALUE);
+        const retreatPlanIds = allRetreats
+          ? []
+          : selectedValues
+              .map((value) => Number(value))
+              .filter((value) => Number.isFinite(value) && value > 0);
+        if (!allRetreats && retreatPlanIds.length === 0) {
+          setStatus("Select at least one retreat plan first.", "err");
+          return;
+        }
+
+        const payload = {
+          retreatPlanId: retreatPlanIds.length === 1 ? retreatPlanIds[0] : null,
+          retreatPlanIds,
+          allRetreats,
+          name: listNameInput.value.trim() || null,
+          phase: phaseSelect.value,
+          purchaseTiers: selectedPurchaseTiers(),
+          subtractInventory: Boolean(subtractInventoryCheck.checked),
+          includeZeroToBuy: Boolean(includeZeroCheck.checked),
+        };
+
+        try {
+          setStatus("Generating shopping list...", "info");
+          const response = await fetch(apiUrl("/api/shopping-lists/generate"), {
+            method: "POST",
+            credentials: "include",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          });
+          if (!response.ok) {
+            throw new Error(await parseApiError(response));
+          }
+          const detail = await response.json();
+          activeShoppingDetail = detail;
+          activeListId = detail.id;
+          activeListPhase = String(detail.phase || "").trim().toLowerCase() || null;
+          if (isStepTwoList(detail)) {
+            setGroupMode("source");
+          }
+          updateListActionStates();
+          setSummary(detail);
+          renderShoppingRows(detail);
+          await loadShoppingLists();
+
+          const missing = Array.isArray(detail.missing_recipes) ? detail.missing_recipes : [];
+          if (missing.length) {
+            setStatus(`Generated with ${missing.length} missing recipes.`, "err");
+          } else {
+            setStatus("Shopping list generated.", "ok");
+          }
+        } catch (error) {
+          setStatus(error instanceof Error ? error.message : String(error), "err");
+        }
+      }
+
+      async function createStepTwoOrder() {
+        if (!activeListId) {
+          setStatus("Load a shopping list first.", "err");
+          return;
+        }
+
+        const customNameInput = window.prompt("Optional Step 2 list name (leave blank for auto):", "");
+        if (customNameInput === null) {
+          return;
+        }
+
+        const payload = {
+          name: customNameInput.trim() || null,
+        };
+
+        try {
+          setStatus("Creating Step 2 order...", "info");
+          const response = await fetch(apiUrl(`/api/shopping-lists/${activeListId}/carry-forward`), {
+            method: "POST",
+            credentials: "include",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          });
+          if (!response.ok) {
+            throw new Error(await parseApiError(response));
+          }
+          const detail = await response.json();
+          activeShoppingDetail = detail;
+          activeListId = detail.id;
+          activeListPhase = String(detail.phase || "").trim().toLowerCase() || null;
+          setGroupMode("source");
+          updateListActionStates();
+          setSummary(detail);
+          renderShoppingRows(detail);
+          await loadShoppingLists();
+          const carried = Number(detail.carried_item_count || 0);
+          setStatus(`Step 2 order created (${carried} items).`, "ok");
+        } catch (error) {
+          setStatus(error instanceof Error ? error.message : String(error), "err");
+        }
+      }
+
+      async function applyInventoryFromList() {
+        if (!activeListId) {
+          setStatus("Load a shopping list first.", "err");
+          return;
+        }
+        if (!isInventoryEditablePhase(activeListPhase)) {
+          setStatus("Apply inventory is available only for fresh and daily lists.", "err");
+          return;
+        }
+
+        try {
+          setStatus("Applying current inventory...", "info");
+          const response = await fetch(apiUrl(`/api/shopping-lists/${activeListId}/apply-inventory`), {
+            method: "POST",
+            credentials: "include",
+          });
+          if (!response.ok) {
+            throw new Error(await parseApiError(response));
+          }
+          const result = await response.json();
+          await loadShoppingListDetail(activeListId);
+          const applied = Number(result.applied_count || 0);
+          setStatus(`Applied inventory for ${applied} items.`, "ok");
+        } catch (error) {
+          setStatus(error instanceof Error ? error.message : String(error), "err");
+        }
+      }
+
+      async function bootstrap() {
+        try {
+          setGroupMode("category");
+          syncTierSelectionForPhase();
+          await loadRetreatPlans();
+          await loadVendors();
+          await loadShoppingLists();
+          if (shoppingLists.length) {
+            const firstId = Number(shoppingLists[0].id);
+            if (firstId) {
+              await loadShoppingListDetail(firstId);
+            }
+          } else {
+            activeShoppingDetail = null;
+            activeListId = null;
+            activeListPhase = null;
+            updateListActionStates();
+            setSummary(null);
+            renderShoppingRows({ items: [] });
+          }
+          setStatus("Ready.", "ok");
+        } catch (error) {
+          setStatus(error instanceof Error ? error.message : String(error), "err");
+        }
+      }
+
+      phaseSelect.addEventListener("change", syncTierSelectionForPhase);
+      groupModeSelect.addEventListener("change", () => {
+        setGroupMode(groupModeSelect.value);
+        renderShoppingRows(activeShoppingDetail || { items: [] });
+      });
+      selectAllRetreatsBtn.addEventListener("click", () => {
+        Array.from(retreatPlanSelect.options).forEach((opt) => {
+          opt.selected = true;
+        });
+      });
+      clearRetreatsBtn.addEventListener("click", () => {
+        Array.from(retreatPlanSelect.options).forEach((opt) => {
+          opt.selected = false;
+        });
+      });
+      generateBtn.addEventListener("click", () => {
+        void generateShoppingList();
+      });
+
+      loadListBtn.addEventListener("click", () => {
+        const selected = Number(shoppingListSelect.value || 0);
+        if (!selected) {
+          setStatus("Select a shopping list to load.", "err");
+          return;
+        }
+        void loadShoppingListDetail(selected)
+          .then(() => setStatus("List loaded.", "ok"))
+          .catch((error) => setStatus(error instanceof Error ? error.message : String(error), "err"));
+      });
+
+      carryForwardBtn.addEventListener("click", () => {
+        void createStepTwoOrder();
+      });
+
+      applyInventoryBtn.addEventListener("click", () => {
+        void applyInventoryFromList();
+      });
+
+      refreshListsBtn.addEventListener("click", () => {
+        void loadShoppingLists()
+          .then(() => setStatus("Lists refreshed.", "ok"))
+          .catch((error) => setStatus(error instanceof Error ? error.message : String(error), "err"));
+      });
+
+      void bootstrap();
+    </script>
+  </body>
+</html>

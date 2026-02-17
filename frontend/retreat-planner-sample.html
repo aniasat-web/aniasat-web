@@ -152,6 +152,75 @@
         background: #fef2f2;
         border-color: #fee2e2;
       }
+      .dish-drag-handle {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 32px;
+        height: 32px;
+        padding: 0;
+        border-radius: 8px;
+        background: #fff;
+        border: 1px solid transparent;
+        color: #94a3b8;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+        cursor: grab;
+        transition: all 0.2s;
+      }
+      .dish-drag-handle:hover {
+        color: #b45309;
+        background: #fff7ed;
+        border-color: #fed7aa;
+      }
+      .dish-drag-handle:active {
+        cursor: grabbing;
+      }
+      .dish-row.dragging {
+        opacity: 0.6;
+      }
+      .dish-list.drag-active {
+        border-color: #f59e0b;
+        background-color: #fff7ed;
+      }
+
+      /* ── Saved Retreats grid ── */
+      .retreat-list-card {
+        cursor: pointer;
+        transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s;
+        border: 2px solid #fde68a;
+        border-left: 4px solid #f59e0b;
+        border-radius: 0.85rem;
+        padding: 1rem 1.15rem;
+        background: linear-gradient(135deg, #fffefb 0%, #fefce8 100%);
+      }
+      .retreat-list-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 18px rgba(245,158,11,0.15);
+        border-color: #f59e0b;
+      }
+      .retreat-list-card.active-retreat {
+        border-color: var(--primary);
+        border-left-color: var(--primary);
+        background: linear-gradient(135deg, #fffefb 0%, #fef3c7 100%);
+        box-shadow: 0 0 0 2px rgba(180,83,9,0.18);
+      }
+      .retreat-list-card .retreat-name {
+        font-family: "Instrument Serif", serif;
+        font-size: 1.1rem;
+        font-weight: 600;
+        color: var(--ink);
+        margin-bottom: 0.2rem;
+      }
+      .retreat-list-card .retreat-date {
+        font-size: 0.82rem;
+        color: #92400e;
+        font-weight: 600;
+      }
+      .retreat-list-card .retreat-meta {
+        font-size: 0.72rem;
+        color: #a8a29e;
+        margin-top: 0.35rem;
+      }
 
       /* ── Flatpickr warm earth theme ── */
       .flatpickr-calendar {
@@ -259,6 +328,9 @@
             </li>
             <li class="nav-item">
               <a class="nav-link active" href="retreat-planner-sample.html"><i class="fa-solid fa-calendar-days me-1"></i> Planner</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="shopping-list.html"><i class="fa-solid fa-cart-shopping me-1"></i> Shopping</a>
             </li>
             <li class="nav-item">
               <a class="nav-link" href="kitchen-service-view.html"><i class="fa-solid fa-fire-burner me-1"></i> Retreat View</a>
@@ -371,6 +443,16 @@
         </div>
       </section>
 
+      <section class="card p-4" id="savedRetreatsSection">
+        <div class="d-flex align-items-center justify-content-between mb-3">
+          <h2 class="h5 fw-bold mb-0"><i class="fa-solid fa-folder-open me-2 text-primary"></i>Saved Retreats</h2>
+          <span class="small text-muted fw-semibold" id="savedRetreatsCount"></span>
+        </div>
+        <div id="savedRetreatsList" class="row row-cols-1 row-cols-sm-2 row-cols-lg-3 g-3">
+          <div class="col"><div class="text-muted small text-center py-3">Loading...</div></div>
+        </div>
+      </section>
+
       <section class="card p-4" id="mealPlanSection" hidden>
         <div class="d-flex align-items-center justify-content-between mb-4">
           <div>
@@ -434,7 +516,7 @@
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
     <script src="https://cdn.jsdelivr.net/npm/tom-select@2.4.3/dist/js/tom-select.complete.min.js"></script>
     <script>
-      const MEALS = ["Breakfast", "Lunch", "Dinner", "Evening Chai"];
+      const MEALS = ["Breakfast", "Lunch", "Evening Chai", "Dinner"];
       const PROFILE_RETREAT = "retreat";
       const PROFILE_TEST = "test";
       const PROFILE_OPTIONS = new Set([PROFILE_RETREAT, PROFILE_TEST]);
@@ -454,8 +536,25 @@
         teaspoons: "tsp",
         teaspoon: "tsp",
         gms: "g",
+        grams: "g",
+        gram: "g",
+        kilograms: "kg",
+        kilogram: "kg",
+        kilo: "kg",
+        kilos: "kg",
         liters: "l",
         litres: "l",
+        pieces: "piece",
+        packets: "packet",
+        cans: "can",
+        bunches: "bunch",
+        loaves: "loaf",
+        sprigs: "sprig",
+        leaves: "leaf",
+        bags: "bag",
+        pinches: "pinch",
+        cloves: "piece",
+        clove: "piece",
       };
 
       const MASS_TO_G = { g: 1, kg: 1000, lb: 453.592, oz: 28.3495 };
@@ -486,6 +585,8 @@
       const statDays = document.getElementById("statDays");
       const statMeals = document.getElementById("statMeals");
       const statRecipes = document.getElementById("statRecipes");
+      const savedRetreatsList = document.getElementById("savedRetreatsList");
+      const savedRetreatsCount = document.getElementById("savedRetreatsCount");
       const API_BASE = resolveApiBase();
 
       let currentViewDay = 1;
@@ -499,6 +600,10 @@
       let lastSavedRetreatFingerprint = "";
       let currentRetreatPlanId = null;
       let activeHeadcountProfile = PROFILE_RETREAT;
+      let draggedDishRow = null;
+      let draggedDishList = null;
+      let draggedDishStartIndex = -1;
+      let armedDishDragRow = null;
 
       function resolveApiBase() {
         const queryValue = new URLSearchParams(window.location.search).get("api");
@@ -1157,6 +1262,17 @@
       function createDishRow(selectedName) {
         const row = document.createElement("div");
         row.className = "row g-2 align-items-center mb-2 dish-row";
+        row.draggable = true;
+
+        const colHandle = document.createElement("div");
+        colHandle.className = "col-auto";
+        const dragHandle = document.createElement("button");
+        dragHandle.type = "button";
+        dragHandle.className = "dish-drag-handle";
+        dragHandle.innerHTML = '<i class="fa-solid fa-grip-vertical"></i>';
+        dragHandle.setAttribute("aria-label", "Drag to reorder dish");
+        dragHandle.setAttribute("title", "Drag to reorder dish");
+        colHandle.appendChild(dragHandle);
 
         const colSelect = document.createElement("div");
         colSelect.className = "col";
@@ -1171,9 +1287,38 @@
         removeBtn.setAttribute("aria-label", "Remove dish");
         colBtn.appendChild(removeBtn);
 
+        row.appendChild(colHandle);
         row.appendChild(colSelect);
         row.appendChild(colBtn);
         return row;
+      }
+
+      function findDishRowInsertTarget(dishList, clientY) {
+        const candidates = Array.from(dishList.querySelectorAll(".dish-row:not(.dragging)"));
+        let closestOffset = Number.NEGATIVE_INFINITY;
+        let closestNode = null;
+        candidates.forEach((candidate) => {
+          const rect = candidate.getBoundingClientRect();
+          const offset = clientY - rect.top - rect.height / 2;
+          if (offset < 0 && offset > closestOffset) {
+            closestOffset = offset;
+            closestNode = candidate;
+          }
+        });
+        return closestNode;
+      }
+
+      function resetDishDragState() {
+        if (draggedDishRow) {
+          draggedDishRow.classList.remove("dragging");
+        }
+        if (draggedDishList) {
+          draggedDishList.classList.remove("drag-active");
+        }
+        armedDishDragRow = null;
+        draggedDishRow = null;
+        draggedDishList = null;
+        draggedDishStartIndex = -1;
       }
 
       function defaultPeopleByMeal(defaultPeople, meal) {
@@ -1506,7 +1651,7 @@
           if (a.meal !== b.meal) {
             return MEALS.indexOf(a.meal) - MEALS.indexOf(b.meal);
           }
-          return a.recipe.localeCompare(b.recipe);
+          return 0;
         });
 
         const payload = buildKitchenPayload(sortedPlan, retreatName, DEFAULT_SHOPPING_PROFILE);
@@ -1667,6 +1812,93 @@
         updateRetreatStoreStatus("Ready for a new retreat. Type a name above.");
       }
 
+      function formatRetreatDate(dateStr) {
+        if (!dateStr) return "";
+        try {
+          const d = new Date(dateStr + "T00:00:00");
+          if (Number.isNaN(d.getTime())) return dateStr;
+          return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+        } catch { return dateStr; }
+      }
+
+      function renderSavedRetreatCards(plans) {
+        savedRetreatsList.innerHTML = "";
+        if (!plans || !plans.length) {
+          savedRetreatsList.innerHTML = '<div class="col"><div class="text-muted small text-center py-3">No saved retreats yet.</div></div>';
+          savedRetreatsCount.textContent = "";
+          return;
+        }
+        savedRetreatsCount.textContent = `${plans.length} retreat${plans.length !== 1 ? "s" : ""}`;
+
+        const sorted = [...plans].sort((a, b) => {
+          const da = a.start_date || "";
+          const db = b.start_date || "";
+          if (da !== db) return da.localeCompare(db);
+          return (a.name || "").localeCompare(b.name || "");
+        });
+
+        sorted.forEach((plan) => {
+          const planName = String(plan.name || "").trim();
+          const planId = Number(plan.id || 0);
+          if (!planName || !planId) return;
+
+          const col = document.createElement("div");
+          col.className = "col";
+
+          const card = document.createElement("div");
+          card.className = "retreat-list-card";
+          card.dataset.planId = String(planId);
+          card.dataset.planName = planName;
+          if (planId === currentRetreatPlanId) {
+            card.classList.add("active-retreat");
+          }
+
+          const nameEl = document.createElement("div");
+          nameEl.className = "retreat-name";
+          nameEl.textContent = planName;
+
+          card.appendChild(nameEl);
+
+          if (plan.start_date || plan.day_count) {
+            const dateEl = document.createElement("div");
+            dateEl.className = "retreat-date";
+            const parts = [];
+            if (plan.start_date) parts.push(formatRetreatDate(plan.start_date));
+            if (plan.day_count) parts.push(`${plan.day_count} day${plan.day_count !== 1 ? "s" : ""}`);
+            dateEl.textContent = parts.join(" · ");
+            card.appendChild(dateEl);
+          }
+
+          const metaEl = document.createElement("div");
+          metaEl.className = "retreat-meta";
+          const metaParts = [];
+          if (plan.default_people) metaParts.push(`${plan.default_people} people`);
+          if (plan.updated_at) {
+            const when = formatRetreatDate(plan.updated_at.split("T")[0] || plan.updated_at.split(" ")[0]);
+            if (when) metaParts.push(`updated ${when}`);
+          }
+          if (metaParts.length) {
+            metaEl.textContent = metaParts.join(" · ");
+            card.appendChild(metaEl);
+          }
+
+          card.addEventListener("click", () => {
+            void loadRetreatPlanById(planId).then(() => {
+              refreshSavedRetreatsHighlight(planId);
+            });
+          });
+
+          col.appendChild(card);
+          savedRetreatsList.appendChild(col);
+        });
+      }
+
+      function refreshSavedRetreatsHighlight(activePlanId) {
+        savedRetreatsList.querySelectorAll(".retreat-list-card").forEach((card) => {
+          card.classList.toggle("active-retreat", Number(card.dataset.planId) === activePlanId);
+        });
+      }
+
       async function refreshRetreatPlanOptions(selectedName = null, selectedPlanId = null) {
         try {
           const response = await fetch(apiUrl("/api/retreat-plans"));
@@ -1731,6 +1963,7 @@
           }
 
           updateDeleteRetreatButtonState();
+          renderSavedRetreatCards(plans);
 
           if (plans.length) {
             updateRetreatStoreStatus(`Loaded ${plans.length} saved retreats.`);
@@ -1742,6 +1975,7 @@
           retreatPlanNameById = new Map();
           setRetreatPickerValue(getRetreatPickerValue() || "Untitled Retreat");
           updateDeleteRetreatButtonState();
+          renderSavedRetreatCards([]);
           updateRetreatStoreStatus("Could not load retreats.");
         }
       }
@@ -1866,6 +2100,7 @@
           updateShareableUrl();
           setRetreatPickerValue(planName);
           updateDeleteRetreatButtonState();
+          refreshSavedRetreatsHighlight(selectedId);
           updateRetreatStoreStatus(`Loaded "${planName}".`);
           return true;
         } catch (error) {
@@ -2049,7 +2284,7 @@
           if (a.meal !== b.meal) {
             return MEALS.indexOf(a.meal) - MEALS.indexOf(b.meal);
           }
-          return a.recipe.localeCompare(b.recipe);
+          return 0;
         });
 
         await publishKitchenPayload(sortedPlan, retreatName, DEFAULT_SHOPPING_PROFILE);
@@ -2087,6 +2322,94 @@
           const dishSelect = dishRow?.querySelector(".dish-select");
           if (dishSelect?.tomselect) { dishSelect.tomselect.destroy(); }
           dishRow?.remove();
+          scheduleAutoSave();
+        }
+      }
+
+      function handleDayContainerPointerDown(event) {
+        const pointerTarget = event.target instanceof Element ? event.target : null;
+        const dragHandle = pointerTarget?.closest(".dish-drag-handle");
+        armedDishDragRow = dragHandle?.closest(".dish-row") ?? null;
+      }
+
+      function clearArmedDishDragRow() {
+        armedDishDragRow = null;
+      }
+
+      function handleDayContainerDragStart(event) {
+        const dragTarget = event.target instanceof Element ? event.target : null;
+        const dishRow = dragTarget?.closest(".dish-row");
+        if (!dishRow || dishRow !== armedDishDragRow) {
+          event.preventDefault();
+          return;
+        }
+        const dishList = dishRow.closest(".dish-list");
+        if (!dishList) {
+          event.preventDefault();
+          return;
+        }
+
+        draggedDishRow = dishRow;
+        draggedDishList = dishList;
+        draggedDishStartIndex = Array.from(dishList.querySelectorAll(".dish-row")).indexOf(dishRow);
+
+        dishRow.classList.add("dragging");
+        dishList.classList.add("drag-active");
+
+        if (event.dataTransfer) {
+          event.dataTransfer.effectAllowed = "move";
+          event.dataTransfer.setData("text/plain", "dish-reorder");
+        }
+      }
+
+      function handleDayContainerDragOver(event) {
+        if (!draggedDishRow || !draggedDishList) {
+          return;
+        }
+        const dragTarget = event.target instanceof Element ? event.target : null;
+        const dishList = dragTarget?.closest(".dish-list");
+        if (!dishList || dishList !== draggedDishList) {
+          return;
+        }
+
+        event.preventDefault();
+        if (event.dataTransfer) {
+          event.dataTransfer.dropEffect = "move";
+        }
+
+        const insertBefore = findDishRowInsertTarget(dishList, event.clientY);
+        if (!insertBefore) {
+          if (dishList.lastElementChild !== draggedDishRow) {
+            dishList.appendChild(draggedDishRow);
+          }
+          return;
+        }
+        if (insertBefore !== draggedDishRow) {
+          dishList.insertBefore(draggedDishRow, insertBefore);
+        }
+      }
+
+      function handleDayContainerDrop(event) {
+        if (!draggedDishRow || !draggedDishList) {
+          return;
+        }
+        const dropTarget = event.target instanceof Element ? event.target : null;
+        const dishList = dropTarget?.closest(".dish-list");
+        if (!dishList || dishList !== draggedDishList) {
+          return;
+        }
+        event.preventDefault();
+      }
+
+      function handleDayContainerDragEnd() {
+        if (!draggedDishRow || !draggedDishList) {
+          resetDishDragState();
+          return;
+        }
+        const endIndex = Array.from(draggedDishList.querySelectorAll(".dish-row")).indexOf(draggedDishRow);
+        const didMove = draggedDishStartIndex >= 0 && endIndex >= 0 && endIndex !== draggedDishStartIndex;
+        resetDishDragState();
+        if (didMove) {
           scheduleAutoSave();
         }
       }
@@ -2163,6 +2486,13 @@
       });
 
       dayContainer.addEventListener("click", handleDayContainerClick);
+      dayContainer.addEventListener("pointerdown", handleDayContainerPointerDown);
+      dayContainer.addEventListener("pointerup", clearArmedDishDragRow);
+      dayContainer.addEventListener("pointercancel", clearArmedDishDragRow);
+      dayContainer.addEventListener("dragstart", handleDayContainerDragStart);
+      dayContainer.addEventListener("dragover", handleDayContainerDragOver);
+      dayContainer.addEventListener("drop", handleDayContainerDrop);
+      dayContainer.addEventListener("dragend", handleDayContainerDragEnd);
       dayContainer.addEventListener("input", (event) => {
         if (event.target instanceof HTMLInputElement && event.target.classList.contains("meal-people")) {
           const mealCard = event.target.closest(".meal-card");

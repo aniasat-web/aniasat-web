@@ -31,7 +31,7 @@ MERGE_GROUPS: dict[str, list[str]] = {
     # Herbs & aromatics
     "Bay leaves": ["Bay leaf", "bay leaves"],
     "Cilantro": ["Cilantro", "Fresh cilantro"],
-    "Ginger": ["Ginger", "Fresh ginger"],
+    "Ginger": ["Ginger", "Fresh ginger", "Ginger paste"],
     "Mint": ["Mint", "fresh mint", "fresh mint leaves", "mint leaves"],
     "Garlic": ["Garlic", "garlic cloves"],
 
@@ -49,7 +49,7 @@ MERGE_GROUPS: dict[str, list[str]] = {
     # Spices (whole)
     "Cardamom": ["Cardamom", "cardamom pods", "whole cardamom pods"],
     "Cumin seeds": ["Cumin seeds", "Jeera"],
-    "Cinnamon": ["Cinnamon", "cinnamon stick"],
+    "Cinnamon": ["Cinnamon", "cinnamon stick", "cinnamon sticks"],
     "Cloves": ["Cloves", "whole cloves"],
     "Black pepper": ["Black pepper", "black peppercorns"],
     "Kasuri methi": ["Kasuri methi", "dried fenugreek leaves", "Dried fenugreek leaves (kasuri methi)"],

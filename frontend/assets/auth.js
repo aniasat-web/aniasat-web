@@ -8,6 +8,7 @@
     "/": ["viewer", "planner", "admin"],
     "/index.html": ["viewer", "planner", "admin"],
     "/retreat-planner-sample.html": ["planner", "admin"],
+    "/shopping-list.html": ["planner", "admin"],
     "/recipe-admin.html": ["admin"],
     "/ingredient-admin.html": ["admin"],
     "/user-admin.html": ["admin"],

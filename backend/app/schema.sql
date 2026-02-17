@@ -111,7 +111,9 @@ CREATE TABLE IF NOT EXISTS vendors (
 CREATE TABLE IF NOT EXISTS shopping_lists (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     retreat_id INTEGER,
+    retreat_plan_id INTEGER REFERENCES retreat_plans(id) ON DELETE SET NULL,
     name TEXT NOT NULL,
+    phase TEXT NOT NULL DEFAULT 'bulk',
     status TEXT NOT NULL DEFAULT 'draft',
     created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (retreat_id) REFERENCES retreats(id) ON DELETE SET NULL
@@ -130,6 +132,10 @@ CREATE TABLE IF NOT EXISTS shopping_list_items (
     vendor_id INTEGER,
     owner TEXT,
     pickup_date TEXT,
+    ordered INTEGER NOT NULL DEFAULT 0,
+    ordered_at TEXT,
+    received INTEGER NOT NULL DEFAULT 0,
+    received_at TEXT,
     status TEXT NOT NULL DEFAULT 'open',
     notes TEXT,
     FOREIGN KEY (shopping_list_id) REFERENCES shopping_lists(id) ON DELETE CASCADE,
@@ -144,6 +150,7 @@ CREATE INDEX IF NOT EXISTS idx_auth_sessions_expires_at ON auth_sessions(expires
 CREATE INDEX IF NOT EXISTS idx_menu_items_retreat_id ON menu_items(retreat_id);
 CREATE INDEX IF NOT EXISTS idx_inventory_items_ingredient_id ON inventory_items(ingredient_id);
 CREATE INDEX IF NOT EXISTS idx_shopping_items_list_id ON shopping_list_items(shopping_list_id);
+CREATE INDEX IF NOT EXISTS idx_shopping_items_vendor_id ON shopping_list_items(vendor_id);
 CREATE INDEX IF NOT EXISTS idx_unit_conversions_item_name ON unit_conversions(item_name);
 CREATE INDEX IF NOT EXISTS idx_unit_conversions_context ON unit_conversions(context);
 

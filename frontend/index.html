@@ -127,6 +127,7 @@
       .journey-card:nth-child(5) { animation-delay: 200ms; }
       .journey-card:nth-child(6) { animation-delay: 240ms; }
       .journey-card:nth-child(7) { animation-delay: 280ms; }
+      .journey-card:nth-child(8) { animation-delay: 320ms; }
 
       .card-head {
         display: flex;
@@ -232,6 +233,9 @@
               <a class="nav-link" href="retreat-planner-sample.html"><i class="fa-solid fa-calendar-days me-1"></i> Planner</a>
             </li>
             <li class="nav-item">
+              <a class="nav-link" href="shopping-list.html"><i class="fa-solid fa-cart-shopping me-1"></i> Shopping</a>
+            </li>
+            <li class="nav-item">
               <a class="nav-link" href="kitchen-service-view.html"><i class="fa-solid fa-fire-burner me-1"></i> Retreat View</a>
             </li>
             <li class="nav-item">
@@ -293,6 +297,17 @@
           button: "Open Retreat View",
         },
         {
+          title: "Shopping",
+          description: "Generate bulk/fresh lists, assign source vendors, and track ordered or received items.",
+          path: "shopping-list.html",
+          icon: "fa-cart-shopping",
+          roles: ["planner", "admin"],
+          badge: "Planner",
+          color: "#9a3412",
+          bg: "#ffedd5",
+          button: "Open Shopping",
+        },
+        {
           title: "Testing View",
           description: "Select dishes from the retreat menu and generate test cook sheets.",
           path: "kitchen-test-view.html",
@@ -324,17 +339,6 @@
           color: "#be123c",
           bg: "#ffe4e6",
           button: "Open Ingredients",
-        },
-        {
-          title: "Scaling",
-          description: "Quick scaling utility for ad-hoc recipe checks and previews.",
-          path: "recipe-scaling.html",
-          icon: "fa-scale-balanced",
-          roles: ["viewer", "planner", "admin"],
-          badge: "Tools",
-          color: "#4c1d95",
-          bg: "#ede9fe",
-          button: "Open Scaling",
         },
         {
           title: "Users",

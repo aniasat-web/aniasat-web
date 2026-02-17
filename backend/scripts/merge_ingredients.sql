@@ -120,6 +120,10 @@ UPDATE recipe_ingredients SET ingredient_id = (SELECT id FROM ingredients WHERE 
 UPDATE shopping_list_items SET ingredient_id = (SELECT id FROM ingredients WHERE lower(name) = lower('Cinnamon')) WHERE ingredient_id = (SELECT id FROM ingredients WHERE lower(name) = lower('cinnamon stick'));
 UPDATE inventory_items SET ingredient_id = (SELECT id FROM ingredients WHERE lower(name) = lower('Cinnamon')) WHERE ingredient_id = (SELECT id FROM ingredients WHERE lower(name) = lower('cinnamon stick'));
 DELETE FROM ingredients WHERE lower(name) = lower('cinnamon stick');
+UPDATE recipe_ingredients SET ingredient_id = (SELECT id FROM ingredients WHERE lower(name) = lower('Cinnamon')) WHERE ingredient_id = (SELECT id FROM ingredients WHERE lower(name) = lower('cinnamon sticks'));
+UPDATE shopping_list_items SET ingredient_id = (SELECT id FROM ingredients WHERE lower(name) = lower('Cinnamon')) WHERE ingredient_id = (SELECT id FROM ingredients WHERE lower(name) = lower('cinnamon sticks'));
+UPDATE inventory_items SET ingredient_id = (SELECT id FROM ingredients WHERE lower(name) = lower('Cinnamon')) WHERE ingredient_id = (SELECT id FROM ingredients WHERE lower(name) = lower('cinnamon sticks'));
+DELETE FROM ingredients WHERE lower(name) = lower('cinnamon sticks');
 
 -- Merge group: Cloves
 UPDATE recipe_ingredients SET ingredient_id = (SELECT id FROM ingredients WHERE lower(name) = lower('Cloves')) WHERE ingredient_id = (SELECT id FROM ingredients WHERE lower(name) = lower('whole cloves'));
@@ -206,6 +210,10 @@ UPDATE recipe_ingredients SET ingredient_id = (SELECT id FROM ingredients WHERE 
 UPDATE shopping_list_items SET ingredient_id = (SELECT id FROM ingredients WHERE lower(name) = lower('Ginger')) WHERE ingredient_id = (SELECT id FROM ingredients WHERE lower(name) = lower('Fresh ginger'));
 UPDATE inventory_items SET ingredient_id = (SELECT id FROM ingredients WHERE lower(name) = lower('Ginger')) WHERE ingredient_id = (SELECT id FROM ingredients WHERE lower(name) = lower('Fresh ginger'));
 DELETE FROM ingredients WHERE lower(name) = lower('Fresh ginger');
+UPDATE recipe_ingredients SET ingredient_id = (SELECT id FROM ingredients WHERE lower(name) = lower('Ginger')) WHERE ingredient_id = (SELECT id FROM ingredients WHERE lower(name) = lower('Ginger paste'));
+UPDATE shopping_list_items SET ingredient_id = (SELECT id FROM ingredients WHERE lower(name) = lower('Ginger')) WHERE ingredient_id = (SELECT id FROM ingredients WHERE lower(name) = lower('Ginger paste'));
+UPDATE inventory_items SET ingredient_id = (SELECT id FROM ingredients WHERE lower(name) = lower('Ginger')) WHERE ingredient_id = (SELECT id FROM ingredients WHERE lower(name) = lower('Ginger paste'));
+DELETE FROM ingredients WHERE lower(name) = lower('Ginger paste');
 
 -- Merge group: Green chilies
 UPDATE recipe_ingredients SET ingredient_id = (SELECT id FROM ingredients WHERE lower(name) = lower('Green chilies')) WHERE ingredient_id = (SELECT id FROM ingredients WHERE lower(name) = lower('Green chillies'));

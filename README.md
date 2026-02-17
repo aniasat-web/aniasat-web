@@ -63,6 +63,7 @@ retreat-ops-web/
 │   └── requirements.txt
 ├── frontend/
 │   ├── retreat-planner-sample.html   Retreat menu planner
+│   ├── shopping-list.html            Shopping list generation + tracking
 │   ├── kitchen-service-view.html     Kitchen display (read-only)
 │   ├── recipe-admin.html             Recipe CRUD editor
 │   ├── recipe-scaling.html           Ad-hoc scaling preview
@@ -91,6 +92,16 @@ Read-only display for kitchen staff during live service. Shows the latest publis
 - **Instructions tab** -- numbered cooking steps.
 
 Supports print layout (hides nav, shows only the active meal).
+
+### Shopping Lists (`shopping-list.html`)
+
+Planner/admin workflow for procurement:
+
+- Generate list from a saved retreat plan and profile (`retreat` or `test`).
+- Default phase filter (`bulk`, `fresh`, `daily`) or custom tier selection.
+- Subtract imported inventory stock to compute `to_buy`.
+- Assign source vendor per item.
+- Track item state with explicit `ordered` and `received` toggles.
 
 ### Recipe Admin (`recipe-admin.html`)
 
@@ -352,6 +363,20 @@ Base URL: `http://localhost:8000`
 | GET | `/api/service-snapshots/latest` | Get the most recently published menu |
 | GET | `/api/service-snapshots/by-plan/{plan_id}` | Get the latest snapshot for a specific plan |
 
+### Shopping + inventory operations
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/api/purchase-tiers` | List supported purchase tiers (`bulk`, `fresh`, `daily`) |
+| GET | `/api/shopping-phases` | List supported shopping phases (`bulk`, `fresh`, `daily`, `custom`) |
+| GET | `/api/vendors` | List vendor/source options |
+| GET | `/api/shopping-lists` | List shopping lists with ordered/received rollups |
+| GET | `/api/shopping-lists/{shopping_list_id}` | Get a shopping list with item detail |
+| POST | `/api/shopping-lists/generate` | Generate a shopping list from a retreat plan |
+| POST | `/api/shopping-lists/{shopping_list_id}/carry-forward` | Create a Step 2 list from all unreceived items |
+| POST | `/api/shopping-lists/{shopping_list_id}/apply-inventory` | Apply current inventory values from a fresh/daily list to inventory overrides |
+| PATCH | `/api/shopping-lists/{shopping_list_id}/items/{item_id}` | Update vendor, current inventory (fresh/daily only), notes, ordered, received for one item |
+
 ---
 
 ## Backend models (Pydantic)
@@ -387,6 +412,16 @@ Key request/response models defined in `backend/app/main.py`:
 
 Each dish in a snapshot contains `name`, `serves`, `baseServings`, `factor`, `ingredients` (with `scaledQty`, `scaledUnit`, `shopQty`, `shopUnit`), and `steps`.
 
+**ShoppingListGeneratePayload** -- used by POST `/api/shopping-lists/generate`
+- `retreatPlanId` (int, required unless `allRetreats=true`)
+- `allRetreats` (bool, default `false`) to combine all saved retreat plans into one list
+- `name` (str, optional override)
+- `phase` (`bulk` | `fresh` | `daily` | `custom`)
+- `purchaseTiers` (optional list of `bulk`/`fresh`/`daily`)
+- `profile` (`retreat` | `test`)
+- `subtractInventory` (bool)
+- `includeZeroToBuy` (bool)
+
 ---
 
 ## Constants
@@ -395,16 +430,20 @@ Each dish in a snapshot contains `name`, `serves`, `baseServings`, `factor`, `in
 M's Recipes, Breakfast, Salads, Vegetable Dishes, Dals & Stews, Khichdi & Kadhi, Rice Dishes, Desserts, Chai & Coffee, Pickles
 
 **Meal slots** (hardcoded in planner JS):
-Breakfast, Lunch, Dinner, Evening Chai
+Breakfast, Lunch, Evening Chai, Dinner
+
+**Default shopping vendors** (auto-seeded):
+OmProduce, Costco, Sams, Other Indian Store, Amazon, Webstaurant, Braums, SunriseNatural, Walmart, American grocery store
 
 **Unit aliases** (normalized before conversion):
-cups → cup, tablespoons/tbs → tbsp, teaspoons → tsp, gms → g, liters/litres → l
+cups → cup, tablespoons/tbs → tbsp, teaspoons → tsp, gms/grams → g, liters/litres → l,
+pieces → piece, packets → packet, cans → can, bunches → bunch, loaves → loaf, leaves → leaf
 
 **Mass → grams**: g=1, kg=1000, lb=453.59, oz=28.35
 
 **Volume → ml**: ml=1, l=1000, cup=240, tbsp=14.79, tsp=4.93
 
-**Count units** (kept as-is): piece, pieces, packet, packets, can, cans, bunch, bunches, loaf, loaves
+**Count units** (normalized singular): piece, packet, can, bunch, loaf, sprig, leaf, pinch, bag
 
 ---
 
@@ -474,9 +513,61 @@ python scripts/import_master_data.py --seed seeds/master_data.json
 python scripts/import_master_data.py --seed seeds/master_data.json --dry-run
 ```
 
+### Canonicalize ingredient terms/units
+
+Use this helper to normalize ingredient naming in the live DB:
+- `Cinnamon stick(s)` -> `Cinnamon`
+- `Ginger paste` -> `Ginger`
+- Converts all `Ginger` recipe rows to `g`
+- Cleans legacy wording in recipe/snapshot text fields
+
+```bash
+# Dry-run (no writes)
+python scripts/canonicalize_ingredients.py
+
+# Apply changes (creates a timestamped DB backup first)
+python scripts/canonicalize_ingredients.py --apply
+```
+
 What is included: `ingredients`, `unit_conversions`, `recipes` + `recipe_ingredients` + `recipe_steps`.
 
 What is excluded: retreat plans, kitchen/service snapshots, shopping/inventory operational records.
+
+### Ingredient unit hygiene (recommended before shopping list generation)
+
+Use this helper to normalize unit spellings/plurals and auto-fill missing canonical units where safe:
+
+```bash
+# Dry-run audit (no writes)
+python scripts/ingredient_hygiene.py
+
+# Apply safe fixes (creates DB backup) + save JSON report
+python scripts/ingredient_hygiene.py --apply --report-json data/ingredient_hygiene_report.json
+```
+
+What it does:
+- Normalizes unit text across `recipe_ingredients`, `ingredients.canonical_unit`, `inventory_items`, `shopping_list_items`, and `unit_conversions`.
+- Infers missing `ingredients.canonical_unit` when observed units are unambiguous.
+- Reports unresolved ingredients (e.g., mixed `can/cup/ml`) for manual decisions.
+
+### Import storage inventory from workbook
+
+Use this helper to import only the **storage** column from the `Inventory - Food` tab
+and ignore kitchen pantry values.
+
+```bash
+# Dry-run
+python scripts/import_inventory_food.py --xlsx /tmp/spring_2026_inventory_file.xlsx
+
+# Apply (writes inventory_items rows and creates DB backup)
+python scripts/import_inventory_food.py --xlsx /tmp/spring_2026_inventory_file.xlsx --apply
+```
+
+Default column mapping for `Inventory - Food`:
+- ingredient: `B`
+- unit: `C`
+- storage qty: `D`
+- kitchen pantry (`E`) is intentionally not imported
 
 ### Startup auto-seeding
 
@@ -492,10 +583,12 @@ This is an MVP with:
 - Retreat planner with auto-save and auto-publish to kitchen.
 - Kitchen display for live service with day/meal navigation.
 - Recipe CRUD editor with category filtering.
+- Shopping list generation from retreat plans with vendor assignment.
+- Ordered/received tracking on shopping list items.
 - Excel import scripts for bootstrapping from existing workbooks.
 - Master data export/import for version control.
 
 Next steps:
-1. Add authentication/roles.
-2. Add inventory + shopping workflows.
+1. Add inventory receive flow to auto-increment storage stock from received shopping items.
+2. Add partial receive quantities per line item.
 3. Add import validation/reporting UI.

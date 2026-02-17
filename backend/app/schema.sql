@@ -143,6 +143,18 @@ CREATE TABLE IF NOT EXISTS shopping_list_items (
     FOREIGN KEY (vendor_id) REFERENCES vendors(id) ON DELETE SET NULL
 );
 
+CREATE TABLE IF NOT EXISTS shopping_list_item_sources (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    shopping_list_item_id INTEGER NOT NULL,
+    retreat_plan_id INTEGER REFERENCES retreat_plans(id) ON DELETE SET NULL,
+    retreat_plan_name TEXT NOT NULL,
+    dish_name TEXT,
+    required_qty REAL NOT NULL,
+    required_unit TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (shopping_list_item_id) REFERENCES shopping_list_items(id) ON DELETE CASCADE
+);
+
 CREATE INDEX IF NOT EXISTS idx_recipe_ingredients_recipe_id ON recipe_ingredients(recipe_id);
 CREATE INDEX IF NOT EXISTS idx_users_username ON users(username);
 CREATE INDEX IF NOT EXISTS idx_auth_sessions_user_id ON auth_sessions(user_id);
@@ -151,6 +163,8 @@ CREATE INDEX IF NOT EXISTS idx_menu_items_retreat_id ON menu_items(retreat_id);
 CREATE INDEX IF NOT EXISTS idx_inventory_items_ingredient_id ON inventory_items(ingredient_id);
 CREATE INDEX IF NOT EXISTS idx_shopping_items_list_id ON shopping_list_items(shopping_list_id);
 CREATE INDEX IF NOT EXISTS idx_shopping_items_vendor_id ON shopping_list_items(vendor_id);
+CREATE INDEX IF NOT EXISTS idx_shopping_item_sources_item_id ON shopping_list_item_sources(shopping_list_item_id);
+CREATE INDEX IF NOT EXISTS idx_shopping_item_sources_plan_id ON shopping_list_item_sources(retreat_plan_id);
 CREATE INDEX IF NOT EXISTS idx_unit_conversions_item_name ON unit_conversions(item_name);
 CREATE INDEX IF NOT EXISTS idx_unit_conversions_context ON unit_conversions(context);
 
@@ -177,3 +191,17 @@ CREATE TABLE IF NOT EXISTS service_snapshots (
 
 CREATE INDEX IF NOT EXISTS idx_service_snapshots_created_at ON service_snapshots(created_at);
 CREATE INDEX IF NOT EXISTS idx_service_snapshots_retreat_plan_id ON service_snapshots(retreat_plan_id);
+
+CREATE TABLE IF NOT EXISTS standalone_inventory (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    item_name TEXT NOT NULL,
+    quantity REAL NOT NULL DEFAULT 0,
+    unit TEXT,
+    category TEXT,
+    location TEXT,
+    notes TEXT,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_standalone_inventory_category ON standalone_inventory(category);

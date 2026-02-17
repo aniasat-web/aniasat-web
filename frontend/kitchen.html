@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Blossom Foundation - Home</title>
+    <title>Kitchen - Blossom Foundation</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -20,20 +20,16 @@
         --muted: #78716c;
         --border: #e7e5e4;
         --primary: #b45309;
-        --primary-hover: #92400e;
         --surface: #fffefb;
       }
 
-      * {
-        box-sizing: border-box;
-      }
+      * { box-sizing: border-box; }
 
       body {
         margin: 0;
         min-height: 100vh;
         color: var(--ink);
         font-family: "Plus Jakarta Sans", sans-serif;
-        padding-top: 70px;
         background-color: var(--bg);
       }
 
@@ -41,77 +37,39 @@
         font-family: "Instrument Serif", serif;
       }
 
-      .navbar {
-        background: rgba(255, 255, 255, 0.95);
-        backdrop-filter: blur(10px);
-        border-bottom: 1px solid var(--border);
-        box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-      }
-      .navbar-brand {
-        display: inline-flex;
-        align-items: center;
-        gap: 0.5rem;
-        font-size: 1.35rem;
-        font-weight: 600 !important;
-        color: var(--primary) !important;
-      }
-      .navbar .nav-link {
-        color: var(--muted);
-        letter-spacing: 0.02em;
-      }
-      .navbar .nav-link:hover {
-        color: var(--primary);
-      }
-      .navbar .nav-link.active {
-        color: var(--ink) !important;
-      }
-
-      .d-none {
-        display: none !important;
-      }
-
-      #authUserLabel {
-        color: var(--muted);
-        font-size: 0.78rem;
-        text-transform: uppercase;
-        letter-spacing: 0.08em;
-      }
-
-      .home-shell {
+      .kitchen-shell {
         max-width: 1120px;
         margin: 0 auto;
         padding: 1.4rem 1rem 2rem;
       }
 
-      .hero {
+      .kitchen-hero {
         position: relative;
         border: 1px solid var(--border);
         border-radius: 1rem;
-        min-height: clamp(220px, 34vw, 420px);
+        min-height: clamp(190px, 30vw, 340px);
         overflow: hidden;
         box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
-        background-color: #d6e9d9;
+        background-color: #d8e5d8;
         background-image:
-          linear-gradient(180deg, rgba(29, 52, 38, 0.08) 0%, rgba(29, 52, 38, 0.45) 100%),
-          var(--hero-image, url("assets/sacred-grove-04.webp"));
+          linear-gradient(180deg, rgba(34, 62, 47, 0.12) 0%, rgba(20, 32, 24, 0.44) 100%),
+          var(--kitchen-hero-image, url("assets/sacred-grove-12.webp"));
         background-size: cover;
         background-position: center;
+        margin-bottom: 1rem;
       }
 
-      .hero-caption {
+      .kitchen-hero-caption {
         position: absolute;
         left: 1rem;
         bottom: 1rem;
         z-index: 1;
         margin: 0;
-        font-family: "Instrument Serif", serif;
-        font-size: clamp(1.05rem, 2vw, 1.35rem);
-        line-height: 1.15;
         color: #ffffff;
         background: rgba(17, 24, 39, 0.42);
         border: 1px solid rgba(255, 255, 255, 0.35);
         border-radius: 999px;
-        padding: 0.35rem 0.85rem;
+        padding: 0.34rem 0.82rem;
         text-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
       }
 
@@ -126,8 +84,20 @@
 
       .card-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        grid-template-columns: repeat(3, minmax(0, 1fr));
         gap: 0.9rem;
+      }
+
+      @media (max-width: 991.98px) {
+        .card-grid {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+      }
+
+      @media (max-width: 575.98px) {
+        .card-grid {
+          grid-template-columns: 1fr;
+        }
       }
 
       .journey-card {
@@ -148,9 +118,6 @@
       .journey-card:nth-child(3) { animation-delay: 120ms; }
       .journey-card:nth-child(4) { animation-delay: 160ms; }
       .journey-card:nth-child(5) { animation-delay: 200ms; }
-      .journey-card:nth-child(6) { animation-delay: 240ms; }
-      .journey-card:nth-child(7) { animation-delay: 280ms; }
-      .journey-card:nth-child(8) { animation-delay: 320ms; }
 
       .card-head {
         display: flex;
@@ -216,25 +183,10 @@
         filter: saturate(1.05);
       }
 
-      .empty {
-        border: 1px dashed #94a3b8;
-        border-radius: 0.9rem;
-        padding: 1rem;
-        color: #475569;
-        background: #ffffffbf;
-      }
-
       @keyframes rise-in {
-        from {
-          opacity: 0;
-          transform: translateY(8px);
-        }
-        to {
-          opacity: 1;
-          transform: translateY(0);
-        }
+        from { opacity: 0; transform: translateY(8px); }
+        to { opacity: 1; transform: translateY(0); }
       }
-
     </style>
     <link rel="stylesheet" href="assets/ui-theme.css" />
   </head>
@@ -249,7 +201,7 @@
           <span class="navbar-toggler-icon"></span>
         </button>
         <div class="collapse navbar-collapse" id="navbarContent">
-                              <ul class="navbar-nav ms-auto mb-2 mb-lg-0 fw-semibold small text-uppercase">
+          <ul class="navbar-nav ms-auto mb-2 mb-lg-0 fw-semibold small text-uppercase">
             <li class="nav-item">
               <a class="nav-link" href="index.html"><i class="fa-solid fa-house me-1"></i> Home</a>
             </li>
@@ -301,62 +253,88 @@
       </div>
     </nav>
 
-    <main class="home-shell">
-      <section class="hero" aria-label="Sacred Grove photo">
-        <p class="hero-caption">Sacred Grove</p>
+    <main class="kitchen-shell">
+      <div class="mb-4">
+        <h1 class="fw-bold mb-2"><i class="fa-solid fa-utensils me-2" style="color: #b45309;"></i>Kitchen</h1>
+        <p class="text-muted mb-0">Plan menus, manage recipes, generate shopping lists, and run kitchen operations for retreats.</p>
+      </div>
+
+      <section class="kitchen-hero" aria-label="Blossom kitchen and retreat gallery photo">
+        <p class="kitchen-hero-caption">Blossom Kitchen Moments</p>
       </section>
 
-      <p class="section-title">Pages</p>
-      <section id="journeyCards" class="card-grid" aria-live="polite"></section>
+      <section id="kitchenCards" class="card-grid"></section>
     </main>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
     <script src="assets/auth.js"></script>
     <script>
-      const JOURNEY_PAGES = [
+      const KITCHEN_PAGES = [
         {
-          title: "Kitchen",
-          description: "Menu planning, shopping lists, recipes, and kitchen service views.",
-          path: "kitchen.html",
-          icon: "fa-utensils",
+          title: "Planning View",
+          description: "Build and maintain retreat menus, schedules, and headcounts.",
+          path: "retreat-planner-sample.html",
+          icon: "fa-calendar-days",
+          roles: ["planner", "admin"],
+          badge: "Planner",
+          color: "#0f766e",
+          bg: "#ccfbf1",
+          button: "Open Planning View",
+        },
+        {
+          title: "Retreat View",
+          description: "Kitchen-ready retreat service view for live operations.",
+          path: "kitchen-service-view.html",
+          icon: "fa-fire-burner",
           roles: ["viewer", "planner", "admin"],
           badge: "Kitchen",
           color: "#b45309",
           bg: "#ffedd5",
-          button: "Open Kitchen",
+          button: "Open Retreat View",
         },
         {
-          title: "Inventory",
-          description: "Track general supplies, cleaning products, and other non-recipe items.",
-          path: "inventory.html",
-          icon: "fa-boxes-stacked",
-          roles: ["planner", "admin"],
-          badge: "Planner",
-          color: "#7c3aed",
-          bg: "#ede9fe",
-          button: "Open Inventory",
+          title: "Testing View",
+          description: "Select dishes from the retreat menu and generate test cook sheets.",
+          path: "kitchen-test-view.html",
+          icon: "fa-vial",
+          roles: ["viewer", "planner", "admin"],
+          badge: "Kitchen",
+          color: "#166534",
+          bg: "#dcfce7",
+          button: "Open Testing View",
         },
         {
-          title: "About & Mission",
-          description: "Learn about Blossom Foundation, our values, and what we do.",
-          path: "about.html",
-          icon: "fa-heart",
-          roles: null,
-          badge: "Public",
-          color: "#0f766e",
-          bg: "#ccfbf1",
-          button: "Read More",
-        },
-        {
-          title: "Volunteer",
-          description: "Find out how to get involved and contact our volunteer team.",
-          path: "volunteer-contact.html",
-          icon: "fa-hand-holding-heart",
-          roles: null,
-          badge: "Public",
+          title: "Recipes",
+          description: "Manage recipe records, ingredients, steps, and categories.",
+          path: "recipe-admin.html",
+          icon: "fa-book",
+          roles: ["admin"],
+          badge: "Admin",
           color: "#1d4ed8",
           bg: "#dbeafe",
-          button: "Get in Touch",
+          button: "Open Recipes",
+        },
+        {
+          title: "Ingredients",
+          description: "Maintain ingredient metadata, categories, and unit conversions.",
+          path: "ingredient-admin.html",
+          icon: "fa-carrot",
+          roles: ["admin"],
+          badge: "Admin",
+          color: "#047857",
+          bg: "#d1fae5",
+          button: "Open Ingredients",
+        },
+        {
+          title: "Shopping List",
+          description: "Generate bulk/fresh lists, assign vendors, and track ordered or received items.",
+          path: "shopping-list.html",
+          icon: "fa-cart-shopping",
+          roles: ["planner", "admin"],
+          badge: "Planner",
+          color: "#9a3412",
+          bg: "#ffedd5",
+          button: "Open Shopping List",
         },
       ];
 
@@ -367,7 +345,7 @@
       }
 
       const API_BASE = resolveApiBase();
-      const HERO_IMAGES = [
+      const KITCHEN_HERO_IMAGES = [
         "assets/sacred-grove-04.webp",
         "assets/sacred-grove-08.webp",
         "assets/sacred-grove-12.webp",
@@ -377,19 +355,23 @@
         "assets/sacred-grove-42.webp",
         "assets/sacred-grove-49.webp",
         "assets/sacred-grove-103.webp",
+        "assets/blossom-cookbook-69.webp",
+        "assets/blossom-cookbook-75.webp",
+        "assets/blossom-cookbook-88.webp",
+        "assets/blossom-cookbook-92.webp",
       ];
 
       function apiUrl(path) {
         return `${API_BASE}${path.startsWith("/") ? path : `/${path}`}`;
       }
 
-      function setHeroPhoto() {
-        const hero = document.querySelector(".hero");
-        if (!hero || !HERO_IMAGES.length) {
+      function setKitchenHeroPhoto() {
+        const hero = document.querySelector(".kitchen-hero");
+        if (!hero || !KITCHEN_HERO_IMAGES.length) {
           return;
         }
-        const selected = HERO_IMAGES[Math.floor(Math.random() * HERO_IMAGES.length)];
-        hero.style.setProperty("--hero-image", `url("${selected}")`);
+        const selected = KITCHEN_HERO_IMAGES[Math.floor(Math.random() * KITCHEN_HERO_IMAGES.length)];
+        hero.style.setProperty("--kitchen-hero-image", `url("${selected}")`);
       }
 
       function hrefWithApi(path) {
@@ -429,7 +411,6 @@
         const link = document.createElement("a");
         link.className = "journey-link";
         link.href = hrefWithApi(page.path);
-        link.textContent = page.button;
         link.style.background = page.color;
         link.style.color = "#ffffff";
         link.innerHTML = `<span>${page.button}</span><i class="fa-solid fa-arrow-right"></i>`;
@@ -450,9 +431,7 @@
             method: "GET",
             credentials: "include",
           });
-          if (!response.ok) {
-            return null;
-          }
+          if (!response.ok) return null;
           const payload = await response.json();
           return payload && payload.role ? String(payload.role) : null;
         } catch (_error) {
@@ -460,17 +439,13 @@
         }
       }
 
-      async function renderHome() {
-        const container = document.getElementById("journeyCards");
-        if (!container) {
-          return;
-        }
+      async function renderKitchen() {
+        const container = document.getElementById("kitchenCards");
+        if (!container) return;
 
-        const role = await fetchCurrentUserRole();
-        const visiblePages = JOURNEY_PAGES.filter((page) => {
-          if (page.roles === null) return true;
-          return role && page.roles.includes(role);
-        });
+        setKitchenHeroPhoto();
+        await fetchCurrentUserRole();
+        const visiblePages = KITCHEN_PAGES;
 
         container.innerHTML = "";
 
@@ -479,8 +454,7 @@
         });
       }
 
-      setHeroPhoto();
-      void renderHome();
+      void renderKitchen();
     </script>
   </body>
 </html>

@@ -117,6 +117,48 @@ h6 {
   max-width: 1240px;
 }
 
+.kitchen-subnav {
+  position: sticky;
+  top: var(--ui-navbar-height);
+  z-index: 1020;
+  background: rgba(255, 255, 255, 0.88);
+  backdrop-filter: blur(12px) saturate(1.2);
+  border-bottom: 1px solid var(--ui-border);
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.06);
+}
+
+.kitchen-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.42rem 0.82rem;
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  text-decoration: none;
+  color: #475569;
+  border: 1px solid var(--ui-border);
+  border-radius: 999px;
+  background: #fff;
+  transition: all 0.16s var(--ui-ease-standard);
+  white-space: nowrap;
+}
+
+.kitchen-tab:hover {
+  color: var(--ui-primary-700);
+  border-color: var(--ui-primary-300);
+  background: #fffaf0;
+  transform: translateY(-1px);
+}
+
+.kitchen-tab.active {
+  color: #fff;
+  background: linear-gradient(135deg, var(--ui-primary-600), var(--ui-primary-700));
+  border-color: var(--ui-primary-700);
+  box-shadow: 0 4px 12px rgba(194, 65, 12, 0.24);
+}
+
 .navbar {
   min-height: var(--ui-navbar-height);
   border: 1px solid var(--ui-border-strong) !important;
@@ -132,8 +174,8 @@ h6 {
 }
 
 .navbar .navbar-collapse {
-  max-height: calc(100vh - var(--ui-navbar-height) - 0.8rem);
-  overflow-y: auto;
+  max-height: none;
+  overflow: visible;
   overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
 }
@@ -690,6 +732,8 @@ textarea:focus-visible {
   }
 
   .navbar .navbar-collapse {
+    max-height: calc(100vh - var(--ui-navbar-height) - 0.8rem);
+    overflow-y: auto;
     margin-top: 0.68rem;
     padding: 0.52rem;
     border: 1px solid var(--ui-border);

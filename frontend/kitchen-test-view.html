@@ -359,36 +359,52 @@
       <div class="container">
         <a class="navbar-brand" href="index.html">
           <img class="brand-logo" src="assets/blossom-mark.png" alt="Blossom logo" />
-          <span>Blossom Foundation Spring 2026 Retreats</span>
+          <span>Blossom Foundation</span>
         </a>
         <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarContent">
           <span class="navbar-toggler-icon"></span>
         </button>
         <div class="collapse navbar-collapse" id="navbarContent">
-          <ul class="navbar-nav ms-auto mb-2 mb-lg-0 fw-semibold small text-uppercase">
+                              <ul class="navbar-nav ms-auto mb-2 mb-lg-0 fw-semibold small text-uppercase">
             <li class="nav-item">
               <a class="nav-link" href="index.html"><i class="fa-solid fa-house me-1"></i> Home</a>
             </li>
-            <li class="nav-item">
-              <a class="nav-link" id="backToPlanner" href="retreat-planner-sample.html"><i class="fa-solid fa-calendar-days me-1"></i> Planner</a>
+            <li class="nav-item dropdown">
+              <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false"><i class="fa-solid fa-utensils me-1"></i> Kitchen</a>
+              <ul class="dropdown-menu">
+                <li><a class="dropdown-item" href="retreat-planner-sample.html"><i class="fa-solid fa-calendar-days me-2"></i> Planner</a></li>
+                <li><a class="dropdown-item" href="shopping-list.html"><i class="fa-solid fa-cart-shopping me-2"></i> Shopping</a></li>
+                <li><a class="dropdown-item" href="kitchen-service-view.html"><i class="fa-solid fa-fire-burner me-2"></i> Retreat View</a></li>
+                <li><a class="dropdown-item" href="kitchen-test-view.html"><i class="fa-solid fa-vial me-2"></i> Testing View</a></li>
+                <li><a class="dropdown-item" href="recipe-admin.html"><i class="fa-solid fa-book me-2"></i> Recipes</a></li>
+                <li><a class="dropdown-item" href="ingredient-admin.html"><i class="fa-solid fa-carrot me-2"></i> Ingredients</a></li>
+              </ul>
             </li>
             <li class="nav-item">
-              <a class="nav-link" href="shopping-list.html"><i class="fa-solid fa-cart-shopping me-1"></i> Shopping</a>
+              <a class="nav-link" href="inventory.html"><i class="fa-solid fa-boxes-stacked me-1"></i> Inventory</a>
             </li>
-            <li class="nav-item">
-              <a class="nav-link" id="kitchenViewLink" href="kitchen-service-view.html"><i class="fa-solid fa-fire-burner me-1"></i> Retreat View</a>
+            <li class="nav-item dropdown">
+              <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false"><i class="fa-solid fa-seedling me-1"></i> About</a>
+              <ul class="dropdown-menu">
+                <li><a class="dropdown-item" href="about.html"><i class="fa-solid fa-heart me-2"></i> About &amp; Mission</a></li>
+                <li><a class="dropdown-item" href="about-sri-m.html"><i class="fa-solid fa-user me-2"></i> About Sri M</a></li>
+                <li><a class="dropdown-item" href="sacred-grove.html"><i class="fa-solid fa-tree me-2"></i> Sacred Grove</a></li>
+                <li><a class="dropdown-item" href="faq.html"><i class="fa-solid fa-circle-question me-2"></i> FAQ</a></li>
+              </ul>
             </li>
-            <li class="nav-item">
-              <a class="nav-link active" href="kitchen-test-view.html"><i class="fa-solid fa-vial me-1"></i> Testing View</a>
+            <li class="nav-item dropdown">
+              <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false"><i class="fa-solid fa-hand-holding-heart me-1"></i> Volunteer</a>
+              <ul class="dropdown-menu">
+                <li><a class="dropdown-item" href="volunteer.html"><i class="fa-solid fa-hands-helping me-2"></i> How to Volunteer</a></li>
+                <li><a class="dropdown-item" href="volunteer-contact.html"><i class="fa-solid fa-envelope me-2"></i> Contact Us</a></li>
+              </ul>
             </li>
-            <li class="nav-item">
-              <a class="nav-link" href="recipe-admin.html"><i class="fa-solid fa-book me-1"></i> Recipes</a>
-            </li>
-            <li class="nav-item">
-              <a class="nav-link" href="ingredient-admin.html"><i class="fa-solid fa-carrot me-1"></i> Ingredients</a>
-            </li>
-            <li class="nav-item">
-              <a class="nav-link" href="user-admin.html"><i class="fa-solid fa-users-gear me-1"></i> Users</a>
+            <li class="nav-item dropdown">
+              <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false"><i class="fa-solid fa-gear me-1"></i> Admin</a>
+              <ul class="dropdown-menu">
+                <li><a class="dropdown-item" href="user-admin.html"><i class="fa-solid fa-users-gear me-2"></i> Users</a></li>
+                <li><a class="dropdown-item" href="ingredient-admin.html"><i class="fa-solid fa-carrot me-2"></i> Ingredients</a></li>
+              </ul>
             </li>
             <li class="nav-item d-flex align-items-center">
               <span class="nav-link text-muted d-none" id="authUserLabel"></span>
@@ -398,6 +414,17 @@
             </li>
           </ul>
         </div>
+      </div>
+    </nav>
+
+    <nav class="kitchen-subnav" aria-label="Kitchen section">
+      <div class="container d-flex flex-nowrap gap-2 py-2 overflow-auto">
+        <a href="retreat-planner-sample.html" class="kitchen-tab"><i class="fa-solid fa-calendar-days me-1"></i> Planning View</a>
+        <a href="kitchen-service-view.html" class="kitchen-tab"><i class="fa-solid fa-fire-burner me-1"></i> Retreat View</a>
+        <a href="kitchen-test-view.html" class="kitchen-tab active"><i class="fa-solid fa-vial me-1"></i> Testing View</a>
+        <a href="recipe-admin.html" class="kitchen-tab"><i class="fa-solid fa-book me-1"></i> Recipes</a>
+        <a href="ingredient-admin.html" class="kitchen-tab"><i class="fa-solid fa-carrot me-1"></i> Ingredients</a>
+        <a href="shopping-list.html" class="kitchen-tab"><i class="fa-solid fa-cart-shopping me-1"></i> Shopping List</a>
       </div>
     </nav>
 
@@ -535,18 +562,32 @@
         return date.toLocaleString();
       }
 
-      // Ingredient categories that should display volume instead of weight
-      const VOLUME_PREFERRED_CATEGORIES = new Set([
-        "Spices & Seasonings",
-        "Oils & Fats",
-        "Herbs",
-        "Condiments & Sauces",
-      ]);
-
-      const MASS_TO_G = { g: 1, kg: 1000 };
+      const UNIT_ALIASES = {
+        cups: "cup",
+        tablespoons: "tbsp",
+        tablespoon: "tbsp",
+        tbs: "tbsp",
+        teaspoons: "tsp",
+        teaspoon: "tsp",
+        gms: "g",
+        grams: "g",
+        gram: "g",
+        kilograms: "kg",
+        kilogram: "kg",
+        kilos: "kg",
+        liters: "l",
+        litres: "l",
+      };
+      const MASS_TO_G = { g: 1, kg: 1000, lb: 453.592, oz: 28.3495 };
+      const VOLUME_TO_ML = { ml: 1, l: 1000, cup: 240, tbsp: 14.7868, tsp: 4.92892 };
       const ML_PER_CUP = 240;
       const ML_PER_TBSP = 15;
       const ML_PER_TSP = 5;
+
+      function normalizeUnit(unit) {
+        const value = String(unit || "").trim().toLowerCase();
+        return UNIT_ALIASES[value] || value;
+      }
 
       function gramsToVolume(grams, gramsPerCup) {
         const ml = (grams / gramsPerCup) * ML_PER_CUP;
@@ -562,26 +603,52 @@
         return { qty: tsp, unit: "tsp" };
       }
 
-      function formatKitchenQuantity(rawQty, rawUnit, category, gramsPerCup) {
+      function canonicalDisplayQuantity(rawQty, rawUnit, canonicalUnit, gramsPerCup) {
         const parsedQty = Number(rawQty);
-        let unit = String(rawUnit || "").trim().toLowerCase();
+        let unit = normalizeUnit(rawUnit);
+        const canonical = normalizeUnit(canonicalUnit);
         if (!Number.isFinite(parsedQty) || !unit) {
-          return `${rawQty ?? ""} ${rawUnit ?? ""}`.trim();
+          return null;
         }
 
         let qty = parsedQty;
+        if (canonical === "g" || canonical === "kg") {
+          if (unit in MASS_TO_G) {
+            qty = qty * MASS_TO_G[unit];
+            unit = "g";
+          } else if (unit in VOLUME_TO_ML && Number.isFinite(gramsPerCup) && gramsPerCup > 0) {
+            const cups = (qty * VOLUME_TO_ML[unit]) / ML_PER_CUP;
+            qty = cups * gramsPerCup;
+            unit = "g";
+          }
+        } else if (canonical === "ml" || canonical === "l") {
+          if (unit in VOLUME_TO_ML) {
+            qty = qty * VOLUME_TO_ML[unit];
+            unit = "ml";
+          } else if (unit in MASS_TO_G && Number.isFinite(gramsPerCup) && gramsPerCup > 0) {
+            const grams = qty * MASS_TO_G[unit];
+            const cups = grams / gramsPerCup;
+            qty = cups * ML_PER_CUP;
+            unit = "ml";
+          }
+        }
+        return { qty, unit };
+      }
 
-        // Convert weight → volume for spices, oils, herbs, condiments
-        if (
-          category &&
-          VOLUME_PREFERRED_CATEGORIES.has(category) &&
-          gramsPerCup &&
-          unit in MASS_TO_G
-        ) {
-          const grams = qty * MASS_TO_G[unit];
-          const vol = gramsToVolume(grams, gramsPerCup);
-          qty = vol.qty;
-          unit = vol.unit;
+      function formatKitchenQuantity(rawQty, rawUnit, canonicalUnit, gramsPerCup) {
+        const canonicalOverride = canonicalDisplayQuantity(rawQty, rawUnit, canonicalUnit, gramsPerCup);
+        let qty;
+        let unit;
+        if (canonicalOverride) {
+          qty = canonicalOverride.qty;
+          unit = canonicalOverride.unit;
+        } else {
+          const parsedQty = Number(rawQty);
+          unit = normalizeUnit(rawUnit);
+          if (!Number.isFinite(parsedQty) || !unit) {
+            return `${rawQty ?? ""} ${rawUnit ?? ""}`.trim();
+          }
+          qty = parsedQty;
         }
 
         if (unit === "g" && qty >= 1000) {
@@ -618,7 +685,7 @@
         const right = document.createElement("span");
         right.className = "ingredient-qty";
         right.textContent = formatKitchenQuantity(
-          item.scaledQty, item.scaledUnit, item.category, item.gramsPerCup
+          item.scaledQty, item.scaledUnit, item.canonicalUnit, item.gramsPerCup
         );
         li.appendChild(left);
         li.appendChild(right);
@@ -793,6 +860,7 @@
                   scaledQty: Number(item.quantity || 0) * factor,
                   scaledUnit: item.unit,
                   category: item.category || null,
+                  canonicalUnit: item.canonical_unit || item.canonicalUnit || null,
                   gramsPerCup: item.grams_per_cup || null,
                 }))
               : [],
@@ -947,15 +1015,27 @@
         if (retreatPlan?.id) {
           plannerUrl.searchParams.set("plan", String(retreatPlan.id));
         }
-        backToPlanner.href = plannerUrl.toString();
+        const plannerHref = plannerUrl.toString();
+        document
+          .querySelectorAll('a[href="retreat-planner-sample.html"], a#backToPlanner')
+          .forEach((link) => {
+            link.href = plannerHref;
+          });
 
         const kitchenUrl = new URL("kitchen-service-view.html", window.location.href);
         kitchenUrl.searchParams.set("api", API_BASE);
         if (retreatPlan?.id) {
           kitchenUrl.searchParams.set("plan", String(retreatPlan.id));
         }
-        kitchenViewLink.href = kitchenUrl.toString();
-        openKitchenViewBtn.href = kitchenUrl.toString();
+        const kitchenHref = kitchenUrl.toString();
+        document
+          .querySelectorAll('a[href="kitchen-service-view.html"], a#kitchenViewLink')
+          .forEach((link) => {
+            link.href = kitchenHref;
+          });
+        if (openKitchenViewBtn) {
+          openKitchenViewBtn.href = kitchenHref;
+        }
       }
 
       async function loadData() {

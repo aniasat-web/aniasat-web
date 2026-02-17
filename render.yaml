@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: retreat-ops
+    name: blossom-foundation
     runtime: python
     rootDir: backend
     buildCommand: pip install -r requirements.txt

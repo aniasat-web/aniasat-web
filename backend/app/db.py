@@ -97,6 +97,12 @@ def init_db() -> None:
         if "received_at" not in shopping_item_columns:
             conn.execute("ALTER TABLE shopping_list_items ADD COLUMN received_at TEXT")
 
+        shopping_item_source_columns = {
+            row[1] for row in conn.execute("PRAGMA table_info(shopping_list_item_sources)").fetchall()
+        }
+        if shopping_item_source_columns and "dish_name" not in shopping_item_source_columns:
+            conn.execute("ALTER TABLE shopping_list_item_sources ADD COLUMN dish_name TEXT")
+
         conn.execute(
             """
             UPDATE shopping_list_items

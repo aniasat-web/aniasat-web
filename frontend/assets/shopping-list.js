@@ -2,15 +2,18 @@
       const selectAllRetreatsBtn = document.getElementById("selectAllRetreatsBtn");
       const clearRetreatsBtn = document.getElementById("clearRetreatsBtn");
       const phaseSelect = document.getElementById("phaseSelect");
-      const purchaseTierSelect = document.getElementById("purchaseTierSelect");
-      const listNameInput = document.getElementById("listNameInput");
       const subtractInventoryCheck = document.getElementById("subtractInventoryCheck");
       const includeZeroCheck = document.getElementById("includeZeroCheck");
       const generateBtn = document.getElementById("generateBtn");
       const shoppingListSelect = document.getElementById("shoppingListSelect");
+      const inlineRenameWrap = document.getElementById("inlineRenameWrap");
+      const inlineRenameInput = document.getElementById("inlineRenameInput");
+      const inlineRenameSaveBtn = document.getElementById("inlineRenameSaveBtn");
+      const inlineRenameCancelBtn = document.getElementById("inlineRenameCancelBtn");
       const loadListBtn = document.getElementById("loadListBtn");
+      const deleteListBtn = document.getElementById("deleteListBtn");
       const applyInventoryBtn = document.getElementById("applyInventoryBtn");
-      const carryForwardBtn = document.getElementById("carryForwardBtn");
+      const splitSelectedAsBtn = document.getElementById("splitSelectedAsBtn");
       const refreshListsBtn = document.getElementById("refreshListsBtn");
       const shoppingBody = document.getElementById("shoppingBody");
       const shoppingTableWrap = document.querySelector(".shopping-table-wrap");
@@ -20,47 +23,35 @@
       const metricReceived = document.getElementById("metricReceived");
       const metricStatus = document.getElementById("metricStatus");
       const groupModeSelect = document.getElementById("groupModeSelect");
-      const stepTwoModalEl = document.getElementById("stepTwoModal");
-      const stepTwoNameInput = document.getElementById("stepTwoNameInput");
-      const confirmStepTwoBtn = document.getElementById("confirmStepTwoBtn");
-      function createStepTwoModalInstance(element) {
-        if (!element || !window.bootstrap || !window.bootstrap.Modal) {
-          return null;
-        }
-        const modalApi = window.bootstrap.Modal;
-        if (typeof modalApi.getOrCreateInstance === "function") {
-          try {
-            return modalApi.getOrCreateInstance(element);
-          } catch (_error) {
-            return null;
-          }
-        }
-        if (typeof modalApi === "function") {
-          try {
-            return new modalApi(element);
-          } catch (_error) {
-            return null;
-          }
-        }
-        return null;
-      }
-      const stepTwoModal = createStepTwoModalInstance(stepTwoModalEl);
-      if (stepTwoModalEl && stepTwoNameInput) {
-        stepTwoModalEl.addEventListener("shown.bs.modal", () => {
-          stepTwoNameInput.focus();
-          stepTwoNameInput.select();
-        });
-      }
+      const selectAllVisibleInput = document.getElementById("selectAllVisibleInput");
+      const shoppingCategoryFilter = document.getElementById("shoppingCategoryFilter");
+      const sourceBreakdownHint = document.getElementById("sourceBreakdownHint");
 
       let API_BASE = resolveApiBase();
       const DEFAULT_API_BASE = window.location.origin.replace(/\/+$/, "");
       const ALL_RETREATS_VALUE = "__ALL_RETREATS__";
+      const RENAME_SELECTED_LIST_VALUE = "__RENAME_SELECTED_LIST__";
       let vendors = [];
       let shoppingLists = [];
       let activeListId = null;
       let activeListPhase = null;
       let activeShoppingDetail = null;
       let currentGroupMode = "category";
+      let dropdownSelectedListId = null;
+      let renameEditingListId = null;
+      let selectedIngredientCategory = null;
+      let selectedShoppingItemIds = new Set();
+      let visibleShoppingItemIds = new Set();
+      const MASS_UNITS_TO_G = {
+        g: 1,
+        kg: 1000,
+        lb: 453.59237,
+        oz: 28.349523125,
+      };
+      const VOLUME_UNITS_TO_ML = {
+        ml: 1,
+        l: 1000,
+      };
 
       function resolveApiBase() {
         const queryValue = new URLSearchParams(window.location.search).get("api");
@@ -146,13 +137,13 @@
           const tr = document.createElement("tr");
           tr.className = "shopping-skeleton-row";
 
-          for (let j = 0; j < 8; j += 1) {
+          for (let j = 0; j < 9; j += 1) {
             const td = document.createElement("td");
             const line = document.createElement("div");
             line.className = "ui-skeleton-line skeleton-cell";
-            if (j === 0 || j === 7) {
+            if (j === 0 || j === 1 || j === 8) {
               line.classList.add("long");
-            } else if (j === 5 || j === 6) {
+            } else if (j === 6 || j === 7) {
               line.classList.add("short");
             } else {
               line.classList.add("medium");
@@ -194,24 +185,6 @@
         const numeric = Number(qty);
         if (!Number.isFinite(numeric)) return "—";
         return `${Math.round(numeric)} ${unit}`;
-      }
-
-      function syncTierSelectionForPhase() {
-        const phase = phaseSelect.value;
-        if (phase === "bulk" || phase === "fresh" || phase === "daily") {
-          Array.from(purchaseTierSelect.options).forEach((opt) => {
-            opt.selected = opt.value === phase;
-          });
-          purchaseTierSelect.disabled = true;
-          return;
-        }
-        purchaseTierSelect.disabled = false;
-      }
-
-      function selectedPurchaseTiers() {
-        return Array.from(purchaseTierSelect.selectedOptions)
-          .map((opt) => String(opt.value || "").trim())
-          .filter(Boolean);
       }
 
       async function loadRetreatPlans() {
@@ -279,6 +252,8 @@
       function renderShoppingListOptions() {
         shoppingListSelect.innerHTML = "";
         if (!shoppingLists.length) {
+          dropdownSelectedListId = null;
+          closeInlineRenameEditor();
           const option = document.createElement("option");
           option.value = "";
           option.textContent = "No shopping lists yet";
@@ -286,16 +261,47 @@
           return;
         }
 
+        const preferredSelectedId = Number(dropdownSelectedListId || activeListId || 0);
+        let selectedIdInOptions = null;
         shoppingLists.forEach((list) => {
           const option = document.createElement("option");
           option.value = String(list.id);
           const label = `${list.name} • ${list.item_count} items • ${list.status}`;
           option.textContent = label;
-          if (activeListId && Number(activeListId) === Number(list.id)) {
+          if (preferredSelectedId && Number(preferredSelectedId) === Number(list.id)) {
             option.selected = true;
+            selectedIdInOptions = Number(list.id);
           }
           shoppingListSelect.appendChild(option);
         });
+
+        if (!selectedIdInOptions && shoppingLists.length) {
+          selectedIdInOptions = Number(shoppingLists[0].id);
+          shoppingListSelect.value = String(selectedIdInOptions);
+        }
+        dropdownSelectedListId = selectedIdInOptions;
+
+        const renameOption = document.createElement("option");
+        renameOption.value = RENAME_SELECTED_LIST_VALUE;
+        renameOption.textContent = "Rename selected list";
+        shoppingListSelect.appendChild(renameOption);
+      }
+
+      function selectedListIdForActions() {
+        const raw = String(shoppingListSelect.value || "").trim();
+        const selected = Number(raw);
+        if (Number.isFinite(selected) && selected > 0) {
+          return selected;
+        }
+        const remembered = Number(dropdownSelectedListId || 0);
+        if (Number.isFinite(remembered) && remembered > 0) {
+          return remembered;
+        }
+        const active = Number(activeListId || 0);
+        if (Number.isFinite(active) && active > 0) {
+          return active;
+        }
+        return null;
       }
 
       async function loadShoppingLists(options = {}) {
@@ -310,7 +316,20 @@
           }
           const payload = await response.json();
           shoppingLists = Array.isArray(payload) ? payload : [];
+          if (
+            activeListId &&
+            !shoppingLists.some((list) => Number(list.id) === Number(activeListId))
+          ) {
+            activeShoppingDetail = null;
+            activeListId = null;
+            activeListPhase = null;
+            selectedShoppingItemIds = new Set();
+            visibleShoppingItemIds = new Set();
+            setSummary(null);
+            renderShoppingRows({ items: [] });
+          }
           renderShoppingListOptions();
+          updateListActionStates();
           return shoppingLists.length;
         } finally {
           if (showBusy) {
@@ -324,10 +343,100 @@
         return normalized === "fresh" || normalized === "daily";
       }
 
+      function updateSelectAllVisibleState() {
+        if (!(selectAllVisibleInput instanceof HTMLInputElement)) {
+          return;
+        }
+        const visibleCount = visibleShoppingItemIds.size;
+        if (!activeListId || visibleCount <= 0) {
+          selectAllVisibleInput.checked = false;
+          selectAllVisibleInput.indeterminate = false;
+          selectAllVisibleInput.disabled = true;
+          return;
+        }
+        selectAllVisibleInput.disabled = false;
+
+        let selectedVisibleCount = 0;
+        visibleShoppingItemIds.forEach((id) => {
+          if (selectedShoppingItemIds.has(id)) {
+            selectedVisibleCount += 1;
+          }
+        });
+
+        if (selectedVisibleCount <= 0) {
+          selectAllVisibleInput.checked = false;
+          selectAllVisibleInput.indeterminate = false;
+        } else if (selectedVisibleCount >= visibleCount) {
+          selectAllVisibleInput.checked = true;
+          selectAllVisibleInput.indeterminate = false;
+        } else {
+          selectAllVisibleInput.checked = false;
+          selectAllVisibleInput.indeterminate = true;
+        }
+      }
+
+      function updateSplitSelectedButtonState() {
+        const selectedCount = selectedShoppingItemIds.size;
+        if (splitSelectedAsBtn instanceof HTMLButtonElement) {
+          splitSelectedAsBtn.disabled = !activeListId || selectedCount <= 0;
+          const asIconHtml = '<i class="fa-solid fa-pen-to-square me-2"></i>';
+          splitSelectedAsBtn.innerHTML = selectedCount > 0
+            ? `${asIconHtml}Save Selected As... (${selectedCount})`
+            : `${asIconHtml}Save Selected As...`;
+        }
+        updateSelectAllVisibleState();
+      }
+
       function updateListActionStates() {
         const hasList = Boolean(activeListId);
-        carryForwardBtn.disabled = !hasList;
+        deleteListBtn.disabled = !hasList;
         applyInventoryBtn.disabled = !(hasList && isInventoryEditablePhase(activeListPhase));
+        updateSplitSelectedButtonState();
+      }
+
+      function listNameById(listId) {
+        const targetId = Number(listId || 0);
+        if (activeShoppingDetail?.name && Number(activeShoppingDetail?.id) === targetId) {
+          return String(activeShoppingDetail.name).trim();
+        }
+        const target = shoppingLists.find((list) => Number(list.id) === targetId);
+        return target ? String(target.name || "").trim() : "";
+      }
+
+      function closeInlineRenameEditor() {
+        renameEditingListId = null;
+        if (inlineRenameInput) {
+          inlineRenameInput.value = "";
+          inlineRenameInput.disabled = false;
+        }
+        if (inlineRenameSaveBtn) {
+          inlineRenameSaveBtn.disabled = false;
+        }
+        if (inlineRenameCancelBtn) {
+          inlineRenameCancelBtn.disabled = false;
+        }
+        if (inlineRenameWrap) {
+          inlineRenameWrap.classList.add("d-none");
+        }
+      }
+
+      function openInlineRenameEditor(listId) {
+        const targetListId = Number(listId || selectedListIdForActions() || 0);
+        if (!Number.isFinite(targetListId) || targetListId <= 0) {
+          setStatus("Select a shopping list first.", "err");
+          return;
+        }
+        const currentName = listNameById(targetListId) || `Shopping List #${targetListId}`;
+        renameEditingListId = targetListId;
+        dropdownSelectedListId = targetListId;
+        shoppingListSelect.value = String(targetListId);
+        if (!inlineRenameWrap || !inlineRenameInput) {
+          return;
+        }
+        inlineRenameInput.value = currentName;
+        inlineRenameWrap.classList.remove("d-none");
+        inlineRenameInput.focus();
+        inlineRenameInput.select();
       }
 
       function setSummary(detail) {
@@ -337,16 +446,74 @@
         setMetricValue(metricStatus, String(detail?.status || "draft").replace(/_/g, " "));
       }
 
+      function ingredientCategoryName(item) {
+        return String(item?.ingredient_category || "").trim() || "Uncategorized";
+      }
+
+      function categoryFilteredItems(items) {
+        if (!selectedIngredientCategory) {
+          return [...items];
+        }
+        return items.filter((item) => ingredientCategoryName(item) === selectedIngredientCategory);
+      }
+
+      function renderShoppingCategoryFilter(items) {
+        if (!shoppingCategoryFilter) {
+          return;
+        }
+        const rows = Array.isArray(items) ? items : [];
+        shoppingCategoryFilter.innerHTML = "";
+        if (!rows.length) {
+          selectedIngredientCategory = null;
+          return;
+        }
+
+        const counts = new Map();
+        rows.forEach((item) => {
+          const category = ingredientCategoryName(item);
+          counts.set(category, (counts.get(category) || 0) + 1);
+        });
+
+        if (selectedIngredientCategory !== null && !counts.has(selectedIngredientCategory)) {
+          selectedIngredientCategory = null;
+        }
+
+        const allBtn = document.createElement("button");
+        allBtn.type = "button";
+        allBtn.className = `cat-pill${selectedIngredientCategory === null ? " active" : ""}`;
+        allBtn.textContent = `All (${rows.length})`;
+        allBtn.addEventListener("click", () => {
+          selectedIngredientCategory = null;
+          renderShoppingRows(activeShoppingDetail || { items: [] });
+        });
+        shoppingCategoryFilter.appendChild(allBtn);
+
+        const sortedCategories = Array.from(counts.entries()).sort((a, b) => {
+          const aName = a[0];
+          const bName = b[0];
+          if (aName === "Uncategorized") return 1;
+          if (bName === "Uncategorized") return -1;
+          return aName.localeCompare(bName);
+        });
+
+        sortedCategories.forEach(([category, count]) => {
+          const button = document.createElement("button");
+          button.type = "button";
+          button.className = `cat-pill${selectedIngredientCategory === category ? " active" : ""}`;
+          button.textContent = `${category} (${count})`;
+          button.addEventListener("click", () => {
+            selectedIngredientCategory = category;
+            renderShoppingRows(activeShoppingDetail || { items: [] });
+          });
+          shoppingCategoryFilter.appendChild(button);
+        });
+      }
+
       function setGroupMode(mode) {
         currentGroupMode = mode === "source" ? "source" : "category";
         if (groupModeSelect) {
           groupModeSelect.value = currentGroupMode;
         }
-      }
-
-      function isStepTwoList(detail) {
-        const name = String(detail?.name || "").trim().toLowerCase();
-        return name.includes("step 2");
       }
 
       function createVendorSelect(item) {
@@ -440,10 +607,25 @@
         });
       }
 
+      function meetsContributionThreshold(qty, unit) {
+        const numericQty = Number(qty);
+        if (!Number.isFinite(numericQty) || numericQty <= 0) {
+          return false;
+        }
+        const normalizedUnit = String(unit || "").trim().toLowerCase();
+        if (Object.prototype.hasOwnProperty.call(MASS_UNITS_TO_G, normalizedUnit)) {
+          return (numericQty * MASS_UNITS_TO_G[normalizedUnit]) >= 2000;
+        }
+        if (Object.prototype.hasOwnProperty.call(VOLUME_UNITS_TO_ML, normalizedUnit)) {
+          return (numericQty * VOLUME_UNITS_TO_ML[normalizedUnit]) >= 2000;
+        }
+        return false;
+      }
+
       function sortedCategoryEntries(items) {
         const grouped = new Map();
         items.forEach((item) => {
-          const category = String(item.ingredient_category || "").trim() || "Uncategorized";
+          const category = ingredientCategoryName(item);
           const bucket = grouped.get(category) || [];
           bucket.push(item);
           grouped.set(category, bucket);
@@ -494,8 +676,108 @@
         const tr = document.createElement("tr");
         tr.className = "item-row";
 
+        const pickTd = document.createElement("td");
+        pickTd.className = "text-center";
+        const pickInput = document.createElement("input");
+        pickInput.type = "checkbox";
+        pickInput.className = "form-check-input";
+        pickInput.dataset.role = "pick-item";
+        const itemId = Number(item?.id || 0);
+        if (itemId > 0) {
+          pickInput.dataset.itemId = String(itemId);
+        }
+        pickInput.checked = itemId > 0 && selectedShoppingItemIds.has(itemId);
+        pickInput.addEventListener("change", () => {
+          if (itemId <= 0) {
+            return;
+          }
+          if (pickInput.checked) {
+            selectedShoppingItemIds.add(itemId);
+          } else {
+            selectedShoppingItemIds.delete(itemId);
+          }
+          updateSplitSelectedButtonState();
+        });
+        pickTd.appendChild(pickInput);
+        tr.appendChild(pickTd);
+
         const ingredientTd = document.createElement("td");
-        ingredientTd.innerHTML = `<div class="ingredient-name">${item.ingredient_name}</div>`;
+        const ingredientName = String(item?.ingredient_name || "").trim() || "Unknown ingredient";
+        const sourceBreakdown = Array.isArray(item?.source_breakdown)
+          ? item.source_breakdown
+              .map((entry) => ({
+                retreatPlanId: Number.isFinite(Number(entry?.retreat_plan_id)) ? Number(entry.retreat_plan_id) : null,
+                retreatPlanName: String(entry?.retreat_plan_name || "").trim() || "Unknown retreat",
+                requiredQty: Number(entry?.required_qty),
+                requiredUnit: String(entry?.required_unit || "").trim(),
+              }))
+              .filter((entry) => Number.isFinite(entry.requiredQty) && entry.requiredQty > 0 && entry.requiredUnit)
+          : [];
+
+        const topSource = item?.top_source && typeof item.top_source === "object"
+          ? {
+              retreatPlanName: String(item.top_source.retreat_plan_name || "").trim(),
+              dishName: String(item.top_source.dish_name || "").trim(),
+              requiredQty: Number(item.top_source.required_qty),
+              requiredUnit: String(item.top_source.required_unit || "").trim(),
+            }
+          : null;
+        const showSourceInsights = sourceBreakdown.length > 0
+          && meetsContributionThreshold(item?.required_qty, item?.required_unit);
+
+        const topLabelParts = [];
+        if (topSource?.retreatPlanName) {
+          topLabelParts.push(topSource.retreatPlanName);
+        }
+        if (topSource?.dishName) {
+          topLabelParts.push(topSource.dishName);
+        }
+
+        if (!showSourceInsights) {
+          const nameDiv = document.createElement("div");
+          nameDiv.className = "ingredient-name";
+          nameDiv.textContent = ingredientName;
+          ingredientTd.appendChild(nameDiv);
+        } else {
+          const details = document.createElement("details");
+          details.className = "ingredient-breakdown";
+
+          const summary = document.createElement("summary");
+          summary.className = "ingredient-breakdown-summary";
+          const nameSpan = document.createElement("span");
+          nameSpan.className = "ingredient-name";
+          nameSpan.textContent = ingredientName;
+          summary.appendChild(nameSpan);
+
+          const hoverLines = sourceBreakdown.map(
+            (entry) => `${entry.retreatPlanName}: ${formatNeededQty(entry.requiredQty, entry.requiredUnit)}`
+          );
+          if (topLabelParts.length) {
+            hoverLines.unshift(`Top contributor: ${topLabelParts.join(" / ")}`);
+          }
+          summary.title = hoverLines.join("\n");
+          details.appendChild(summary);
+
+          const breakdownList = document.createElement("div");
+          breakdownList.className = "ingredient-breakdown-list";
+          if (topLabelParts.length) {
+            const topBreakdownLine = document.createElement("div");
+            topBreakdownLine.className = "ingredient-breakdown-top";
+            const topQtyText = Number.isFinite(topSource?.requiredQty) && topSource?.requiredUnit
+              ? ` (${formatNeededQty(topSource.requiredQty, topSource.requiredUnit)})`
+              : "";
+            topBreakdownLine.textContent = `Top dish: ${topLabelParts.join(" / ")}${topQtyText}`;
+            breakdownList.appendChild(topBreakdownLine);
+          }
+          sourceBreakdown.forEach((entry) => {
+            const line = document.createElement("div");
+            line.className = "ingredient-breakdown-entry";
+            line.textContent = `${entry.retreatPlanName}: ${formatNeededQty(entry.requiredQty, entry.requiredUnit)}`;
+            breakdownList.appendChild(line);
+          });
+          details.appendChild(breakdownList);
+          ingredientTd.appendChild(details);
+        }
         tr.appendChild(ingredientTd);
 
         const requiredTd = document.createElement("td");
@@ -551,7 +833,7 @@
         const headerTr = document.createElement("tr");
         headerTr.className = "category-row";
         const headerTd = document.createElement("td");
-        headerTd.colSpan = 8;
+        headerTd.colSpan = 9;
 
         const heading = document.createElement("div");
         heading.className = "category-heading";
@@ -574,11 +856,51 @@
           shoppingTableWrap.classList.remove("is-loading");
         }
         const inventoryEditable = isInventoryEditablePhase(detail?.phase || activeListPhase);
+        const allItems = Array.isArray(detail?.items) ? detail.items : [];
+        const validItemIds = new Set(
+          allItems
+            .map((item) => Number(item?.id))
+            .filter((id) => Number.isFinite(id) && id > 0)
+        );
+        selectedShoppingItemIds = new Set(
+          Array.from(selectedShoppingItemIds).filter((id) => validItemIds.has(id))
+        );
+        const rawBreakdownCount = allItems.filter(
+          (item) => Array.isArray(item?.source_breakdown) && item.source_breakdown.length > 0
+        ).length;
+        const withBreakdownCount = allItems.filter(
+          (item) => Array.isArray(item?.source_breakdown)
+            && item.source_breakdown.length > 0
+            && meetsContributionThreshold(item?.required_qty, item?.required_unit)
+        ).length;
+        if (sourceBreakdownHint) {
+          if (!allItems.length) {
+            sourceBreakdownHint.classList.add("d-none");
+            sourceBreakdownHint.textContent = "";
+          } else if (rawBreakdownCount === 0) {
+            sourceBreakdownHint.classList.remove("d-none");
+            sourceBreakdownHint.textContent = "Retreat contribution details are not available for this list yet.";
+          } else if (withBreakdownCount === 0) {
+            sourceBreakdownHint.classList.remove("d-none");
+            sourceBreakdownHint.textContent = "No ingredients above 2 kg / 2 l threshold for contributor details.";
+          } else {
+            sourceBreakdownHint.classList.remove("d-none");
+            sourceBreakdownHint.textContent = `${withBreakdownCount} ingredients include contributor details (>= 2 kg or >= 2 l).`;
+          }
+        }
+        renderShoppingCategoryFilter(allItems);
+        const visibleItems = categoryFilteredItems(allItems);
+        visibleShoppingItemIds = new Set(
+          visibleItems
+            .map((item) => Number(item?.id))
+            .filter((id) => Number.isFinite(id) && id > 0)
+        );
+        updateSplitSelectedButtonState();
 
-        if (!detail?.items?.length) {
+        if (!allItems.length) {
           const tr = document.createElement("tr");
           const td = document.createElement("td");
-          td.colSpan = 8;
+          td.colSpan = 9;
           td.className = "text-muted small py-3";
           td.textContent = "No items found for this shopping list.";
           tr.appendChild(td);
@@ -587,12 +909,24 @@
           return;
         }
 
+        if (!visibleItems.length) {
+          const tr = document.createElement("tr");
+          const td = document.createElement("td");
+          td.colSpan = 9;
+          td.className = "text-muted small py-3";
+          td.textContent = `No items in ${selectedIngredientCategory}.`;
+          tr.appendChild(td);
+          shoppingBody.appendChild(tr);
+          triggerFadeIn(shoppingBody);
+          return;
+        }
+
         if (currentGroupMode === "source") {
-          sortedSourceEntries(detail.items).forEach((sourceEntry) => {
+          sortedSourceEntries(visibleItems).forEach((sourceEntry) => {
             const sourceTr = document.createElement("tr");
             sourceTr.className = "source-row";
             const sourceTd = document.createElement("td");
-            sourceTd.colSpan = 8;
+            sourceTd.colSpan = 9;
             sourceTd.textContent = `Source: ${sourceEntry.source} (${sourceEntry.totalItems} items)`;
             sourceTr.appendChild(sourceTd);
             shoppingBody.appendChild(sourceTr);
@@ -609,7 +943,7 @@
           return;
         }
 
-        sortedCategoryEntries(detail.items).forEach(([category, items]) => {
+        sortedCategoryEntries(visibleItems).forEach(([category, items]) => {
           shoppingBody.appendChild(renderCategoryHeaderRow(category, items.length));
 
           items.forEach((item) => {
@@ -630,12 +964,12 @@
             throw new Error(await parseApiError(response));
           }
           const detail = await response.json();
+          selectedShoppingItemIds = new Set();
+          visibleShoppingItemIds = new Set();
           activeShoppingDetail = detail;
           activeListId = detail.id;
+          dropdownSelectedListId = Number(detail.id);
           activeListPhase = String(detail.phase || "").trim().toLowerCase() || null;
-          if (isStepTwoList(detail)) {
-            setGroupMode("source");
-          }
           updateListActionStates();
           setSummary(detail);
           renderShoppingRows(detail);
@@ -663,9 +997,6 @@
           const detail = await response.json();
           activeShoppingDetail = detail;
           activeListPhase = String(detail.phase || "").trim().toLowerCase() || null;
-          if (isStepTwoList(detail)) {
-            setGroupMode("source");
-          }
           setSummary(detail);
           renderShoppingRows(detail);
           await loadShoppingLists();
@@ -692,9 +1023,7 @@
           retreatPlanId: retreatPlanIds.length === 1 ? retreatPlanIds[0] : null,
           retreatPlanIds,
           allRetreats,
-          name: listNameInput.value.trim() || null,
           phase: phaseSelect.value,
-          purchaseTiers: selectedPurchaseTiers(),
           subtractInventory: Boolean(subtractInventoryCheck.checked),
           includeZeroToBuy: Boolean(includeZeroCheck.checked),
         };
@@ -716,9 +1045,6 @@
           activeShoppingDetail = detail;
           activeListId = detail.id;
           activeListPhase = String(detail.phase || "").trim().toLowerCase() || null;
-          if (isStepTwoList(detail)) {
-            setGroupMode("source");
-          }
           updateListActionStates();
           setSummary(detail);
           renderShoppingRows(detail);
@@ -740,65 +1066,119 @@
         }
       }
 
-      async function createStepTwoOrderWithName(customName) {
-        if (!activeListId) {
+      async function renameShoppingListById(listId, nextNameRaw) {
+        const targetListId = Number(listId || 0);
+        if (!Number.isFinite(targetListId) || targetListId <= 0) {
           setStatus("Load a shopping list first.", "err");
           return;
         }
 
-        const payload = {
-          name: String(customName || "").trim() || null,
-        };
+        const nextName = String(nextNameRaw || "").trim();
+        if (!nextName) {
+          setStatus("Shopping list name cannot be blank.", "err");
+          if (inlineRenameInput) {
+            inlineRenameInput.focus();
+            inlineRenameInput.select();
+          }
+          return;
+        }
 
         try {
-          setButtonBusy(carryForwardBtn, true, "Creating");
-          setButtonBusy(confirmStepTwoBtn, true, "Creating");
-          setStatus("Creating Step 2 order...", "info", { busy: true });
-          renderShoppingSkeletonRows(8);
-          const response = await fetch(apiUrl(`/api/shopping-lists/${activeListId}/carry-forward`), {
-            method: "POST",
+          shoppingListSelect.disabled = true;
+          if (inlineRenameInput) inlineRenameInput.disabled = true;
+          if (inlineRenameSaveBtn) inlineRenameSaveBtn.disabled = true;
+          if (inlineRenameCancelBtn) inlineRenameCancelBtn.disabled = true;
+          setStatus("Renaming shopping list...", "info", { busy: true });
+          const response = await fetch(apiUrl(`/api/shopping-lists/${targetListId}`), {
+            method: "PATCH",
             credentials: "include",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(payload),
+            body: JSON.stringify({ name: nextName }),
           });
           if (!response.ok) {
             throw new Error(await parseApiError(response));
           }
           const detail = await response.json();
-          activeShoppingDetail = detail;
-          activeListId = detail.id;
-          activeListPhase = String(detail.phase || "").trim().toLowerCase() || null;
-          setGroupMode("source");
-          updateListActionStates();
-          setSummary(detail);
-          renderShoppingRows(detail);
+          if (Number(activeListId) === Number(targetListId)) {
+            activeShoppingDetail = detail;
+            activeListId = detail.id;
+            activeListPhase = String(detail.phase || "").trim().toLowerCase() || null;
+            updateListActionStates();
+            setSummary(detail);
+            renderShoppingRows(detail);
+          }
           await loadShoppingLists();
-          const carried = Number(detail.carried_item_count || 0);
-          setStatus(`Step 2 order created (${carried} items).`, "ok");
+          dropdownSelectedListId = Number(detail.id);
+          shoppingListSelect.value = String(detail.id);
+          closeInlineRenameEditor();
+          setStatus(`Renamed to "${detail.name}".`, "ok");
         } catch (error) {
           setStatus(error instanceof Error ? error.message : String(error), "err");
-          if (shoppingTableWrap) {
-            shoppingTableWrap.classList.remove("is-loading");
-          }
         } finally {
-          setButtonBusy(carryForwardBtn, false, "Creating");
-          setButtonBusy(confirmStepTwoBtn, false, "Creating");
+          shoppingListSelect.disabled = false;
+          if (inlineRenameInput) inlineRenameInput.disabled = false;
+          if (inlineRenameSaveBtn) inlineRenameSaveBtn.disabled = false;
+          if (inlineRenameCancelBtn) inlineRenameCancelBtn.disabled = false;
         }
       }
 
-      function openStepTwoModal() {
+      async function submitInlineRename() {
+        const targetListId = Number(renameEditingListId || selectedListIdForActions() || 0);
+        if (!Number.isFinite(targetListId) || targetListId <= 0) {
+          setStatus("Select a shopping list first.", "err");
+          return;
+        }
+        const proposedName = inlineRenameInput ? inlineRenameInput.value : "";
+        await renameShoppingListById(targetListId, proposedName);
+      }
+
+      async function deleteActiveShoppingList() {
         if (!activeListId) {
           setStatus("Load a shopping list first.", "err");
           return;
         }
-        if (stepTwoNameInput) {
-          stepTwoNameInput.value = "";
-        }
-        if (stepTwoModal) {
-          stepTwoModal.show();
+
+        const listName = listNameById(activeListId) || `Shopping List #${activeListId}`;
+        const confirmed = window.confirm(`Delete "${listName}"? This cannot be undone.`);
+        if (!confirmed) {
           return;
         }
-        void createStepTwoOrderWithName("");
+
+        try {
+          setButtonBusy(deleteListBtn, true, "Deleting");
+          setStatus("Deleting shopping list...", "info", { busy: true });
+          const response = await fetch(apiUrl(`/api/shopping-lists/${activeListId}`), {
+            method: "DELETE",
+            credentials: "include",
+          });
+          if (!response.ok) {
+            throw new Error(await parseApiError(response));
+          }
+          const deleted = await response.json();
+
+          activeShoppingDetail = null;
+          activeListId = null;
+          activeListPhase = null;
+          selectedShoppingItemIds = new Set();
+          visibleShoppingItemIds = new Set();
+          closeInlineRenameEditor();
+          updateListActionStates();
+          setSummary(null);
+          renderShoppingRows({ items: [] });
+
+          await loadShoppingLists();
+          if (shoppingLists.length) {
+            const nextId = Number(shoppingLists[0].id);
+            if (nextId) {
+              await loadShoppingListDetail(nextId);
+            }
+          }
+          setStatus(`Deleted "${deleted?.name || listName}".`, "ok");
+        } catch (error) {
+          setStatus(error instanceof Error ? error.message : String(error), "err");
+        } finally {
+          setButtonBusy(deleteListBtn, false, "Deleting");
+        }
       }
 
       async function applyInventoryFromList() {
@@ -836,12 +1216,107 @@
         }
       }
 
+      async function splitSelectedShoppingItems(options = {}) {
+        const {
+          nameOverride = null,
+          busyButton = splitSelectedAsBtn,
+          busyLabel = "Saving",
+        } = options;
+        if (!activeListId) {
+          setStatus("Load a shopping list first.", "err");
+          return;
+        }
+        const selectedIds = Array.from(selectedShoppingItemIds)
+          .map((value) => Number(value))
+          .filter((value) => Number.isFinite(value) && value > 0);
+        if (!selectedIds.length) {
+          setStatus("Select one or more items first.", "err");
+          return;
+        }
+
+        try {
+          setButtonBusy(busyButton, true, busyLabel);
+          setStatus("Saving selected items to a new list...", "info", { busy: true });
+          const requestBody = { itemIds: selectedIds };
+          const normalizedName = typeof nameOverride === "string" ? nameOverride.trim() : "";
+          if (normalizedName) {
+            requestBody.name = normalizedName;
+          }
+          const response = await fetch(apiUrl(`/api/shopping-lists/${activeListId}/split-selected`), {
+            method: "POST",
+            credentials: "include",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(requestBody),
+          });
+          if (!response.ok) {
+            throw new Error(await parseApiError(response));
+          }
+
+          const result = await response.json();
+          const sourceDetail = result?.source_list;
+          const newListDetail = result?.new_list;
+          if (!sourceDetail || !newListDetail) {
+            throw new Error("Unexpected split-selected response.");
+          }
+
+          selectedShoppingItemIds = new Set();
+          activeShoppingDetail = sourceDetail;
+          activeListId = Number(sourceDetail.id || activeListId);
+          activeListPhase = String(sourceDetail.phase || "").trim().toLowerCase() || null;
+          setSummary(sourceDetail);
+          renderShoppingRows(sourceDetail);
+          updateListActionStates();
+
+          await loadShoppingLists();
+          dropdownSelectedListId = Number(sourceDetail.id || activeListId);
+          if (dropdownSelectedListId) {
+            shoppingListSelect.value = String(dropdownSelectedListId);
+          }
+
+          const movedCount = Number(result?.split_item_count || selectedIds.length);
+          const newListName = String(newListDetail.name || "").trim() || "new list";
+          setStatus(`Moved ${movedCount} item(s) to "${newListName}".`, "ok");
+        } catch (error) {
+          setStatus(error instanceof Error ? error.message : String(error), "err");
+        } finally {
+          setButtonBusy(busyButton, false, busyLabel);
+          updateSplitSelectedButtonState();
+        }
+      }
+
+      async function splitSelectedShoppingItemsAs() {
+        if (!activeListId) {
+          setStatus("Load a shopping list first.", "err");
+          return;
+        }
+        if (!selectedShoppingItemIds.size) {
+          setStatus("Select one or more items first.", "err");
+          return;
+        }
+
+        const sourceName = listNameById(activeListId) || `Shopping List #${activeListId}`;
+        const suggestedName = `${sourceName} - Selected`;
+        const rawName = window.prompt("Name for the new shopping list:", suggestedName);
+        if (rawName == null) {
+          return;
+        }
+        const finalName = rawName.trim();
+        if (!finalName) {
+          setStatus("List name cannot be blank.", "err");
+          return;
+        }
+        await splitSelectedShoppingItems({
+          nameOverride: finalName,
+          busyButton: splitSelectedAsBtn,
+          busyLabel: "Saving",
+        });
+      }
+
       async function bootstrap() {
         try {
           setStatus("Loading shopping workspace...", "info", { busy: true });
           renderShoppingSkeletonRows(10);
           setGroupMode("category");
-          syncTierSelectionForPhase();
           const loadWorkspaceData = () =>
             Promise.allSettled([
               loadRetreatPlans(),
@@ -887,6 +1362,8 @@
                 activeShoppingDetail = null;
                 activeListId = null;
                 activeListPhase = null;
+                selectedShoppingItemIds = new Set();
+                visibleShoppingItemIds = new Set();
                 updateListActionStates();
                 setSummary(null);
                 renderShoppingRows({ items: [] });
@@ -899,6 +1376,8 @@
             activeShoppingDetail = null;
             activeListId = null;
             activeListPhase = null;
+            selectedShoppingItemIds = new Set();
+            visibleShoppingItemIds = new Set();
             updateListActionStates();
             setSummary(null);
             renderShoppingRows({ items: [] });
@@ -919,7 +1398,6 @@
         }
       }
 
-      phaseSelect.addEventListener("change", syncTierSelectionForPhase);
       groupModeSelect.addEventListener("change", () => {
         setGroupMode(groupModeSelect.value);
         renderShoppingRows(activeShoppingDetail || { items: [] });
@@ -939,11 +1417,13 @@
       });
 
       loadListBtn.addEventListener("click", () => {
-        const selected = Number(shoppingListSelect.value || 0);
+        const selected = selectedListIdForActions();
         if (!selected) {
           setStatus("Select a shopping list to load.", "err");
           return;
         }
+        dropdownSelectedListId = Number(selected);
+        shoppingListSelect.value = String(selected);
         setButtonBusy(loadListBtn, true, "Loading");
         void loadShoppingListDetail(selected)
           .then(() => setStatus("List loaded.", "ok"))
@@ -951,21 +1431,94 @@
           .finally(() => setButtonBusy(loadListBtn, false, "Loading"));
       });
 
-      carryForwardBtn.addEventListener("click", openStepTwoModal);
+      shoppingListSelect.addEventListener("change", () => {
+        const raw = String(shoppingListSelect.value || "").trim();
+        if (!raw) {
+          return;
+        }
 
-      if (confirmStepTwoBtn) {
-        confirmStepTwoBtn.addEventListener("click", () => {
-          const customName = stepTwoNameInput ? stepTwoNameInput.value : "";
-          if (stepTwoModal) {
-            stepTwoModal.hide();
+        if (raw === RENAME_SELECTED_LIST_VALUE) {
+          const selected = selectedListIdForActions();
+          if (!selected) {
+            setStatus("Select a shopping list first.", "err");
+            return;
           }
-          void createStepTwoOrderWithName(customName);
+          shoppingListSelect.value = String(selected);
+          openInlineRenameEditor(selected);
+          return;
+        }
+
+        const selected = Number(raw);
+        if (Number.isFinite(selected) && selected > 0) {
+          dropdownSelectedListId = selected;
+          if (renameEditingListId && Number(renameEditingListId) !== selected) {
+            closeInlineRenameEditor();
+          }
+        }
+      });
+
+      if (inlineRenameSaveBtn) {
+        inlineRenameSaveBtn.addEventListener("click", () => {
+          void submitInlineRename();
         });
       }
+
+      if (inlineRenameCancelBtn) {
+        inlineRenameCancelBtn.addEventListener("click", () => {
+          closeInlineRenameEditor();
+          setStatus("Rename canceled.", "info");
+        });
+      }
+
+      if (inlineRenameInput) {
+        inlineRenameInput.addEventListener("keydown", (event) => {
+          if (event.key === "Enter") {
+            event.preventDefault();
+            void submitInlineRename();
+            return;
+          }
+          if (event.key === "Escape") {
+            event.preventDefault();
+            closeInlineRenameEditor();
+            setStatus("Rename canceled.", "info");
+          }
+        });
+      }
+
+      deleteListBtn.addEventListener("click", () => {
+        void deleteActiveShoppingList();
+      });
 
       applyInventoryBtn.addEventListener("click", () => {
         void applyInventoryFromList();
       });
+
+      if (splitSelectedAsBtn) {
+        splitSelectedAsBtn.addEventListener("click", () => {
+          void splitSelectedShoppingItemsAs();
+        });
+      }
+
+      if (selectAllVisibleInput) {
+        selectAllVisibleInput.addEventListener("change", () => {
+          if (!activeListId || visibleShoppingItemIds.size <= 0) {
+            updateSelectAllVisibleState();
+            return;
+          }
+          const shouldSelect = Boolean(selectAllVisibleInput.checked);
+          if (shouldSelect) {
+            visibleShoppingItemIds.forEach((id) => selectedShoppingItemIds.add(id));
+          } else {
+            visibleShoppingItemIds.forEach((id) => selectedShoppingItemIds.delete(id));
+          }
+          shoppingBody.querySelectorAll('input[data-role="pick-item"]').forEach((node) => {
+            if (node instanceof HTMLInputElement) {
+              node.checked = shouldSelect;
+            }
+          });
+          updateSplitSelectedButtonState();
+        });
+      }
 
       refreshListsBtn.addEventListener("click", () => {
         void loadShoppingLists({ showBusy: true })

@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>About Blossom Foundation</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+    <link rel="stylesheet" href="assets/header-theme.css" />
+    <style>
+      body {
+        font-family: "Plus Jakarta Sans", sans-serif;
+      }
+      h1, h2, h3, .navbar-brand {
+        font-family: "Instrument Serif", serif;
+      }
+      .content-section {
+        max-width: 920px;
+        margin: 0 auto;
+        padding: 2rem 1rem;
+      }
+      .highlight-card {
+        background: rgba(255, 255, 255, 0.9);
+        border: 1px solid var(--ui-border, #e6eaf1);
+        border-radius: 1rem;
+        padding: 1.25rem;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+      }
+      .highlight-icon {
+        width: 2.5rem;
+        height: 2.5rem;
+        border-radius: 999px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.05rem;
+      }
+    </style>
+    <link rel="stylesheet" href="assets/ui-theme.css" />
+  </head>
+  <body>
+    <nav class="navbar navbar-expand-lg navbar-light fixed-top">
+      <div class="container">
+        <a class="navbar-brand" href="index.html">
+          <img class="brand-logo" src="assets/blossom-mark.png" alt="Blossom logo" />
+          <span>Blossom Foundation</span>
+        </a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarContent">
+          <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarContent">
+          <ul class="navbar-nav ms-auto mb-2 mb-lg-0 fw-semibold small text-uppercase">
+            <li class="nav-item">
+              <a class="nav-link" href="index.html"><i class="fa-solid fa-house me-1"></i> Home</a>
+            </li>
+            <li class="nav-item dropdown">
+              <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false"><i class="fa-solid fa-utensils me-1"></i> Kitchen</a>
+              <ul class="dropdown-menu">
+                <li><a class="dropdown-item" href="retreat-planner-sample.html"><i class="fa-solid fa-calendar-days me-2"></i> Planner</a></li>
+                <li><a class="dropdown-item" href="shopping-list.html"><i class="fa-solid fa-cart-shopping me-2"></i> Shopping</a></li>
+                <li><a class="dropdown-item" href="kitchen-service-view.html"><i class="fa-solid fa-fire-burner me-2"></i> Retreat View</a></li>
+                <li><a class="dropdown-item" href="kitchen-test-view.html"><i class="fa-solid fa-vial me-2"></i> Testing View</a></li>
+                <li><a class="dropdown-item" href="recipe-admin.html"><i class="fa-solid fa-book me-2"></i> Recipes</a></li>
+                <li><a class="dropdown-item" href="ingredient-admin.html"><i class="fa-solid fa-carrot me-2"></i> Ingredients</a></li>
+              </ul>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="inventory.html"><i class="fa-solid fa-boxes-stacked me-1"></i> Inventory</a>
+            </li>
+            <li class="nav-item dropdown">
+              <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false"><i class="fa-solid fa-seedling me-1"></i> About</a>
+              <ul class="dropdown-menu">
+                <li><a class="dropdown-item" href="about.html"><i class="fa-solid fa-heart me-2"></i> About &amp; Mission</a></li>
+                <li><a class="dropdown-item" href="about-sri-m.html"><i class="fa-solid fa-user me-2"></i> About Sri M</a></li>
+                <li><a class="dropdown-item" href="sacred-grove.html"><i class="fa-solid fa-tree me-2"></i> Sacred Grove</a></li>
+                <li><a class="dropdown-item" href="faq.html"><i class="fa-solid fa-circle-question me-2"></i> FAQ</a></li>
+              </ul>
+            </li>
+            <li class="nav-item dropdown">
+              <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false"><i class="fa-solid fa-hand-holding-heart me-1"></i> Volunteer</a>
+              <ul class="dropdown-menu">
+                <li><a class="dropdown-item" href="volunteer.html"><i class="fa-solid fa-hands-helping me-2"></i> How to Volunteer</a></li>
+                <li><a class="dropdown-item" href="volunteer-contact.html"><i class="fa-solid fa-envelope me-2"></i> Contact Us</a></li>
+              </ul>
+            </li>
+            <li class="nav-item dropdown">
+              <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false"><i class="fa-solid fa-gear me-1"></i> Admin</a>
+              <ul class="dropdown-menu">
+                <li><a class="dropdown-item" href="user-admin.html"><i class="fa-solid fa-users-gear me-2"></i> Users</a></li>
+                <li><a class="dropdown-item" href="ingredient-admin.html"><i class="fa-solid fa-carrot me-2"></i> Ingredients</a></li>
+              </ul>
+            </li>
+            <li class="nav-item d-flex align-items-center">
+              <span class="nav-link text-muted d-none" id="authUserLabel"></span>
+            </li>
+            <li class="nav-item d-flex align-items-center ms-lg-2">
+              <button class="btn btn-sm btn-outline-secondary d-none" id="logoutBtn" type="button">Logout</button>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </nav>
+
+    <main class="content-section">
+      <h1 class="mb-3"><i class="fa-solid fa-heart text-danger me-2"></i>About Blossom Foundation</h1>
+      <p class="lead text-muted mb-4">
+        Blossom Foundation develops programs for spiritual and physical well-being and is building Sacred Grove as a center for yogic studies and the exploration of consciousness.
+      </p>
+
+      <section class="mb-5">
+        <h2>What We Do</h2>
+        <p>
+          We offer retreat-based and year-round learning programs rooted in authentic yogic traditions and practical inner work.
+          These offerings are guided by Sri M and are designed for participants from all backgrounds.
+        </p>
+      </section>
+
+      <section class="mb-5">
+        <h2>Programs &amp; Offerings</h2>
+        <div class="row g-3 mt-1">
+          <div class="col-md-6">
+            <div class="highlight-card h-100">
+              <span class="highlight-icon bg-success-subtle text-success mb-2"><i class="fa-solid fa-person-praying"></i></span>
+              <h3 class="h5 mt-2">Kriya Yoga Retreats</h3>
+              <p class="text-muted mb-0">Retreats that introduce the principles and practice process of Kriya Yoga, including yogic anatomy and core preparatory steps.</p>
+            </div>
+          </div>
+          <div class="col-md-6">
+            <div class="highlight-card h-100">
+              <span class="highlight-icon bg-info-subtle text-info mb-2"><i class="fa-solid fa-book-open-reader"></i></span>
+              <h3 class="h5 mt-2">Upanishad Retreats</h3>
+              <p class="text-muted mb-0">Deep study retreats where Sri M explores selected Upanishadic teachings with participants who come ready for inquiry and reflection.</p>
+            </div>
+          </div>
+          <div class="col-md-6">
+            <div class="highlight-card h-100">
+              <span class="highlight-icon bg-warning-subtle text-warning mb-2"><i class="fa-solid fa-dumbbell"></i></span>
+              <h3 class="h5 mt-2">Yoga Asana Classes</h3>
+              <p class="text-muted mb-0">Weekly classes and annual courses rooted in the Hatha Yoga tradition, open to practitioners at different levels.</p>
+            </div>
+          </div>
+          <div class="col-md-6">
+            <div class="highlight-card h-100">
+              <span class="highlight-icon bg-primary-subtle text-primary mb-2"><i class="fa-solid fa-language"></i></span>
+              <h3 class="h5 mt-2">SamskritaM Swadhyaya</h3>
+              <p class="text-muted mb-0">A structured Sanskrit learning initiative delivered in an accessible format for home-based study.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="mb-4">
+        <h2>Learn More</h2>
+        <p>
+          Learn more about our spiritual guide on the <a href="about-sri-m.html">About Sri M</a> page and about our retreat center on the
+          <a href="sacred-grove.html">Sacred Grove</a> page.
+        </p>
+      </section>
+    </main>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="assets/auth.js"></script>
+  </body>
+</html>

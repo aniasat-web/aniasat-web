@@ -2,7 +2,17 @@
   const loginPath = "/login.html";
   const currentPath = window.location.pathname;
   const isLoginPage = currentPath.endsWith(loginPath);
-  const PUBLIC_PAGES = new Set(["/kitchen-service-view.html"]);
+  const PUBLIC_PAGES = new Set([
+    "/kitchen-service-view.html",
+    "/about.html",
+    "/about-sri-m.html",
+    "/sacred-grove.html",
+    "/volunteer.html",
+    "/faq.html",
+    "/volunteer-contact.html",
+    "/index.html",
+    "/",
+  ]);
 
   const PAGE_ROLE_REQUIREMENTS = {
     "/": ["viewer", "planner", "admin"],
@@ -15,6 +25,14 @@
     "/kitchen-service-view.html": ["viewer", "planner", "admin"],
     "/kitchen-test-view.html": ["viewer", "planner", "admin"],
     "/recipe-scaling.html": ["viewer", "planner", "admin"],
+    "/inventory.html": ["planner", "admin"],
+    "/kitchen.html": ["viewer", "planner", "admin"],
+    "/about.html": ["viewer", "planner", "admin"],
+    "/about-sri-m.html": ["viewer", "planner", "admin"],
+    "/sacred-grove.html": ["viewer", "planner", "admin"],
+    "/volunteer.html": ["viewer", "planner", "admin"],
+    "/faq.html": ["viewer", "planner", "admin"],
+    "/volunteer-contact.html": ["viewer", "planner", "admin"],
   };
 
   function resolveApiBase() {
@@ -93,7 +111,11 @@
     const links = Array.from(document.querySelectorAll(".navbar .nav-link[href]"));
     links.forEach((link) => link.classList.remove("active"));
 
+    const dropdownItems = Array.from(document.querySelectorAll(".navbar .dropdown-item[href]"));
+    dropdownItems.forEach((item) => item.classList.remove("active"));
+
     const routeCandidates = currentPath === "/" ? ["/", "/index.html"] : [currentPath];
+
     const activeLink = links.find((link) => {
       const parent = link.closest(".nav-item");
       if (parent && parent.classList.contains("d-none")) {
@@ -104,6 +126,18 @@
     });
     if (activeLink) {
       activeLink.classList.add("active");
+    }
+
+    const activeDropdownItem = dropdownItems.find((item) => {
+      const path = resolvePathnameFromHref(item.getAttribute("href") || "");
+      return path && routeCandidates.includes(path);
+    });
+    if (activeDropdownItem) {
+      activeDropdownItem.classList.add("active");
+      const parentToggle = activeDropdownItem.closest(".dropdown")?.querySelector(".dropdown-toggle");
+      if (parentToggle) {
+        parentToggle.classList.add("active");
+      }
     }
   }
 
@@ -141,12 +175,37 @@
       const path = resolvePathnameFromHref(link.getAttribute("href") || "");
       const show = shouldShowPathForRole(path, role || null);
       const parent = link.closest(".nav-item");
-      if (parent) {
+      if (parent && !parent.classList.contains("dropdown")) {
         parent.classList.toggle("d-none", !show);
-      } else {
+      } else if (!parent) {
         link.classList.toggle("d-none", !show);
       }
     });
+
+    const dropdownItems = Array.from(document.querySelectorAll(".navbar .dropdown-item[href]"));
+    dropdownItems.forEach((item) => {
+      const path = resolvePathnameFromHref(item.getAttribute("href") || "");
+      const show = shouldShowPathForRole(path, role || null);
+      item.classList.toggle("d-none", !show);
+    });
+
+    const dropdowns = Array.from(document.querySelectorAll(".navbar .nav-item.dropdown"));
+    dropdowns.forEach((dropdown) => {
+      const visibleItems = dropdown.querySelectorAll(".dropdown-item:not(.d-none)");
+      dropdown.classList.toggle("d-none", visibleItems.length === 0);
+    });
+
+    const kitchenSubnav = document.querySelector(".kitchen-subnav");
+    const kitchenTabs = Array.from(document.querySelectorAll(".kitchen-subnav a[href]"));
+    kitchenTabs.forEach((tab) => {
+      const path = resolvePathnameFromHref(tab.getAttribute("href") || "");
+      const show = shouldShowPathForRole(path, role || null);
+      tab.classList.toggle("d-none", !show);
+    });
+    if (kitchenSubnav) {
+      const visibleTabs = kitchenSubnav.querySelectorAll("a[href]:not(.d-none)");
+      kitchenSubnav.classList.toggle("d-none", visibleTabs.length === 0);
+    }
 
     if (!role) {
       const authUserLabel = document.getElementById("authUserLabel");
@@ -178,6 +237,11 @@
         ? event.target.closest("a[href], button#logoutBtn")
         : null;
       if (!target) {
+        return;
+      }
+
+      // Keep navbar open when the tap is only expanding a dropdown menu.
+      if (target.matches("[data-bs-toggle='dropdown']")) {
         return;
       }
 

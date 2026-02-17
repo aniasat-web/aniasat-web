@@ -306,7 +306,4 @@ def list_users(conn: Any) -> list[dict[str, Any]]:
 
 
 def default_route_for_role(role: str) -> str:
-    normalized = normalize_role(role)
-    if normalized in {ROLE_ADMIN, ROLE_PLANNER}:
-        return "/retreat-planner-sample.html"
-    return "/kitchen-service-view.html"
+    return "/index.html"

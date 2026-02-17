@@ -309,8 +309,245 @@
         font-size: 0.8rem;
       }
     </style>
+    <link rel="stylesheet" href="assets/ui-theme.css" />
+    <style>
+      body.planner-page .planner-shell {
+        display: grid;
+        gap: 1rem;
+      }
+
+      body.planner-page .planner-hero {
+        position: relative;
+        overflow: hidden;
+      }
+
+      body.planner-page .planner-hero::after {
+        content: "";
+        position: absolute;
+        top: -48px;
+        right: -56px;
+        width: 240px;
+        height: 240px;
+        border-radius: 999px;
+        background: radial-gradient(circle, rgba(251, 146, 60, 0.32), rgba(251, 146, 60, 0));
+        pointer-events: none;
+      }
+
+      body.planner-page .setup-panel,
+      body.planner-page .saved-panel,
+      body.planner-page .mealplan-panel {
+        border-color: #e8edf5;
+      }
+
+      body.planner-page .setup-panel .form-label {
+        margin-bottom: 0.32rem;
+        font-size: 0.67rem;
+        letter-spacing: 0.08em;
+      }
+
+      body.planner-page .setup-actions {
+        margin-top: 1.05rem;
+        padding: 0.9rem;
+        border: 1px solid #e8edf5;
+        border-radius: 0.95rem;
+        background: linear-gradient(160deg, rgba(255, 253, 249, 0.92), rgba(255, 247, 237, 0.76));
+      }
+
+      body.planner-page #retreatStoreStatus {
+        display: inline-flex;
+        align-items: center;
+        border: 1px solid #fed7aa;
+        border-radius: 999px;
+        padding: 0.2rem 0.62rem;
+        background: #fff7ed;
+        color: #b45309 !important;
+        font-size: 0.72rem;
+      }
+
+      body.planner-page #retreatStoreStatus.is-busy {
+        border-color: #fdba74;
+      }
+
+      body.planner-page .saved-panel .retreat-list-card {
+        min-height: 126px;
+      }
+
+      body.planner-page .saved-panel .retreat-list-skeleton {
+        display: grid;
+        gap: 0.62rem;
+        align-content: start;
+      }
+
+      body.planner-page .saved-panel .retreat-list-skeleton .skeleton-title {
+        height: 1.02rem;
+        width: 72%;
+      }
+
+      body.planner-page .saved-panel .retreat-list-skeleton .skeleton-subtitle {
+        height: 0.84rem;
+        width: 56%;
+      }
+
+      body.planner-page .saved-panel .retreat-list-skeleton .skeleton-meta {
+        height: 0.72rem;
+        width: 82%;
+      }
+
+      body.planner-page .planner-toolbar {
+        position: sticky;
+        top: calc(var(--ui-navbar-height) + 0.72rem);
+        z-index: 18;
+        border: 1px solid #e8edf5;
+        background: rgba(255, 255, 255, 0.9) !important;
+        backdrop-filter: blur(12px);
+      }
+
+      body.planner-page #dayViewStatus {
+        border: 0;
+        color: #fff;
+        background: linear-gradient(135deg, #f97316, #c2410c);
+        letter-spacing: 0.02em;
+      }
+
+      body.planner-page .planner-day-grid > .col {
+        display: flex;
+      }
+
+      body.planner-page .planner-day-grid.is-loading {
+        opacity: 0.78;
+        pointer-events: none;
+      }
+
+      body.planner-page .planner-day-grid .day-card {
+        width: 100%;
+        background: linear-gradient(180deg, #ffffff, #fffaf3);
+        border: 1px solid #e8edf5;
+      }
+
+      body.planner-page .planner-day-grid .day-card.day-card-skeleton {
+        display: grid;
+        gap: 0.92rem;
+        align-content: start;
+      }
+
+      body.planner-page .day-card-skeleton .skeleton-day-head {
+        display: grid;
+        gap: 0.5rem;
+      }
+
+      body.planner-page .day-card-skeleton .skeleton-title {
+        height: 1rem;
+        width: 36%;
+      }
+
+      body.planner-page .day-card-skeleton .skeleton-subtitle {
+        height: 0.8rem;
+        width: 44%;
+      }
+
+      body.planner-page .day-card-skeleton .meal-card-skeleton {
+        display: grid;
+        gap: 0.45rem;
+        margin: 0 !important;
+        padding: 0.86rem !important;
+        border: 1px solid #e8edf5;
+        border-radius: 0.92rem;
+        background: #fff;
+      }
+
+      body.planner-page .day-card-skeleton .meal-chip-line {
+        height: 0.74rem;
+        width: 42%;
+      }
+
+      body.planner-page .day-card-skeleton .meal-meta-line {
+        height: 0.68rem;
+        width: 66%;
+      }
+
+      body.planner-page .day-card > .d-flex {
+        margin-bottom: 1rem !important;
+        padding-bottom: 0.7rem !important;
+        border-bottom-color: #e8edf5 !important;
+      }
+
+      body.planner-page .meal-grid {
+        display: grid;
+        gap: 0.9rem;
+      }
+
+      body.planner-page .meal-card {
+        margin: 0 !important;
+        padding: 0.92rem !important;
+        border: 1px solid #e8edf5 !important;
+        border-radius: 0.95rem;
+        background: #fff;
+      }
+
+      body.planner-page .meal-card:last-child {
+        border-bottom: 1px solid #e8edf5 !important;
+      }
+
+      body.planner-page .meal-card .meal-people {
+        width: 78px !important;
+        text-align: center;
+        font-weight: 700;
+      }
+
+      body.planner-page .meal-card .add-dish {
+        border: 1px solid #fdba74 !important;
+        border-radius: 999px;
+        background: #fffaf3;
+        color: #c2410c;
+      }
+
+      body.planner-page .meal-card .add-dish:hover {
+        border-color: #fb923c !important;
+        background: #ffedd5;
+      }
+
+      body.planner-page .dish-list {
+        min-height: 3.4rem;
+        border-style: solid;
+        border-color: #e8edf5;
+        background: linear-gradient(180deg, #fbfdff, #f8fbff);
+        padding: 0.85rem;
+      }
+
+      body.planner-page .dish-row {
+        margin-bottom: 0.45rem !important;
+      }
+
+      body.planner-page .dish-row:last-child {
+        margin-bottom: 0 !important;
+      }
+
+      body.planner-page .dish-drag-handle,
+      body.planner-page .remove-dish {
+        border-color: #e2e8f0;
+      }
+
+      body.planner-page .kitchen-panel {
+        border-color: #fdba74 !important;
+        background: linear-gradient(135deg, #fff8e7, #ffefcc) !important;
+      }
+
+      body.planner-page #kitchenShareUrl {
+        border: 1px solid #fed7aa !important;
+      }
+
+      @media (max-width: 991.98px) {
+        body.planner-page .planner-toolbar {
+          position: static;
+        }
+
+        body.planner-page .setup-actions {
+          padding: 0.75rem;
+        }
+      }
+    </style>
   </head>
-  <body>
+  <body class="planner-page">
     <!-- Navbar -->
     <nav class="navbar navbar-expand-lg navbar-light fixed-top">
       <div class="container">
@@ -358,8 +595,8 @@
       </div>
     </nav>
 
-    <main class="container py-4">
-      <section class="card hero-gradient p-4 mb-4 border-0">
+    <main class="container py-4 planner-shell">
+      <section class="card hero-gradient p-4 mb-4 border-0 planner-hero">
         <div class="row align-items-center">
           <div class="col-lg-7">
             <h1 class="fw-bold mb-2 text-dark"><i class="fa-solid fa-wand-magic-sparkles text-warning me-2"></i>Retreat Planner</h1>
@@ -384,7 +621,7 @@
         </div>
       </section>
 
-      <section class="card p-4">
+      <section class="card p-4 setup-panel">
         <div class="d-flex align-items-center justify-content-between mb-4">
           <h2 class="h5 fw-bold mb-0"><i class="fa-solid fa-sliders me-2 text-primary"></i>Setup</h2>
           <div class="badge bg-light text-dark border">
@@ -419,7 +656,7 @@
             <input id="defaultPeople" type="number" class="form-control" min="1" value="160" />
           </div>
         </div>
-        <div class="mt-4 d-flex flex-wrap gap-2 justify-content-between align-items-center border-top pt-4">
+        <div class="setup-actions d-flex flex-wrap gap-2 justify-content-between align-items-center">
           <div class="d-flex gap-2">
             <button class="btn btn-primary fw-bold shadow-sm" id="buildSchedule">
               <i class="fa-solid fa-layer-group me-2"></i>Build Schedule
@@ -443,7 +680,7 @@
         </div>
       </section>
 
-      <section class="card p-4" id="savedRetreatsSection">
+      <section class="card p-4 saved-panel" id="savedRetreatsSection">
         <div class="d-flex align-items-center justify-content-between mb-3">
           <h2 class="h5 fw-bold mb-0"><i class="fa-solid fa-folder-open me-2 text-primary"></i>Saved Retreats</h2>
           <span class="small text-muted fw-semibold" id="savedRetreatsCount"></span>
@@ -453,7 +690,7 @@
         </div>
       </section>
 
-      <section class="card p-4" id="mealPlanSection" hidden>
+      <section class="card p-4 mealplan-panel" id="mealPlanSection" hidden>
         <div class="d-flex align-items-center justify-content-between mb-4">
           <div>
             <h2 class="h5 fw-bold mb-1"><i class="fa-solid fa-calendar-week me-2 text-primary"></i>Meal Plan</h2>
@@ -466,7 +703,7 @@
           </div>
         </div>
 
-        <div class="toolbar mb-4 d-flex align-items-center flex-wrap gap-3 shadow-sm bg-white">
+        <div class="toolbar planner-toolbar mb-4 d-flex align-items-center flex-wrap gap-3 shadow-sm bg-white">
           <div class="d-flex align-items-center gap-2">
             <label class="small fw-bold text-muted text-uppercase mb-0"><i class="fa-solid fa-filter me-1"></i> View:</label>
             <select id="dayPicker" class="form-select form-select-sm border-0 bg-light fw-bold" style="width: auto; cursor: pointer;"></select>
@@ -477,10 +714,10 @@
           </div>
         </div>
         
-        <div id="dayContainer" class="row row-cols-1 row-cols-lg-2 g-4"></div>
+        <div id="dayContainer" class="row row-cols-1 row-cols-lg-2 g-4 planner-day-grid"></div>
       </section>
 
-      <section class="card p-4 border-warning bg-warning-subtle" id="kitchenSection" hidden>
+      <section class="card p-4 border-warning bg-warning-subtle kitchen-panel" id="kitchenSection" hidden>
         <div class="row align-items-center">
           <div class="col-md-8">
             <h2 class="h5 fw-bold mb-2 text-dark"><i class="fa-solid fa-bullhorn me-2 text-warning"></i>Kitchen Operations</h2>
@@ -587,6 +824,8 @@
       const statRecipes = document.getElementById("statRecipes");
       const savedRetreatsList = document.getElementById("savedRetreatsList");
       const savedRetreatsCount = document.getElementById("savedRetreatsCount");
+      const buildScheduleBtn = document.getElementById("buildSchedule");
+      const loadSampleBtn = document.getElementById("loadSample");
       const API_BASE = resolveApiBase();
 
       let currentViewDay = 1;
@@ -1208,6 +1447,102 @@
         }
       }
 
+      function triggerFadeIn(node) {
+        if (!node) {
+          return;
+        }
+        node.classList.remove("ui-fade-enter");
+        void node.offsetWidth;
+        node.classList.add("ui-fade-enter");
+      }
+
+      function renderSavedRetreatSkeleton(count = 6) {
+        if (!savedRetreatsList) {
+          return;
+        }
+        savedRetreatsList.innerHTML = "";
+        const total = Math.max(1, Math.min(12, Number(count) || 1));
+        for (let i = 0; i < total; i += 1) {
+          const col = document.createElement("div");
+          col.className = "col";
+          const card = document.createElement("div");
+          card.className = "retreat-list-card retreat-list-skeleton";
+
+          const lineA = document.createElement("div");
+          lineA.className = "ui-skeleton-line skeleton-title";
+          const lineB = document.createElement("div");
+          lineB.className = "ui-skeleton-line skeleton-subtitle";
+          const lineC = document.createElement("div");
+          lineC.className = "ui-skeleton-line skeleton-meta";
+
+          card.appendChild(lineA);
+          card.appendChild(lineB);
+          card.appendChild(lineC);
+          col.appendChild(card);
+          savedRetreatsList.appendChild(col);
+        }
+      }
+
+      function renderDaySkeleton(days = 2) {
+        dayContainer.innerHTML = "";
+        dayContainer.classList.add("is-loading");
+        const totalDays = Math.max(1, Math.min(6, Number(days) || 2));
+
+        for (let i = 0; i < totalDays; i += 1) {
+          const col = document.createElement("div");
+          col.className = "col day-card-col";
+
+          const dayCard = document.createElement("article");
+          dayCard.className = "card p-4 day-card day-card-skeleton h-100";
+          dayCard.dataset.day = String(i + 1);
+
+          const head = document.createElement("div");
+          head.className = "skeleton-day-head";
+          head.innerHTML = `
+            <div class="ui-skeleton-line skeleton-title"></div>
+            <div class="ui-skeleton-line skeleton-subtitle"></div>
+          `;
+
+          const mealGrid = document.createElement("div");
+          mealGrid.className = "meal-grid";
+
+          for (let j = 0; j < MEALS.length; j += 1) {
+            const mealCard = document.createElement("div");
+            mealCard.className = "meal-card meal-card-skeleton";
+            mealCard.innerHTML = `
+              <div class="ui-skeleton-line meal-chip-line"></div>
+              <div class="ui-skeleton-line meal-meta-line"></div>
+              <div class="ui-skeleton-line meal-meta-line"></div>
+            `;
+            mealGrid.appendChild(mealCard);
+          }
+
+          dayCard.appendChild(head);
+          dayCard.appendChild(mealGrid);
+          col.appendChild(dayCard);
+          dayContainer.appendChild(col);
+        }
+
+        setMealPlanVisible(true);
+        dayViewStatus.textContent = "Loading...";
+        prevDayBtn.disabled = true;
+        nextDayBtn.disabled = true;
+        dayPicker.disabled = true;
+        showAllDaysToggle.disabled = true;
+      }
+
+      function buildScheduleWithTransition(days, mealLookup = null) {
+        renderDaySkeleton(days);
+        return new Promise((resolve) => {
+          window.requestAnimationFrame(() => {
+            window.requestAnimationFrame(() => {
+              buildSchedule(days, mealLookup);
+              resolve();
+            });
+          });
+        });
+      }
+
       function mealToneClass(meal) {
         if (meal === "Breakfast") {
           return "meal-breakfast";
@@ -1492,9 +1827,11 @@
           dayContainer.appendChild(col);
         }
 
+        dayContainer.classList.remove("is-loading");
         configureDayView(days);
         updateHeroStats(days);
         setMealPlanVisible(days > 0);
+        triggerFadeIn(dayContainer);
         updateKitchenPublishStatus("Plan changed. Open Kitchen Service Page to publish.");
         initAllTomSelects();
         applyActiveProfileToMealCards();
@@ -1507,9 +1844,12 @@
         }
       }
 
-      function updateRetreatStoreStatus(message) {
+      function updateRetreatStoreStatus(message, mode = "ok") {
         if (retreatStoreStatus) {
           retreatStoreStatus.textContent = message;
+          const isBusy = mode === "busy";
+          retreatStoreStatus.classList.toggle("is-busy", isBusy);
+          retreatStoreStatus.classList.toggle("ui-busy-pulse", isBusy);
         }
       }
 
@@ -1799,6 +2139,7 @@
         }
         setActiveHeadcountProfile(PROFILE_RETREAT, { scheduleSave: false, updateStatus: false });
         dayContainer.innerHTML = "";
+        dayContainer.classList.remove("is-loading");
         setMealPlanVisible(false);
         setKitchenSectionVisible(false);
         updateHeroStats(0);
@@ -1826,6 +2167,7 @@
         if (!plans || !plans.length) {
           savedRetreatsList.innerHTML = '<div class="col"><div class="text-muted small text-center py-3">No saved retreats yet.</div></div>';
           savedRetreatsCount.textContent = "";
+          triggerFadeIn(savedRetreatsList);
           return;
         }
         savedRetreatsCount.textContent = `${plans.length} retreat${plans.length !== 1 ? "s" : ""}`;
@@ -1891,6 +2233,7 @@
           col.appendChild(card);
           savedRetreatsList.appendChild(col);
         });
+        triggerFadeIn(savedRetreatsList);
       }
 
       function refreshSavedRetreatsHighlight(activePlanId) {
@@ -1899,7 +2242,12 @@
         });
       }
 
-      async function refreshRetreatPlanOptions(selectedName = null, selectedPlanId = null) {
+      async function refreshRetreatPlanOptions(selectedName = null, selectedPlanId = null, showLoading = true) {
+        if (showLoading) {
+          renderSavedRetreatSkeleton();
+          savedRetreatsCount.textContent = "Loading...";
+          updateRetreatStoreStatus("Loading saved retreats...", "busy");
+        }
         try {
           const response = await fetch(apiUrl("/api/retreat-plans"));
           if (!response.ok) {
@@ -1965,10 +2313,12 @@
           updateDeleteRetreatButtonState();
           renderSavedRetreatCards(plans);
 
-          if (plans.length) {
-            updateRetreatStoreStatus(`Loaded ${plans.length} saved retreats.`);
-          } else {
-            updateRetreatStoreStatus("No saved retreats yet.");
+          if (showLoading) {
+            if (plans.length) {
+              updateRetreatStoreStatus(`Loaded ${plans.length} saved retreats.`);
+            } else {
+              updateRetreatStoreStatus("No saved retreats yet.");
+            }
           }
         } catch (error) {
           retreatPlanIdByName = new Map();
@@ -1976,7 +2326,9 @@
           setRetreatPickerValue(getRetreatPickerValue() || "Untitled Retreat");
           updateDeleteRetreatButtonState();
           renderSavedRetreatCards([]);
-          updateRetreatStoreStatus("Could not load retreats.");
+          if (showLoading) {
+            updateRetreatStoreStatus("Could not load retreats.");
+          }
         }
       }
 
@@ -1995,7 +2347,10 @@
         }
 
         try {
-          updateRetreatStoreStatus(mode === "autosave" ? "Auto-saving..." : "Saving...");
+          updateRetreatStoreStatus(
+            mode === "autosave" ? "Auto-saving..." : "Saving...",
+            "busy"
+          );
           const endpoint = apiUrl("/api/retreat-plans");
           const response = await fetch(endpoint, {
             method: "POST",
@@ -2023,7 +2378,7 @@
           );
           setKitchenSectionVisible(true);
           updateShareableUrl();
-          await refreshRetreatPlanOptions(result.name, Number(result.id));
+          await refreshRetreatPlanOptions(result.name, Number(result.id), mode !== "autosave");
           void autoPublishKitchenSnapshot();
           return true;
         } catch (error) {
@@ -2053,7 +2408,8 @@
         }
 
         try {
-          updateRetreatStoreStatus("Loading retreat...");
+          updateRetreatStoreStatus("Loading retreat...", "busy");
+          dayContainer.classList.add("is-loading");
           isApplyingLoadedRetreat = true;
           const response = await fetch(apiUrl(`/api/retreat-plans/${selectedId}`));
           if (!response.ok) {
@@ -2107,6 +2463,7 @@
           updateRetreatStoreStatus("Could not load selected retreat.");
           return false;
         } finally {
+          dayContainer.classList.remove("is-loading");
           isApplyingLoadedRetreat = false;
         }
       }
@@ -2156,7 +2513,7 @@
         }
 
         try {
-          updateRetreatStoreStatus(`Deleting "${retreatName}"...`);
+          updateRetreatStoreStatus(`Deleting "${retreatName}"...`, "busy");
           const response = await fetch(apiUrl(`/api/retreat-plans/${selectedId}`), {
             method: "DELETE",
           });
@@ -2202,7 +2559,7 @@
 
         const sourcePlanId = currentRetreatPlanId;
         try {
-          updateRetreatStoreStatus("Duplicating retreat...");
+          updateRetreatStoreStatus("Duplicating retreat...", "busy");
           const response = await fetch(apiUrl(`/api/retreat-plans/${sourcePlanId}/duplicate`), {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -2421,11 +2778,12 @@
         }
         const days = Math.max(1, Math.min(10, rawDays));
         dayCountInput.value = String(days);
-        buildSchedule(days);
+        updateRetreatStoreStatus("Building schedule...", "busy");
+        void buildScheduleWithTransition(days);
         return true;
       }
 
-      document.getElementById("buildSchedule").addEventListener("click", () => {
+      buildScheduleBtn?.addEventListener("click", () => {
         if (!tryBuildScheduleFromDayCount()) {
           dayCountInput.focus();
           return;
@@ -2444,7 +2802,7 @@
         }
       });
 
-      document.getElementById("loadSample").addEventListener("click", () => {
+      loadSampleBtn?.addEventListener("click", () => {
         currentRetreatPlanId = null;
         lastSavedRetreatFingerprint = "";
         setRetreatPickerValue("Fall Kriya + Upanishad Retreat");
@@ -2456,7 +2814,8 @@
           testDefaultPeopleInput.value = "4";
         }
         setActiveHeadcountProfile(PROFILE_RETREAT, { scheduleSave: false, updateStatus: false });
-        buildSchedule(3);
+        updateRetreatStoreStatus("Loading sample schedule...", "busy");
+        void buildScheduleWithTransition(3);
       });
 
       newRetreatBtn.addEventListener("click", resetPlannerForNewRetreat);

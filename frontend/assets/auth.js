@@ -39,6 +39,16 @@
     window.location.href = `${loginPath}?${params.toString()}`;
   }
 
+  function buildLoginHref() {
+    const params = new URLSearchParams();
+    params.set("next", `${window.location.pathname}${window.location.search}`);
+    const apiOverride = new URLSearchParams(window.location.search).get("api");
+    if (apiOverride && apiOverride.trim() && apiOverride.trim() !== window.location.origin) {
+      params.set("api", apiOverride.trim());
+    }
+    return `${loginPath}?${params.toString()}`;
+  }
+
   function routeForRole(role) {
     return "/index.html";
   }
@@ -49,6 +59,135 @@
       return true;
     }
     return required.includes(role);
+  }
+
+  function resolvePathnameFromHref(href) {
+    try {
+      return new URL(href, window.location.href).pathname;
+    } catch (_error) {
+      return null;
+    }
+  }
+
+  function shouldShowPathForRole(pathname, role) {
+    if (!pathname) {
+      return true;
+    }
+    if (pathname === loginPath) {
+      return true;
+    }
+    const required = PAGE_ROLE_REQUIREMENTS[pathname];
+    if (required) {
+      if (!role) {
+        return PUBLIC_PAGES.has(pathname);
+      }
+      return required.includes(role);
+    }
+    if (!role) {
+      return PUBLIC_PAGES.has(pathname);
+    }
+    return true;
+  }
+
+  function syncActiveNavLink() {
+    const links = Array.from(document.querySelectorAll(".navbar .nav-link[href]"));
+    links.forEach((link) => link.classList.remove("active"));
+
+    const routeCandidates = currentPath === "/" ? ["/", "/index.html"] : [currentPath];
+    const activeLink = links.find((link) => {
+      const parent = link.closest(".nav-item");
+      if (parent && parent.classList.contains("d-none")) {
+        return false;
+      }
+      const path = resolvePathnameFromHref(link.getAttribute("href") || "");
+      return path && routeCandidates.includes(path);
+    });
+    if (activeLink) {
+      activeLink.classList.add("active");
+    }
+  }
+
+  function ensureGuestLoginCta(role) {
+    const navList = document.querySelector(".navbar .navbar-nav");
+    if (!navList) {
+      return;
+    }
+    let item = document.getElementById("guestLoginNavItem");
+    if (role || isLoginPage) {
+      if (item) {
+        item.remove();
+      }
+      return;
+    }
+    if (!item) {
+      item = document.createElement("li");
+      item.id = "guestLoginNavItem";
+      item.className = "nav-item ms-lg-2";
+      const anchor = document.createElement("a");
+      anchor.className = "btn btn-sm btn-primary px-3";
+      anchor.textContent = "Sign In";
+      item.appendChild(anchor);
+      navList.appendChild(item);
+    }
+    const link = item.querySelector("a");
+    if (link) {
+      link.href = buildLoginHref();
+    }
+  }
+
+  function applyNavVisibility(role) {
+    const links = Array.from(document.querySelectorAll(".navbar .nav-link[href]"));
+    links.forEach((link) => {
+      const path = resolvePathnameFromHref(link.getAttribute("href") || "");
+      const show = shouldShowPathForRole(path, role || null);
+      const parent = link.closest(".nav-item");
+      if (parent) {
+        parent.classList.toggle("d-none", !show);
+      } else {
+        link.classList.toggle("d-none", !show);
+      }
+    });
+
+    if (!role) {
+      const authUserLabel = document.getElementById("authUserLabel");
+      if (authUserLabel) {
+        authUserLabel.classList.add("d-none");
+      }
+      const logoutBtn = document.getElementById("logoutBtn");
+      if (logoutBtn) {
+        logoutBtn.classList.add("d-none");
+      }
+    }
+
+    ensureGuestLoginCta(role || null);
+    syncActiveNavLink();
+  }
+
+  function initMobileNavbarAutoClose() {
+    const navCollapse = document.getElementById("navbarContent");
+    if (!navCollapse || !window.bootstrap || !window.bootstrap.Collapse) {
+      return;
+    }
+    if (navCollapse.dataset.mobileAutoCloseBound === "1") {
+      return;
+    }
+    navCollapse.dataset.mobileAutoCloseBound = "1";
+
+    navCollapse.addEventListener("click", (event) => {
+      const target = event.target instanceof Element
+        ? event.target.closest("a[href], button#logoutBtn")
+        : null;
+      if (!target) {
+        return;
+      }
+
+      if (window.matchMedia("(min-width: 992px)").matches) {
+        return;
+      }
+
+      const collapse = window.bootstrap.Collapse.getOrCreateInstance(navCollapse, { toggle: false });
+      collapse.hide();
+    });
   }
 
   async function parseJsonSafe(response) {
@@ -132,6 +271,8 @@
       return;
     }
 
+    applyNavVisibility(null);
+
     try {
       const bootstrapResponse = await fetch(apiUrl("/api/auth/bootstrap-status"), {
         method: "GET",
@@ -198,9 +339,12 @@
       return;
     }
 
+    applyNavVisibility(user.role);
     applyUserUi(user);
     window.retreatAuthUser = user;
   }
+
+  initMobileNavbarAutoClose();
 
   if (isLoginPage) {
     void initLoginPage();
@@ -209,11 +353,16 @@
     void loadCurrentUser()
       .then((user) => {
         if (user && user.role) {
+          applyNavVisibility(user.role);
           applyUserUi(user);
           window.retreatAuthUser = user;
+          return;
         }
+        applyNavVisibility(null);
       })
-      .catch(() => null);
+      .catch(() => {
+        applyNavVisibility(null);
+      });
   } else {
     void initProtectedPage();
   }

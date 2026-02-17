@@ -7,7 +7,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,700&family=Sora:wght@400;500;600;700&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap"
       rel="stylesheet"
     />
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" />
@@ -15,16 +15,13 @@
     <link rel="stylesheet" href="assets/header-theme.css" />
     <style>
       :root {
-        --bg: #f4f8f6;
-        --bg-soft: #eef6f2;
-        --ink: #1f2933;
-        --muted: #5f6b75;
-        --card: #ffffff;
-        --line: #d8e2dc;
-        --hero-a: #c7f9cc;
-        --hero-b: #fef9c3;
-        --primary: #0f766e;
-        --primary-ink: #ffffff;
+        --bg: #faf8f5;
+        --ink: #292524;
+        --muted: #78716c;
+        --border: #e7e5e4;
+        --primary: #b45309;
+        --primary-hover: #92400e;
+        --surface: #fffefb;
       }
 
       * {
@@ -35,12 +32,38 @@
         margin: 0;
         min-height: 100vh;
         color: var(--ink);
-        font-family: "Sora", sans-serif;
+        font-family: "Plus Jakarta Sans", sans-serif;
         padding-top: 70px;
-        background:
-          radial-gradient(900px 420px at -120px -120px, #d9f99d 0%, rgba(217, 249, 157, 0) 62%),
-          radial-gradient(980px 500px at 120% -100px, #bae6fd 0%, rgba(186, 230, 253, 0) 58%),
-          linear-gradient(180deg, var(--bg) 0%, var(--bg-soft) 100%);
+        background-color: var(--bg);
+      }
+
+      h1, h2, h3, .navbar-brand {
+        font-family: "Instrument Serif", serif;
+      }
+
+      .navbar {
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(10px);
+        border-bottom: 1px solid var(--border);
+        box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+      }
+      .navbar-brand {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-size: 1.35rem;
+        font-weight: 600 !important;
+        color: var(--primary) !important;
+      }
+      .navbar .nav-link {
+        color: var(--muted);
+        letter-spacing: 0.02em;
+      }
+      .navbar .nav-link:hover {
+        color: var(--primary);
+      }
+      .navbar .nav-link.active {
+        color: var(--ink) !important;
       }
 
       .d-none {
@@ -62,11 +85,11 @@
 
       .hero {
         position: relative;
-        border: 1px solid #cbd5c0;
-        border-radius: 1.1rem;
+        border: 1px solid var(--border);
+        border-radius: 1rem;
         min-height: clamp(220px, 34vw, 420px);
         overflow: hidden;
-        box-shadow: 0 12px 24px rgba(15, 23, 42, 0.07);
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
         background-color: #d6e9d9;
         background-image:
           linear-gradient(180deg, rgba(29, 52, 38, 0.08) 0%, rgba(29, 52, 38, 0.45) 100%),
@@ -81,7 +104,7 @@
         bottom: 1rem;
         z-index: 1;
         margin: 0;
-        font-family: "Fraunces", serif;
+        font-family: "Instrument Serif", serif;
         font-size: clamp(1.05rem, 2vw, 1.35rem);
         line-height: 1.15;
         color: #ffffff;
@@ -108,11 +131,11 @@
       }
 
       .journey-card {
-        background: var(--card);
-        border: 1px solid var(--line);
+        background: var(--surface);
+        border: 1px solid var(--border);
         border-radius: 1rem;
         padding: 0.95rem;
-        box-shadow: 0 8px 20px rgba(15, 23, 42, 0.05);
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
         display: grid;
         gap: 0.6rem;
         transform: translateY(8px);
@@ -160,7 +183,7 @@
 
       .journey-card h2 {
         margin: 0;
-        font-family: "Fraunces", serif;
+        font-family: "Instrument Serif", serif;
         font-size: 1.2rem;
         line-height: 1.15;
       }
@@ -213,6 +236,7 @@
       }
 
     </style>
+    <link rel="stylesheet" href="assets/ui-theme.css" />
   </head>
   <body>
     <nav class="navbar navbar-expand-lg navbar-light fixed-top">

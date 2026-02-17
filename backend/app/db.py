@@ -22,6 +22,7 @@ DEFAULT_VENDOR_NAMES = [
     "Costco",
     "Sams",
     "Other Indian Store",
+    "Shweta Buy from India",
     "Amazon",
     "Webstaurant",
     "Braums",

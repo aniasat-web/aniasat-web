@@ -1627,30 +1627,43 @@
         select.required = true;
         select.setAttribute("aria-label", "Dish lookup");
 
+        const normalizedSelectedName = String(selectedName || "").trim();
         const recipeNames = getRecipeNames();
         if (!recipeNames.length) {
           const option = document.createElement("option");
-          option.value = "";
-          option.textContent = "Recipes unavailable (check API)";
+          option.value = normalizedSelectedName || "";
+          option.textContent = normalizedSelectedName
+            ? `${normalizedSelectedName} (missing recipe)`
+            : "Recipes unavailable (check API)";
           option.selected = true;
-          option.disabled = true;
           select.appendChild(option);
-          select.disabled = true;
+          if (!normalizedSelectedName) {
+            option.disabled = true;
+            select.disabled = true;
+          }
           return select;
         }
 
-        const hasSelectedRecipe = recipeNames.includes(selectedName);
+        const hasSelectedRecipe = recipeNames.includes(normalizedSelectedName);
         const placeholder = document.createElement("option");
         placeholder.value = "";
         placeholder.textContent = "Select dish";
         placeholder.selected = !hasSelectedRecipe;
         select.appendChild(placeholder);
 
+        if (normalizedSelectedName && !hasSelectedRecipe) {
+          const missingOption = document.createElement("option");
+          missingOption.value = normalizedSelectedName;
+          missingOption.textContent = `${normalizedSelectedName} (missing recipe)`;
+          missingOption.selected = true;
+          select.appendChild(missingOption);
+        }
+
         recipeNames.forEach((name) => {
           const option = document.createElement("option");
           option.value = name;
           option.textContent = name;
-          if (name === selectedName) {
+          if (name === normalizedSelectedName) {
             option.selected = true;
           }
           select.appendChild(option);

@@ -308,6 +308,7 @@
             </thead>
             <tbody id="ingredientBody"></tbody>
           </table>
+          <datalist id="ingredientCategoryOptions"></datalist>
         </div>
       </section>
     </main>
@@ -320,9 +321,28 @@
       const saveStatus = document.getElementById("saveStatus");
       const categoryFilter = document.getElementById("categoryFilter");
       const ingredientBody = document.getElementById("ingredientBody");
+      const categoryOptions = document.getElementById("ingredientCategoryOptions");
 
       const API_BASE = resolveApiBase();
       const AUTO_SAVE_DELAY_MS = 800;
+      const CATEGORY_DATALIST_ID = "ingredientCategoryOptions";
+      const DEFAULT_CATEGORY_SUGGESTIONS = [
+        "Produce",
+        "Grains & Flours",
+        "Pulses & Legumes",
+        "Spices & Seasonings",
+        "Oils & Fats",
+        "Dairy & Refrigerated",
+        "Nuts & Seeds",
+        "Condiments & Sauces",
+        "Prepared & Packaged",
+        "Pantry Staples",
+        "Sweeteners",
+        "Beverages",
+        "Herbs",
+        "Frozen",
+        "Ready to Serve",
+      ];
       let ingredients = [];
       let selectedCategory = null;
 
@@ -340,6 +360,25 @@
         saveStatus.textContent = message;
         saveStatus.classList.remove("info", "ok", "err");
         saveStatus.classList.add(mode);
+      }
+
+      function renderCategoryTypeaheadOptions() {
+        const categories = new Set();
+        DEFAULT_CATEGORY_SUGGESTIONS.forEach((category) => {
+          const normalized = String(category || "").trim();
+          if (normalized) categories.add(normalized);
+        });
+        ingredients.forEach((ing) => {
+          const normalized = String(ing.category || "").trim();
+          if (normalized) categories.add(normalized);
+        });
+        const sorted = Array.from(categories).sort((a, b) => a.localeCompare(b));
+        categoryOptions.innerHTML = "";
+        sorted.forEach((category) => {
+          const option = document.createElement("option");
+          option.value = category;
+          categoryOptions.appendChild(option);
+        });
       }
 
       async function parseApiError(response) {
@@ -430,8 +469,9 @@
           const catInput = document.createElement("input");
           catInput.type = "text";
           catInput.className = "form-control form-control-sm";
+          catInput.setAttribute("list", CATEGORY_DATALIST_ID);
           catInput.value = ing.category || "";
-          catInput.placeholder = "e.g. Spice";
+          catInput.placeholder = "Type or pick category";
           catTd.appendChild(catInput);
 
           // Purchase Tier
@@ -573,7 +613,6 @@
               lastSavedPayloadJson = payloadJson;
               await fetchIngredients();
               renderCategoryFilter();
-
               renderTable();
               setStatus(`Saved "${payload.name}".`, "ok");
             } catch (error) {
@@ -623,6 +662,7 @@
         ingredients = Array.isArray(payload)
           ? payload.sort((a, b) => (a.name || "").localeCompare(b.name || ""))
           : [];
+        renderCategoryTypeaheadOptions();
         statIngredients.textContent = String(ingredients.length);
       }
 

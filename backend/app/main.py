@@ -746,6 +746,19 @@ def generate_shopping_list(
         shopping_list_id = int(created["id"])
 
         inserted_items = 0
+        ingredient_category_by_id: dict[int, str | None] = {}
+        ingredient_ids = sorted({int(entry["ingredient_id"]) for entry in aggregate.values()})
+        if ingredient_ids:
+            placeholders = ",".join("?" for _ in ingredient_ids)
+            category_rows = conn.execute(
+                f"SELECT id, category FROM ingredients WHERE id IN ({placeholders})",
+                tuple(ingredient_ids),
+            ).fetchall()
+            ingredient_category_by_id = {
+                int(row["id"]): (str(row["category"] or "").strip() or None)
+                for row in category_rows
+            }
+
         for key, entry in sorted(
             aggregate.items(),
             key=lambda item: item[1]["ingredient_name"].lower(),
@@ -757,7 +770,11 @@ def generate_shopping_list(
             if not payload.includeZeroToBuy and to_buy_canonical <= 0:
                 continue
 
-            row_unit = preferred_metric_unit(required_canonical, canonical_unit)
+            ingredient_category = ingredient_category_by_id.get(int(ingredient_id))
+            if canonical_unit == "g" and is_spice_or_seasoning_category(ingredient_category):
+                row_unit = "g"
+            else:
+                row_unit = preferred_metric_unit(required_canonical, canonical_unit)
             required_qty = canonical_qty_to_unit(required_canonical, canonical_unit, row_unit)
             in_stock_qty = canonical_qty_to_unit(in_stock_canonical, canonical_unit, row_unit)
             to_buy_qty = canonical_qty_to_unit(to_buy_canonical, canonical_unit, row_unit)
@@ -2039,7 +2056,7 @@ def load_shopping_list_detail(conn: Any, shopping_list_id: int) -> dict[str, Any
         SELECT
             sli.id,
             sli.ingredient_id,
-            i.name AS ingredient_name,
+            COALESCE(i.name, ('Unknown ingredient #' || sli.ingredient_id)) AS ingredient_name,
             i.category AS ingredient_category,
             sli.required_qty,
             sli.required_unit,
@@ -2058,10 +2075,13 @@ def load_shopping_list_detail(conn: Any, shopping_list_id: int) -> dict[str, Any
             sli.pickup_date,
             sli.notes
         FROM shopping_list_items sli
-        JOIN ingredients i ON i.id = sli.ingredient_id
+        LEFT JOIN ingredients i ON i.id = sli.ingredient_id
         LEFT JOIN vendors v ON v.id = sli.vendor_id
         WHERE sli.shopping_list_id = ?
-        ORDER BY lower(i.name), sli.id
+        ORDER BY
+            CASE WHEN i.name IS NULL THEN 1 ELSE 0 END,
+            lower(COALESCE(i.name, '')),
+            sli.id
         """,
         (shopping_list_id,),
     ).fetchall()
@@ -2086,7 +2106,9 @@ def load_shopping_list_detail(conn: Any, shopping_list_id: int) -> dict[str, Any
         ingredient_name = row["ingredient_name"]
         if ingredient_row_counts.get(ingredient_id, 0) > 1:
             qualifier = str(row["required_unit"] or row["to_buy_unit"] or "").strip()
-            if qualifier:
+            # Keep names clean for count-style units (e.g., "Cardamom" instead of
+            # "Cardamom (piece)") while still qualifying other duplicate unit splits.
+            if qualifier and qualifier.lower() not in {"piece", "pieces"}:
                 ingredient_name = f"{ingredient_name} ({qualifier})"
 
         items.append(
@@ -2406,17 +2428,25 @@ def replace_recipe_steps(conn: Any, recipe_id: int, steps: list[str] | None) -> 
         )
 
 
-def ingredient_profile(ingredient_name: str) -> tuple[float | None, str | None]:
+def ingredient_profile(ingredient_name: str) -> tuple[float | None, str | None, str | None]:
     with get_connection() as conn:
         row = conn.execute(
-            "SELECT grams_per_cup, canonical_unit FROM ingredients WHERE lower(name) = lower(?)",
+            "SELECT grams_per_cup, canonical_unit, category FROM ingredients WHERE lower(name) = lower(?)",
             (ingredient_name.strip(),),
         ).fetchone()
         if not row:
-            return None, None
+            return None, None, None
         grams_per_cup = float(row["grams_per_cup"]) if row["grams_per_cup"] else None
         canonical_unit = normalize_unit(str(row["canonical_unit"] or "").strip()) if row["canonical_unit"] else None
-        return grams_per_cup, canonical_unit
+        category = str(row["category"] or "").strip() if row["category"] else None
+        return grams_per_cup, canonical_unit, category
+
+
+def is_spice_or_seasoning_category(category: str | None) -> bool:
+    if not category:
+        return False
+    normalized = category.strip().lower()
+    return "spice" in normalized or "seasoning" in normalized
 
 
 def ingredient_specific_g_per_unit(ingredient_name: str, unit: str) -> float | None:
@@ -2474,8 +2504,9 @@ def to_canonical(ingredient_name: str, qty: float, unit: str) -> tuple[float | N
     if specific_g_per_unit is not None:
         return qty * specific_g_per_unit, "g", "Converted using ingredient-specific unit conversion."
 
+    grams_per_cup, canonical_unit, ingredient_category = ingredient_profile(ingredient_name)
+
     if unit in VOLUME_TO_ML:
-        grams_per_cup, canonical_unit = ingredient_profile(ingredient_name)
         if grams_per_cup is not None:
             cups = (qty * VOLUME_TO_ML[unit]) / VOLUME_TO_ML["cup"]
             grams = cups * grams_per_cup
@@ -2489,6 +2520,8 @@ def to_canonical(ingredient_name: str, qty: float, unit: str) -> tuple[float | N
         return qty * VOLUME_TO_ML[unit], "ml", "No ingredient density found; kept as volume."
 
     if unit in COUNT_UNITS:
+        if canonical_unit == "g" and is_spice_or_seasoning_category(ingredient_category):
+            return qty, "g", "Spice/seasoning count unit normalized to grams by policy fallback."
         return qty, unit, None
 
     return None, None, f"Unknown unit '{unit}'."

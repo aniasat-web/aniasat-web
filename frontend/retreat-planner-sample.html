@@ -321,6 +321,23 @@
         overflow: hidden;
       }
 
+      body.planner-page .planner-hero h1 {
+        font-size: clamp(1.62rem, 1.12rem + 1.45vw, 2.34rem);
+        letter-spacing: -0.02em;
+      }
+
+      body.planner-page .planner-hero p {
+        max-width: 62ch;
+        line-height: 1.55;
+      }
+
+      body.planner-page .planner-hero .stat-card {
+        min-width: 98px;
+        padding: 0.78rem 1rem;
+        border-radius: 0.95rem;
+        background: linear-gradient(165deg, rgba(255, 255, 255, 0.96), rgba(255, 248, 239, 0.92)) !important;
+      }
+
       body.planner-page .planner-hero::after {
         content: "";
         position: absolute;
@@ -343,6 +360,11 @@
         margin-bottom: 0.32rem;
         font-size: 0.67rem;
         letter-spacing: 0.08em;
+      }
+
+      body.planner-page .setup-panel .form-text {
+        margin-top: 0.4rem;
+        color: #64748b;
       }
 
       body.planner-page .setup-actions {
@@ -370,6 +392,20 @@
 
       body.planner-page .saved-panel .retreat-list-card {
         min-height: 126px;
+        border-color: #f2d8bb;
+        background: linear-gradient(155deg, #fffefb, #fff7ea);
+      }
+
+      body.planner-page .saved-panel .retreat-list-card.active-retreat {
+        box-shadow: 0 12px 24px rgba(194, 65, 12, 0.16), inset 0 0 0 1px rgba(194, 65, 12, 0.14);
+      }
+
+      body.planner-page .saved-panel .retreat-name {
+        letter-spacing: -0.01em;
+      }
+
+      body.planner-page .saved-panel .retreat-meta {
+        color: #64748b;
       }
 
       body.planner-page .saved-panel .retreat-list-skeleton {
@@ -422,6 +458,12 @@
         width: 100%;
         background: linear-gradient(180deg, #ffffff, #fffaf3);
         border: 1px solid #e8edf5;
+      }
+
+      body.planner-page .planner-day-grid .day-card .badge {
+        border-color: #e5eaf2 !important;
+        background: linear-gradient(180deg, #ffffff, #f8fafc);
+        color: #64748b !important;
       }
 
       body.planner-page .planner-day-grid .day-card.day-card-skeleton {
@@ -482,10 +524,25 @@
         border: 1px solid #e8edf5 !important;
         border-radius: 0.95rem;
         background: #fff;
+        transition:
+          transform 0.18s cubic-bezier(0.2, 0.7, 0.2, 1),
+          box-shadow 0.18s cubic-bezier(0.2, 0.7, 0.2, 1),
+          border-color 0.18s cubic-bezier(0.2, 0.7, 0.2, 1);
       }
 
       body.planner-page .meal-card:last-child {
         border-bottom: 1px solid #e8edf5 !important;
+      }
+
+      body.planner-page .meal-card:hover {
+        transform: translateY(-1px);
+        border-color: #fed7aa !important;
+        box-shadow: 0 10px 20px rgba(15, 23, 42, 0.08);
+      }
+
+      body.planner-page .meal-card .meal-badge {
+        border: 1px solid rgba(148, 163, 184, 0.26);
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.5);
       }
 
       body.planner-page .meal-card .meal-people {
@@ -516,6 +573,14 @@
 
       body.planner-page .dish-row {
         margin-bottom: 0.45rem !important;
+        padding: 0.34rem 0.36rem;
+        border: 1px solid #e7edf5;
+        border-radius: 0.75rem;
+        background: rgba(255, 255, 255, 0.86);
+      }
+
+      body.planner-page .dish-row .form-select {
+        border-radius: 0.72rem !important;
       }
 
       body.planner-page .dish-row:last-child {

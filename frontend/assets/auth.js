@@ -26,6 +26,7 @@
     "/kitchen-test-view.html": ["viewer", "planner", "admin"],
     "/recipe-scaling.html": ["viewer", "planner", "admin"],
     "/inventory.html": ["planner", "admin"],
+    "/change-password.html": ["viewer", "planner", "admin"],
     "/kitchen.html": ["viewer", "planner", "admin"],
     "/about.html": ["viewer", "planner", "admin"],
     "/about-sri-m.html": ["viewer", "planner", "admin"],
@@ -65,6 +66,16 @@
       params.set("api", apiOverride.trim());
     }
     return `${loginPath}?${params.toString()}`;
+  }
+
+  function buildChangePasswordHref() {
+    const params = new URLSearchParams();
+    const apiOverride = new URLSearchParams(window.location.search).get("api");
+    if (apiOverride && apiOverride.trim() && apiOverride.trim() !== window.location.origin) {
+      params.set("api", apiOverride.trim());
+    }
+    const query = params.toString();
+    return `/change-password.html${query ? `?${query}` : ""}`;
   }
 
   function routeForRole(role) {
@@ -223,6 +234,10 @@
       if (authUserLabel) {
         authUserLabel.classList.add("d-none");
       }
+      const changePasswordBtn = document.getElementById("changePasswordBtn");
+      if (changePasswordBtn) {
+        changePasswordBtn.classList.add("d-none");
+      }
       const logoutBtn = document.getElementById("logoutBtn");
       if (logoutBtn) {
         logoutBtn.classList.add("d-none");
@@ -318,6 +333,22 @@
 
     const logoutBtn = document.getElementById("logoutBtn");
     if (logoutBtn) {
+      const parent = logoutBtn.parentElement;
+      if (parent) {
+        let changePasswordBtn = document.getElementById("changePasswordBtn");
+        if (!changePasswordBtn && currentPath !== "/change-password.html") {
+          changePasswordBtn = document.createElement("a");
+          changePasswordBtn.id = "changePasswordBtn";
+          changePasswordBtn.className = "btn btn-sm btn-outline-primary d-none";
+          parent.insertBefore(changePasswordBtn, logoutBtn);
+        }
+        if (changePasswordBtn) {
+          changePasswordBtn.href = buildChangePasswordHref();
+          changePasswordBtn.textContent = "Change Password";
+          changePasswordBtn.classList.remove("d-none");
+        }
+      }
+
       logoutBtn.classList.remove("d-none");
       logoutBtn.addEventListener("click", async () => {
         try {

@@ -1,11 +1,14 @@
 from __future__ import annotations
 
 import json
+import os
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Annotated
 from typing import Any
 from typing import Literal
+from urllib import error as urllib_error
+from urllib import request as urllib_request
 
 from fastapi import Depends, FastAPI, HTTPException, Query, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
@@ -28,6 +31,7 @@ from .auth import (
     default_route_for_role,
     delete_session,
     ensure_bootstrap_admin,
+    hash_session_token,
     has_any_users,
     list_users,
     normalize_role,
@@ -109,6 +113,12 @@ RECIPE_CATEGORIES = [
     "Pickles",
     "Ready to Serve",
 ]
+
+OPENAI_API_KEY_ENV = "OPENAI_API_KEY"
+OPENAI_API_BASE_ENV = "RETREAT_OPS_OPENAI_API_BASE"
+OPENAI_INGREDIENT_DUP_MODEL_ENV = "RETREAT_OPS_INGREDIENT_DUP_MODEL"
+DEFAULT_OPENAI_API_BASE = "https://api.openai.com/v1"
+DEFAULT_INGREDIENT_DUP_MODEL = "gpt-5-mini"
 
 PUBLIC_API_PATHS = {
     "/api/health",
@@ -220,6 +230,11 @@ class AuthUserUpdatePayload(BaseModel):
     is_active: bool | None = None
 
 
+class AuthChangePasswordPayload(BaseModel):
+    current_password: str = Field(min_length=1)
+    new_password: str = Field(min_length=1)
+
+
 class IngredientUpdatePayload(BaseModel):
     name: str = Field(min_length=1)
     canonical_unit: str | None = None
@@ -227,6 +242,11 @@ class IngredientUpdatePayload(BaseModel):
     notes: str | None = None
     category: str | None = None
     purchase_tier: str | None = None
+
+
+class IngredientDuplicateScanPayload(BaseModel):
+    max_groups: int = Field(default=20, ge=1, le=60)
+    model: str | None = None
 
 
 class StandaloneInventoryCreate(BaseModel):
@@ -453,6 +473,41 @@ def auth_me(request: Request) -> dict[str, Any]:
     }
 
 
+@app.post("/api/auth/change-password")
+def auth_change_password(
+    payload: AuthChangePasswordPayload,
+    request: Request,
+    user: Annotated[AuthUser, Depends(require_authenticated_user)],
+) -> dict[str, str]:
+    if payload.current_password == payload.new_password:
+        raise HTTPException(status_code=400, detail="New password must be different from current password.")
+
+    with get_connection() as conn:
+        verified = authenticate_credentials(conn, user.username, payload.current_password)
+        if not verified or verified.id != user.id:
+            raise HTTPException(status_code=400, detail="Current password is incorrect.")
+
+        try:
+            update_user(conn, user.id, password=payload.new_password)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+        # Keep the current browser session and revoke other sessions for this user.
+        raw_token = request.cookies.get(SESSION_COOKIE_NAME)
+        if raw_token:
+            token_hash = hash_session_token(raw_token)
+            conn.execute(
+                "DELETE FROM auth_sessions WHERE user_id = ? AND token_hash != ?",
+                (user.id, token_hash),
+            )
+        else:
+            conn.execute("DELETE FROM auth_sessions WHERE user_id = ?", (user.id,))
+
+        conn.commit()
+
+    return {"status": "ok"}
+
+
 @app.get("/api/auth/users")
 def auth_list_users(
     _user: Annotated[AuthUser, Depends(require_roles(ROLE_ADMIN))],
@@ -536,6 +591,317 @@ def auth_update_user(
     }
 
 
+@app.delete("/api/auth/users/{user_id}")
+def auth_delete_user(
+    user_id: int,
+    request: Request,
+    _user: Annotated[AuthUser, Depends(require_roles(ROLE_ADMIN))],
+) -> Any:
+    with get_connection() as conn:
+        existing = conn.execute(
+            "SELECT id, username, role, is_active FROM users WHERE id = ?",
+            (user_id,),
+        ).fetchone()
+        if not existing:
+            raise HTTPException(status_code=404, detail="User not found")
+
+        if existing["role"] == ROLE_ADMIN and bool(existing["is_active"]):
+            admins = conn.execute(
+                "SELECT COUNT(*) AS admin_count FROM users WHERE role = 'admin' AND is_active = 1"
+            ).fetchone()
+            if admins and int(admins["admin_count"]) <= 1:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Refusing to remove the last active admin user.",
+                )
+
+        conn.execute("DELETE FROM users WHERE id = ?", (user_id,))
+        conn.commit()
+
+    deleted_payload = {
+        "id": int(existing["id"]),
+        "username": existing["username"],
+        "role": existing["role"],
+        "is_active": bool(existing["is_active"]),
+    }
+
+    current = get_request_user(request)
+    if current and current.id == int(existing["id"]):
+        response = JSONResponse({**deleted_payload, "self_deleted": True})
+        response.delete_cookie(SESSION_COOKIE_NAME, path="/")
+        return response
+
+    return {**deleted_payload, "self_deleted": False}
+
+
+def resolve_openai_api_base() -> str:
+    configured = str(os.getenv(OPENAI_API_BASE_ENV, DEFAULT_OPENAI_API_BASE) or "").strip()
+    if not configured:
+        return DEFAULT_OPENAI_API_BASE
+    return configured.rstrip("/")
+
+
+def read_project_env_value(key: str) -> str:
+    env_path = Path(__file__).resolve().parents[2] / ".env"
+    if not env_path.exists():
+        return ""
+    prefix = f"{key}="
+    try:
+        for raw_line in env_path.read_text(encoding="utf-8").splitlines():
+            line = raw_line.strip()
+            if not line or line.startswith("#") or not line.startswith(prefix):
+                continue
+            return line.split("=", 1)[1].strip().strip('"').strip("'")
+    except Exception:
+        return ""
+    return ""
+
+
+def resolve_ingredient_duplicate_model(requested: str | None) -> str:
+    candidate = str(requested or "").strip()
+    if candidate:
+        return candidate
+    configured = str(os.getenv(OPENAI_INGREDIENT_DUP_MODEL_ENV, "") or "").strip()
+    if not configured:
+        configured = read_project_env_value(OPENAI_INGREDIENT_DUP_MODEL_ENV)
+    if configured:
+        return configured
+    return DEFAULT_INGREDIENT_DUP_MODEL
+
+
+def parse_float_confidence(value: object, default: float = 0.5) -> float:
+    try:
+        parsed = float(value)
+    except (TypeError, ValueError):
+        parsed = default
+    if parsed < 0:
+        return 0.0
+    if parsed > 1:
+        return 1.0
+    return parsed
+
+
+def normalize_duplicate_group_type(raw_type: object, confidence: float) -> str:
+    value = str(raw_type or "").strip().lower().replace("-", "_").replace(" ", "_")
+    strict_values = {"strict", "strict_duplicate", "exact_duplicate", "duplicate"}
+    possible_values = {"possible", "possible_consolidation", "review", "candidate"}
+    if value in strict_values:
+        return "strict_duplicate"
+    if value in possible_values:
+        return "possible_consolidation"
+    return "strict_duplicate" if confidence >= 0.82 else "possible_consolidation"
+
+
+def normalize_llm_duplicate_groups(
+    raw_groups: object,
+    ingredient_by_id: dict[int, dict[str, Any]],
+    max_groups: int,
+) -> dict[str, list[dict[str, Any]]]:
+    if not isinstance(raw_groups, list):
+        return {
+            "strict_duplicates": [],
+            "possible_consolidations": [],
+        }
+
+    provisional: list[dict[str, Any]] = []
+    seen_signatures: set[tuple[int, ...]] = set()
+
+    for entry in raw_groups:
+        if not isinstance(entry, dict):
+            continue
+        raw_member_ids = entry.get("member_ingredient_ids")
+        if not isinstance(raw_member_ids, list):
+            continue
+
+        member_ids: list[int] = []
+        for candidate in raw_member_ids:
+            try:
+                member_id = int(candidate)
+            except (TypeError, ValueError):
+                continue
+            if member_id not in ingredient_by_id:
+                continue
+            if member_id not in member_ids:
+                member_ids.append(member_id)
+        if len(member_ids) < 2:
+            continue
+
+        canonical_raw = entry.get("canonical_ingredient_id")
+        try:
+            canonical_id = int(canonical_raw)
+        except (TypeError, ValueError):
+            canonical_id = member_ids[0]
+        if canonical_id not in ingredient_by_id:
+            canonical_id = member_ids[0]
+        if canonical_id not in member_ids:
+            member_ids = [canonical_id, *member_ids]
+            member_ids = list(dict.fromkeys(member_ids))
+
+        signature = tuple(sorted(member_ids))
+        if signature in seen_signatures:
+            continue
+        seen_signatures.add(signature)
+
+        reason_raw = entry.get("reason")
+        reason = str(reason_raw).strip() if reason_raw is not None else ""
+        confidence = parse_float_confidence(entry.get("confidence"), default=0.5)
+        group_type = normalize_duplicate_group_type(entry.get("group_type"), confidence)
+        provisional.append(
+            {
+                "canonical_id": canonical_id,
+                "member_ids": member_ids,
+                "confidence": confidence,
+                "reason": reason,
+                "group_type": group_type,
+            }
+        )
+
+    strict_provisional = [
+        group for group in provisional if group["group_type"] == "strict_duplicate"
+    ]
+    possible_provisional = [
+        group for group in provisional if group["group_type"] == "possible_consolidation"
+    ]
+    strict_provisional.sort(key=lambda group: (-group["confidence"], -len(group["member_ids"]), group["canonical_id"]))
+    possible_provisional.sort(key=lambda group: (-group["confidence"], -len(group["member_ids"]), group["canonical_id"]))
+
+    used_member_ids: set[int] = set()
+    strict_duplicates: list[dict[str, Any]] = []
+    possible_consolidations: list[dict[str, Any]] = []
+
+    def materialize(group: dict[str, Any], *, bucket: str) -> None:
+        canonical = ingredient_by_id[group["canonical_id"]]
+        members = [ingredient_by_id[member_id] for member_id in group["member_ids"]]
+        payload = {
+            "canonical": {
+                "id": int(canonical["id"]),
+                "name": canonical["name"],
+            },
+            "confidence": round(float(group["confidence"]), 3),
+            "reason": group["reason"],
+            "members": members,
+            "group_type": bucket,
+        }
+        if bucket == "strict_duplicate":
+            strict_duplicates.append(payload)
+        else:
+            possible_consolidations.append(payload)
+        used_member_ids.update(group["member_ids"])
+
+    for group in strict_provisional:
+        if any(member_id in used_member_ids for member_id in group["member_ids"]):
+            continue
+        if len(strict_duplicates) + len(possible_consolidations) >= max_groups:
+            break
+        materialize(group, bucket="strict_duplicate")
+
+    for group in possible_provisional:
+        if any(member_id in used_member_ids for member_id in group["member_ids"]):
+            continue
+        if len(strict_duplicates) + len(possible_consolidations) >= max_groups:
+            break
+        materialize(group, bucket="possible_consolidation")
+
+    return {
+        "strict_duplicates": strict_duplicates,
+        "possible_consolidations": possible_consolidations,
+    }
+
+
+def call_openai_for_ingredient_duplicates(
+    *,
+    model: str,
+    ingredients: list[dict[str, Any]],
+) -> dict[str, Any]:
+    api_key = str(os.getenv(OPENAI_API_KEY_ENV, "") or "").strip()
+    if not api_key:
+        api_key = read_project_env_value(OPENAI_API_KEY_ENV)
+    if not api_key:
+        raise HTTPException(
+            status_code=503,
+            detail=f"{OPENAI_API_KEY_ENV} is not configured on the backend.",
+        )
+
+    api_base = resolve_openai_api_base()
+    endpoint = f"{api_base}/chat/completions"
+    system_prompt = (
+        "You are a strict ingredient-normalization assistant for a recipe database. "
+        "Find likely duplicate ingredients using semantic understanding, including Hindi/English synonyms "
+        "and transliteration variants (example: rajma vs kidney beans). "
+        "Return two types of groups: strict duplicates and possible consolidations for manual review. "
+        "A strict duplicate means the same ingredient with naming variants. "
+        "A possible consolidation means likely same ingredient family/variant that may be merged with human review "
+        "(example: spring onion vs green onion). "
+        "Return JSON only with this exact shape: "
+        "{"
+        "\"groups\":["
+        "{"
+        "\"canonical_ingredient_id\":number,"
+        "\"member_ingredient_ids\":[number,number],"
+        "\"group_type\":\"strict_duplicate|possible_consolidation\","
+        "\"confidence\":number,"
+        "\"reason\":string"
+        "}"
+        "]"
+        "}"
+    )
+    user_prompt = {
+        "task": "Find duplicate ingredient groups.",
+        "constraints": [
+            "Each group must represent the same real-world ingredient.",
+            "Each group must contain at least 2 IDs from the input list.",
+            "Use the existing ingredient IDs only.",
+            "Pick canonical_ingredient_id from member_ingredient_ids.",
+            "Use group_type=strict_duplicate for clear exact synonyms/aliases only.",
+            "Use group_type=possible_consolidation for likely merge candidates that need review.",
+        ],
+        "ingredients": ingredients,
+    }
+    payload = {
+        "model": model,
+        "temperature": 0,
+        "response_format": {"type": "json_object"},
+        "messages": [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": json.dumps(user_prompt, ensure_ascii=True)},
+        ],
+    }
+    data = json.dumps(payload).encode("utf-8")
+    req = urllib_request.Request(
+        endpoint,
+        data=data,
+        headers={
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json",
+        },
+        method="POST",
+    )
+    try:
+        with urllib_request.urlopen(req, timeout=90) as response:
+            raw = response.read().decode("utf-8")
+    except urllib_error.HTTPError as exc:
+        body = ""
+        try:
+            body = exc.read().decode("utf-8")
+        except Exception:
+            body = ""
+        detail = f"LLM request failed ({exc.code})."
+        if body:
+            detail = f"{detail} {body[:500]}"
+        raise HTTPException(status_code=502, detail=detail) from exc
+    except urllib_error.URLError as exc:
+        raise HTTPException(status_code=502, detail=f"Could not reach LLM service: {exc.reason}") from exc
+
+    try:
+        parsed = json.loads(raw)
+        content = parsed["choices"][0]["message"]["content"]
+        if not isinstance(content, str) or not content.strip():
+            raise ValueError("Missing model content")
+        return json.loads(content)
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail="Invalid LLM duplicate response format.") from exc
+
+
 @app.get("/api/ingredients")
 def list_ingredients() -> list[dict[str, Any]]:
     with get_connection() as conn:
@@ -543,6 +909,72 @@ def list_ingredients() -> list[dict[str, Any]]:
             "SELECT id, name, category, purchase_tier, canonical_unit, grams_per_cup, notes FROM ingredients ORDER BY name"
         ).fetchall()
     return [dict(r) for r in rows]
+
+
+@app.post("/api/ingredients/find-duplicates")
+def find_ingredient_duplicates(
+    payload: IngredientDuplicateScanPayload,
+    _user: Annotated[AuthUser, Depends(require_roles(ROLE_ADMIN))],
+) -> dict[str, Any]:
+    model = resolve_ingredient_duplicate_model(payload.model)
+    with get_connection() as conn:
+        rows = conn.execute(
+            """
+            SELECT
+                i.id,
+                i.name,
+                i.category,
+                i.purchase_tier,
+                i.canonical_unit,
+                COUNT(ri.id) AS recipe_usage_count
+            FROM ingredients i
+            LEFT JOIN recipe_ingredients ri ON ri.ingredient_id = i.id
+            GROUP BY i.id
+            ORDER BY lower(i.name), i.id
+            """
+        ).fetchall()
+
+    ingredients = [
+        {
+            "id": int(row["id"]),
+            "name": row["name"],
+            "category": row["category"],
+            "purchase_tier": row["purchase_tier"],
+            "canonical_unit": row["canonical_unit"],
+            "recipe_usage_count": int(row["recipe_usage_count"] or 0),
+        }
+        for row in rows
+    ]
+    if len(ingredients) < 2:
+        return {
+            "model": model,
+            "ingredient_count": len(ingredients),
+            "groups": [],
+        }
+
+    llm_response = call_openai_for_ingredient_duplicates(
+        model=model,
+        ingredients=ingredients,
+    )
+    ingredient_by_id = {int(item["id"]): item for item in ingredients}
+    grouped = normalize_llm_duplicate_groups(
+        llm_response.get("groups"),
+        ingredient_by_id=ingredient_by_id,
+        max_groups=payload.max_groups,
+    )
+    strict_duplicates = grouped["strict_duplicates"]
+    possible_consolidations = grouped["possible_consolidations"]
+    return {
+        "model": model,
+        "ingredient_count": len(ingredients),
+        "strict_duplicate_count": len(strict_duplicates),
+        "possible_consolidation_count": len(possible_consolidations),
+        "group_count": len(strict_duplicates) + len(possible_consolidations),
+        "strict_duplicates": strict_duplicates,
+        "possible_consolidations": possible_consolidations,
+        # Backward compatibility for older frontend handlers.
+        "groups": [*strict_duplicates, *possible_consolidations],
+    }
 
 
 PURCHASE_TIERS = ["bulk", "fresh", "daily"]
@@ -879,6 +1311,9 @@ def generate_shopping_list(
             ingredient_category = ingredient_category_by_id.get(int(ingredient_id))
             if canonical_unit == "g" and is_spice_or_seasoning_category(ingredient_category):
                 row_unit = "g"
+            elif canonical_unit == "g" and is_produce_category(ingredient_category):
+                # Keep produce in kilograms in shopping lists for consistency.
+                row_unit = "kg"
             else:
                 row_unit = preferred_metric_unit(required_canonical, canonical_unit)
             required_qty = canonical_qty_to_unit(required_canonical, canonical_unit, row_unit)
@@ -2869,6 +3304,17 @@ def normalize_ingredient_name(ingredient_name: str) -> str:
         "kidney beans": "Rajma",
         "red kidney bean": "Rajma",
         "red kidney beans": "Rajma",
+        "lemon": "Lemon juice concentrate",
+        "lime": "Lemon juice concentrate",
+        "lemon or lime": "Lemon juice concentrate",
+        "english cucumber": "Cucumber",
+        "english cucumbers": "Cucumber",
+        "purple cabbage": "Red Cabbage",
+        "red cabbage": "Red Cabbage",
+        "red onion": "Onion",
+        "red onions": "Onion",
+        "extra firm tofu": "extra-firm tofu",
+        "extra firm tofy": "extra-firm tofu",
         "curry leaf": "Curry leaves",
         "cardamom pod": "Cardamom",
         "cardamom pods": "Cardamom",
@@ -2949,6 +3395,15 @@ def replace_recipe_ingredients(
             if factor is not None:
                 normalized_quantity *= factor
                 normalized_unit = canonical_unit
+        elif canonical_unit in MASS_TO_G and normalized_unit != canonical_unit:
+            canonical_qty, canonical_base_unit, _note = to_canonical(
+                item.ingredient_name,
+                normalized_quantity,
+                normalized_unit,
+            )
+            if canonical_qty is not None and canonical_base_unit == "g":
+                normalized_quantity = canonical_qty / MASS_TO_G[canonical_unit]
+                normalized_unit = canonical_unit
 
         conn.execute(
             """
@@ -2992,6 +3447,12 @@ def is_spice_or_seasoning_category(category: str | None) -> bool:
         return False
     normalized = category.strip().lower()
     return "spice" in normalized or "seasoning" in normalized
+
+
+def is_produce_category(category: str | None) -> bool:
+    if not category:
+        return False
+    return category.strip().lower() in {"produce", "fruits"}
 
 
 def ingredient_specific_unit_conversion_factor(

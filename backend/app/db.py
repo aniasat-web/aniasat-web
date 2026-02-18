@@ -64,7 +64,7 @@ def init_db() -> None:
             conn.execute(
                 """
                 UPDATE ingredients SET purchase_tier = 'fresh'
-                WHERE category IN ('Produce', 'Herbs', 'Dairy & Refrigerated')
+                WHERE category IN ('Produce', 'Fruits', 'Herbs', 'Dairy & Refrigerated')
                 AND purchase_tier IS NULL
                 """
             )

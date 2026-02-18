@@ -215,6 +215,37 @@
       #ingredientTable th {
         padding: 0.45rem 0.4rem;
       }
+
+      .duplicate-results {
+        border: 1px dashed #f59e0b;
+        border-radius: 0.85rem;
+        background: #fffbeb;
+        padding: 0.9rem;
+      }
+
+      .dup-group {
+        border: 1px solid #fed7aa;
+        border-radius: 0.75rem;
+        background: #ffffff;
+        padding: 0.6rem 0.75rem;
+      }
+
+      .dup-member {
+        border: 1px solid var(--border);
+        border-radius: 0.55rem;
+        background: #fafafa;
+        padding: 0.35rem 0.5rem;
+      }
+
+      .dup-confidence {
+        font-size: 0.72rem;
+        border-radius: 999px;
+        padding: 0.12rem 0.5rem;
+        border: 1px solid #f59e0b;
+        color: #92400e;
+        background: #fef3c7;
+        font-weight: 700;
+      }
     </style>
     <link rel="stylesheet" href="assets/ui-theme.css" />
   </head>
@@ -316,9 +347,20 @@
             <input id="ingredientSearch" type="text" class="form-control" placeholder="Search ingredient name" />
           </div>
           <div class="flex-grow-1"></div>
+          <button id="findDuplicatesBtn" type="button" class="btn btn-sm btn-outline-primary fw-semibold">
+            <i class="fa-solid fa-wand-magic-sparkles me-1"></i> Find Duplicates
+          </button>
           <span id="saveStatus" class="status-pill info">Ready.</span>
         </div>
         <div id="categoryFilter" class="d-flex flex-wrap gap-1 mb-3"></div>
+
+        <div id="duplicateResults" class="duplicate-results d-none mb-3">
+          <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-2">
+            <div id="duplicateSummary" class="fw-semibold">No duplicate scan run yet.</div>
+            <small id="duplicateModel" class="text-muted"></small>
+          </div>
+          <div id="duplicateGroups" class="d-grid gap-2"></div>
+        </div>
 
         <div id="ingredientTableWrap">
           <table id="ingredientTable" class="table table-hover align-middle mb-0">
@@ -340,20 +382,26 @@
     </main>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="assets/auth.js?v=20260218e"></script>
+    <script src="assets/auth.js?v=20260218f"></script>
     <script>
       const ingredientSearch = document.getElementById("ingredientSearch");
       const statIngredients = document.getElementById("statIngredients");
       const saveStatus = document.getElementById("saveStatus");
+      const findDuplicatesBtn = document.getElementById("findDuplicatesBtn");
       const categoryFilter = document.getElementById("categoryFilter");
       const ingredientBody = document.getElementById("ingredientBody");
       const categoryOptions = document.getElementById("ingredientCategoryOptions");
+      const duplicateResults = document.getElementById("duplicateResults");
+      const duplicateSummary = document.getElementById("duplicateSummary");
+      const duplicateModel = document.getElementById("duplicateModel");
+      const duplicateGroups = document.getElementById("duplicateGroups");
 
       const API_BASE = resolveApiBase();
       const AUTO_SAVE_DELAY_MS = 800;
       const CATEGORY_DATALIST_ID = "ingredientCategoryOptions";
       const DEFAULT_CATEGORY_SUGGESTIONS = [
         "Produce",
+        "Fruits",
         "Grains & Flours",
         "Pulses & Legumes",
         "Spices & Seasonings",
@@ -417,6 +465,109 @@
           }
         } catch (_e) {}
         return raw;
+      }
+
+      function escapeHtml(value) {
+        return String(value || "")
+          .replaceAll("&", "&amp;")
+          .replaceAll("<", "&lt;")
+          .replaceAll(">", "&gt;")
+          .replaceAll('"', "&quot;")
+          .replaceAll("'", "&#39;");
+      }
+
+      function hideDuplicateResults() {
+        if (!duplicateResults || !duplicateGroups || !duplicateSummary || !duplicateModel) return;
+        duplicateResults.classList.add("d-none");
+        duplicateGroups.innerHTML = "";
+        duplicateSummary.textContent = "No duplicate scan run yet.";
+        duplicateModel.textContent = "";
+      }
+
+      function renderDuplicateResults(payload) {
+        if (!duplicateResults || !duplicateGroups || !duplicateSummary || !duplicateModel) return;
+        const strictGroups = Array.isArray(payload?.strict_duplicates)
+          ? payload.strict_duplicates
+          : (Array.isArray(payload?.groups) ? payload.groups : []);
+        const possibleGroups = Array.isArray(payload?.possible_consolidations)
+          ? payload.possible_consolidations
+          : [];
+        const groups = [...strictGroups, ...possibleGroups];
+        duplicateResults.classList.remove("d-none");
+        duplicateGroups.innerHTML = "";
+        duplicateModel.textContent = payload?.model ? `Model: ${payload.model}` : "";
+        duplicateSummary.textContent = groups.length
+          ? `Found ${strictGroups.length} strict duplicate group${strictGroups.length === 1 ? "" : "s"} and ${possibleGroups.length} possible consolidation group${possibleGroups.length === 1 ? "" : "s"}.`
+          : "No likely duplicate groups found.";
+
+        if (!groups.length) return;
+        function renderGroupBucket(title, bucketGroups, badgeText) {
+          if (!bucketGroups.length) return;
+          const section = document.createElement("div");
+          section.className = "mb-2";
+          section.innerHTML = `<div class="fw-bold mb-2">${escapeHtml(title)} (${bucketGroups.length})</div>`;
+
+          const grid = document.createElement("div");
+          grid.className = "d-grid gap-2";
+          bucketGroups.forEach((group, index) => {
+          const canonical = group?.canonical || {};
+          const members = Array.isArray(group?.members) ? group.members : [];
+          const confidenceRaw = Number(group?.confidence);
+          const confidence = Number.isFinite(confidenceRaw) ? Math.max(0, Math.min(1, confidenceRaw)) : 0;
+          const reason = String(group?.reason || "").trim();
+          const wrapper = document.createElement("div");
+          wrapper.className = "dup-group";
+
+          const memberHtml = members
+            .map((member) => {
+              const name = escapeHtml(member?.name || "");
+              const category = member?.category ? ` • ${escapeHtml(member.category)}` : "";
+              const usageCount = Number.isFinite(Number(member?.recipe_usage_count))
+                ? ` • used in ${Number(member.recipe_usage_count)} recipe rows`
+                : "";
+              return `<div class="dup-member"><span class="fw-semibold">${name}</span>${category}${usageCount}</div>`;
+            })
+            .join("");
+
+            wrapper.innerHTML = `
+            <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-2">
+              <div class="fw-semibold">${escapeHtml(badgeText)} ${index + 1}: canonical suggestion <span class="text-primary">${escapeHtml(canonical?.name || "")}</span></div>
+              <span class="dup-confidence">confidence ${Math.round(confidence * 100)}%</span>
+            </div>
+            ${reason ? `<div class="small text-muted mb-2">${escapeHtml(reason)}</div>` : ""}
+            <div class="d-grid gap-1">${memberHtml}</div>
+          `;
+            grid.appendChild(wrapper);
+          });
+          section.appendChild(grid);
+          duplicateGroups.appendChild(section);
+        }
+
+        renderGroupBucket("Strict Duplicates", strictGroups, "Strict");
+        renderGroupBucket("Possible Consolidations (Manual Review)", possibleGroups, "Possible");
+      }
+
+      async function findSemanticDuplicates() {
+        if (!findDuplicatesBtn) return;
+        findDuplicatesBtn.disabled = true;
+        setStatus("Finding semantic duplicates via LLM...", "info");
+        try {
+          const response = await fetch(apiUrl("/api/ingredients/find-duplicates"), {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            credentials: "include",
+            body: JSON.stringify({ max_groups: 30 }),
+          });
+          if (!response.ok) throw new Error(await parseApiError(response));
+          const payload = await response.json();
+          renderDuplicateResults(payload);
+          setStatus(`Duplicate scan complete: ${payload.group_count || 0} groups.`, "ok");
+        } catch (error) {
+          hideDuplicateResults();
+          setStatus(error instanceof Error ? error.message : "Could not find duplicates.", "err");
+        } finally {
+          findDuplicatesBtn.disabled = false;
+        }
       }
 
       function renderCategoryFilter() {
@@ -728,10 +879,16 @@
       }
 
       ingredientSearch.addEventListener("input", renderTable);
+      if (findDuplicatesBtn) {
+        findDuplicatesBtn.addEventListener("click", () => {
+          void findSemanticDuplicates();
+        });
+      }
 
       async function init() {
         try {
           setStatus("Loading ingredients...", "info");
+          hideDuplicateResults();
           await fetchIngredients();
           renderCategoryFilter();
           renderTable();

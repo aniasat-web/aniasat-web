@@ -616,7 +616,7 @@
       "name": "English cucumber",
       "category": "Produce",
       "purchase_tier": "fresh",
-      "canonical_unit": "piece",
+      "canonical_unit": "kg",
       "grams_per_cup": null,
       "notes": null
     },
@@ -696,8 +696,8 @@
       "name": "Frozen ripe jackfruit",
       "category": "Frozen",
       "purchase_tier": "fresh",
-      "canonical_unit": "cup",
-      "grams_per_cup": null,
+      "canonical_unit": "g",
+      "grams_per_cup": 250.0,
       "notes": null
     },
     {
@@ -1368,7 +1368,7 @@
       "name": "Pumpkin seeds",
       "category": "Nuts & Seeds",
       "purchase_tier": "fresh",
-      "canonical_unit": "ml",
+      "canonical_unit": "kg",
       "grams_per_cup": null,
       "notes": null
     },
@@ -2319,6 +2319,17 @@
       "notes": null
     },
     {
+      "item_name": "Cucumber",
+      "quantity_from": 1.0,
+      "unit_from": "piece",
+      "quantity_to": 300.0,
+      "unit_to": "g",
+      "context": "ingredient_specific",
+      "source_sheet": "manual normalization",
+      "source_row": null,
+      "notes": "Normalize cucumber display to kg"
+    },
+    {
       "item_name": "Cumin",
       "quantity_from": 1.0,
       "unit_from": "tsp",
@@ -2372,6 +2383,17 @@
       "source_sheet": "useful conversions",
       "source_row": 21,
       "notes": null
+    },
+    {
+      "item_name": "English cucumber",
+      "quantity_from": 1.0,
+      "unit_from": "piece",
+      "quantity_to": 300.0,
+      "unit_to": "g",
+      "context": "ingredient_specific",
+      "source_sheet": "manual normalization",
+      "source_row": null,
+      "notes": "Normalize cucumber display to kg"
     },
     {
       "item_name": "Fennel",
@@ -2900,6 +2922,17 @@
       "source_sheet": "useful conversions",
       "source_row": 58,
       "notes": null
+    },
+    {
+      "item_name": "sour yellow cucumber",
+      "quantity_from": 1.0,
+      "unit_from": "piece",
+      "quantity_to": 300.0,
+      "unit_to": "g",
+      "context": "ingredient_specific",
+      "source_sheet": "manual normalization",
+      "source_row": null,
+      "notes": "Normalize cucumber display to kg"
     },
     {
       "item_name": "Sugar",

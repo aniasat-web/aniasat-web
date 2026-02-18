@@ -575,6 +575,35 @@ Default column mapping for `Inventory - Food`:
 - This keeps ephemeral SQLite deployments usable after restart.
 - Disable with env var: `RETREAT_OPS_AUTO_SEED_MASTER_DATA=0`
 
+### Sync SQLite DB with Render disk (full data, bi-directional)
+
+These scripts copy the entire SQLite file (includes users/sessions and all operational data):
+
+```bash
+cd backend
+chmod +x scripts/sync_db_from_render.sh scripts/sync_db_to_render.sh
+```
+
+Pull Render -> local:
+
+```bash
+scripts/sync_db_from_render.sh
+```
+
+Push local -> Render:
+
+```bash
+scripts/sync_db_to_render.sh
+```
+
+Notes:
+- You need SSH access configured in Render (service SSH user + your local SSH key).
+- Script defaults are preconfigured for this service user/host and auto-detect `~/.ssh/bitbucket_ed25519` if present.
+- Override any default with flags like `--host`, `--user`, `--key`, `--remote-db`, `--local-db`.
+- Default remote DB path is `/opt/render/project/src/backend/data/retreat_ops.db`.
+- `sync_db_to_render.sh` creates a remote pre-sync backup unless `--skip-remote-backup` is set.
+- Restart the Render service after push so all workers use the updated file.
+
 ## Current status
 
 This is an MVP with:

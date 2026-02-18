@@ -403,7 +403,6 @@
               <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false"><i class="fa-solid fa-gear me-1"></i> Admin</a>
               <ul class="dropdown-menu">
                 <li><a class="dropdown-item" href="user-admin.html"><i class="fa-solid fa-users-gear me-2"></i> Users</a></li>
-                <li><a class="dropdown-item" href="ingredient-admin.html"><i class="fa-solid fa-carrot me-2"></i> Ingredients</a></li>
               </ul>
             </li>
             <li class="nav-item d-flex align-items-center">
@@ -483,7 +482,7 @@
       </section>
     </main>
 
-    <script src="assets/auth.js"></script>
+    <script src="assets/auth.js?v=20260218e"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
     <script>
       const MEAL_ORDER = ["Breakfast", "Lunch", "Evening Chai", "Dinner"];
@@ -577,9 +576,23 @@
         kilos: "kg",
         liters: "l",
         litres: "l",
+        pieces: "piece",
+        packets: "packet",
+        bunches: "bunch",
+        sprigs: "sprig",
+        springs: "sprig",
+        leaves: "leaf",
       };
       const MASS_TO_G = { g: 1, kg: 1000, lb: 453.592, oz: 28.3495 };
       const VOLUME_TO_ML = { ml: 1, l: 1000, cup: 240, tbsp: 14.7868, tsp: 4.92892 };
+      const COUNT_UNITS = new Set(["piece", "packet", "bunch", "sprig", "leaf"]);
+      const HERB_COUNT_UNIT_FALLBACK_FACTORS = new Map([
+        ["cilantro|piece|bunch", 1 / 16],
+        ["cilantro|sprig|bunch", 1 / 16],
+        ["curry leaves|piece|sprig", 1],
+        ["curry leaves|leaf|sprig", 1 / 8],
+        ["curry leaves|packet|sprig", 5],
+      ]);
       const ML_PER_CUP = 240;
       const ML_PER_TBSP = 15;
       const ML_PER_TSP = 5;
@@ -587,6 +600,15 @@
       function normalizeUnit(unit) {
         const value = String(unit || "").trim().toLowerCase();
         return UNIT_ALIASES[value] || value;
+      }
+
+      function normalizeIngredientKey(name) {
+        return String(name || "").trim().toLowerCase().replace(/\s+/g, " ");
+      }
+
+      function herbCountUnitFallbackFactor(ingredientName, unitFrom, unitTo) {
+        const key = `${normalizeIngredientKey(ingredientName)}|${normalizeUnit(unitFrom)}|${normalizeUnit(unitTo)}`;
+        return HERB_COUNT_UNIT_FALLBACK_FACTORS.get(key);
       }
 
       function gramsToVolume(grams, gramsPerCup) {
@@ -603,7 +625,7 @@
         return { qty: tsp, unit: "tsp" };
       }
 
-      function canonicalDisplayQuantity(rawQty, rawUnit, canonicalUnit, gramsPerCup) {
+      function canonicalDisplayQuantity(rawQty, rawUnit, canonicalUnit, gramsPerCup, ingredientName) {
         const parsedQty = Number(rawQty);
         let unit = normalizeUnit(rawUnit);
         const canonical = normalizeUnit(canonicalUnit);
@@ -631,12 +653,20 @@
             qty = cups * ML_PER_CUP;
             unit = "ml";
           }
+        } else if (COUNT_UNITS.has(canonical) && COUNT_UNITS.has(unit)) {
+          if (unit === canonical) {
+            return { qty, unit: canonical };
+          }
+          const factor = herbCountUnitFallbackFactor(ingredientName, unit, canonical);
+          if (Number.isFinite(factor)) {
+            return { qty: qty * factor, unit: canonical };
+          }
         }
         return { qty, unit };
       }
 
-      function formatKitchenQuantity(rawQty, rawUnit, canonicalUnit, gramsPerCup) {
-        const canonicalOverride = canonicalDisplayQuantity(rawQty, rawUnit, canonicalUnit, gramsPerCup);
+      function formatKitchenQuantity(rawQty, rawUnit, canonicalUnit, gramsPerCup, ingredientName) {
+        const canonicalOverride = canonicalDisplayQuantity(rawQty, rawUnit, canonicalUnit, gramsPerCup, ingredientName);
         let qty;
         let unit;
         if (canonicalOverride) {
@@ -661,8 +691,17 @@
 
         // Show decimals only for kg/l. Everything else should be whole numbers.
         const decimals = unit === "kg" || unit === "l" ? 1 : 0;
+        let value = qty.toFixed(decimals);
 
-        const value = qty.toFixed(decimals).replace(/\.0+$/, "").replace(/(\.\d*?)0+$/, "$1");
+        // Avoid displaying non-zero quantities as "0" due to rounding.
+        if (qty > 0 && Number(value) === 0) {
+          value = qty.toFixed(Math.max(decimals, 1));
+          if (Number(value) === 0) {
+            value = qty.toFixed(2);
+          }
+        }
+
+        value = value.replace(/\.0+$/, "").replace(/(\.\d*?)0+$/, "$1");
         return `${value} ${unit}`;
       }
 
@@ -685,7 +724,7 @@
         const right = document.createElement("span");
         right.className = "ingredient-qty";
         right.textContent = formatKitchenQuantity(
-          item.scaledQty, item.scaledUnit, item.canonicalUnit, item.gramsPerCup
+          item.scaledQty, item.scaledUnit, item.canonicalUnit, item.gramsPerCup, item.name
         );
         li.appendChild(left);
         li.appendChild(right);

@@ -189,6 +189,17 @@
       item.classList.toggle("d-none", !show);
     });
 
+    // Defensive guard: Ingredients belongs under Kitchen nav, never under Admin.
+    const adminDropdowns = Array.from(document.querySelectorAll(".navbar .nav-item.dropdown"));
+    adminDropdowns.forEach((dropdown) => {
+      const isAdminMenu = Boolean(dropdown.querySelector(".dropdown-toggle .fa-gear"));
+      if (!isAdminMenu) {
+        return;
+      }
+      const ingredientLinks = dropdown.querySelectorAll(".dropdown-item[href='ingredient-admin.html']");
+      ingredientLinks.forEach((item) => item.classList.add("d-none"));
+    });
+
     const dropdowns = Array.from(document.querySelectorAll(".navbar .nav-item.dropdown"));
     dropdowns.forEach((dropdown) => {
       const visibleItems = dropdown.querySelectorAll(".dropdown-item:not(.d-none)");

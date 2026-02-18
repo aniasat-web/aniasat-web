@@ -345,7 +345,6 @@
               <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false"><i class="fa-solid fa-gear me-1"></i> Admin</a>
               <ul class="dropdown-menu">
                 <li><a class="dropdown-item" href="user-admin.html"><i class="fa-solid fa-users-gear me-2"></i> Users</a></li>
-                <li><a class="dropdown-item" href="ingredient-admin.html"><i class="fa-solid fa-carrot me-2"></i> Ingredients</a></li>
               </ul>
             </li>
             <li class="nav-item d-flex align-items-center">
@@ -494,7 +493,7 @@
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/tom-select@2.4.3/dist/js/tom-select.complete.min.js"></script>
-    <script src="assets/auth.js"></script>
+    <script src="assets/auth.js?v=20260218e"></script>
     <script>
       const recipeList = document.getElementById("recipeList");
       const recipeSearch = document.getElementById("recipeSearch");
@@ -530,6 +529,22 @@
         "Chai & Coffee",
         "Pickles",
       ];
+      const COUNT_UNITS = new Set(["piece", "packet", "bunch", "sprig", "leaf"]);
+      const UNIT_ALIASES = {
+        pieces: "piece",
+        packets: "packet",
+        bunches: "bunch",
+        sprigs: "sprig",
+        springs: "sprig",
+        leaves: "leaf",
+      };
+      const HERB_COUNT_UNIT_FALLBACK_FACTORS = new Map([
+        ["cilantro|piece|bunch", 1 / 16],
+        ["cilantro|sprig|bunch", 1 / 16],
+        ["curry leaves|piece|sprig", 1],
+        ["curry leaves|leaf|sprig", 1 / 8],
+        ["curry leaves|packet|sprig", 5],
+      ]);
       let recipes = [];
       let selectedRecipeId = null;
       let selectedCategory = null;
@@ -543,6 +558,36 @@
 
       function apiUrl(path) {
         return `${API_BASE}${path.startsWith("/") ? path : `/${path}`}`;
+      }
+
+      function normalizeUnitToken(value) {
+        const token = String(value || "").trim().toLowerCase();
+        return UNIT_ALIASES[token] || token;
+      }
+
+      function normalizeIngredientKey(name) {
+        return String(name || "").trim().toLowerCase().replace(/\s+/g, " ");
+      }
+
+      function canonicalHerbCountDisplay(name, quantity, unit, canonicalUnit) {
+        const qty = Number(quantity);
+        const sourceUnit = normalizeUnitToken(unit);
+        const targetUnit = normalizeUnitToken(canonicalUnit);
+        if (!Number.isFinite(qty) || !sourceUnit || !targetUnit) {
+          return null;
+        }
+        if (!COUNT_UNITS.has(sourceUnit) || !COUNT_UNITS.has(targetUnit)) {
+          return null;
+        }
+        if (sourceUnit === targetUnit) {
+          return { quantity: qty, unit: targetUnit };
+        }
+        const key = `${normalizeIngredientKey(name)}|${sourceUnit}|${targetUnit}`;
+        const factor = HERB_COUNT_UNIT_FALLBACK_FACTORS.get(key);
+        if (!Number.isFinite(factor)) {
+          return null;
+        }
+        return { quantity: qty * factor, unit: targetUnit };
       }
 
       function setStatus(message, mode = "info") {
@@ -702,9 +747,25 @@
       function normalizeRecipeShape(recipe) {
         const ingredients = Array.isArray(recipe.ingredients)
           ? recipe.ingredients.map((ing) => ({
+              ...(() => {
+                const canonicalDisplay = canonicalHerbCountDisplay(
+                  ing.name,
+                  ing.quantity,
+                  ing.unit,
+                  ing.canonical_unit || ing.canonicalUnit || ""
+                );
+                if (!canonicalDisplay) {
+                  return {
+                    quantity: Number(ing.quantity || 0),
+                    unit: String(ing.unit || ""),
+                  };
+                }
+                return {
+                  quantity: Number(canonicalDisplay.quantity.toFixed(4)),
+                  unit: canonicalDisplay.unit,
+                };
+              })(),
               name: String(ing.name || ""),
-              quantity: Number(ing.quantity || 0),
-              unit: String(ing.unit || ""),
               prep_notes: ing.prep_notes ? String(ing.prep_notes) : "",
             }))
           : [];

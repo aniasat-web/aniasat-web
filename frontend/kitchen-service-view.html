@@ -267,7 +267,6 @@
               <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false"><i class="fa-solid fa-gear me-1"></i> Admin</a>
               <ul class="dropdown-menu">
                 <li><a class="dropdown-item" href="user-admin.html"><i class="fa-solid fa-users-gear me-2"></i> Users</a></li>
-                <li><a class="dropdown-item" href="ingredient-admin.html"><i class="fa-solid fa-carrot me-2"></i> Ingredients</a></li>
               </ul>
             </li>
             <li class="nav-item d-flex align-items-center">
@@ -314,7 +313,7 @@
       </div>
     </main>
 
-    <script src="assets/auth.js"></script>
+    <script src="assets/auth.js?v=20260218e"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
     <script>
       const MEAL_ORDER = ["Breakfast", "Lunch", "Evening Chai", "Dinner"];
@@ -335,6 +334,7 @@
       let activeMealKey = null;
       let activeDay = null;
       const ingredientMetaByKey = new Map();
+      const ingredientSpecificConversions = new Map();
       let ingredientMetaLoaded = false;
       const planId = new URLSearchParams(window.location.search).get("plan");
       const UNIT_ALIASES = {
@@ -359,6 +359,7 @@
         bunches: "bunch",
         loaves: "loaf",
         sprigs: "sprig",
+        springs: "sprig",
         leaves: "leaf",
         bags: "bag",
         pinches: "pinch",
@@ -377,6 +378,13 @@
         "leaf",
         "pinch",
         "bag",
+      ]);
+      const HERB_COUNT_UNIT_FALLBACK_FACTORS = new Map([
+        ["cilantro|piece|bunch", 1 / 16],
+        ["cilantro|sprig|bunch", 1 / 16],
+        ["curry leaves|piece|sprig", 1],
+        ["curry leaves|leaf|sprig", 1 / 8],
+        ["curry leaves|packet|sprig", 5],
       ]);
 
       function resolveApiBase() {
@@ -398,6 +406,16 @@
 
       function normalizeIngredientKey(name) {
         return String(name || "").trim().toLowerCase().replace(/\s+/g, " ");
+      }
+
+      function ingredientSpecificConversionFactor(ingredientName, unitFrom, unitTo) {
+        const key = `${normalizeIngredientKey(ingredientName)}|${normalizeUnit(unitFrom)}|${normalizeUnit(unitTo)}`;
+        return ingredientSpecificConversions.get(key);
+      }
+
+      function herbCountUnitFallbackFactor(ingredientName, unitFrom, unitTo) {
+        const key = `${normalizeIngredientKey(ingredientName)}|${normalizeUnit(unitFrom)}|${normalizeUnit(unitTo)}`;
+        return HERB_COUNT_UNIT_FALLBACK_FACTORS.get(key);
       }
 
       function isSpiceOrSeasoningCategory(category) {
@@ -434,7 +452,18 @@
         }
 
         const decimals = unit === "kg" || unit === "l" ? 1 : 0;
-        return `${qty.toFixed(decimals)} ${unit}`;
+        let value = qty.toFixed(decimals);
+
+        // Avoid displaying non-zero quantities as "0" due to rounding.
+        if (qty > 0 && Number(value) === 0) {
+          value = qty.toFixed(Math.max(decimals, 1));
+          if (Number(value) === 0) {
+            value = qty.toFixed(2);
+          }
+        }
+
+        value = value.replace(/\.0+$/, "").replace(/(\.\d*?)0+$/, "$1");
+        return `${value} ${unit}`;
       }
 
       async function ensureIngredientMetadataLoaded() {
@@ -443,29 +472,64 @@
         }
 
         try {
-          const response = await fetch(apiUrl("/api/ingredients"));
-          if (!response.ok) {
-            return;
-          }
+          const [ingredientResponse, conversionResponse] = await Promise.all([
+            fetch(apiUrl("/api/ingredients")),
+            fetch(apiUrl("/api/unit-conversions")),
+          ]);
 
-          const rows = await response.json();
-          if (!Array.isArray(rows)) {
-            return;
-          }
+          let loadedAny = false;
 
-          rows.forEach((row) => {
-            const name = String(row.name || "").trim();
-            if (!name) {
-              return;
+          if (ingredientResponse.ok) {
+            const rows = await ingredientResponse.json();
+            if (Array.isArray(rows)) {
+              rows.forEach((row) => {
+                const name = String(row.name || "").trim();
+                if (!name) {
+                  return;
+                }
+                const key = normalizeIngredientKey(name);
+                ingredientMetaByKey.set(key, {
+                  category: String(row.category || "").trim() || null,
+                  canonicalUnit: normalizeUnit(row.canonical_unit ?? row.canonicalUnit ?? ""),
+                  gramsPerCup: Number(row.grams_per_cup ?? row.gramsPerCup ?? NaN),
+                });
+              });
+              loadedAny = true;
             }
-            const key = normalizeIngredientKey(name);
-            ingredientMetaByKey.set(key, {
-              category: String(row.category || "").trim() || null,
-              canonicalUnit: normalizeUnit(row.canonical_unit ?? row.canonicalUnit ?? ""),
-              gramsPerCup: Number(row.grams_per_cup ?? row.gramsPerCup ?? NaN),
-            });
-          });
-          ingredientMetaLoaded = true;
+          }
+
+          if (conversionResponse.ok) {
+            const rows = await conversionResponse.json();
+            if (Array.isArray(rows)) {
+              rows.forEach((row) => {
+                const context = String(row.context || "").trim().toLowerCase();
+                if (context !== "ingredient_specific") {
+                  return;
+                }
+                const itemName = String(row.item_name || row.itemName || "").trim();
+                const unitFrom = normalizeUnit(row.unit_from || row.unitFrom || "");
+                const unitTo = normalizeUnit(row.unit_to || row.unitTo || "");
+                const quantityFrom = Number(row.quantity_from ?? row.quantityFrom ?? NaN);
+                const quantityTo = Number(row.quantity_to ?? row.quantityTo ?? NaN);
+                if (!itemName || !unitFrom || !unitTo || !Number.isFinite(quantityFrom) || !Number.isFinite(quantityTo) || quantityFrom <= 0) {
+                  return;
+                }
+                const factor = quantityTo / quantityFrom;
+                if (!Number.isFinite(factor) || factor <= 0) {
+                  return;
+                }
+                const key = `${normalizeIngredientKey(itemName)}|${unitFrom}|${unitTo}`;
+                if (!ingredientSpecificConversions.has(key)) {
+                  ingredientSpecificConversions.set(key, factor);
+                }
+              });
+              loadedAny = true;
+            }
+          }
+
+          if (loadedAny) {
+            ingredientMetaLoaded = true;
+          }
         } catch (_error) {
           // Metadata is optional; retreat view still renders using published snapshot units.
         }
@@ -497,7 +561,7 @@
           return null;
         }
 
-        if (meta.canonicalUnit === "g") {
+        if (meta.canonicalUnit === "g" || meta.canonicalUnit === "kg") {
           if (MASS_TO_G[source.unit]) {
             return { qty: source.qty * MASS_TO_G[source.unit], unit: "g" };
           }
@@ -505,6 +569,16 @@
           if (VOLUME_TO_ML[source.unit] && Number.isFinite(meta.gramsPerCup) && meta.gramsPerCup > 0) {
             const cups = (source.qty * VOLUME_TO_ML[source.unit]) / VOLUME_TO_ML.cup;
             return { qty: cups * meta.gramsPerCup, unit: "g" };
+          }
+
+          const specificToG = ingredientSpecificConversionFactor(item?.name || "", source.unit, "g");
+          if (Number.isFinite(specificToG)) {
+            return { qty: source.qty * specificToG, unit: "g" };
+          }
+
+          const specificToKg = ingredientSpecificConversionFactor(item?.name || "", source.unit, "kg");
+          if (Number.isFinite(specificToKg)) {
+            return { qty: source.qty * specificToKg, unit: "kg" };
           }
 
           if (COUNT_UNITS.has(source.unit) && isSpiceOrSeasoningCategory(meta.category)) {
@@ -523,6 +597,26 @@
             const grams = source.qty * MASS_TO_G[source.unit];
             const cups = grams / meta.gramsPerCup;
             return { qty: cups * VOLUME_TO_ML.cup, unit: "ml" };
+          }
+
+          const specificToMl = ingredientSpecificConversionFactor(item?.name || "", source.unit, "ml");
+          if (Number.isFinite(specificToMl)) {
+            return { qty: source.qty * specificToMl, unit: "ml" };
+          }
+
+          const specificToL = ingredientSpecificConversionFactor(item?.name || "", source.unit, "l");
+          if (Number.isFinite(specificToL)) {
+            return { qty: source.qty * specificToL, unit: "l" };
+          }
+        }
+
+        if (COUNT_UNITS.has(meta.canonicalUnit) && COUNT_UNITS.has(source.unit)) {
+          if (source.unit === meta.canonicalUnit) {
+            return { qty: source.qty, unit: meta.canonicalUnit };
+          }
+          const factor = herbCountUnitFallbackFactor(item?.name || "", source.unit, meta.canonicalUnit);
+          if (Number.isFinite(factor)) {
+            return { qty: source.qty * factor, unit: meta.canonicalUnit };
           }
         }
 

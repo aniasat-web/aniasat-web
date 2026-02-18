@@ -137,13 +137,13 @@
           const tr = document.createElement("tr");
           tr.className = "shopping-skeleton-row";
 
-          for (let j = 0; j < 9; j += 1) {
+          for (let j = 0; j < 10; j += 1) {
             const td = document.createElement("td");
             const line = document.createElement("div");
             line.className = "ui-skeleton-line skeleton-cell";
-            if (j === 0 || j === 1 || j === 8) {
+            if (j === 0 || j === 1 || j === 9) {
               line.classList.add("long");
-            } else if (j === 6 || j === 7) {
+            } else if (j === 7 || j === 8) {
               line.classList.add("short");
             } else {
               line.classList.add("medium");
@@ -185,6 +185,27 @@
         const numeric = Number(qty);
         if (!Number.isFinite(numeric)) return "—";
         return `${Math.round(numeric)} ${unit}`;
+      }
+
+      function toLbs(qty, unit) {
+        const numeric = Number(qty);
+        if (!Number.isFinite(numeric)) {
+          return null;
+        }
+        const normalizedUnit = String(unit || "").trim().toLowerCase();
+        const gPerUnit = MASS_UNITS_TO_G[normalizedUnit];
+        if (!gPerUnit) {
+          return null;
+        }
+        return (numeric * gPerUnit) / MASS_UNITS_TO_G.lb;
+      }
+
+      function formatLbsQty(qty, unit) {
+        const pounds = toLbs(qty, unit);
+        if (pounds == null) {
+          return "—";
+        }
+        return `${Math.round(pounds)} lbs`;
       }
 
       async function loadRetreatPlans() {
@@ -792,9 +813,13 @@
         }
         tr.appendChild(stockTd);
 
-        const buyTd = document.createElement("td");
-        buyTd.innerHTML = `<span class="qty-chip buy">${formatNeededQty(item.to_buy_qty, item.to_buy_unit)}</span>`;
-        tr.appendChild(buyTd);
+        const buyMetricTd = document.createElement("td");
+        buyMetricTd.innerHTML = `<span class="qty-chip buy">${formatNeededQty(item.to_buy_qty, item.to_buy_unit)}</span>`;
+        tr.appendChild(buyMetricTd);
+
+        const buyUsTd = document.createElement("td");
+        buyUsTd.innerHTML = `<span class="qty-chip buy">${formatLbsQty(item.to_buy_qty, item.to_buy_unit)}</span>`;
+        tr.appendChild(buyUsTd);
 
         const sourceTd = document.createElement("td");
         sourceTd.appendChild(createVendorSelect(item));
@@ -833,7 +858,7 @@
         const headerTr = document.createElement("tr");
         headerTr.className = "category-row";
         const headerTd = document.createElement("td");
-        headerTd.colSpan = 9;
+        headerTd.colSpan = 10;
 
         const heading = document.createElement("div");
         heading.className = "category-heading";
@@ -900,7 +925,7 @@
         if (!allItems.length) {
           const tr = document.createElement("tr");
           const td = document.createElement("td");
-          td.colSpan = 9;
+          td.colSpan = 10;
           td.className = "text-muted small py-3";
           td.textContent = "No items found for this shopping list.";
           tr.appendChild(td);
@@ -912,7 +937,7 @@
         if (!visibleItems.length) {
           const tr = document.createElement("tr");
           const td = document.createElement("td");
-          td.colSpan = 9;
+          td.colSpan = 10;
           td.className = "text-muted small py-3";
           td.textContent = `No items in ${selectedIngredientCategory}.`;
           tr.appendChild(td);
@@ -926,7 +951,7 @@
             const sourceTr = document.createElement("tr");
             sourceTr.className = "source-row";
             const sourceTd = document.createElement("td");
-            sourceTd.colSpan = 9;
+            sourceTd.colSpan = 10;
             sourceTd.textContent = `Source: ${sourceEntry.source} (${sourceEntry.totalItems} items)`;
             sourceTr.appendChild(sourceTd);
             shoppingBody.appendChild(sourceTr);

@@ -86,6 +86,16 @@ COUNT_UNITS = {
     "bags",
 }
 
+# Fallback count-unit conversions for herbs where recipe data mixes units.
+# These are used only when no explicit unit_conversions entry exists.
+HERB_COUNT_UNIT_FALLBACK_FACTORS: dict[tuple[str, str, str], float] = {
+    ("cilantro", "piece", "bunch"): 1.0 / 16.0,
+    ("cilantro", "sprig", "bunch"): 1.0 / 16.0,
+    ("curry leaves", "piece", "sprig"): 1.0,
+    ("curry leaves", "leaf", "sprig"): 1.0 / 8.0,
+    ("curry leaves", "packet", "sprig"): 5.0,
+}
+
 RECIPE_CATEGORIES = [
     "M's Recipes",
     "Breakfast",
@@ -2840,6 +2850,7 @@ def normalize_unit(unit: str) -> str:
         "bunches": "bunch",
         "loaves": "loaf",
         "sprigs": "sprig",
+        "springs": "sprig",
         "leaves": "leaf",
         "bags": "bag",
         "pinches": "pinch",
@@ -2858,6 +2869,7 @@ def normalize_ingredient_name(ingredient_name: str) -> str:
         "kidney beans": "Rajma",
         "red kidney bean": "Rajma",
         "red kidney beans": "Rajma",
+        "curry leaf": "Curry leaves",
         "cardamom pod": "Cardamom",
         "cardamom pods": "Cardamom",
         "green cardamom": "Cardamom",
@@ -2926,12 +2938,24 @@ def replace_recipe_ingredients(
     for item in ingredients:
         ingredient_id = get_or_create_ingredient_id(conn, item.ingredient_name)
         prep_notes = item.prep_notes.strip() if item.prep_notes and item.prep_notes.strip() else None
+        normalized_unit = normalize_unit(item.unit)
+        normalized_quantity = float(item.quantity)
+
+        _grams_per_cup, canonical_unit, _category = ingredient_profile(item.ingredient_name)
+        if canonical_unit in COUNT_UNITS and normalized_unit in COUNT_UNITS and normalized_unit != canonical_unit:
+            factor = ingredient_specific_unit_conversion_factor(item.ingredient_name, normalized_unit, canonical_unit)
+            if factor is None:
+                factor = herb_count_unit_fallback_factor(item.ingredient_name, normalized_unit, canonical_unit)
+            if factor is not None:
+                normalized_quantity *= factor
+                normalized_unit = canonical_unit
+
         conn.execute(
             """
             INSERT INTO recipe_ingredients(recipe_id, ingredient_id, quantity, unit, prep_notes)
             VALUES (?, ?, ?, ?, ?)
             """,
-            (recipe_id, ingredient_id, item.quantity, normalize_unit(item.unit), prep_notes),
+            (recipe_id, ingredient_id, normalized_quantity, normalized_unit, prep_notes),
         )
 
 
@@ -2970,8 +2994,16 @@ def is_spice_or_seasoning_category(category: str | None) -> bool:
     return "spice" in normalized or "seasoning" in normalized
 
 
-def ingredient_specific_g_per_unit(ingredient_name: str, unit: str) -> float | None:
+def ingredient_specific_unit_conversion_factor(
+    ingredient_name: str,
+    unit_from: str,
+    unit_to: str,
+) -> float | None:
     normalized_name = normalize_ingredient_name(ingredient_name)
+    from_unit = normalize_unit(unit_from)
+    to_unit = normalize_unit(unit_to)
+    if not normalized_name or not from_unit or not to_unit:
+        return None
     with get_connection() as conn:
         row = conn.execute(
             """
@@ -2979,11 +3011,11 @@ def ingredient_specific_g_per_unit(ingredient_name: str, unit: str) -> float | N
             FROM unit_conversions
             WHERE lower(COALESCE(item_name, '')) = lower(?)
               AND lower(unit_from) = lower(?)
-              AND lower(unit_to) = 'g'
+              AND lower(unit_to) = lower(?)
             ORDER BY CASE WHEN context = 'ingredient_specific' THEN 0 ELSE 1 END, id
             LIMIT 1
             """,
-            (normalized_name, unit),
+            (normalized_name, from_unit, to_unit),
         ).fetchone()
     if not row:
         return None
@@ -2992,6 +3024,23 @@ def ingredient_specific_g_per_unit(ingredient_name: str, unit: str) -> float | N
     if quantity_from <= 0 or quantity_to <= 0:
         return None
     return quantity_to / quantity_from
+
+
+def ingredient_specific_g_per_unit(ingredient_name: str, unit: str) -> float | None:
+    return ingredient_specific_unit_conversion_factor(ingredient_name, unit, "g")
+
+
+def herb_count_unit_fallback_factor(
+    ingredient_name: str,
+    unit_from: str,
+    unit_to: str,
+) -> float | None:
+    key = (
+        normalize_ingredient_name(ingredient_name).strip().lower(),
+        normalize_unit(unit_from),
+        normalize_unit(unit_to),
+    )
+    return HERB_COUNT_UNIT_FALLBACK_FACTORS.get(key)
 
 
 def generic_solid_g_per_unit(unit: str) -> float | None:
@@ -3056,6 +3105,19 @@ def to_canonical(ingredient_name: str, qty: float, unit: str) -> tuple[float | N
         return qty * VOLUME_TO_ML[unit], "ml", "No ingredient density found; kept as volume."
 
     if unit in COUNT_UNITS:
+        if canonical_unit in COUNT_UNITS:
+            target_unit = normalize_unit(canonical_unit)
+            if unit == target_unit:
+                return qty, target_unit, "Canonical count unit preference applied."
+
+            factor = ingredient_specific_unit_conversion_factor(ingredient_name, unit, target_unit)
+            if factor is not None:
+                return qty * factor, target_unit, "Converted using ingredient-specific count-unit conversion."
+
+            fallback_factor = herb_count_unit_fallback_factor(ingredient_name, unit, target_unit)
+            if fallback_factor is not None:
+                return qty * fallback_factor, target_unit, "Converted using herb count-unit fallback."
+
         if is_spice_or_seasoning:
             return qty, "g", "Spice/seasoning count unit normalized to grams by policy fallback."
         return qty, unit, None

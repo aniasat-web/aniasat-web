@@ -322,8 +322,12 @@
                 <li><a class="dropdown-item" href="ingredient-admin.html"><i class="fa-solid fa-carrot me-2"></i> Ingredients</a></li>
               </ul>
             </li>
-            <li class="nav-item">
-              <a class="nav-link" href="inventory.html"><i class="fa-solid fa-boxes-stacked me-1"></i> Inventory</a>
+            <li class="nav-item dropdown">
+              <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false"><i class="fa-solid fa-boxes-stacked me-1"></i> Inventory</a>
+              <ul class="dropdown-menu">
+                <li><a class="dropdown-item" href="inventory.html"><i class="fa-solid fa-clipboard-list me-2"></i> General Inventory</a></li>
+                <li><a class="dropdown-item" href="retreat-inventory.html"><i class="fa-solid fa-barcode me-2"></i> Retreat Inventory</a></li>
+              </ul>
             </li>
             <li class="nav-item dropdown">
               <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false"><i class="fa-solid fa-seedling me-1"></i> About</a>
@@ -541,8 +545,8 @@
       const HERB_COUNT_UNIT_FALLBACK_FACTORS = new Map([
         ["cilantro|piece|bunch", 1 / 16],
         ["cilantro|sprig|bunch", 1 / 16],
-        ["curry leaves|piece|sprig", 1],
-        ["curry leaves|leaf|sprig", 1 / 8],
+        ["curry leaves|piece|sprig", 1 / 10],
+        ["curry leaves|leaf|sprig", 1 / 10],
         ["curry leaves|packet|sprig", 5],
       ]);
       let recipes = [];
@@ -573,21 +577,31 @@
         const qty = Number(quantity);
         const sourceUnit = normalizeUnitToken(unit);
         const targetUnit = normalizeUnitToken(canonicalUnit);
+        const ingredientKey = normalizeIngredientKey(name);
         if (!Number.isFinite(qty) || !sourceUnit || !targetUnit) {
           return null;
         }
         if (!COUNT_UNITS.has(sourceUnit) || !COUNT_UNITS.has(targetUnit)) {
           return null;
         }
+        const normalizeCurryLeavesSprigs = (value) => {
+          if (ingredientKey !== "curry leaves" || targetUnit !== "sprig" || !Number.isFinite(value)) {
+            return value;
+          }
+          if (value <= 0) {
+            return 0;
+          }
+          return Math.max(1, Math.round(value));
+        };
         if (sourceUnit === targetUnit) {
-          return { quantity: qty, unit: targetUnit };
+          return { quantity: normalizeCurryLeavesSprigs(qty), unit: targetUnit };
         }
-        const key = `${normalizeIngredientKey(name)}|${sourceUnit}|${targetUnit}`;
+        const key = `${ingredientKey}|${sourceUnit}|${targetUnit}`;
         const factor = HERB_COUNT_UNIT_FALLBACK_FACTORS.get(key);
         if (!Number.isFinite(factor)) {
           return null;
         }
-        return { quantity: qty * factor, unit: targetUnit };
+        return { quantity: normalizeCurryLeavesSprigs(qty * factor), unit: targetUnit };
       }
 
       function setStatus(message, mode = "info") {

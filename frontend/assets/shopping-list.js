@@ -23,6 +23,8 @@
       const metricReceived = document.getElementById("metricReceived");
       const metricStatus = document.getElementById("metricStatus");
       const groupModeSelect = document.getElementById("groupModeSelect");
+      const laterOnlyToggle = document.getElementById("laterOnlyToggle");
+      const laterOnlyCount = document.getElementById("laterOnlyCount");
       const selectAllVisibleInput = document.getElementById("selectAllVisibleInput");
       const shoppingCategoryFilter = document.getElementById("shoppingCategoryFilter");
       const sourceBreakdownHint = document.getElementById("sourceBreakdownHint");
@@ -40,6 +42,7 @@
       let dropdownSelectedListId = null;
       let renameEditingListId = null;
       let selectedIngredientCategory = null;
+      let showLaterOnly = false;
       let selectedShoppingItemIds = new Set();
       let visibleShoppingItemIds = new Set();
       const MASS_UNITS_TO_G = {
@@ -171,6 +174,10 @@
         if (qty == null || !unit) return "—";
         const numeric = Number(qty);
         if (!Number.isFinite(numeric)) return "—";
+        const normalizedUnit = String(unit).trim().toLowerCase();
+        if (normalizedUnit === "tsp" || normalizedUnit === "tbsp" || normalizedUnit === "cup") {
+          return `${numeric.toFixed(1)} ${unit}`;
+        }
         if (unit === "kg" || unit === "l") {
           return `${numeric.toFixed(2).replace(/\.00$/, "")} ${unit}`;
         }
@@ -184,6 +191,10 @@
         if (qty == null || !unit) return "—";
         const numeric = Number(qty);
         if (!Number.isFinite(numeric)) return "—";
+        const normalizedUnit = String(unit).trim().toLowerCase();
+        if (normalizedUnit === "tsp" || normalizedUnit === "tbsp" || normalizedUnit === "cup") {
+          return `${numeric.toFixed(1)} ${unit}`;
+        }
         return `${Math.round(numeric)} ${unit}`;
       }
 
@@ -573,6 +584,79 @@
         return input;
       }
 
+      function createPartialSplitButton(item) {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "btn btn-outline-secondary btn-sm split-now-btn";
+        button.innerHTML = '<i class="fa-solid fa-scissors me-1"></i>Split';
+
+        const toBuyQty = Number(item?.to_buy_qty || 0);
+        const blockedByState = Boolean(item?.ordered) || Boolean(item?.received);
+        const canSplit = Number.isFinite(toBuyQty) && toBuyQty > 0 && !blockedByState;
+
+        if (!canSplit) {
+          button.disabled = true;
+          if (blockedByState) {
+            button.title = "Split is disabled after an item is marked ordered or received.";
+          } else {
+            button.title = "Split is available only when amount to order is greater than zero.";
+          }
+          return button;
+        }
+
+        button.title = "Split this item into buy-now and buy-later quantities.";
+        button.addEventListener("click", (event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          void splitShoppingItemPartialBuy(item);
+        });
+        return button;
+      }
+
+      function partialBuyBadgeData(notesValue) {
+        const notes = String(notesValue || "").trim();
+        if (!notes) {
+          return null;
+        }
+        const match = notes.match(/^Partial buy:\s*(Now|Later)\s*\((\d+(?:\.\d+)?)% of original\)\./i);
+        if (!match) {
+          return null;
+        }
+        return {
+          stage: String(match[1] || "").trim(),
+          percent: Number(match[2]),
+        };
+      }
+
+      function isLaterPartialItem(item) {
+        const badge = partialBuyBadgeData(item?.notes);
+        return Boolean(badge && String(badge.stage || "").trim().toLowerCase() === "later");
+      }
+
+      function applyLaterOnlyFilter(items) {
+        const rows = Array.isArray(items) ? items : [];
+        if (!showLaterOnly) {
+          return [...rows];
+        }
+        return rows.filter((item) => isLaterPartialItem(item));
+      }
+
+      function updateLaterOnlySummary(items) {
+        const rows = Array.isArray(items) ? items : [];
+        const laterCount = rows.filter((item) => isLaterPartialItem(item)).length;
+        if (showLaterOnly && laterCount <= 0) {
+          showLaterOnly = false;
+        }
+
+        if (laterOnlyCount) {
+          laterOnlyCount.textContent = `${laterCount}/${rows.length}`;
+        }
+        if (laterOnlyToggle instanceof HTMLInputElement) {
+          laterOnlyToggle.checked = showLaterOnly;
+          laterOnlyToggle.disabled = rows.length <= 0 || laterCount <= 0;
+        }
+      }
+
       function inventoryInputStep(_unit) {
         return "1";
       }
@@ -799,6 +883,17 @@
           details.appendChild(breakdownList);
           ingredientTd.appendChild(details);
         }
+        const ingredientActions = document.createElement("div");
+        ingredientActions.className = "ingredient-actions";
+        const partialBadge = partialBuyBadgeData(item?.notes);
+        if (partialBadge && Number.isFinite(partialBadge.percent)) {
+          const badge = document.createElement("span");
+          badge.className = `qty-chip partial-buy-badge ${partialBadge.stage.toLowerCase() === "later" ? "later" : "now"}`;
+          badge.textContent = `${partialBadge.stage} ${partialBadge.percent.toFixed(1)}%`;
+          ingredientActions.appendChild(badge);
+        }
+        ingredientActions.appendChild(createPartialSplitButton(item));
+        ingredientTd.appendChild(ingredientActions);
         tr.appendChild(ingredientTd);
 
         const requiredTd = document.createElement("td");
@@ -913,8 +1008,10 @@
             sourceBreakdownHint.textContent = `${withBreakdownCount} ingredients include contributor details (>= 2 kg or >= 2 l).`;
           }
         }
-        renderShoppingCategoryFilter(allItems);
-        const visibleItems = categoryFilteredItems(allItems);
+        updateLaterOnlySummary(allItems);
+        const laterFilteredItems = applyLaterOnlyFilter(allItems);
+        renderShoppingCategoryFilter(laterFilteredItems);
+        const visibleItems = categoryFilteredItems(laterFilteredItems);
         visibleShoppingItemIds = new Set(
           visibleItems
             .map((item) => Number(item?.id))
@@ -928,6 +1025,18 @@
           td.colSpan = 10;
           td.className = "text-muted small py-3";
           td.textContent = "No items found for this shopping list.";
+          tr.appendChild(td);
+          shoppingBody.appendChild(tr);
+          triggerFadeIn(shoppingBody);
+          return;
+        }
+
+        if (showLaterOnly && !laterFilteredItems.length) {
+          const tr = document.createElement("tr");
+          const td = document.createElement("td");
+          td.colSpan = 10;
+          td.className = "text-muted small py-3";
+          td.textContent = "No items marked for later purchase.";
           tr.appendChild(td);
           shoppingBody.appendChild(tr);
           triggerFadeIn(shoppingBody);
@@ -1026,6 +1135,71 @@
           renderShoppingRows(detail);
           await loadShoppingLists();
           setStatus("Saved.", "ok");
+        } catch (error) {
+          setStatus(error instanceof Error ? error.message : String(error), "err");
+        }
+      }
+
+      async function splitShoppingItemPartialBuy(item) {
+        const targetItemId = Number(item?.id || 0);
+        if (!activeListId || !Number.isFinite(targetItemId) || targetItemId <= 0) {
+          setStatus("Load a shopping list first.", "err");
+          return;
+        }
+        if (Boolean(item?.ordered) || Boolean(item?.received)) {
+          setStatus("Cannot split items that are already ordered or received.", "err");
+          return;
+        }
+
+        const ingredientName = String(item?.ingredient_name || "this item").trim() || "this item";
+        const suggestedPercent = "75";
+        const rawInput = window.prompt(
+          `Buy what percent now for ${ingredientName}? (later gets the remainder)`,
+          suggestedPercent,
+        );
+        if (rawInput == null) {
+          return;
+        }
+
+        const normalizedInput = String(rawInput).trim().replace(/%/g, "");
+        const buyNowPercent = Number(normalizedInput);
+        if (!Number.isFinite(buyNowPercent) || buyNowPercent <= 0 || buyNowPercent >= 100) {
+          setStatus("Enter a valid percentage between 0 and 100 (exclusive).", "err");
+          return;
+        }
+
+        try {
+          setStatus(`Splitting ${ingredientName}...`, "info", { busy: true });
+          const response = await fetch(apiUrl(`/api/shopping-lists/${activeListId}/items/${targetItemId}/split`), {
+            method: "POST",
+            credentials: "include",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ buyNowPercent }),
+          });
+          if (!response.ok) {
+            throw new Error(await parseApiError(response));
+          }
+
+          const detail = await response.json();
+          activeShoppingDetail = detail;
+          activeListPhase = String(detail.phase || "").trim().toLowerCase() || null;
+          setSummary(detail);
+          renderShoppingRows(detail);
+          await loadShoppingLists();
+
+          const splitResult = detail?.split_result;
+          if (
+            splitResult
+            && Number.isFinite(Number(splitResult.buy_now_percent))
+            && Number.isFinite(Number(splitResult.buy_later_percent))
+          ) {
+            setStatus(
+              `Split ${ingredientName}: ${Number(splitResult.buy_now_percent).toFixed(1)}% now, ${Number(splitResult.buy_later_percent).toFixed(1)}% later.`,
+              "ok",
+            );
+          } else {
+            setStatus(`Split ${ingredientName}.`, "ok");
+          }
         } catch (error) {
           setStatus(error instanceof Error ? error.message : String(error), "err");
         }
@@ -1427,6 +1601,12 @@
         setGroupMode(groupModeSelect.value);
         renderShoppingRows(activeShoppingDetail || { items: [] });
       });
+      if (laterOnlyToggle instanceof HTMLInputElement) {
+        laterOnlyToggle.addEventListener("change", () => {
+          showLaterOnly = Boolean(laterOnlyToggle.checked);
+          renderShoppingRows(activeShoppingDetail || { items: [] });
+        });
+      }
       selectAllRetreatsBtn.addEventListener("click", () => {
         Array.from(retreatPlanSelect.options).forEach((opt) => {
           opt.selected = true;

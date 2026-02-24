@@ -7,13 +7,23 @@ import sqlite3
 from pathlib import Path
 from typing import Any
 
+try:
+    import psycopg
+    from psycopg.rows import dict_row
+except Exception:  # pragma: no cover - optional dependency in local sqlite mode
+    psycopg = None
+    dict_row = None
+
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 DATA_DIR = PROJECT_ROOT / "data"
 DB_PATH = DATA_DIR / "retreat_ops.db"
-SCHEMA_PATH = Path(__file__).resolve().parent / "schema.sql"
+SCHEMA_SQLITE_PATH = Path(__file__).resolve().parent / "schema.sql"
+SCHEMA_POSTGRES_PATH = Path(__file__).resolve().parent / "schema_postgres.sql"
 MASTER_SEED_PATH = PROJECT_ROOT / "seeds" / "master_data.json"
 AUTO_SEED_MASTER_DATA_ENV = "RETREAT_OPS_AUTO_SEED_MASTER_DATA"
 AUTO_SEED_DISABLED_VALUES = {"0", "false", "off", "no"}
+DATABASE_URL_ENV = "DATABASE_URL"
+SQLITE_DB_PATH_ENV = "RETREAT_OPS_SQLITE_DB_PATH"
 
 LOGGER = logging.getLogger(__name__)
 
@@ -32,20 +42,382 @@ DEFAULT_VENDOR_NAMES = [
 ]
 
 
-def get_connection() -> sqlite3.Connection:
-    DATA_DIR.mkdir(parents=True, exist_ok=True)
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    conn.execute("PRAGMA foreign_keys = ON")
-    return conn
+def _normalize_database_url(raw_url: str) -> str:
+    value = str(raw_url or "").strip()
+    if value.startswith("postgres://"):
+        return "postgresql://" + value[len("postgres://") :]
+    return value
+
+
+def _replace_qmark_placeholders(sql: str) -> str:
+    # Keep existing sqlite-style placeholders in code and map them to psycopg's
+    # positional placeholder format only when needed.
+    if "?" not in sql:
+        return sql
+
+    out: list[str] = []
+    in_single = False
+    in_double = False
+    in_line_comment = False
+    in_block_comment = False
+    i = 0
+    length = len(sql)
+
+    while i < length:
+        char = sql[i]
+        nxt = sql[i + 1] if i + 1 < length else ""
+
+        if in_line_comment:
+            out.append(char)
+            if char == "\n":
+                in_line_comment = False
+            i += 1
+            continue
+
+        if in_block_comment:
+            out.append(char)
+            if char == "*" and nxt == "/":
+                out.append(nxt)
+                i += 2
+                in_block_comment = False
+                continue
+            i += 1
+            continue
+
+        if not in_single and not in_double:
+            if char == "-" and nxt == "-":
+                out.append(char)
+                out.append(nxt)
+                i += 2
+                in_line_comment = True
+                continue
+            if char == "/" and nxt == "*":
+                out.append(char)
+                out.append(nxt)
+                i += 2
+                in_block_comment = True
+                continue
+
+        if char == "'" and not in_double:
+            out.append(char)
+            if in_single and nxt == "'":
+                out.append(nxt)
+                i += 2
+                continue
+            in_single = not in_single
+            i += 1
+            continue
+
+        if char == '"' and not in_single:
+            out.append(char)
+            in_double = not in_double
+            i += 1
+            continue
+
+        if char == "?" and not in_single and not in_double:
+            out.append("%s")
+        else:
+            out.append(char)
+        i += 1
+
+    return "".join(out)
+
+
+def _split_sql_statements(script: str) -> list[str]:
+    statements: list[str] = []
+    chunk: list[str] = []
+    in_single = False
+    in_double = False
+    in_line_comment = False
+    in_block_comment = False
+    i = 0
+    length = len(script)
+
+    while i < length:
+        char = script[i]
+        nxt = script[i + 1] if i + 1 < length else ""
+
+        if in_line_comment:
+            chunk.append(char)
+            if char == "\n":
+                in_line_comment = False
+            i += 1
+            continue
+
+        if in_block_comment:
+            chunk.append(char)
+            if char == "*" and nxt == "/":
+                chunk.append(nxt)
+                i += 2
+                in_block_comment = False
+                continue
+            i += 1
+            continue
+
+        if not in_single and not in_double:
+            if char == "-" and nxt == "-":
+                chunk.append(char)
+                chunk.append(nxt)
+                i += 2
+                in_line_comment = True
+                continue
+            if char == "/" and nxt == "*":
+                chunk.append(char)
+                chunk.append(nxt)
+                i += 2
+                in_block_comment = True
+                continue
+
+        if char == "'" and not in_double:
+            chunk.append(char)
+            if in_single and nxt == "'":
+                chunk.append(nxt)
+                i += 2
+                continue
+            in_single = not in_single
+            i += 1
+            continue
+
+        if char == '"' and not in_single:
+            chunk.append(char)
+            in_double = not in_double
+            i += 1
+            continue
+
+        if char == ";" and not in_single and not in_double:
+            statement = "".join(chunk).strip()
+            if statement:
+                statements.append(statement)
+            chunk = []
+            i += 1
+            continue
+
+        chunk.append(char)
+        i += 1
+
+    trailing = "".join(chunk).strip()
+    if trailing:
+        statements.append(trailing)
+    return statements
+
+
+class CompatConnection:
+    def __init__(self, raw: Any, *, backend: str):
+        self._raw = raw
+        self.backend = backend
+
+    def execute(self, sql: str, params: Any = None) -> Any:
+        if self.backend == "postgres":
+            statement = _replace_qmark_placeholders(sql)
+            if params is None:
+                return self._raw.execute(statement)
+            return self._raw.execute(statement, params)
+        if params is None:
+            return self._raw.execute(sql)
+        return self._raw.execute(sql, params)
+
+    def executemany(self, sql: str, params_seq: Any) -> Any:
+        if self.backend == "postgres":
+            statement = _replace_qmark_placeholders(sql)
+            return self._raw.executemany(statement, params_seq)
+        return self._raw.executemany(sql, params_seq)
+
+    def executescript(self, script: str) -> None:
+        if self.backend == "postgres":
+            for statement in _split_sql_statements(script):
+                self._raw.execute(statement)
+            return
+        self._raw.executescript(script)
+
+    def commit(self) -> None:
+        self._raw.commit()
+
+    def rollback(self) -> None:
+        self._raw.rollback()
+
+    def close(self) -> None:
+        self._raw.close()
+
+    def __enter__(self) -> "CompatConnection":
+        self._raw.__enter__()
+        return self
+
+    def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> Any:
+        return self._raw.__exit__(exc_type, exc_val, exc_tb)
+
+    def __getattr__(self, name: str) -> Any:
+        return getattr(self._raw, name)
+
+
+def get_connection() -> CompatConnection:
+    database_url = _normalize_database_url(os.getenv(DATABASE_URL_ENV, ""))
+    if database_url:
+        if psycopg is None or dict_row is None:
+            raise RuntimeError(
+                "DATABASE_URL is configured but psycopg is not installed. "
+                "Install dependencies from backend/requirements.txt."
+            )
+        raw = psycopg.connect(database_url, row_factory=dict_row)
+        return CompatConnection(raw, backend="postgres")
+
+    sqlite_path_raw = str(os.getenv(SQLITE_DB_PATH_ENV, "") or "").strip()
+    sqlite_path = Path(sqlite_path_raw) if sqlite_path_raw else DB_PATH
+    sqlite_path.parent.mkdir(parents=True, exist_ok=True)
+    raw = sqlite3.connect(sqlite_path)
+    raw.row_factory = sqlite3.Row
+    raw.execute("PRAGMA foreign_keys = ON")
+    return CompatConnection(raw, backend="sqlite")
+
+
+def table_exists(conn: CompatConnection, table_name: str) -> bool:
+    if conn.backend == "postgres":
+        row = conn.execute(
+            """
+            SELECT 1
+            FROM information_schema.tables
+            WHERE table_schema = current_schema()
+              AND table_name = ?
+            """,
+            (table_name,),
+        ).fetchone()
+        return bool(row)
+
+    row = conn.execute(
+        """
+        SELECT 1
+        FROM sqlite_master
+        WHERE type = 'table'
+          AND name = ?
+        """,
+        (table_name,),
+    ).fetchone()
+    return bool(row)
+
+
+def table_columns(conn: CompatConnection, table_name: str) -> set[str]:
+    if not table_exists(conn, table_name):
+        return set()
+    if conn.backend == "postgres":
+        rows = conn.execute(
+            """
+            SELECT column_name
+            FROM information_schema.columns
+            WHERE table_schema = current_schema()
+              AND table_name = ?
+            ORDER BY ordinal_position
+            """,
+            (table_name,),
+        ).fetchall()
+        return {str(row["column_name"]).strip() for row in rows}
+
+    rows = conn.execute(f"PRAGMA table_info({table_name})").fetchall()
+    return {str(row["name"]).strip() for row in rows}
+
+
+def ensure_retreat_inventory_location(conn: CompatConnection, location_name: str) -> int:
+    clean_name = str(location_name or "").strip()
+    if not clean_name:
+        raise ValueError("Location name cannot be blank")
+
+    existing = conn.execute(
+        """
+        SELECT id
+        FROM retreat_inventory_locations
+        WHERE deleted_at IS NULL
+          AND lower(name) = lower(?)
+        """,
+        (clean_name,),
+    ).fetchone()
+    if existing:
+        return int(existing["id"])
+
+    row = conn.execute(
+        """
+        INSERT INTO retreat_inventory_locations(
+            name,
+            active,
+            created_at,
+            updated_at
+        )
+        VALUES (?, 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+        RETURNING id
+        """,
+        (clean_name,),
+    ).fetchone()
+    return int(row["id"])
+
+
+def migrate_retreat_inventory_shelf_locations(conn: CompatConnection) -> None:
+    if not table_exists(conn, "retreat_inventory_items"):
+        return
+    if not table_exists(conn, "retreat_inventory_locations"):
+        return
+    if not table_exists(conn, "retreat_inventory_item_locations"):
+        return
+
+    item_columns = table_columns(conn, "retreat_inventory_items")
+    if "shelf_location" not in item_columns:
+        return
+
+    rows = conn.execute(
+        """
+        SELECT
+            i.id AS item_id,
+            i.shelf_location,
+            COALESCE(ril.quantity, 0) AS item_quantity
+        FROM retreat_inventory_items i
+        LEFT JOIN retreat_inventory_levels ril
+          ON ril.item_id = i.id
+         AND ril.category_id IS NULL
+        WHERE i.deleted_at IS NULL
+          AND trim(COALESCE(i.shelf_location, '')) <> ''
+        """
+    ).fetchall()
+
+    for row in rows:
+        item_id = int(row["item_id"])
+        location_name = str(row["shelf_location"] or "").strip()
+        if not location_name:
+            continue
+
+        location_id = ensure_retreat_inventory_location(conn, location_name)
+        existing = conn.execute(
+            """
+            SELECT id
+            FROM retreat_inventory_item_locations
+            WHERE item_id = ?
+              AND location_id = ?
+            """,
+            (item_id, location_id),
+        ).fetchone()
+        if existing:
+            continue
+
+        quantity = int(row["item_quantity"] or 0)
+        if quantity < 0:
+            quantity = 0
+        conn.execute(
+            """
+            INSERT INTO retreat_inventory_item_locations(
+                item_id,
+                location_id,
+                quantity,
+                created_at,
+                updated_at
+            )
+            VALUES (?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+            """,
+            (item_id, location_id, quantity),
+        )
 
 
 def init_db() -> None:
-    schema = SCHEMA_PATH.read_text(encoding="utf-8")
     with get_connection() as conn:
+        schema_path = SCHEMA_POSTGRES_PATH if conn.backend == "postgres" else SCHEMA_SQLITE_PATH
+        schema = schema_path.read_text(encoding="utf-8")
         conn.executescript(schema)
 
-        ingredient_columns = {row[1] for row in conn.execute("PRAGMA table_info(ingredients)").fetchall()}
+        ingredient_columns = table_columns(conn, "ingredients")
         if "category" not in ingredient_columns:
             conn.execute("ALTER TABLE ingredients ADD COLUMN category TEXT")
 
@@ -69,17 +441,17 @@ def init_db() -> None:
                 """
             )
 
-        recipe_columns = {row[1] for row in conn.execute("PRAGMA table_info(recipes)").fetchall()}
+        recipe_columns = table_columns(conn, "recipes")
         if "category" not in recipe_columns:
             conn.execute("ALTER TABLE recipes ADD COLUMN category TEXT")
 
-        columns = {row[1] for row in conn.execute("PRAGMA table_info(service_snapshots)").fetchall()}
+        columns = table_columns(conn, "service_snapshots")
         if "retreat_plan_id" not in columns:
             conn.execute(
                 "ALTER TABLE service_snapshots ADD COLUMN retreat_plan_id INTEGER REFERENCES retreat_plans(id) ON DELETE SET NULL"
             )
 
-        shopping_list_columns = {row[1] for row in conn.execute("PRAGMA table_info(shopping_lists)").fetchall()}
+        shopping_list_columns = table_columns(conn, "shopping_lists")
         if "retreat_plan_id" not in shopping_list_columns:
             conn.execute(
                 "ALTER TABLE shopping_lists ADD COLUMN retreat_plan_id INTEGER REFERENCES retreat_plans(id) ON DELETE SET NULL"
@@ -87,7 +459,7 @@ def init_db() -> None:
         if "phase" not in shopping_list_columns:
             conn.execute("ALTER TABLE shopping_lists ADD COLUMN phase TEXT NOT NULL DEFAULT 'bulk'")
 
-        shopping_item_columns = {row[1] for row in conn.execute("PRAGMA table_info(shopping_list_items)").fetchall()}
+        shopping_item_columns = table_columns(conn, "shopping_list_items")
         if "ordered" not in shopping_item_columns:
             conn.execute("ALTER TABLE shopping_list_items ADD COLUMN ordered INTEGER NOT NULL DEFAULT 0")
         if "ordered_at" not in shopping_item_columns:
@@ -97,11 +469,18 @@ def init_db() -> None:
         if "received_at" not in shopping_item_columns:
             conn.execute("ALTER TABLE shopping_list_items ADD COLUMN received_at TEXT")
 
-        shopping_item_source_columns = {
-            row[1] for row in conn.execute("PRAGMA table_info(shopping_list_item_sources)").fetchall()
-        }
+        shopping_item_source_columns = table_columns(conn, "shopping_list_item_sources")
         if shopping_item_source_columns and "dish_name" not in shopping_item_source_columns:
             conn.execute("ALTER TABLE shopping_list_item_sources ADD COLUMN dish_name TEXT")
+
+        retreat_inventory_item_columns = table_columns(conn, "retreat_inventory_items")
+        if retreat_inventory_item_columns and "shelf_location" not in retreat_inventory_item_columns:
+            conn.execute("ALTER TABLE retreat_inventory_items ADD COLUMN shelf_location TEXT")
+        if retreat_inventory_item_columns and "unit" not in retreat_inventory_item_columns:
+            conn.execute("ALTER TABLE retreat_inventory_items ADD COLUMN unit TEXT NOT NULL DEFAULT 'each'")
+        if retreat_inventory_item_columns and "purchase_url" not in retreat_inventory_item_columns:
+            conn.execute("ALTER TABLE retreat_inventory_items ADD COLUMN purchase_url TEXT")
+        migrate_retreat_inventory_shelf_locations(conn)
 
         conn.execute(
             """

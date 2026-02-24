@@ -244,8 +244,12 @@
                 <li><a class="dropdown-item" href="ingredient-admin.html"><i class="fa-solid fa-carrot me-2"></i> Ingredients</a></li>
               </ul>
             </li>
-            <li class="nav-item">
-              <a class="nav-link" href="inventory.html"><i class="fa-solid fa-boxes-stacked me-1"></i> Inventory</a>
+            <li class="nav-item dropdown">
+              <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false"><i class="fa-solid fa-boxes-stacked me-1"></i> Inventory</a>
+              <ul class="dropdown-menu">
+                <li><a class="dropdown-item" href="inventory.html"><i class="fa-solid fa-clipboard-list me-2"></i> General Inventory</a></li>
+                <li><a class="dropdown-item" href="retreat-inventory.html"><i class="fa-solid fa-barcode me-2"></i> Retreat Inventory</a></li>
+              </ul>
             </li>
             <li class="nav-item dropdown">
               <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false"><i class="fa-solid fa-seedling me-1"></i> About</a>
@@ -326,8 +330,6 @@
       const mealSections = document.getElementById("mealSections");
       const reloadData = document.getElementById("reloadData");
       const printMeal = document.getElementById("printMeal");
-      const backToPlanner = document.getElementById("backToPlanner");
-      const kitchenTestLink = document.getElementById("kitchenTestLink");
 
       let payload = null;
       let mealRecords = [];
@@ -382,10 +384,11 @@
       const HERB_COUNT_UNIT_FALLBACK_FACTORS = new Map([
         ["cilantro|piece|bunch", 1 / 16],
         ["cilantro|sprig|bunch", 1 / 16],
-        ["curry leaves|piece|sprig", 1],
-        ["curry leaves|leaf|sprig", 1 / 8],
+        ["curry leaves|piece|sprig", 1 / 10],
+        ["curry leaves|leaf|sprig", 1 / 10],
         ["curry leaves|packet|sprig", 5],
       ]);
+      const SINGLE_DECIMAL_UNITS = new Set(["kg", "l", "tsp", "tbsp", "cup"]);
 
       function resolveApiBase() {
         const queryValue = new URLSearchParams(window.location.search).get("api");
@@ -397,6 +400,38 @@
 
       function apiUrl(path) {
         return `${API_BASE}${path.startsWith("/") ? path : `/${path}`}`;
+      }
+
+      function buildKitchenViewUrl(path) {
+        const targetUrl = new URL(path, window.location.href);
+        if (planId) {
+          targetUrl.searchParams.set("plan", String(planId));
+        } else {
+          targetUrl.searchParams.delete("plan");
+        }
+        if (API_BASE !== window.location.origin) {
+          targetUrl.searchParams.set("api", API_BASE);
+        } else {
+          targetUrl.searchParams.delete("api");
+        }
+        return targetUrl.toString();
+      }
+
+      function syncNavigationLinks() {
+        const plannerHref = buildKitchenViewUrl("retreat-planner-sample.html");
+        document.querySelectorAll('a[href*="retreat-planner-sample.html"]').forEach((link) => {
+          link.href = plannerHref;
+        });
+
+        const retreatHref = buildKitchenViewUrl("kitchen-service-view.html");
+        document.querySelectorAll('a[href*="kitchen-service-view.html"]').forEach((link) => {
+          link.href = retreatHref;
+        });
+
+        const testingHref = buildKitchenViewUrl("kitchen-test-view.html");
+        document.querySelectorAll('a[href*="kitchen-test-view.html"]').forEach((link) => {
+          link.href = testingHref;
+        });
       }
 
       function normalizeUnit(unit) {
@@ -423,9 +458,27 @@
         return HERB_COUNT_UNIT_FALLBACK_FACTORS.get(key);
       }
 
+      function normalizeCurryLeavesSprigCount(ingredientName, quantity, unit) {
+        const ingredientKey = normalizeIngredientKey(ingredientName);
+        const normalizedUnit = normalizeUnit(unit);
+        const numeric = Number(quantity);
+        if (ingredientKey !== "curry leaves" || normalizedUnit !== "sprig" || !Number.isFinite(numeric)) {
+          return quantity;
+        }
+        if (numeric <= 0) {
+          return 0;
+        }
+        return Math.max(1, Math.round(numeric));
+      }
+
       function isSpiceOrSeasoningCategory(category) {
         const normalized = String(category || "").trim().toLowerCase();
         return normalized.includes("spice") || normalized.includes("seasoning");
+      }
+
+      function isProduceCategory(category) {
+        const normalized = String(category || "").trim().toLowerCase();
+        return normalized.includes("produce");
       }
 
       function formatLocalDateTime(value) {
@@ -440,7 +493,7 @@
         return date.toLocaleString();
       }
 
-      function formatKitchenQuantity(rawQty, rawUnit) {
+      function formatKitchenQuantity(rawQty, rawUnit, ingredientCategory = null) {
         const parsedQty = Number(rawQty);
         let unit = normalizeUnit(rawUnit);
         if (!Number.isFinite(parsedQty) || !unit) {
@@ -456,7 +509,8 @@
           unit = "l";
         }
 
-        const decimals = unit === "kg" || unit === "l" ? 1 : 0;
+        const forceSingleDecimal = SINGLE_DECIMAL_UNITS.has(unit) || isProduceCategory(ingredientCategory);
+        const decimals = forceSingleDecimal ? 1 : 0;
         let value = qty.toFixed(decimals);
 
         // Avoid displaying non-zero quantities as "0" due to rounding.
@@ -467,7 +521,9 @@
           }
         }
 
-        value = value.replace(/\.0+$/, "").replace(/(\.\d*?)0+$/, "$1");
+        if (!forceSingleDecimal) {
+          value = value.replace(/\.0+$/, "").replace(/(\.\d*?)0+$/, "$1");
+        }
         return `${value} ${unit}`;
       }
 
@@ -623,11 +679,17 @@
 
         if (COUNT_UNITS.has(meta.canonicalUnit) && COUNT_UNITS.has(source.unit)) {
           if (source.unit === meta.canonicalUnit) {
-            return { qty: source.qty, unit: meta.canonicalUnit };
+            return {
+              qty: normalizeCurryLeavesSprigCount(item?.name || "", source.qty, meta.canonicalUnit),
+              unit: meta.canonicalUnit,
+            };
           }
           const factor = herbCountUnitFallbackFactor(item?.name || "", source.unit, meta.canonicalUnit);
           if (Number.isFinite(factor)) {
-            return { qty: source.qty * factor, unit: meta.canonicalUnit };
+            return {
+              qty: normalizeCurryLeavesSprigCount(item?.name || "", source.qty * factor, meta.canonicalUnit),
+              unit: meta.canonicalUnit,
+            };
           }
         }
 
@@ -635,16 +697,19 @@
       }
 
       function ingredientQuantityText(item) {
+        const ingredientNameKey = normalizeIngredientKey(item?.name || "");
+        const meta = ingredientMetaByKey.get(ingredientNameKey);
+        const ingredientCategory = String(item?.category || meta?.category || "").trim() || null;
         const canonicalOverride = canonicalDisplayOverride(item);
         if (canonicalOverride) {
-          return formatKitchenQuantity(canonicalOverride.qty, canonicalOverride.unit);
+          return formatKitchenQuantity(canonicalOverride.qty, canonicalOverride.unit, ingredientCategory);
         }
 
         const source = normalizedQuantitySource(item);
         if (source) {
-          return formatKitchenQuantity(source.qty, source.unit);
+          return formatKitchenQuantity(source.qty, source.unit, ingredientCategory);
         }
-        return formatKitchenQuantity(item?.scaledQty, item?.scaledUnit);
+        return formatKitchenQuantity(item?.scaledQty, item?.scaledUnit, ingredientCategory);
       }
 
       function mealOrderValue(mealName) {
@@ -1079,20 +1144,7 @@
         }
       });
 
-      if (backToPlanner) {
-        const plannerUrl = new URL("retreat-planner-sample.html", window.location.href);
-        plannerUrl.searchParams.set("api", API_BASE);
-        backToPlanner.href = plannerUrl.toString();
-      }
-
-      if (kitchenTestLink) {
-        const testUrl = new URL("kitchen-test-view.html", window.location.href);
-        testUrl.searchParams.set("api", API_BASE);
-        if (planId) {
-          testUrl.searchParams.set("plan", String(planId));
-        }
-        kitchenTestLink.href = testUrl.toString();
-      }
+      syncNavigationLinks();
 
       reloadData.addEventListener("click", () => {
         void render();

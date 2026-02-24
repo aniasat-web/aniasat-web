@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Annotated
@@ -37,7 +38,7 @@ from .auth import (
     normalize_role,
     update_user,
 )
-from .db import get_connection, init_db
+from .db import get_connection, init_db, table_columns, table_exists
 from .usda import populate_ingredient_conversions
 
 app = FastAPI(title="Blossom Foundation Volunteering API", version="0.2.0")
@@ -90,15 +91,7 @@ COUNT_UNITS = {
     "bags",
 }
 
-# Fallback count-unit conversions for herbs where recipe data mixes units.
-# These are used only when no explicit unit_conversions entry exists.
-HERB_COUNT_UNIT_FALLBACK_FACTORS: dict[tuple[str, str, str], float] = {
-    ("cilantro", "piece", "bunch"): 1.0 / 16.0,
-    ("cilantro", "sprig", "bunch"): 1.0 / 16.0,
-    ("curry leaves", "piece", "sprig"): 1.0,
-    ("curry leaves", "leaf", "sprig"): 1.0 / 8.0,
-    ("curry leaves", "packet", "sprig"): 5.0,
-}
+DAL_RICE_TOKEN_RE = re.compile(r"\b(rice|dal|moong|mung|toor|urad|masoor)\b")
 
 RECIPE_CATEGORIES = [
     "M's Recipes",
@@ -195,6 +188,7 @@ class RetreatPlanMeal(BaseModel):
 
 
 class RetreatPlanPayload(BaseModel):
+    id: int | None = Field(default=None, ge=1)
     name: str = Field(min_length=1)
     startDate: str | None = None
     dayCount: int = Field(ge=1, le=10)
@@ -267,6 +261,74 @@ class StandaloneInventoryUpdate(BaseModel):
     notes: str | None = None
 
 
+class RetreatInventoryCategoryCreate(BaseModel):
+    name: str = Field(min_length=1)
+    trackingMode: Literal["ITEM", "CATEGORY"] = "ITEM"
+    imageUrl: str | None = None
+
+
+class RetreatInventoryCategoryUpdate(BaseModel):
+    name: str | None = None
+    trackingMode: Literal["ITEM", "CATEGORY"] | None = None
+    imageUrl: str | None = None
+    active: bool | None = None
+
+
+class RetreatInventoryLocationCreate(BaseModel):
+    name: str = Field(min_length=1)
+    description: str | None = None
+    active: bool = True
+
+
+class RetreatInventoryLocationUpdate(BaseModel):
+    name: str | None = None
+    description: str | None = None
+    active: bool | None = None
+
+
+class RetreatInventoryItemLocationInput(BaseModel):
+    locationId: int = Field(gt=0)
+    quantity: int = Field(default=0, ge=0)
+
+
+class RetreatInventoryItemCreate(BaseModel):
+    name: str = Field(min_length=1)
+    barcode: str = Field(min_length=1)
+    categoryId: int = Field(gt=0)
+    # Deprecated legacy input, kept for backward compatibility.
+    shelfLocation: str | None = None
+    unit: str = Field(default="each", min_length=1)
+    purchaseUrl: str | None = None
+    brand: str | None = None
+    description: str | None = None
+    imageUrl: str | None = None
+    active: bool = True
+    locations: list[RetreatInventoryItemLocationInput] = Field(default_factory=list)
+
+
+class RetreatInventoryItemUpdate(BaseModel):
+    name: str | None = None
+    barcode: str | None = None
+    categoryId: int | None = Field(default=None, gt=0)
+    # Deprecated legacy input, kept for backward compatibility.
+    shelfLocation: str | None = None
+    unit: str | None = None
+    purchaseUrl: str | None = None
+    brand: str | None = None
+    description: str | None = None
+    imageUrl: str | None = None
+    active: bool | None = None
+    locations: list[RetreatInventoryItemLocationInput] | None = None
+
+
+class RetreatInventoryScanPayload(BaseModel):
+    barcode: str = Field(min_length=1)
+    transactionType: Literal["IN", "OUT", "ADJUSTMENT"] = "IN"
+    quantity: int = 1
+    reason: str | None = None
+    locationId: int | None = Field(default=None, gt=0)
+
+
 class ShoppingListGeneratePayload(BaseModel):
     retreatPlanId: int | None = Field(default=None, gt=0)
     retreatPlanIds: list[int] | None = None
@@ -299,6 +361,10 @@ class ShoppingListCarryForwardPayload(BaseModel):
 class ShoppingListSplitSelectedPayload(BaseModel):
     itemIds: list[int] = Field(min_length=1)
     name: str | None = None
+
+
+class ShoppingListItemSplitPayload(BaseModel):
+    buyNowPercent: float = Field(gt=0, lt=100)
 
 
 class ServiceSnapshotIngredient(BaseModel):
@@ -1668,6 +1734,223 @@ def update_shopping_list_item(
     return detail
 
 
+@app.post("/api/shopping-lists/{shopping_list_id}/items/{item_id}/split")
+def split_shopping_list_item_partial_buy(
+    shopping_list_id: int,
+    item_id: int,
+    payload: ShoppingListItemSplitPayload,
+    _user: Annotated[AuthUser, Depends(require_roles(ROLE_PLANNER, ROLE_ADMIN))],
+) -> dict[str, Any]:
+    buy_now_percent = float(payload.buyNowPercent)
+    if buy_now_percent <= 0 or buy_now_percent >= 100:
+        raise HTTPException(status_code=400, detail="buyNowPercent must be between 0 and 100.")
+
+    buy_later_percent = 100.0 - buy_now_percent
+    now_ratio = buy_now_percent / 100.0
+
+    def split_amount(total: float) -> tuple[float, float]:
+        total_value = float(total or 0.0)
+        now_value = round(total_value * now_ratio, 4)
+        later_value = round(total_value - now_value, 4)
+        return now_value, later_value
+
+    with get_connection() as conn:
+        item_row = conn.execute(
+            """
+            SELECT
+                sli.id,
+                sli.shopping_list_id,
+                sli.ingredient_id,
+                sli.required_qty,
+                sli.required_unit,
+                sli.in_stock_qty,
+                sli.in_stock_unit,
+                sli.to_buy_qty,
+                sli.to_buy_unit,
+                sli.vendor_id,
+                sli.owner,
+                sli.pickup_date,
+                sli.ordered,
+                sli.received,
+                sli.notes
+            FROM shopping_list_items sli
+            WHERE sli.id = ? AND sli.shopping_list_id = ?
+            """,
+            (item_id, shopping_list_id),
+        ).fetchone()
+        if not item_row:
+            raise HTTPException(status_code=404, detail="Shopping list item not found")
+
+        if bool(item_row["ordered"]) or bool(item_row["received"]):
+            raise HTTPException(
+                status_code=400,
+                detail="Cannot split items that are already marked ordered or received.",
+            )
+
+        required_qty = float(item_row["required_qty"] or 0.0)
+        in_stock_qty = float(item_row["in_stock_qty"] or 0.0)
+        to_buy_qty = float(item_row["to_buy_qty"] or 0.0)
+        if to_buy_qty <= 0:
+            raise HTTPException(status_code=400, detail="Only items with quantity to buy can be split.")
+
+        required_now, required_later = split_amount(required_qty)
+        in_stock_now, in_stock_later = split_amount(in_stock_qty)
+        to_buy_now, to_buy_later = split_amount(to_buy_qty)
+        if to_buy_now <= 0 or to_buy_later <= 0:
+            raise HTTPException(
+                status_code=400,
+                detail="Split percentage is too extreme for this quantity. Try a value closer to 50.",
+            )
+
+        required_unit = str(item_row["required_unit"] or "").strip()
+        in_stock_unit = str(item_row["in_stock_unit"] or required_unit).strip() or required_unit
+        to_buy_unit = str(item_row["to_buy_unit"] or required_unit).strip() or required_unit
+        vendor_id = int(item_row["vendor_id"]) if item_row["vendor_id"] is not None else None
+        owner = str(item_row["owner"] or "").strip() or None
+        pickup_date = str(item_row["pickup_date"] or "").strip() or None
+        existing_notes = str(item_row["notes"] or "").strip() or None
+
+        now_note = partial_buy_note("Now", buy_now_percent, existing_notes)
+        later_note = partial_buy_note("Later", buy_later_percent, existing_notes)
+
+        created_later = conn.execute(
+            """
+            INSERT INTO shopping_list_items(
+                shopping_list_id,
+                ingredient_id,
+                required_qty,
+                required_unit,
+                in_stock_qty,
+                in_stock_unit,
+                to_buy_qty,
+                to_buy_unit,
+                vendor_id,
+                owner,
+                pickup_date,
+                ordered,
+                ordered_at,
+                received,
+                received_at,
+                status,
+                notes
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, NULL, 0, NULL, 'open', ?)
+            RETURNING id
+            """,
+            (
+                shopping_list_id,
+                int(item_row["ingredient_id"]),
+                required_later,
+                required_unit,
+                in_stock_later,
+                in_stock_unit,
+                to_buy_later,
+                to_buy_unit,
+                vendor_id,
+                owner,
+                pickup_date,
+                later_note,
+            ),
+        ).fetchone()
+        later_item_id = int(created_later["id"])
+
+        conn.execute(
+            """
+            UPDATE shopping_list_items
+            SET required_qty = ?,
+                required_unit = ?,
+                in_stock_qty = ?,
+                in_stock_unit = ?,
+                to_buy_qty = ?,
+                to_buy_unit = ?,
+                ordered = 0,
+                ordered_at = NULL,
+                received = 0,
+                received_at = NULL,
+                status = 'open',
+                notes = ?
+            WHERE id = ? AND shopping_list_id = ?
+            """,
+            (
+                required_now,
+                required_unit,
+                in_stock_now,
+                in_stock_unit,
+                to_buy_now,
+                to_buy_unit,
+                now_note,
+                item_id,
+                shopping_list_id,
+            ),
+        )
+
+        source_rows = conn.execute(
+            """
+            SELECT
+                id,
+                retreat_plan_id,
+                retreat_plan_name,
+                dish_name,
+                required_qty,
+                required_unit
+            FROM shopping_list_item_sources
+            WHERE shopping_list_item_id = ?
+            ORDER BY id
+            """,
+            (item_id,),
+        ).fetchall()
+        for source_row in source_rows:
+            source_required_now, source_required_later = split_amount(float(source_row["required_qty"] or 0.0))
+            if source_required_now > 0:
+                conn.execute(
+                    """
+                    UPDATE shopping_list_item_sources
+                    SET required_qty = ?
+                    WHERE id = ?
+                    """,
+                    (source_required_now, int(source_row["id"])),
+                )
+            else:
+                conn.execute(
+                    "DELETE FROM shopping_list_item_sources WHERE id = ?",
+                    (int(source_row["id"]),),
+                )
+
+            if source_required_later > 0:
+                conn.execute(
+                    """
+                    INSERT INTO shopping_list_item_sources(
+                        shopping_list_item_id,
+                        retreat_plan_id,
+                        retreat_plan_name,
+                        dish_name,
+                        required_qty,
+                        required_unit
+                    )
+                    VALUES (?, ?, ?, ?, ?, ?)
+                    """,
+                    (
+                        later_item_id,
+                        int(source_row["retreat_plan_id"]) if source_row["retreat_plan_id"] is not None else None,
+                        str(source_row["retreat_plan_name"] or "").strip() or "Unknown retreat",
+                        str(source_row["dish_name"] or "").strip() or None,
+                        source_required_later,
+                        str(source_row["required_unit"] or "").strip(),
+                    ),
+                )
+
+        refresh_shopping_list_status(conn, shopping_list_id)
+        detail = load_shopping_list_detail(conn, shopping_list_id)
+        detail["split_result"] = {
+            "source_item_id": int(item_id),
+            "later_item_id": later_item_id,
+            "buy_now_percent": round(buy_now_percent, 2),
+            "buy_later_percent": round(buy_later_percent, 2),
+        }
+        conn.commit()
+    return detail
+
+
 @app.put("/api/ingredients/{ingredient_id}")
 def update_ingredient(
     ingredient_id: int,
@@ -1936,7 +2219,12 @@ def scale_preview(payload: ScalePreviewRequest) -> ScalePreviewResponse:
     for item in payload.ingredients:
         unit = normalize_unit(item.unit)
         scaled_qty = item.quantity * factor
-        canonical_qty, canonical_unit, note = to_canonical(item.name, scaled_qty, unit)
+        canonical_qty, canonical_unit, note = require_canonical_conversion(
+            item.name,
+            scaled_qty,
+            unit,
+            context="Scale preview conversion failed",
+        )
         shopping_qty, shopping_unit = to_shopping_unit(canonical_qty, canonical_unit)
 
         scaled_items.append(
@@ -2065,6 +2353,7 @@ def upsert_retreat_plan(
     plan_name = payload.name.strip()
     if not plan_name:
         raise HTTPException(status_code=400, detail="Retreat name cannot be blank")
+    requested_plan_id = int(payload.id) if payload.id else None
 
     retreat_meals = payload.retreatMeals if payload.retreatMeals is not None else payload.meals
     test_meals = payload.testMeals if payload.testMeals is not None else []
@@ -2073,6 +2362,7 @@ def upsert_retreat_plan(
         raise HTTPException(status_code=400, detail="Meal day cannot exceed dayCount")
 
     payload_dict = payload.model_dump()
+    payload_dict.pop("id", None)
     payload_dict["name"] = plan_name
     payload_dict["defaultPeople"] = float(payload.defaultPeople)
     payload_dict["retreatDefaultPeople"] = float(payload.retreatDefaultPeople or payload.defaultPeople)
@@ -2085,12 +2375,21 @@ def upsert_retreat_plan(
     payload_json = json.dumps(payload_dict)
 
     with get_connection() as conn:
-        existing = conn.execute(
-            "SELECT id FROM retreat_plans WHERE lower(name) = lower(?)",
-            (plan_name,),
-        ).fetchone()
+        if requested_plan_id:
+            existing = conn.execute(
+                "SELECT id FROM retreat_plans WHERE id = ?",
+                (requested_plan_id,),
+            ).fetchone()
+            if not existing:
+                raise HTTPException(status_code=404, detail="Retreat plan not found")
 
-        if existing:
+            name_conflict = conn.execute(
+                "SELECT id FROM retreat_plans WHERE lower(name) = lower(?) AND id <> ?",
+                (plan_name, requested_plan_id),
+            ).fetchone()
+            if name_conflict:
+                raise HTTPException(status_code=409, detail="Retreat name already exists")
+
             conn.execute(
                 """
                 UPDATE retreat_plans
@@ -2103,28 +2402,52 @@ def upsert_retreat_plan(
                     payload.dayCount,
                     payload_dict["defaultPeople"],
                     payload_json,
-                    existing["id"],
+                    requested_plan_id,
                 ),
             )
-            plan_id = int(existing["id"])
+            plan_id = requested_plan_id
             action = "updated"
         else:
-            created = conn.execute(
-                """
-                INSERT INTO retreat_plans(name, start_date, day_count, default_people, plan_json)
-                VALUES (?, ?, ?, ?, ?)
-                RETURNING id
-                """,
-                (
-                    plan_name,
-                    payload.startDate,
-                    payload.dayCount,
-                    payload_dict["defaultPeople"],
-                    payload_json,
-                ),
+            existing = conn.execute(
+                "SELECT id FROM retreat_plans WHERE lower(name) = lower(?)",
+                (plan_name,),
             ).fetchone()
-            plan_id = int(created["id"])
-            action = "created"
+
+            if existing:
+                conn.execute(
+                    """
+                    UPDATE retreat_plans
+                    SET name = ?, start_date = ?, day_count = ?, default_people = ?, plan_json = ?, updated_at = CURRENT_TIMESTAMP
+                    WHERE id = ?
+                    """,
+                    (
+                        plan_name,
+                        payload.startDate,
+                        payload.dayCount,
+                        payload_dict["defaultPeople"],
+                        payload_json,
+                        existing["id"],
+                    ),
+                )
+                plan_id = int(existing["id"])
+                action = "updated"
+            else:
+                created = conn.execute(
+                    """
+                    INSERT INTO retreat_plans(name, start_date, day_count, default_people, plan_json)
+                    VALUES (?, ?, ?, ?, ?)
+                    RETURNING id
+                    """,
+                    (
+                        plan_name,
+                        payload.startDate,
+                        payload.dayCount,
+                        payload_dict["defaultPeople"],
+                        payload_json,
+                    ),
+                ).fetchone()
+                plan_id = int(created["id"])
+                action = "created"
 
         row = conn.execute(
             "SELECT id, name, updated_at FROM retreat_plans WHERE id = ?",
@@ -2484,14 +2807,12 @@ def build_required_ingredients_from_plan(
 
                 normalized_unit = normalize_unit(ingredient["unit"])
                 scaled_qty = ingredient["quantity"] * factor
-                canonical_qty, canonical_unit, _note = to_canonical(
+                canonical_qty, canonical_unit, _note = require_canonical_conversion(
                     ingredient["ingredient_name"],
                     scaled_qty,
                     normalized_unit,
+                    context=f"Shopping generation conversion failed for recipe '{recipe['name']}'",
                 )
-                if canonical_qty is None or canonical_unit is None:
-                    canonical_qty = scaled_qty
-                    canonical_unit = normalized_unit
 
                 key = (ingredient["ingredient_id"], canonical_unit)
                 entry = aggregate.get(key)
@@ -2533,10 +2854,12 @@ def load_inventory_canonical_by_key(conn: Any) -> dict[tuple[int, str], float]:
             continue
 
         unit = normalize_unit(str(row["unit"] or ""))
-        canonical_qty, canonical_unit, _note = to_canonical(row["ingredient_name"], quantity, unit)
-        if canonical_qty is None or canonical_unit is None:
-            canonical_qty = quantity
-            canonical_unit = unit
+        canonical_qty, canonical_unit, _note = require_canonical_conversion(
+            row["ingredient_name"],
+            quantity,
+            unit,
+            context="Inventory conversion failed",
+        )
 
         key = (int(row["ingredient_id"]), canonical_unit)
         source = str(row["source"] or "").strip()
@@ -2608,6 +2931,14 @@ def derive_shopping_item_status(ordered: bool, received: bool) -> str:
     if ordered:
         return "ordered"
     return "open"
+
+
+def partial_buy_note(stage: str, percent: float, existing_notes: str | None = None) -> str:
+    base = f"Partial buy: {stage} ({percent:.1f}% of original)."
+    extra = str(existing_notes or "").strip()
+    if not extra:
+        return base
+    return f"{base} {extra}"
 
 
 def refresh_shopping_list_status(conn: Any, shopping_list_id: int) -> None:
@@ -2699,19 +3030,9 @@ def load_shopping_list_detail(conn: Any, shopping_list_id: int) -> dict[str, Any
     source_breakdown_by_item: dict[int, list[dict[str, Any]]] = {}
     top_source_by_item: dict[int, dict[str, Any]] = {}
     if item_rows:
-        source_table_exists = conn.execute(
-            """
-            SELECT 1
-            FROM sqlite_master
-            WHERE type = 'table'
-              AND name = 'shopping_list_item_sources'
-            """
-        ).fetchone()
+        source_table_exists = table_exists(conn, "shopping_list_item_sources")
         if source_table_exists:
-            source_columns = {
-                str(row["name"]).strip()
-                for row in conn.execute("PRAGMA table_info(shopping_list_item_sources)").fetchall()
-            }
+            source_columns = table_columns(conn, "shopping_list_item_sources")
             dish_name_select = "slis.dish_name" if "dish_name" in source_columns else "NULL"
             item_ids = [int(row["id"]) for row in item_rows]
             placeholders = ",".join("?" for _ in item_ids)
@@ -3321,6 +3642,9 @@ def normalize_ingredient_name(ingredient_name: str) -> str:
         "green cardamom": "Cardamom",
         "green cardamom pod": "Cardamom",
         "green cardamom pods": "Cardamom",
+        "mung dal": "Yellow Mung Dal",
+        "yellow mung dal": "Yellow Mung Dal",
+        "yellow moong dal": "Yellow Mung Dal",
     }
     return aliases.get(candidate.lower(), candidate)
 
@@ -3387,23 +3711,79 @@ def replace_recipe_ingredients(
         normalized_unit = normalize_unit(item.unit)
         normalized_quantity = float(item.quantity)
 
-        _grams_per_cup, canonical_unit, _category = ingredient_profile(item.ingredient_name)
+        grams_per_cup, canonical_unit, category = ingredient_profile(item.ingredient_name)
+        if is_dal_or_rice_ingredient(item.ingredient_name, category):
+            if normalized_unit in VOLUME_TO_ML and normalized_unit != "cup":
+                normalized_quantity = (
+                    normalized_quantity * VOLUME_TO_ML[normalized_unit] / VOLUME_TO_ML["cup"]
+                )
+                normalized_unit = "cup"
+            elif normalized_unit in MASS_TO_G:
+                grams_per_cup_value = grams_per_cup
+                if not grams_per_cup_value:
+                    cup_to_g = ingredient_specific_unit_conversion_factor(
+                        item.ingredient_name,
+                        "cup",
+                        "g",
+                    )
+                    cup_to_kg = ingredient_specific_unit_conversion_factor(
+                        item.ingredient_name,
+                        "cup",
+                        "kg",
+                    )
+                    if cup_to_g is not None:
+                        grams_per_cup_value = cup_to_g
+                    elif cup_to_kg is not None:
+                        grams_per_cup_value = cup_to_kg * 1000.0
+                if grams_per_cup_value and grams_per_cup_value > 0:
+                    grams = normalized_quantity * MASS_TO_G[normalized_unit]
+                    normalized_quantity = grams / grams_per_cup_value
+                    normalized_unit = "cup"
+
         if canonical_unit in COUNT_UNITS and normalized_unit in COUNT_UNITS and normalized_unit != canonical_unit:
             factor = ingredient_specific_unit_conversion_factor(item.ingredient_name, normalized_unit, canonical_unit)
             if factor is None:
-                factor = herb_count_unit_fallback_factor(item.ingredient_name, normalized_unit, canonical_unit)
-            if factor is not None:
-                normalized_quantity *= factor
-                normalized_unit = canonical_unit
-        elif canonical_unit in MASS_TO_G and normalized_unit != canonical_unit:
+                raise HTTPException(
+                    status_code=400,
+                    detail=(
+                        f"Missing conversion for ingredient '{item.ingredient_name}': "
+                        f"'{normalized_unit}' -> '{canonical_unit}'."
+                    ),
+                )
+            normalized_quantity *= factor
+            normalized_unit = canonical_unit
+        elif not is_dal_or_rice_ingredient(item.ingredient_name, category) and canonical_unit in MASS_TO_G and normalized_unit != canonical_unit:
             canonical_qty, canonical_base_unit, _note = to_canonical(
                 item.ingredient_name,
                 normalized_quantity,
                 normalized_unit,
             )
-            if canonical_qty is not None and canonical_base_unit == "g":
+            if canonical_qty is None:
+                raise HTTPException(
+                    status_code=400,
+                    detail=_note
+                    or (
+                        f"Missing conversion for ingredient '{item.ingredient_name}': "
+                        f"'{normalized_unit}' -> '{canonical_unit}'."
+                    ),
+                )
+            if canonical_base_unit == "g":
                 normalized_quantity = canonical_qty / MASS_TO_G[canonical_unit]
                 normalized_unit = canonical_unit
+            elif canonical_base_unit in COUNT_UNITS:
+                # Preserve count-unit recipes for packaged items when no
+                # ingredient-specific weight mapping exists.
+                normalized_quantity = canonical_qty
+                normalized_unit = canonical_base_unit
+            else:
+                raise HTTPException(
+                    status_code=400,
+                    detail=_note
+                    or (
+                        f"Missing conversion for ingredient '{item.ingredient_name}': "
+                        f"'{normalized_unit}' -> '{canonical_unit}'."
+                    ),
+                )
 
         conn.execute(
             """
@@ -3449,10 +3829,34 @@ def is_spice_or_seasoning_category(category: str | None) -> bool:
     return "spice" in normalized or "seasoning" in normalized
 
 
+def is_prepared_packaged_category(category: str | None) -> bool:
+    if not category:
+        return False
+    normalized = category.strip().lower()
+    return "prepared" in normalized or "packaged" in normalized
+
+
 def is_produce_category(category: str | None) -> bool:
     if not category:
         return False
     return category.strip().lower() in {"produce", "fruits"}
+
+
+def is_dal_or_rice_ingredient(ingredient_name: str, category: str | None = None) -> bool:
+    normalized_name = normalize_ingredient_name(ingredient_name).lower()
+    if not normalized_name:
+        return False
+    if "vinegar" in normalized_name:
+        return False
+    if DAL_RICE_TOKEN_RE.search(normalized_name):
+        return True
+
+    normalized_category = (category or "").strip().lower()
+    if ("pulse" in normalized_category or "legume" in normalized_category) and any(
+        token in normalized_name for token in ("dal", "moong", "mung", "toor", "urad", "masoor")
+    ):
+        return True
+    return False
 
 
 def ingredient_specific_unit_conversion_factor(
@@ -3491,44 +3895,8 @@ def ingredient_specific_g_per_unit(ingredient_name: str, unit: str) -> float | N
     return ingredient_specific_unit_conversion_factor(ingredient_name, unit, "g")
 
 
-def herb_count_unit_fallback_factor(
-    ingredient_name: str,
-    unit_from: str,
-    unit_to: str,
-) -> float | None:
-    key = (
-        normalize_ingredient_name(ingredient_name).strip().lower(),
-        normalize_unit(unit_from),
-        normalize_unit(unit_to),
-    )
-    return HERB_COUNT_UNIT_FALLBACK_FACTORS.get(key)
-
-
-def generic_solid_g_per_unit(unit: str) -> float | None:
-    with get_connection() as conn:
-        row = conn.execute(
-            """
-            SELECT quantity_from, quantity_to
-            FROM unit_conversions
-            WHERE context = 'generic_solid'
-              AND item_name IS NULL
-              AND lower(unit_from) = lower(?)
-              AND lower(unit_to) = 'g'
-            ORDER BY id
-            LIMIT 1
-            """,
-            (unit,),
-        ).fetchone()
-    if not row:
-        return None
-    quantity_from = float(row["quantity_from"] or 0)
-    quantity_to = float(row["quantity_to"] or 0)
-    if quantity_from <= 0 or quantity_to <= 0:
-        return None
-    return quantity_to / quantity_from
-
-
 def to_canonical(ingredient_name: str, qty: float, unit: str) -> tuple[float | None, str | None, str | None]:
+    unit = normalize_unit(unit)
     if unit in MASS_TO_G:
         return qty * MASS_TO_G[unit], "g", None
 
@@ -3536,20 +3904,9 @@ def to_canonical(ingredient_name: str, qty: float, unit: str) -> tuple[float | N
     if specific_g_per_unit is not None:
         return qty * specific_g_per_unit, "g", "Converted using ingredient-specific unit conversion."
 
-    grams_per_cup, canonical_unit, ingredient_category = ingredient_profile(ingredient_name)
-    is_spice_or_seasoning = is_spice_or_seasoning_category(ingredient_category)
+    grams_per_cup, canonical_unit, _ingredient_category = ingredient_profile(ingredient_name)
 
     if unit in VOLUME_TO_ML:
-        if is_spice_or_seasoning:
-            if grams_per_cup is not None:
-                cups = (qty * VOLUME_TO_ML[unit]) / VOLUME_TO_ML["cup"]
-                grams = cups * grams_per_cup
-                return grams, "g", "Spice/seasoning converted using ingredient-specific grams_per_cup."
-
-            fallback_g_per_unit = generic_solid_g_per_unit(unit)
-            if fallback_g_per_unit is not None:
-                return qty * fallback_g_per_unit, "g", "Spice/seasoning converted using generic solid density fallback."
-
         if canonical_unit in {"ml", "l"}:
             return qty * VOLUME_TO_ML[unit], "ml", "Canonical volume unit preference applied."
 
@@ -3558,10 +3915,16 @@ def to_canonical(ingredient_name: str, qty: float, unit: str) -> tuple[float | N
             grams = cups * grams_per_cup
             return grams, "g", "Converted using ingredient-specific grams_per_cup."
 
-        if canonical_unit == "g":
-            fallback_g_per_unit = generic_solid_g_per_unit(unit)
-            if fallback_g_per_unit is not None:
-                return qty * fallback_g_per_unit, "g", "Converted using generic solid density fallback."
+        if canonical_unit in MASS_TO_G:
+            return None, None, (
+                f"Missing conversion for ingredient '{ingredient_name}': "
+                f"'{unit}' -> '{canonical_unit}' requires ingredient-specific density mapping."
+            )
+        if canonical_unit in COUNT_UNITS:
+            return None, None, (
+                f"Missing conversion for ingredient '{ingredient_name}': "
+                f"'{unit}' -> '{canonical_unit}' requires ingredient-specific unit mapping."
+            )
 
         return qty * VOLUME_TO_ML[unit], "ml", "No ingredient density found; kept as volume."
 
@@ -3574,16 +3937,38 @@ def to_canonical(ingredient_name: str, qty: float, unit: str) -> tuple[float | N
             factor = ingredient_specific_unit_conversion_factor(ingredient_name, unit, target_unit)
             if factor is not None:
                 return qty * factor, target_unit, "Converted using ingredient-specific count-unit conversion."
-
-            fallback_factor = herb_count_unit_fallback_factor(ingredient_name, unit, target_unit)
-            if fallback_factor is not None:
-                return qty * fallback_factor, target_unit, "Converted using herb count-unit fallback."
-
-        if is_spice_or_seasoning:
-            return qty, "g", "Spice/seasoning count unit normalized to grams by policy fallback."
+            return None, None, (
+                f"Missing conversion for ingredient '{ingredient_name}': "
+                f"'{unit}' -> '{target_unit}'."
+            )
+        if canonical_unit in MASS_TO_G or canonical_unit in {"ml", "l"}:
+            if is_prepared_packaged_category(_ingredient_category):
+                return qty, unit, (
+                    "Missing mass/volume conversion; kept as count unit for prepared/packaged ingredient."
+                )
+            return None, None, (
+                f"Missing conversion for ingredient '{ingredient_name}': "
+                f"'{unit}' -> '{canonical_unit}'."
+            )
         return qty, unit, None
 
-    return None, None, f"Unknown unit '{unit}'."
+    return None, None, f"Unknown unit '{unit}' for ingredient '{ingredient_name}'."
+
+
+def require_canonical_conversion(
+    ingredient_name: str,
+    quantity: float,
+    unit: str,
+    *,
+    context: str | None = None,
+) -> tuple[float, str, str | None]:
+    canonical_qty, canonical_unit, note = to_canonical(ingredient_name, quantity, unit)
+    if canonical_qty is None or canonical_unit is None:
+        detail = note or f"Could not convert ingredient '{ingredient_name}' with unit '{unit}'."
+        if context:
+            detail = f"{context}: {detail}"
+        raise HTTPException(status_code=400, detail=detail)
+    return canonical_qty, canonical_unit, note
 
 
 def to_shopping_unit(canonical_qty: float | None, canonical_unit: str | None) -> tuple[float | None, str | None]:
@@ -3603,6 +3988,1217 @@ def to_shopping_unit(canonical_qty: float | None, canonical_unit: str | None) ->
         return canonical_qty, "ml"
 
     return canonical_qty, canonical_unit
+
+
+def normalize_optional_text(value: Any) -> str | None:
+    text = str(value or "").strip()
+    return text if text else None
+
+
+def normalize_item_unit(value: Any) -> str:
+    text = str(value or "").strip().lower()
+    return text if text else "each"
+
+
+def as_active_flag(value: Any) -> bool:
+    if isinstance(value, bool):
+        return value
+    if value is None:
+        return False
+    if isinstance(value, (int, float)):
+        return int(value) != 0
+    text = str(value).strip().lower()
+    return text not in {"", "0", "false", "no", "off"}
+
+
+def format_retreat_inventory_location_row(row: Any) -> dict[str, Any]:
+    return {
+        "id": int(row["id"]),
+        "name": row["name"],
+        "description": row["description"],
+        "active": as_active_flag(row["active"]),
+        "created_at": row["created_at"],
+        "updated_at": row["updated_at"],
+    }
+
+
+def ensure_retreat_inventory_location(conn: Any, location_name: str) -> int:
+    clean_name = str(location_name or "").strip()
+    if not clean_name:
+        raise HTTPException(status_code=400, detail="Location name cannot be blank.")
+
+    existing = conn.execute(
+        """
+        SELECT id
+        FROM retreat_inventory_locations
+        WHERE deleted_at IS NULL
+          AND lower(name) = lower(?)
+        """,
+        (clean_name,),
+    ).fetchone()
+    if existing:
+        return int(existing["id"])
+
+    row = conn.execute(
+        """
+        INSERT INTO retreat_inventory_locations(
+            name,
+            active,
+            created_at,
+            updated_at
+        )
+        VALUES (?, 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+        RETURNING id
+        """,
+        (clean_name,),
+    ).fetchone()
+    return int(row["id"])
+
+
+def load_retreat_inventory_item_locations(conn: Any, item_ids: list[int]) -> dict[int, list[dict[str, Any]]]:
+    if not item_ids:
+        return {}
+    placeholders = ", ".join("?" for _ in item_ids)
+    rows = conn.execute(
+        f"""
+        SELECT
+            il.item_id,
+            il.location_id,
+            il.quantity,
+            il.updated_at,
+            l.name AS location_name,
+            l.description AS location_description
+        FROM retreat_inventory_item_locations il
+        JOIN retreat_inventory_locations l ON l.id = il.location_id
+        WHERE il.item_id IN ({placeholders})
+          AND l.deleted_at IS NULL
+        ORDER BY il.item_id, lower(l.name), il.id
+        """,
+        tuple(item_ids),
+    ).fetchall()
+
+    by_item: dict[int, list[dict[str, Any]]] = {}
+    for row in rows:
+        item_id = int(row["item_id"])
+        by_item.setdefault(item_id, []).append(
+            {
+                "location_id": int(row["location_id"]),
+                "location_name": row["location_name"],
+                "location_description": row["location_description"],
+                "quantity": int(row["quantity"] or 0),
+                "updated_at": row["updated_at"],
+            }
+        )
+    return by_item
+
+
+def validate_retreat_item_location_inputs(
+    conn: Any,
+    payload_locations: list[RetreatInventoryItemLocationInput],
+) -> list[dict[str, Any]]:
+    if not payload_locations:
+        return []
+
+    normalized: list[dict[str, Any]] = []
+    seen_ids: set[int] = set()
+    for entry in payload_locations:
+        location_id = int(entry.locationId)
+        if location_id in seen_ids:
+            raise HTTPException(status_code=400, detail=f"Duplicate location id in payload: {location_id}.")
+        seen_ids.add(location_id)
+        normalized.append(
+            {
+                "location_id": location_id,
+                "quantity": int(entry.quantity),
+            }
+        )
+
+    placeholders = ", ".join("?" for _ in normalized)
+    location_rows = conn.execute(
+        f"""
+        SELECT id, name, active
+        FROM retreat_inventory_locations
+        WHERE deleted_at IS NULL
+          AND id IN ({placeholders})
+        """,
+        tuple(entry["location_id"] for entry in normalized),
+    ).fetchall()
+    location_by_id = {int(row["id"]): row for row in location_rows}
+
+    for entry in normalized:
+        location_row = location_by_id.get(entry["location_id"])
+        if not location_row:
+            raise HTTPException(status_code=404, detail=f"Location {entry['location_id']} not found.")
+        if not as_active_flag(location_row["active"]):
+            raise HTTPException(status_code=400, detail=f"Location {location_row['name']} is inactive.")
+        entry["location_name"] = location_row["name"]
+    return normalized
+
+
+def replace_retreat_item_locations(conn: Any, item_id: int, locations: list[dict[str, Any]]) -> None:
+    conn.execute("DELETE FROM retreat_inventory_item_locations WHERE item_id = ?", (item_id,))
+    for entry in locations:
+        conn.execute(
+            """
+            INSERT INTO retreat_inventory_item_locations(
+                item_id,
+                location_id,
+                quantity,
+                created_at,
+                updated_at
+            )
+            VALUES (?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+            """,
+            (
+                int(item_id),
+                int(entry["location_id"]),
+                int(entry["quantity"]),
+            ),
+        )
+
+
+def sync_retreat_item_level_from_locations(conn: Any, item_id: int) -> None:
+    tracking_row = conn.execute(
+        """
+        SELECT c.tracking_mode
+        FROM retreat_inventory_items i
+        JOIN retreat_inventory_categories c ON c.id = i.category_id
+        WHERE i.id = ?
+          AND i.deleted_at IS NULL
+          AND c.deleted_at IS NULL
+        """,
+        (item_id,),
+    ).fetchone()
+    if not tracking_row:
+        return
+    if str(tracking_row["tracking_mode"] or "ITEM").upper() != "ITEM":
+        return
+
+    total_row = conn.execute(
+        """
+        SELECT COALESCE(SUM(il.quantity), 0) AS total_quantity
+        FROM retreat_inventory_item_locations il
+        JOIN retreat_inventory_locations l ON l.id = il.location_id
+        WHERE il.item_id = ?
+          AND l.deleted_at IS NULL
+        """,
+        (item_id,),
+    ).fetchone()
+    total_quantity = int(total_row["total_quantity"] or 0)
+
+    level_row = conn.execute(
+        """
+        SELECT id
+        FROM retreat_inventory_levels
+        WHERE item_id = ?
+          AND category_id IS NULL
+        """,
+        (item_id,),
+    ).fetchone()
+    if level_row:
+        conn.execute(
+            """
+            UPDATE retreat_inventory_levels
+            SET quantity = ?, updated_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+            """,
+            (total_quantity, int(level_row["id"])),
+        )
+        return
+
+    conn.execute(
+        """
+        INSERT INTO retreat_inventory_levels(
+            item_id,
+            category_id,
+            quantity,
+            min_threshold,
+            updated_at
+        )
+        VALUES (?, NULL, ?, 0, CURRENT_TIMESTAMP)
+        """,
+        (item_id, total_quantity),
+    )
+
+
+def format_retreat_inventory_category_row(row: Any) -> dict[str, Any]:
+    return {
+        "id": int(row["id"]),
+        "name": row["name"],
+        "tracking_mode": row["tracking_mode"],
+        "image_url": row["image_url"],
+        "active": as_active_flag(row["active"]),
+        "created_at": row["created_at"],
+        "updated_at": row["updated_at"],
+    }
+
+
+def format_retreat_inventory_item_row(row: Any) -> dict[str, Any]:
+    return {
+        "id": int(row["id"]),
+        "name": row["name"],
+        "barcode": row["barcode"],
+        "category_id": int(row["category_id"]),
+        "category_name": row["category_name"],
+        "tracking_mode": row["tracking_mode"],
+        "shelf_location": row["shelf_location"],
+        "unit": row["unit"],
+        "purchase_url": row["purchase_url"],
+        "brand": row["brand"],
+        "description": row["description"],
+        "image_url": row["image_url"],
+        "active": as_active_flag(row["active"]),
+        "created_at": row["created_at"],
+        "updated_at": row["updated_at"],
+    }
+
+
+def attach_retreat_inventory_item_locations(conn: Any, items: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    item_ids = [int(item["id"]) for item in items if item.get("id") is not None]
+    location_map = load_retreat_inventory_item_locations(conn, item_ids)
+    for item in items:
+        item_id = int(item["id"])
+        locations = location_map.get(item_id, [])
+        item["locations"] = locations
+        if locations:
+            item["location_summary"] = ", ".join(
+                f"{loc['location_name']} ({int(loc['quantity'])})" for loc in locations
+            )
+            # Backward compatibility field.
+            item["shelf_location"] = locations[0]["location_name"]
+        else:
+            item["location_summary"] = None
+            item["shelf_location"] = item.get("shelf_location")
+    return items
+
+
+@app.get("/api/retreat-inventory/categories")
+def list_retreat_inventory_categories(
+    _user: Annotated[AuthUser, Depends(require_roles(ROLE_PLANNER, ROLE_ADMIN))],
+    include_inactive: bool = Query(default=False),
+) -> list[dict[str, Any]]:
+    filters = ["deleted_at IS NULL"]
+    if not include_inactive:
+        filters.append("active = 1")
+    where_sql = f"WHERE {' AND '.join(filters)}"
+    with get_connection() as conn:
+        rows = conn.execute(
+            f"""
+            SELECT id, name, tracking_mode, image_url, active, created_at, updated_at
+            FROM retreat_inventory_categories
+            {where_sql}
+            ORDER BY lower(name), id
+            """
+        ).fetchall()
+    return [format_retreat_inventory_category_row(row) for row in rows]
+
+
+@app.post("/api/retreat-inventory/categories", status_code=201)
+def create_retreat_inventory_category(
+    payload: RetreatInventoryCategoryCreate,
+    _user: Annotated[AuthUser, Depends(require_roles(ROLE_ADMIN))],
+) -> dict[str, Any]:
+    name = payload.name.strip()
+    image_url = normalize_optional_text(payload.imageUrl)
+    with get_connection() as conn:
+        try:
+            row = conn.execute(
+                """
+                INSERT INTO retreat_inventory_categories(
+                    name, tracking_mode, image_url, active, created_at, updated_at
+                )
+                VALUES (?, ?, ?, 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                RETURNING id, name, tracking_mode, image_url, active, created_at, updated_at
+                """,
+                (name, payload.trackingMode, image_url),
+            ).fetchone()
+        except Exception as exc:
+            raise HTTPException(status_code=400, detail=f"Could not create category: {exc}") from exc
+        conn.commit()
+    return format_retreat_inventory_category_row(row)
+
+
+@app.patch("/api/retreat-inventory/categories/{category_id}")
+def update_retreat_inventory_category(
+    category_id: int,
+    payload: RetreatInventoryCategoryUpdate,
+    _user: Annotated[AuthUser, Depends(require_roles(ROLE_ADMIN))],
+) -> dict[str, Any]:
+    updates: list[str] = []
+    params: list[Any] = []
+
+    if payload.name is not None:
+        clean_name = payload.name.strip()
+        if not clean_name:
+            raise HTTPException(status_code=400, detail="Category name cannot be blank.")
+        updates.append("name = ?")
+        params.append(clean_name)
+    if payload.trackingMode is not None:
+        updates.append("tracking_mode = ?")
+        params.append(payload.trackingMode)
+    if payload.imageUrl is not None:
+        updates.append("image_url = ?")
+        params.append(normalize_optional_text(payload.imageUrl))
+    if payload.active is not None:
+        updates.append("active = ?")
+        params.append(1 if payload.active else 0)
+
+    with get_connection() as conn:
+        existing = conn.execute(
+            "SELECT id FROM retreat_inventory_categories WHERE id = ? AND deleted_at IS NULL",
+            (category_id,),
+        ).fetchone()
+        if not existing:
+            raise HTTPException(status_code=404, detail="Category not found")
+
+        if updates:
+            updates.append("updated_at = CURRENT_TIMESTAMP")
+            params.append(category_id)
+            try:
+                conn.execute(
+                    f"""
+                    UPDATE retreat_inventory_categories
+                    SET {', '.join(updates)}
+                    WHERE id = ?
+                    """,
+                    tuple(params),
+                )
+            except Exception as exc:
+                raise HTTPException(status_code=400, detail=f"Could not update category: {exc}") from exc
+
+        row = conn.execute(
+            """
+            SELECT id, name, tracking_mode, image_url, active, created_at, updated_at
+            FROM retreat_inventory_categories
+            WHERE id = ?
+            """,
+            (category_id,),
+        ).fetchone()
+        conn.commit()
+
+    return format_retreat_inventory_category_row(row)
+
+
+@app.get("/api/retreat-inventory/locations")
+def list_retreat_inventory_locations(
+    _user: Annotated[AuthUser, Depends(require_roles(ROLE_PLANNER, ROLE_ADMIN))],
+    include_inactive: bool = Query(default=False),
+) -> list[dict[str, Any]]:
+    filters = ["deleted_at IS NULL"]
+    if not include_inactive:
+        filters.append("active = 1")
+    where_sql = f"WHERE {' AND '.join(filters)}"
+    with get_connection() as conn:
+        rows = conn.execute(
+            f"""
+            SELECT id, name, description, active, created_at, updated_at
+            FROM retreat_inventory_locations
+            {where_sql}
+            ORDER BY lower(name), id
+            """
+        ).fetchall()
+    return [format_retreat_inventory_location_row(row) for row in rows]
+
+
+@app.post("/api/retreat-inventory/locations", status_code=201)
+def create_retreat_inventory_location(
+    payload: RetreatInventoryLocationCreate,
+    _user: Annotated[AuthUser, Depends(require_roles(ROLE_ADMIN))],
+) -> dict[str, Any]:
+    name = payload.name.strip()
+    if not name:
+        raise HTTPException(status_code=400, detail="Location name is required.")
+
+    with get_connection() as conn:
+        try:
+            row = conn.execute(
+                """
+                INSERT INTO retreat_inventory_locations(
+                    name,
+                    description,
+                    active,
+                    created_at,
+                    updated_at
+                )
+                VALUES (?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                RETURNING id, name, description, active, created_at, updated_at
+                """,
+                (
+                    name,
+                    normalize_optional_text(payload.description),
+                    1 if payload.active else 0,
+                ),
+            ).fetchone()
+        except Exception as exc:
+            raise HTTPException(status_code=400, detail=f"Could not create location: {exc}") from exc
+        conn.commit()
+    return format_retreat_inventory_location_row(row)
+
+
+@app.patch("/api/retreat-inventory/locations/{location_id}")
+def update_retreat_inventory_location(
+    location_id: int,
+    payload: RetreatInventoryLocationUpdate,
+    _user: Annotated[AuthUser, Depends(require_roles(ROLE_ADMIN))],
+) -> dict[str, Any]:
+    updates: list[str] = []
+    params: list[Any] = []
+
+    if payload.name is not None:
+        name = payload.name.strip()
+        if not name:
+            raise HTTPException(status_code=400, detail="Location name cannot be blank.")
+        updates.append("name = ?")
+        params.append(name)
+    if payload.description is not None:
+        updates.append("description = ?")
+        params.append(normalize_optional_text(payload.description))
+    if payload.active is not None:
+        updates.append("active = ?")
+        params.append(1 if payload.active else 0)
+
+    with get_connection() as conn:
+        existing = conn.execute(
+            "SELECT id FROM retreat_inventory_locations WHERE id = ? AND deleted_at IS NULL",
+            (location_id,),
+        ).fetchone()
+        if not existing:
+            raise HTTPException(status_code=404, detail="Location not found")
+
+        if updates:
+            updates.append("updated_at = CURRENT_TIMESTAMP")
+            params.append(location_id)
+            try:
+                conn.execute(
+                    f"""
+                    UPDATE retreat_inventory_locations
+                    SET {', '.join(updates)}
+                    WHERE id = ?
+                    """,
+                    tuple(params),
+                )
+            except Exception as exc:
+                raise HTTPException(status_code=400, detail=f"Could not update location: {exc}") from exc
+
+        row = conn.execute(
+            """
+            SELECT id, name, description, active, created_at, updated_at
+            FROM retreat_inventory_locations
+            WHERE id = ?
+            """,
+            (location_id,),
+        ).fetchone()
+        conn.commit()
+    return format_retreat_inventory_location_row(row)
+
+
+@app.get("/api/retreat-inventory/items")
+def list_retreat_inventory_items(
+    _user: Annotated[AuthUser, Depends(require_roles(ROLE_PLANNER, ROLE_ADMIN))],
+    category_id: int | None = Query(default=None, ge=1),
+    search: str | None = Query(default=None),
+    barcode: str | None = Query(default=None),
+    include_inactive: bool = Query(default=False),
+) -> list[dict[str, Any]]:
+    filters = ["i.deleted_at IS NULL", "c.deleted_at IS NULL"]
+    params: list[Any] = []
+    if category_id is not None:
+        filters.append("i.category_id = ?")
+        params.append(category_id)
+    if search and search.strip():
+        term = f"%{search.strip().lower()}%"
+        filters.append(
+            """(
+                lower(i.name) LIKE ?
+                OR lower(COALESCE(i.brand, '')) LIKE ?
+                OR lower(COALESCE(i.purchase_url, '')) LIKE ?
+                OR lower(COALESCE(i.unit, '')) LIKE ?
+                OR EXISTS (
+                    SELECT 1
+                    FROM retreat_inventory_item_locations il
+                    JOIN retreat_inventory_locations l ON l.id = il.location_id
+                    WHERE il.item_id = i.id
+                      AND l.deleted_at IS NULL
+                      AND lower(l.name) LIKE ?
+                )
+            )"""
+        )
+        params.extend([term, term, term, term, term])
+    if barcode and barcode.strip():
+        filters.append("i.barcode = ?")
+        params.append(barcode.strip())
+    if not include_inactive:
+        filters.append("i.active = 1")
+        filters.append("c.active = 1")
+
+    where_sql = f"WHERE {' AND '.join(filters)}"
+    with get_connection() as conn:
+        rows = conn.execute(
+            f"""
+            SELECT
+                i.id,
+                i.name,
+                i.barcode,
+                i.category_id,
+                i.shelf_location,
+                i.unit,
+                i.purchase_url,
+                i.brand,
+                i.description,
+                i.image_url,
+                i.active,
+                i.created_at,
+                i.updated_at,
+                c.name AS category_name,
+                c.tracking_mode
+            FROM retreat_inventory_items i
+            JOIN retreat_inventory_categories c ON c.id = i.category_id
+            {where_sql}
+            ORDER BY lower(i.name), i.id
+            """,
+            tuple(params),
+        ).fetchall()
+        items = [format_retreat_inventory_item_row(row) for row in rows]
+        return attach_retreat_inventory_item_locations(conn, items)
+
+
+@app.post("/api/retreat-inventory/items", status_code=201)
+def create_retreat_inventory_item(
+    payload: RetreatInventoryItemCreate,
+    _user: Annotated[AuthUser, Depends(require_roles(ROLE_ADMIN))],
+) -> dict[str, Any]:
+    name = payload.name.strip()
+    barcode = payload.barcode.strip()
+    if not barcode:
+        raise HTTPException(status_code=400, detail="Barcode is required.")
+
+    with get_connection() as conn:
+        category = conn.execute(
+            """
+            SELECT id
+            FROM retreat_inventory_categories
+            WHERE id = ? AND deleted_at IS NULL
+            """,
+            (payload.categoryId,),
+        ).fetchone()
+        if not category:
+            raise HTTPException(status_code=404, detail="Category not found")
+
+        normalized_locations = validate_retreat_item_location_inputs(conn, payload.locations)
+        legacy_shelf_location = normalize_optional_text(payload.shelfLocation)
+        if not normalized_locations and legacy_shelf_location:
+            location_id = ensure_retreat_inventory_location(conn, legacy_shelf_location)
+            normalized_locations = [
+                {
+                    "location_id": location_id,
+                    "location_name": legacy_shelf_location,
+                    "quantity": 0,
+                }
+            ]
+        shelf_location_value = (
+            normalized_locations[0]["location_name"] if normalized_locations else legacy_shelf_location
+        )
+
+        try:
+            row = conn.execute(
+                """
+                INSERT INTO retreat_inventory_items(
+                    name,
+                    barcode,
+                    category_id,
+                    shelf_location,
+                    unit,
+                    purchase_url,
+                    brand,
+                    description,
+                    image_url,
+                    active,
+                    created_at,
+                    updated_at
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                RETURNING id
+                """,
+                (
+                    name,
+                    barcode,
+                    payload.categoryId,
+                    shelf_location_value,
+                    normalize_item_unit(payload.unit),
+                    normalize_optional_text(payload.purchaseUrl),
+                    normalize_optional_text(payload.brand),
+                    normalize_optional_text(payload.description),
+                    normalize_optional_text(payload.imageUrl),
+                    1 if payload.active else 0,
+                ),
+            ).fetchone()
+        except Exception as exc:
+            raise HTTPException(status_code=400, detail=f"Could not create item: {exc}") from exc
+
+        item_id = int(row["id"])
+        replace_retreat_item_locations(conn, item_id, normalized_locations)
+        sync_retreat_item_level_from_locations(conn, item_id)
+        item = conn.execute(
+            """
+            SELECT
+                i.id,
+                i.name,
+                i.barcode,
+                i.category_id,
+                i.shelf_location,
+                i.unit,
+                i.purchase_url,
+                i.brand,
+                i.description,
+                i.image_url,
+                i.active,
+                i.created_at,
+                i.updated_at,
+                c.name AS category_name,
+                c.tracking_mode
+            FROM retreat_inventory_items i
+            JOIN retreat_inventory_categories c ON c.id = i.category_id
+            WHERE i.id = ?
+            """,
+            (item_id,),
+        ).fetchone()
+        item_payload = format_retreat_inventory_item_row(item)
+        attach_retreat_inventory_item_locations(conn, [item_payload])
+        conn.commit()
+
+    return item_payload
+
+
+@app.patch("/api/retreat-inventory/items/{item_id}")
+def update_retreat_inventory_item(
+    item_id: int,
+    payload: RetreatInventoryItemUpdate,
+    _user: Annotated[AuthUser, Depends(require_roles(ROLE_ADMIN))],
+) -> dict[str, Any]:
+    updates: list[str] = []
+    params: list[Any] = []
+    replace_locations = False
+    normalized_locations: list[dict[str, Any]] | None = None
+
+    if payload.name is not None:
+        clean_name = payload.name.strip()
+        if not clean_name:
+            raise HTTPException(status_code=400, detail="Item name cannot be blank.")
+        updates.append("name = ?")
+        params.append(clean_name)
+    if payload.barcode is not None:
+        clean_barcode = payload.barcode.strip()
+        if not clean_barcode:
+            raise HTTPException(status_code=400, detail="Barcode cannot be blank.")
+        updates.append("barcode = ?")
+        params.append(clean_barcode)
+    if payload.categoryId is not None:
+        updates.append("category_id = ?")
+        params.append(payload.categoryId)
+    if payload.unit is not None:
+        updates.append("unit = ?")
+        params.append(normalize_item_unit(payload.unit))
+    if payload.purchaseUrl is not None:
+        updates.append("purchase_url = ?")
+        params.append(normalize_optional_text(payload.purchaseUrl))
+    if payload.brand is not None:
+        updates.append("brand = ?")
+        params.append(normalize_optional_text(payload.brand))
+    if payload.description is not None:
+        updates.append("description = ?")
+        params.append(normalize_optional_text(payload.description))
+    if payload.imageUrl is not None:
+        updates.append("image_url = ?")
+        params.append(normalize_optional_text(payload.imageUrl))
+    if payload.active is not None:
+        updates.append("active = ?")
+        params.append(1 if payload.active else 0)
+
+    with get_connection() as conn:
+        existing = conn.execute(
+            "SELECT id FROM retreat_inventory_items WHERE id = ? AND deleted_at IS NULL",
+            (item_id,),
+        ).fetchone()
+        if not existing:
+            raise HTTPException(status_code=404, detail="Item not found")
+
+        if payload.categoryId is not None:
+            category = conn.execute(
+                """
+                SELECT id
+                FROM retreat_inventory_categories
+                WHERE id = ? AND deleted_at IS NULL
+                """,
+                (payload.categoryId,),
+            ).fetchone()
+            if not category:
+                raise HTTPException(status_code=404, detail="Category not found")
+
+        if payload.locations is not None:
+            normalized_locations = validate_retreat_item_location_inputs(conn, payload.locations)
+            replace_locations = True
+        elif payload.shelfLocation is not None:
+            legacy_shelf_location = normalize_optional_text(payload.shelfLocation)
+            if legacy_shelf_location:
+                location_id = ensure_retreat_inventory_location(conn, legacy_shelf_location)
+                normalized_locations = [
+                    {
+                        "location_id": location_id,
+                        "location_name": legacy_shelf_location,
+                        "quantity": 0,
+                    }
+                ]
+            else:
+                normalized_locations = []
+            replace_locations = True
+
+        if replace_locations:
+            shelf_location_value = (
+                normalized_locations[0]["location_name"] if normalized_locations else None
+            )
+            updates.append("shelf_location = ?")
+            params.append(shelf_location_value)
+
+        if updates:
+            updates.append("updated_at = CURRENT_TIMESTAMP")
+            params.append(item_id)
+            try:
+                conn.execute(
+                    f"""
+                    UPDATE retreat_inventory_items
+                    SET {', '.join(updates)}
+                    WHERE id = ?
+                    """,
+                    tuple(params),
+                )
+            except Exception as exc:
+                raise HTTPException(status_code=400, detail=f"Could not update item: {exc}") from exc
+
+        if replace_locations and normalized_locations is not None:
+            replace_retreat_item_locations(conn, item_id, normalized_locations)
+            sync_retreat_item_level_from_locations(conn, item_id)
+
+        row = conn.execute(
+            """
+            SELECT
+                i.id,
+                i.name,
+                i.barcode,
+                i.category_id,
+                i.shelf_location,
+                i.unit,
+                i.purchase_url,
+                i.brand,
+                i.description,
+                i.image_url,
+                i.active,
+                i.created_at,
+                i.updated_at,
+                c.name AS category_name,
+                c.tracking_mode
+            FROM retreat_inventory_items i
+            JOIN retreat_inventory_categories c ON c.id = i.category_id
+            WHERE i.id = ?
+            """,
+            (item_id,),
+        ).fetchone()
+        item_payload = format_retreat_inventory_item_row(row)
+        attach_retreat_inventory_item_locations(conn, [item_payload])
+        conn.commit()
+
+    return item_payload
+
+
+@app.get("/api/retreat-inventory/levels")
+def list_retreat_inventory_levels(
+    _user: Annotated[AuthUser, Depends(require_roles(ROLE_PLANNER, ROLE_ADMIN))],
+) -> list[dict[str, Any]]:
+    with get_connection() as conn:
+        rows = conn.execute(
+            """
+            SELECT
+                ril.id,
+                ril.item_id,
+                ril.category_id,
+                ril.quantity,
+                ril.min_threshold,
+                ril.updated_at,
+                i.name AS item_name,
+                i.barcode AS item_barcode,
+                i.unit AS item_unit,
+                i.image_url AS item_image_url,
+                c.id AS category_row_id,
+                c.name AS category_name,
+                c.tracking_mode
+            FROM retreat_inventory_levels ril
+            LEFT JOIN retreat_inventory_items i ON i.id = ril.item_id
+            LEFT JOIN retreat_inventory_categories c
+              ON c.id = COALESCE(ril.category_id, i.category_id)
+            WHERE (i.deleted_at IS NULL OR i.id IS NULL)
+              AND (c.deleted_at IS NULL OR c.id IS NULL)
+            ORDER BY lower(COALESCE(i.name, c.name, '')), ril.id
+            """
+        ).fetchall()
+        item_ids = [int(row["item_id"]) for row in rows if row["item_id"] is not None]
+        location_map = load_retreat_inventory_item_locations(conn, item_ids)
+
+    result: list[dict[str, Any]] = []
+    for row in rows:
+        item_id_value = row["item_id"]
+        category_id_value = row["category_id"] if row["category_id"] is not None else row["category_row_id"]
+        entity_type = "ITEM" if item_id_value is not None else "CATEGORY"
+        item_locations = location_map.get(int(item_id_value), []) if item_id_value is not None else []
+        item_shelf_location = item_locations[0]["location_name"] if item_locations else None
+        location_summary = (
+            ", ".join(f"{loc['location_name']} ({int(loc['quantity'])})" for loc in item_locations)
+            if item_locations
+            else None
+        )
+        result.append(
+            {
+                "id": int(row["id"]),
+                "entity_type": entity_type,
+                "item_id": int(item_id_value) if item_id_value is not None else None,
+                "category_id": int(category_id_value) if category_id_value is not None else None,
+                "item_name": row["item_name"],
+                "item_barcode": row["item_barcode"],
+                "item_shelf_location": item_shelf_location,
+                "item_locations": item_locations,
+                "location_summary": location_summary,
+                "item_unit": row["item_unit"],
+                "item_image_url": row["item_image_url"],
+                "category_name": row["category_name"],
+                "tracking_mode": row["tracking_mode"],
+                "quantity": int(row["quantity"] or 0),
+                "min_threshold": int(row["min_threshold"] or 0),
+                "is_low_stock": int(row["quantity"] or 0) <= int(row["min_threshold"] or 0),
+                "updated_at": row["updated_at"],
+            }
+        )
+    return result
+
+
+@app.get("/api/retreat-inventory/transactions")
+def list_retreat_inventory_transactions(
+    _user: Annotated[AuthUser, Depends(require_roles(ROLE_PLANNER, ROLE_ADMIN))],
+    limit: int = Query(default=100, ge=1, le=500),
+) -> list[dict[str, Any]]:
+    with get_connection() as conn:
+        rows = conn.execute(
+            """
+            SELECT
+                rit.id,
+                rit.entity_type,
+                rit.entity_id,
+                rit.transaction_type,
+                rit.quantity,
+                rit.reason,
+                rit.barcode,
+                rit.created_at,
+                u.username AS user_name,
+                i.name AS item_name,
+                c.name AS category_name
+            FROM retreat_inventory_transactions rit
+            LEFT JOIN users u ON u.id = rit.user_id
+            LEFT JOIN retreat_inventory_items i
+              ON rit.entity_type = 'ITEM'
+             AND i.id = rit.entity_id
+            LEFT JOIN retreat_inventory_categories c
+              ON rit.entity_type = 'CATEGORY'
+             AND c.id = rit.entity_id
+            ORDER BY rit.id DESC
+            LIMIT ?
+            """,
+            (limit,),
+        ).fetchall()
+    return [
+        {
+            "id": int(row["id"]),
+            "entity_type": row["entity_type"],
+            "entity_id": int(row["entity_id"]),
+            "entity_name": row["item_name"] if row["entity_type"] == "ITEM" else row["category_name"],
+            "transaction_type": row["transaction_type"],
+            "quantity": int(row["quantity"]),
+            "reason": row["reason"],
+            "barcode": row["barcode"],
+            "user_name": row["user_name"],
+            "created_at": row["created_at"],
+        }
+        for row in rows
+    ]
+
+
+@app.post("/api/retreat-inventory/scan")
+def scan_retreat_inventory(
+    payload: RetreatInventoryScanPayload,
+    user: Annotated[AuthUser, Depends(require_roles(ROLE_PLANNER, ROLE_ADMIN))],
+) -> dict[str, Any]:
+    barcode = payload.barcode.strip()
+    if not barcode:
+        raise HTTPException(status_code=400, detail="Barcode is required.")
+
+    tx_type = payload.transactionType
+    quantity = int(payload.quantity)
+    if tx_type in {"IN", "OUT"} and quantity <= 0:
+        raise HTTPException(status_code=400, detail="Quantity must be greater than zero for IN/OUT scans.")
+    if tx_type == "ADJUSTMENT" and quantity == 0:
+        raise HTTPException(status_code=400, detail="Quantity cannot be zero for adjustments.")
+
+    with get_connection() as conn:
+        item = conn.execute(
+            """
+            SELECT
+                i.id,
+                i.name,
+                i.barcode,
+                i.image_url,
+                i.shelf_location,
+                i.unit,
+                i.purchase_url,
+                i.active AS item_active,
+                c.id AS category_id,
+                c.name AS category_name,
+                c.tracking_mode,
+                c.active AS category_active
+            FROM retreat_inventory_items i
+            JOIN retreat_inventory_categories c ON c.id = i.category_id
+            WHERE i.barcode = ?
+              AND i.deleted_at IS NULL
+              AND c.deleted_at IS NULL
+            """,
+            (barcode,),
+        ).fetchone()
+        if not item:
+            raise HTTPException(status_code=404, detail=f"Barcode {barcode} not found.")
+        if not as_active_flag(item["item_active"]):
+            raise HTTPException(status_code=400, detail="Item is inactive.")
+        if not as_active_flag(item["category_active"]):
+            raise HTTPException(status_code=400, detail="Item category is inactive.")
+
+        tracking_mode = str(item["tracking_mode"] or "ITEM").upper()
+        entity_type = "CATEGORY" if tracking_mode == "CATEGORY" else "ITEM"
+        entity_id = int(item["category_id"]) if entity_type == "CATEGORY" else int(item["id"])
+        item_id = int(item["id"])
+
+        item_locations = load_retreat_inventory_item_locations(conn, [item_id]).get(item_id, [])
+        selected_location_id: int | None = None
+        selected_location_name: str | None = None
+        if entity_type == "ITEM":
+            if payload.locationId is None and len(item_locations) > 1:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Select a location when scanning an item stored in multiple locations.",
+                )
+            if payload.locationId is not None:
+                location = conn.execute(
+                    """
+                    SELECT id, name, active
+                    FROM retreat_inventory_locations
+                    WHERE id = ?
+                      AND deleted_at IS NULL
+                    """,
+                    (payload.locationId,),
+                ).fetchone()
+                if not location:
+                    raise HTTPException(status_code=404, detail=f"Location {payload.locationId} not found.")
+                if not as_active_flag(location["active"]):
+                    raise HTTPException(status_code=400, detail=f"Location {location['name']} is inactive.")
+                selected_location_id = int(location["id"])
+                selected_location_name = location["name"]
+            elif len(item_locations) == 1:
+                selected_location_id = int(item_locations[0]["location_id"])
+                selected_location_name = item_locations[0]["location_name"]
+        elif payload.locationId is not None:
+            raise HTTPException(
+                status_code=400,
+                detail="Location cannot be applied when this item uses CATEGORY tracking mode.",
+            )
+
+        lock_clause = " FOR UPDATE" if getattr(conn, "backend", "sqlite") == "postgres" else ""
+        if entity_type == "ITEM":
+            level_where = "item_id = ? AND category_id IS NULL"
+            level_params: tuple[Any, ...] = (entity_id,)
+            insert_params: tuple[Any, ...] = (entity_id, None)
+        else:
+            level_where = "category_id = ? AND item_id IS NULL"
+            level_params = (entity_id,)
+            insert_params = (None, entity_id)
+
+        level = conn.execute(
+            f"""
+            SELECT id, quantity, min_threshold
+            FROM retreat_inventory_levels
+            WHERE {level_where}{lock_clause}
+            """,
+            level_params,
+        ).fetchone()
+        if not level:
+            try:
+                conn.execute(
+                    """
+                    INSERT INTO retreat_inventory_levels(item_id, category_id, quantity, min_threshold, updated_at)
+                    VALUES (?, ?, 0, 0, CURRENT_TIMESTAMP)
+                    """,
+                    insert_params,
+                )
+            except Exception:
+                # Another request can create the row concurrently; read it again below.
+                pass
+            level = conn.execute(
+                f"""
+                SELECT id, quantity, min_threshold
+                FROM retreat_inventory_levels
+                WHERE {level_where}{lock_clause}
+                """,
+                level_params,
+            ).fetchone()
+        if not level:
+            raise HTTPException(status_code=500, detail="Could not initialize inventory level row.")
+
+        previous_quantity = int(level["quantity"] or 0)
+        if tx_type == "IN":
+            delta = quantity
+        elif tx_type == "OUT":
+            delta = -quantity
+        else:
+            delta = quantity
+        next_quantity = previous_quantity + delta
+        if next_quantity < 0:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Insufficient inventory: current quantity is {previous_quantity}.",
+            )
+
+        conn.execute(
+            """
+            UPDATE retreat_inventory_levels
+            SET quantity = ?, updated_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+            """,
+            (next_quantity, int(level["id"])),
+        )
+
+        location_quantity_after: int | None = None
+        if entity_type == "ITEM" and selected_location_id is not None:
+            level_location = conn.execute(
+                f"""
+                SELECT id, quantity
+                FROM retreat_inventory_item_locations
+                WHERE item_id = ?
+                  AND location_id = ?{lock_clause}
+                """,
+                (item_id, selected_location_id),
+            ).fetchone()
+            if not level_location:
+                conn.execute(
+                    """
+                    INSERT INTO retreat_inventory_item_locations(
+                        item_id,
+                        location_id,
+                        quantity,
+                        created_at,
+                        updated_at
+                    )
+                    VALUES (?, ?, 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                    """,
+                    (item_id, selected_location_id),
+                )
+                level_location = conn.execute(
+                    f"""
+                    SELECT id, quantity
+                    FROM retreat_inventory_item_locations
+                    WHERE item_id = ?
+                      AND location_id = ?{lock_clause}
+                    """,
+                    (item_id, selected_location_id),
+                ).fetchone()
+
+            previous_location_quantity = int(level_location["quantity"] or 0)
+            location_quantity_after = previous_location_quantity + delta
+            if location_quantity_after < 0:
+                raise HTTPException(
+                    status_code=400,
+                    detail=(
+                        f"Insufficient inventory at location {selected_location_name}: "
+                        f"current quantity is {previous_location_quantity}."
+                    ),
+                )
+            conn.execute(
+                """
+                UPDATE retreat_inventory_item_locations
+                SET quantity = ?, updated_at = CURRENT_TIMESTAMP
+                WHERE id = ?
+                """,
+                (location_quantity_after, int(level_location["id"])),
+            )
+
+        item_locations = load_retreat_inventory_item_locations(conn, [item_id]).get(item_id, [])
+        item_shelf_location = item_locations[0]["location_name"] if item_locations else item["shelf_location"]
+
+        tx_row = conn.execute(
+            """
+            INSERT INTO retreat_inventory_transactions(
+                entity_type,
+                entity_id,
+                transaction_type,
+                quantity,
+                reason,
+                user_id,
+                barcode,
+                created_at
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+            RETURNING id, created_at
+            """,
+            (
+                entity_type,
+                entity_id,
+                tx_type,
+                quantity,
+                normalize_optional_text(payload.reason),
+                user.id,
+                barcode,
+            ),
+        ).fetchone()
+        conn.commit()
+
+    entity_name = item["category_name"] if entity_type == "CATEGORY" else item["name"]
+    return {
+        "transaction_id": int(tx_row["id"]),
+        "created_at": tx_row["created_at"],
+        "barcode": barcode,
+        "item": {
+            "id": int(item["id"]),
+            "name": item["name"],
+            "image_url": item["image_url"],
+            "shelf_location": item_shelf_location,
+            "locations": item_locations,
+            "unit": item["unit"],
+            "purchase_url": item["purchase_url"],
+            "category_id": int(item["category_id"]),
+            "category_name": item["category_name"],
+            "tracking_mode": tracking_mode,
+        },
+        "location": (
+            {
+                "id": selected_location_id,
+                "name": selected_location_name,
+                "quantity_after": location_quantity_after,
+            }
+            if selected_location_id is not None
+            else None
+        ),
+        "entity": {
+            "type": entity_type,
+            "id": entity_id,
+            "name": entity_name,
+        },
+        "transaction_type": tx_type,
+        "quantity": quantity,
+        "delta": delta,
+        "quantity_before": previous_quantity,
+        "quantity_after": next_quantity,
+    }
 
 
 @app.get("/api/inventory")

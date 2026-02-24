@@ -19,6 +19,8 @@ python -m venv .venv
 pip install -r requirements.txt
 export RETREAT_OPS_BOOTSTRAP_ADMIN_USERNAME=admin
 export RETREAT_OPS_BOOTSTRAP_ADMIN_PASSWORD='change-this-password'
+# Optional: use Postgres (recommended for concurrent scanner usage)
+# export DATABASE_URL='postgresql://user:pass@host:5432/retreat_ops'
 uvicorn app.main:app --reload --port 8000
 ```
 
@@ -52,8 +54,9 @@ retreat-ops-web/
 ├── backend/
 │   ├── app/
 │   │   ├── main.py             FastAPI app, all endpoints and scaling logic
-│   │   ├── db.py               SQLite connection and schema initialization
-│   │   ├── schema.sql          Database schema (tables + migrations)
+│   │   ├── db.py               DB connection layer (SQLite or Postgres via DATABASE_URL)
+│   │   ├── schema.sql          SQLite schema (tables + migrations)
+│   │   ├── schema_postgres.sql Postgres schema (tables + migrations)
 │   │   └── usda.py             USDA FoodData Central density lookups
 │   ├── data/
 │   │   └── retreat_ops.db      SQLite database (auto-created on startup)
@@ -102,6 +105,17 @@ Planner/admin workflow for procurement:
 - Subtract imported inventory stock to compute `to_buy`.
 - Assign source vendor per item.
 - Track item state with explicit `ordered` and `received` toggles.
+
+### Retreat Inventory (`retreat-inventory.html`)
+
+Scanner-first retreat supply inventory:
+
+- Create categories in `ITEM` or `CATEGORY` tracking mode.
+- Admin category manager supports view, edit, and activate/deactivate.
+- Create barcode-mapped items.
+- Store per-item shelf location within the main storage room.
+- Scan `IN`, `OUT`, or `ADJUSTMENT` transactions.
+- View current stock levels and transaction history.
 
 ### Recipe Admin (`recipe-admin.html`)
 
@@ -167,9 +181,14 @@ For each ingredient:
       ↓
   to_canonical: convert to grams or ml
     - mass units (g, kg, lb, oz) → multiply by MASS_TO_G factor → grams
-    - volume units (cup, tbsp, tsp, ml, l) → if grams_per_cup known for ingredient,
-        convert to grams; otherwise convert to ml
-    - count units (piece, bunch, packet) → keep as-is
+    - volume units (cup, tbsp, tsp, ml, l):
+        - ingredient-specific mapping (`unit_conversions` to `g` OR `grams_per_cup`) → grams
+        - canonical volume ingredient (`ml`/`l`) → ml
+        - otherwise conversion fails with a 400 mapping error (no generic fallback)
+    - count units (piece, bunch, packet):
+        - same canonical count unit → keep as-is
+        - ingredient-specific count mapping required when canonical count unit differs
+        - count↔mass/volume without explicit mapping fails with a 400 mapping error
       ↓
   to_shopping_unit: optimize for purchase
     - ≥1000g → kg
@@ -178,6 +197,7 @@ For each ingredient:
 ```
 
 The planner frontend performs this scaling client-side using conversion data loaded from the API at startup (`/api/unit-conversions` and `/api/ingredients`). The backend `POST /api/scale-preview` endpoint performs the same logic server-side for the scaling preview page.
+If a required mapping is missing, the backend now returns an explicit `400` error instead of silently applying generic conversion fallbacks.
 
 ---
 
@@ -247,10 +267,24 @@ Lookup table for unit conversions, populated from Excel imports and USDA.
 | unit_from | TEXT | Source unit |
 | quantity_to | REAL | Target quantity |
 | unit_to | TEXT | Target unit |
-| context | TEXT | `ingredient_specific`, `generic_solid`, `generic_liquid`, or `usda_fdc` |
+| context | TEXT | Usually `ingredient_specific`, `usda_fdc`, or `llm_estimate` (legacy generic rows may exist) |
 | source_sheet | TEXT | Excel sheet name (if imported) |
 | source_row | INTEGER | Excel row number (if imported) |
 | notes | TEXT | Optional |
+| created_at | TIMESTAMP | Row creation time |
+
+### ingredient_aliases
+
+Approved ingredient-name aliases used for USDA lookup candidate expansion.
+
+| Column | Type | Description |
+|--------|------|-------------|
+| id | INTEGER PK | Auto-increment |
+| ingredient_name | TEXT | Canonical ingredient in app DB |
+| alias_name | TEXT | Approved alternate search string |
+| source | TEXT | Alias source (`manual`, `auto_curated`, `auto_llm`, etc.) |
+| confidence | REAL | Optional match confidence score |
+| notes | TEXT | Optional provenance/context |
 | created_at | TIMESTAMP | Row creation time |
 
 ### retreat_plans

@@ -26,6 +26,7 @@
     "/kitchen-test-view.html": ["viewer", "planner", "admin"],
     "/recipe-scaling.html": ["viewer", "planner", "admin"],
     "/inventory.html": ["planner", "admin"],
+    "/retreat-inventory.html": ["planner", "admin"],
     "/change-password.html": ["viewer", "planner", "admin"],
     "/kitchen.html": ["viewer", "planner", "admin"],
     "/about.html": ["viewer", "planner", "admin"],

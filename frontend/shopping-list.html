@@ -163,6 +163,37 @@
         color: #1f2937;
       }
 
+      .ingredient-actions {
+        margin-top: 0.28rem;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+      }
+
+      .split-now-btn {
+        font-size: 0.68rem;
+        line-height: 1.2;
+        padding: 0.12rem 0.45rem;
+        border-radius: 999px;
+      }
+
+      .partial-buy-badge {
+        font-size: 0.67rem;
+        letter-spacing: 0.01em;
+      }
+
+      .partial-buy-badge.now {
+        color: #0f5132;
+        background: #dcfce7;
+        border-color: #86efac;
+      }
+
+      .partial-buy-badge.later {
+        color: #7c2d12;
+        background: #ffedd5;
+        border-color: #fdba74;
+      }
+
       .ingredient-breakdown {
         margin: 0;
       }
@@ -432,6 +463,10 @@
         background: linear-gradient(160deg, rgba(248, 250, 252, 0.94), rgba(241, 245, 249, 0.9));
       }
 
+      body.shopping-page .later-filter-wrap {
+        min-height: 38px;
+      }
+
       body.shopping-page #retreatPlanSelect,
       body.shopping-page #shoppingListSelect {
         color: #111827 !important;
@@ -482,6 +517,22 @@
       body.shopping-page .ingredient-breakdown-summary:hover .ingredient-name {
         text-decoration: underline dotted;
         text-underline-offset: 2px;
+      }
+
+      body.shopping-page .split-now-btn {
+        border-color: #d1d5db;
+        color: #475569;
+        background: #ffffff;
+      }
+
+      body.shopping-page .split-now-btn:hover {
+        border-color: #94a3b8;
+        color: #1e293b;
+        background: #f8fafc;
+      }
+
+      body.shopping-page .split-now-btn:disabled {
+        opacity: 0.58;
       }
 
       body.shopping-page .inventory-editor input {
@@ -601,8 +652,12 @@
                 <li><a class="dropdown-item" href="ingredient-admin.html"><i class="fa-solid fa-carrot me-2"></i> Ingredients</a></li>
               </ul>
             </li>
-            <li class="nav-item">
-              <a class="nav-link" href="inventory.html"><i class="fa-solid fa-boxes-stacked me-1"></i> Inventory</a>
+            <li class="nav-item dropdown">
+              <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false"><i class="fa-solid fa-boxes-stacked me-1"></i> Inventory</a>
+              <ul class="dropdown-menu">
+                <li><a class="dropdown-item" href="inventory.html"><i class="fa-solid fa-clipboard-list me-2"></i> General Inventory</a></li>
+                <li><a class="dropdown-item" href="retreat-inventory.html"><i class="fa-solid fa-barcode me-2"></i> Retreat Inventory</a></li>
+              </ul>
             </li>
             <li class="nav-item dropdown">
               <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false"><i class="fa-solid fa-seedling me-1"></i> About</a>
@@ -780,6 +835,16 @@
               <option value="source">Source -> Category -> Ingredient (A-Z)</option>
             </select>
           </div>
+          <div class="col-12 col-lg-4">
+            <label class="form-label small text-uppercase fw-bold text-muted">Later Purchase Filter</label>
+            <div class="d-flex align-items-center gap-3 later-filter-wrap">
+              <div class="form-check form-switch mb-0">
+                <input id="laterOnlyToggle" class="form-check-input" type="checkbox" />
+                <label class="form-check-label small fw-semibold" for="laterOnlyToggle">Later only</label>
+              </div>
+              <span class="small text-muted">Later items: <strong id="laterOnlyCount">0/0</strong></span>
+            </div>
+          </div>
         </div>
 
         <div class="category-filter-wrap">
@@ -823,6 +888,6 @@
 
     <script src="assets/auth.js?v=20260218f" defer></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js" defer></script>
-    <script src="assets/shopping-list.js?v=20260218a" defer></script>
+    <script src="assets/shopping-list.js?v=20260224c" defer></script>
   </body>
 </html>

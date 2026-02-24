@@ -12,6 +12,8 @@ services:
         value: "1"
       - key: RETREAT_OPS_COOKIE_SECURE
         value: "1"
+      - key: DATABASE_URL
+        sync: false
       - key: USDA_API_KEY
         sync: false
       - key: RETREAT_OPS_BOOTSTRAP_ADMIN_USERNAME

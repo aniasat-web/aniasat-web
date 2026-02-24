@@ -639,8 +639,12 @@
                 <li><a class="dropdown-item" href="ingredient-admin.html"><i class="fa-solid fa-carrot me-2"></i> Ingredients</a></li>
               </ul>
             </li>
-            <li class="nav-item">
-              <a class="nav-link" href="inventory.html"><i class="fa-solid fa-boxes-stacked me-1"></i> Inventory</a>
+            <li class="nav-item dropdown">
+              <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false"><i class="fa-solid fa-boxes-stacked me-1"></i> Inventory</a>
+              <ul class="dropdown-menu">
+                <li><a class="dropdown-item" href="inventory.html"><i class="fa-solid fa-clipboard-list me-2"></i> General Inventory</a></li>
+                <li><a class="dropdown-item" href="retreat-inventory.html"><i class="fa-solid fa-barcode me-2"></i> Retreat Inventory</a></li>
+              </ul>
             </li>
             <li class="nav-item dropdown">
               <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false"><i class="fa-solid fa-seedling me-1"></i> About</a>
@@ -748,14 +752,7 @@
           </div>
         </div>
         <div class="setup-actions d-flex flex-wrap gap-2 justify-content-between align-items-center">
-          <div class="d-flex gap-2">
-            <button class="btn btn-primary fw-bold shadow-sm" id="buildSchedule">
-              <i class="fa-solid fa-layer-group me-2"></i>Build Schedule
-            </button>
-            <button class="btn btn-light border shadow-sm" id="loadSample">
-              <i class="fa-solid fa-flask me-2 text-muted"></i>Load Sample
-            </button>
-          </div>
+          <div></div>
           <div class="d-flex align-items-center gap-2">
             <button class="btn btn-sm btn-light border text-muted" id="newRetreatBtn" type="button">
               <i class="fa-solid fa-plus me-1"></i> New
@@ -928,8 +925,6 @@
       const statRecipes = document.getElementById("statRecipes");
       const savedRetreatsList = document.getElementById("savedRetreatsList");
       const savedRetreatsCount = document.getElementById("savedRetreatsCount");
-      const buildScheduleBtn = document.getElementById("buildSchedule");
-      const loadSampleBtn = document.getElementById("loadSample");
       const API_BASE = resolveApiBase();
 
       let currentViewDay = 1;
@@ -958,6 +953,38 @@
 
       function apiUrl(path) {
         return `${API_BASE}${path.startsWith("/") ? path : `/${path}`}`;
+      }
+
+      function buildKitchenViewUrl(path, { includePlan = true } = {}) {
+        const targetUrl = new URL(path, window.location.href);
+        if (includePlan && currentRetreatPlanId) {
+          targetUrl.searchParams.set("plan", String(currentRetreatPlanId));
+        } else {
+          targetUrl.searchParams.delete("plan");
+        }
+        if (API_BASE !== window.location.origin) {
+          targetUrl.searchParams.set("api", API_BASE);
+        } else {
+          targetUrl.searchParams.delete("api");
+        }
+        return targetUrl.toString();
+      }
+
+      function syncKitchenNavigationLinks() {
+        const plannerHref = buildKitchenViewUrl("retreat-planner-sample.html");
+        document.querySelectorAll('a[href*="retreat-planner-sample.html"]').forEach((link) => {
+          link.href = plannerHref;
+        });
+
+        const kitchenHref = buildKitchenViewUrl("kitchen-service-view.html");
+        document.querySelectorAll('a[href*="kitchen-service-view.html"]').forEach((link) => {
+          link.href = kitchenHref;
+        });
+
+        const testingHref = buildKitchenViewUrl("kitchen-test-view.html");
+        document.querySelectorAll('a[href*="kitchen-test-view.html"]').forEach((link) => {
+          link.href = testingHref;
+        });
       }
 
       function formatLocalDateTime(value) {
@@ -1326,7 +1353,7 @@
 
       function formatNumber(value, unit) {
         const u = (unit || "").trim().toLowerCase();
-        if (u === "kg" || u === "l") {
+        if (u === "kg" || u === "l" || u === "tsp" || u === "tbsp" || u === "cup") {
           return Number(value).toFixed(1);
         }
         return Number(value).toFixed(0);
@@ -2177,6 +2204,7 @@
       function updateShareableUrl() {
         const shareInput = document.getElementById("kitchenShareUrl");
         const copyBtn = document.getElementById("copyKitchenUrl");
+        syncKitchenNavigationLinks();
         if (!shareInput) {
           return;
         }
@@ -2189,12 +2217,7 @@
           return;
         }
 
-        const kitchenUrl = new URL("kitchen-service-view.html", window.location.href);
-        kitchenUrl.searchParams.set("plan", String(currentRetreatPlanId));
-        if (API_BASE !== window.location.origin) {
-          kitchenUrl.searchParams.set("api", API_BASE);
-        }
-        shareInput.value = kitchenUrl.toString();
+        shareInput.value = buildKitchenViewUrl("kitchen-service-view.html");
         if (copyBtn) {
           copyBtn.disabled = false;
         }
@@ -2272,6 +2295,9 @@
           retreatMeals,
           testMeals,
         };
+        if (currentRetreatPlanId) {
+          payload.id = Number(currentRetreatPlanId);
+        }
         return { payload, error: null };
       }
 
@@ -2294,6 +2320,7 @@
         dayContainer.classList.remove("is-loading");
         setMealPlanVisible(false);
         setKitchenSectionVisible(false);
+        updateShareableUrl();
         updateHeroStats(0);
         refreshDayVisibility();
         updateDeleteRetreatButtonState();
@@ -2629,18 +2656,37 @@
         if (!selectedName) {
           currentRetreatPlanId = null;
           lastSavedRetreatFingerprint = "";
+          updateShareableUrl();
           updateDeleteRetreatButtonState();
           return;
         }
 
         const selectedId = retreatPlanIdByName.get(normalizeRetreatNameKey(selectedName));
         if (selectedId) {
+          if (currentRetreatPlanId && Number(currentRetreatPlanId) === Number(selectedId)) {
+            updateDeleteRetreatButtonState();
+            return;
+          }
           await loadRetreatPlanById(selectedId);
+          return;
+        }
+
+        const hasSchedule = dayContainer.querySelectorAll(".day-card").length > 0;
+        if (hasSchedule) {
+          updateRetreatStoreStatus(`Saving retreat "${selectedName}"...`, "busy");
+          const didSave = await persistRetreatPlan("manual");
+          if (!didSave && currentRetreatPlanId) {
+            const currentName = retreatPlanNameById.get(Number(currentRetreatPlanId));
+            if (currentName) {
+              setRetreatPickerValue(currentName);
+            }
+          }
           return;
         }
 
         currentRetreatPlanId = null;
         lastSavedRetreatFingerprint = "";
+        updateShareableUrl();
         updateDeleteRetreatButtonState();
         updateRetreatStoreStatus(`Creating new retreat "${selectedName}".`);
       }
@@ -2928,6 +2974,20 @@
         if (!dayCountInput.value || Number.isNaN(rawDays) || rawDays < 1) {
           return false;
         }
+
+        const hasExistingDays = dayContainer.querySelectorAll(".day-card").length > 0;
+        const hasExistingDishes = Array.from(dayContainer.querySelectorAll(".dish-select"))
+          .some((select) => String(select.value || "").trim().length > 0);
+        if (hasExistingDays && hasExistingDishes) {
+          const shouldRebuild = window.confirm(
+            "Rebuilding schedule will clear current day/meal dish assignments for this retreat. Continue?"
+          );
+          if (!shouldRebuild) {
+            updateRetreatStoreStatus("Schedule rebuild canceled.");
+            return false;
+          }
+        }
+
         const days = Math.max(1, Math.min(10, rawDays));
         dayCountInput.value = String(days);
         updateRetreatStoreStatus("Building schedule...", "busy");
@@ -2935,12 +2995,6 @@
         return true;
       }
 
-      buildScheduleBtn?.addEventListener("click", () => {
-        if (!tryBuildScheduleFromDayCount()) {
-          dayCountInput.focus();
-          return;
-        }
-      });
       dayCountInput.addEventListener("change", () => {
         void tryBuildScheduleFromDayCount();
       });
@@ -2952,22 +3006,6 @@
         if (!tryBuildScheduleFromDayCount()) {
           dayCountInput.focus();
         }
-      });
-
-      loadSampleBtn?.addEventListener("click", () => {
-        currentRetreatPlanId = null;
-        lastSavedRetreatFingerprint = "";
-        setRetreatPickerValue("Fall Kriya + Upanishad Retreat");
-        updateDeleteRetreatButtonState();
-        setStartDateValue("2026-10-09");
-        dayCountInput.value = "3";
-        defaultPeopleInput.value = "160";
-        if (testDefaultPeopleInput) {
-          testDefaultPeopleInput.value = "4";
-        }
-        setActiveHeadcountProfile(PROFILE_RETREAT, { scheduleSave: false, updateStatus: false });
-        updateRetreatStoreStatus("Loading sample schedule...", "busy");
-        void buildScheduleWithTransition(3);
       });
 
       newRetreatBtn.addEventListener("click", resetPlannerForNewRetreat);
@@ -3090,6 +3128,7 @@
         setActiveHeadcountProfile(PROFILE_RETREAT, { scheduleSave: false, updateStatus: false });
         updateHeroStats(0);
         setMealPlanVisible(false);
+        updateShareableUrl();
         refreshDayVisibility();
         void refreshRetreatPlanOptions();
         updateDeleteRetreatButtonState();

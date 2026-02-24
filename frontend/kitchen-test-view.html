@@ -380,8 +380,12 @@
                 <li><a class="dropdown-item" href="ingredient-admin.html"><i class="fa-solid fa-carrot me-2"></i> Ingredients</a></li>
               </ul>
             </li>
-            <li class="nav-item">
-              <a class="nav-link" href="inventory.html"><i class="fa-solid fa-boxes-stacked me-1"></i> Inventory</a>
+            <li class="nav-item dropdown">
+              <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false"><i class="fa-solid fa-boxes-stacked me-1"></i> Inventory</a>
+              <ul class="dropdown-menu">
+                <li><a class="dropdown-item" href="inventory.html"><i class="fa-solid fa-clipboard-list me-2"></i> General Inventory</a></li>
+                <li><a class="dropdown-item" href="retreat-inventory.html"><i class="fa-solid fa-barcode me-2"></i> Retreat Inventory</a></li>
+              </ul>
             </li>
             <li class="nav-item dropdown">
               <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false"><i class="fa-solid fa-seedling me-1"></i> About</a>
@@ -589,10 +593,11 @@
       const HERB_COUNT_UNIT_FALLBACK_FACTORS = new Map([
         ["cilantro|piece|bunch", 1 / 16],
         ["cilantro|sprig|bunch", 1 / 16],
-        ["curry leaves|piece|sprig", 1],
-        ["curry leaves|leaf|sprig", 1 / 8],
+        ["curry leaves|piece|sprig", 1 / 10],
+        ["curry leaves|leaf|sprig", 1 / 10],
         ["curry leaves|packet|sprig", 5],
       ]);
+      const SINGLE_DECIMAL_UNITS = new Set(["kg", "l", "tsp", "tbsp", "cup"]);
       const ML_PER_CUP = 240;
       const ML_PER_TBSP = 15;
       const ML_PER_TSP = 5;
@@ -609,6 +614,24 @@
       function herbCountUnitFallbackFactor(ingredientName, unitFrom, unitTo) {
         const key = `${normalizeIngredientKey(ingredientName)}|${normalizeUnit(unitFrom)}|${normalizeUnit(unitTo)}`;
         return HERB_COUNT_UNIT_FALLBACK_FACTORS.get(key);
+      }
+
+      function normalizeCurryLeavesSprigCount(ingredientName, quantity, unit) {
+        const ingredientKey = normalizeIngredientKey(ingredientName);
+        const normalizedUnit = normalizeUnit(unit);
+        const numeric = Number(quantity);
+        if (ingredientKey !== "curry leaves" || normalizedUnit !== "sprig" || !Number.isFinite(numeric)) {
+          return quantity;
+        }
+        if (numeric <= 0) {
+          return 0;
+        }
+        return Math.max(1, Math.round(numeric));
+      }
+
+      function isProduceCategory(category) {
+        const normalized = String(category || "").trim().toLowerCase();
+        return normalized.includes("produce");
       }
 
       function gramsToVolume(grams, gramsPerCup) {
@@ -655,17 +678,23 @@
           }
         } else if (COUNT_UNITS.has(canonical) && COUNT_UNITS.has(unit)) {
           if (unit === canonical) {
-            return { qty, unit: canonical };
+            return {
+              qty: normalizeCurryLeavesSprigCount(ingredientName, qty, canonical),
+              unit: canonical,
+            };
           }
           const factor = herbCountUnitFallbackFactor(ingredientName, unit, canonical);
           if (Number.isFinite(factor)) {
-            return { qty: qty * factor, unit: canonical };
+            return {
+              qty: normalizeCurryLeavesSprigCount(ingredientName, qty * factor, canonical),
+              unit: canonical,
+            };
           }
         }
         return { qty, unit };
       }
 
-      function formatKitchenQuantity(rawQty, rawUnit, canonicalUnit, gramsPerCup, ingredientName) {
+      function formatKitchenQuantity(rawQty, rawUnit, canonicalUnit, gramsPerCup, ingredientName, ingredientCategory = null) {
         const canonicalOverride = canonicalDisplayQuantity(rawQty, rawUnit, canonicalUnit, gramsPerCup, ingredientName);
         let qty;
         let unit;
@@ -689,8 +718,9 @@
           unit = "l";
         }
 
-        // Show decimals only for kg/l. Everything else should be whole numbers.
-        const decimals = unit === "kg" || unit === "l" ? 1 : 0;
+        // Keep one decimal for kitchen volume units and larger metric rollups.
+        const forceSingleDecimal = SINGLE_DECIMAL_UNITS.has(unit) || isProduceCategory(ingredientCategory);
+        const decimals = forceSingleDecimal ? 1 : 0;
         let value = qty.toFixed(decimals);
 
         // Avoid displaying non-zero quantities as "0" due to rounding.
@@ -701,7 +731,9 @@
           }
         }
 
-        value = value.replace(/\.0+$/, "").replace(/(\.\d*?)0+$/, "$1");
+        if (!forceSingleDecimal) {
+          value = value.replace(/\.0+$/, "").replace(/(\.\d*?)0+$/, "$1");
+        }
         return `${value} ${unit}`;
       }
 
@@ -724,7 +756,7 @@
         const right = document.createElement("span");
         right.className = "ingredient-qty";
         right.textContent = formatKitchenQuantity(
-          item.scaledQty, item.scaledUnit, item.canonicalUnit, item.gramsPerCup, item.name
+          item.scaledQty, item.scaledUnit, item.canonicalUnit, item.gramsPerCup, item.name, item.category
         );
         li.appendChild(left);
         li.appendChild(right);

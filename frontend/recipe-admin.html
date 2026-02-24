@@ -534,6 +534,20 @@
         "Pickles",
       ];
       const COUNT_UNITS = new Set(["piece", "packet", "bunch", "sprig", "leaf"]);
+      const MASS_TO_G = {
+        g: 1,
+        kg: 1000,
+        lb: 453.59237,
+        oz: 28.349523125,
+      };
+      const VOLUME_TO_ML = {
+        ml: 1,
+        l: 1000,
+        cup: 240,
+        tbsp: 14.7868,
+        tsp: 4.92892,
+      };
+      const WHOLE_SPICE_NAME_HINTS = ["bay", "cardamom", "cinnamon"];
       const UNIT_ALIASES = {
         pieces: "piece",
         packets: "packet",
@@ -549,6 +563,8 @@
         ["curry leaves|leaf|sprig", 1 / 10],
         ["curry leaves|packet|sprig", 5],
       ]);
+      const ingredientSpecificToGram = new Map();
+      const genericSolidToGram = new Map();
       let recipes = [];
       let selectedRecipeId = null;
       let selectedCategory = null;
@@ -571,6 +587,21 @@
 
       function normalizeIngredientKey(name) {
         return String(name || "").trim().toLowerCase().replace(/\s+/g, " ");
+      }
+
+      function isSpiceOrSeasoningCategory(category) {
+        const normalized = String(category || "").trim().toLowerCase();
+        return normalized.includes("spice") || normalized.includes("seasoning");
+      }
+
+      function looksLikeWholeSpiceName(name) {
+        const key = normalizeIngredientKey(name);
+        return WHOLE_SPICE_NAME_HINTS.some((token) => key.includes(token));
+      }
+
+      function hasWholeSpiceCountMapping(ingredientKey) {
+        const countCandidates = ["piece", "leaf", "sprig"];
+        return countCandidates.some((unit) => ingredientSpecificToGram.has(`${ingredientKey}|${unit}`));
       }
 
       function canonicalHerbCountDisplay(name, quantity, unit, canonicalUnit) {
@@ -602,6 +633,48 @@
           return null;
         }
         return { quantity: normalizeCurryLeavesSprigs(qty * factor), unit: targetUnit };
+      }
+
+      function canonicalWholeSpiceMassDisplay(name, quantity, unit, canonicalUnit, category, gramsPerCup) {
+        const qty = Number(quantity);
+        const sourceUnit = normalizeUnitToken(unit);
+        const targetUnit = normalizeUnitToken(canonicalUnit);
+        const ingredientKey = normalizeIngredientKey(name);
+        if (!Number.isFinite(qty) || qty <= 0 || !sourceUnit || !targetUnit || !ingredientKey) {
+          return null;
+        }
+        if (!isSpiceOrSeasoningCategory(category)) {
+          return null;
+        }
+        if (targetUnit !== "g" && targetUnit !== "kg") {
+          return null;
+        }
+        if (!looksLikeWholeSpiceName(name) && !hasWholeSpiceCountMapping(ingredientKey)) {
+          return null;
+        }
+
+        let grams = null;
+        if (MASS_TO_G[sourceUnit]) {
+          grams = qty * MASS_TO_G[sourceUnit];
+        } else {
+          const specificToGram = ingredientSpecificToGram.get(`${ingredientKey}|${sourceUnit}`);
+          if (Number.isFinite(specificToGram) && specificToGram > 0) {
+            grams = qty * specificToGram;
+          } else if (VOLUME_TO_ML[sourceUnit] && Number.isFinite(gramsPerCup) && gramsPerCup > 0) {
+            const cups = (qty * VOLUME_TO_ML[sourceUnit]) / VOLUME_TO_ML.cup;
+            grams = cups * gramsPerCup;
+          } else {
+            const genericToGram = genericSolidToGram.get(sourceUnit);
+            if (Number.isFinite(genericToGram) && genericToGram > 0) {
+              grams = qty * genericToGram;
+            }
+          }
+        }
+
+        if (!Number.isFinite(grams) || grams <= 0) {
+          return null;
+        }
+        return { quantity: Number(grams.toFixed(4)), unit: "g" };
       }
 
       function setStatus(message, mode = "info") {
@@ -762,6 +835,20 @@
         const ingredients = Array.isArray(recipe.ingredients)
           ? recipe.ingredients.map((ing) => ({
               ...(() => {
+                const wholeSpiceMassDisplay = canonicalWholeSpiceMassDisplay(
+                  ing.name,
+                  ing.quantity,
+                  ing.unit,
+                  ing.canonical_unit || ing.canonicalUnit || "",
+                  ing.category || "",
+                  Number(ing.grams_per_cup ?? ing.gramsPerCup ?? NaN)
+                );
+                if (wholeSpiceMassDisplay) {
+                  return {
+                    quantity: Number(wholeSpiceMassDisplay.quantity.toFixed(4)),
+                    unit: wholeSpiceMassDisplay.unit,
+                  };
+                }
                 const canonicalDisplay = canonicalHerbCountDisplay(
                   ing.name,
                   ing.quantity,
@@ -1162,10 +1249,65 @@
         }
       }
 
+      async function fetchUnitConversionMetadata() {
+        ingredientSpecificToGram.clear();
+        genericSolidToGram.clear();
+        try {
+          const response = await fetch(apiUrl("/api/unit-conversions"));
+          if (!response.ok) {
+            throw new Error(await parseApiError(response));
+          }
+          const rows = await response.json();
+          if (!Array.isArray(rows)) {
+            return;
+          }
+          rows.forEach((row) => {
+            const context = String(row.context || "").trim().toLowerCase();
+            const unitFrom = normalizeUnitToken(row.unit_from || row.unitFrom || "");
+            const unitTo = normalizeUnitToken(row.unit_to || row.unitTo || "");
+            const quantityFrom = Number(row.quantity_from ?? row.quantityFrom ?? NaN);
+            const quantityTo = Number(row.quantity_to ?? row.quantityTo ?? NaN);
+            if (!context || !unitFrom || !unitTo || !Number.isFinite(quantityFrom) || !Number.isFinite(quantityTo) || quantityFrom <= 0) {
+              return;
+            }
+
+            let factorToGram = null;
+            if (unitTo === "g") {
+              factorToGram = quantityTo / quantityFrom;
+            } else if (unitTo === "kg") {
+              factorToGram = (quantityTo * 1000) / quantityFrom;
+            }
+            if (!Number.isFinite(factorToGram) || factorToGram <= 0) {
+              return;
+            }
+
+            if (context === "ingredient_specific") {
+              const itemName = normalizeIngredientKey(row.item_name || row.itemName || "");
+              if (!itemName) {
+                return;
+              }
+              const key = `${itemName}|${unitFrom}`;
+              if (!ingredientSpecificToGram.has(key)) {
+                ingredientSpecificToGram.set(key, factorToGram);
+              }
+              return;
+            }
+
+            if (context === "generic_solid" && !genericSolidToGram.has(unitFrom)) {
+              genericSolidToGram.set(unitFrom, factorToGram);
+            }
+          });
+        } catch (_) {
+          ingredientSpecificToGram.clear();
+          genericSolidToGram.clear();
+        }
+      }
+
       async function init() {
         try {
           setStatus("Loading recipes...", "info");
           await fetchIngredientOptions();
+          await fetchUnitConversionMetadata();
           await fetchCategories();
           await fetchRecipes();
           renderCategoryFilter();

@@ -476,6 +476,11 @@
         return normalized.includes("spice") || normalized.includes("seasoning");
       }
 
+      function isPulseOrLegumeCategory(category) {
+        const normalized = String(category || "").trim().toLowerCase();
+        return normalized.includes("pulse") || normalized.includes("legume");
+      }
+
       function isProduceCategory(category) {
         const normalized = String(category || "").trim().toLowerCase();
         return normalized.includes("produce");
@@ -645,6 +650,11 @@
           if (COUNT_UNITS.has(source.unit) && isSpiceOrSeasoningCategory(meta.category)) {
             // Policy fallback for spice/seasoning counts when no explicit mass conversion is available.
             return { qty: source.qty, unit: "g" };
+          }
+
+          if (VOLUME_TO_ML[source.unit] && isPulseOrLegumeCategory(meta.category)) {
+            // Keep retreat view metric-only for pulses/legumes even if density metadata is missing.
+            return { qty: source.qty * VOLUME_TO_ML[source.unit], unit: "ml" };
           }
 
           return null;

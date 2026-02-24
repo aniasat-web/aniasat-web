@@ -3842,6 +3842,13 @@ def is_produce_category(category: str | None) -> bool:
     return category.strip().lower() in {"produce", "fruits"}
 
 
+def is_pulse_or_legume_category(category: str | None) -> bool:
+    if not category:
+        return False
+    normalized = category.strip().lower()
+    return "pulse" in normalized or "legume" in normalized
+
+
 def is_dal_or_rice_ingredient(ingredient_name: str, category: str | None = None) -> bool:
     normalized_name = normalize_ingredient_name(ingredient_name).lower()
     if not normalized_name:
@@ -3851,10 +3858,7 @@ def is_dal_or_rice_ingredient(ingredient_name: str, category: str | None = None)
     if DAL_RICE_TOKEN_RE.search(normalized_name):
         return True
 
-    normalized_category = (category or "").strip().lower()
-    if ("pulse" in normalized_category or "legume" in normalized_category) and any(
-        token in normalized_name for token in ("dal", "moong", "mung", "toor", "urad", "masoor")
-    ):
+    if is_pulse_or_legume_category(category):
         return True
     return False
 

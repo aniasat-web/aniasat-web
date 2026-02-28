@@ -244,6 +244,81 @@ CREATE INDEX IF NOT EXISTS idx_inventory_product_catalog_barcode ON inventory_pr
 CREATE INDEX IF NOT EXISTS idx_inventory_product_catalog_source ON inventory_product_catalog(source);
 CREATE INDEX IF NOT EXISTS idx_inventory_product_catalog_name ON inventory_product_catalog(product_name);
 
+CREATE TABLE IF NOT EXISTS standalone_inventory_orders (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'DRAFT' CHECK (status IN ('DRAFT', 'ORDERED', 'PARTIAL', 'RECEIVED')),
+    notes TEXT,
+    created_by_user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    ordered_by_user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    ordered_at TEXT,
+    received_by_user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    received_at TEXT,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    deleted_at TEXT
+);
+
+CREATE TABLE IF NOT EXISTS standalone_inventory_order_items (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    order_id INTEGER NOT NULL REFERENCES standalone_inventory_orders(id) ON DELETE CASCADE,
+    inventory_item_id INTEGER NOT NULL REFERENCES standalone_inventory(id) ON DELETE CASCADE,
+    item_name_snapshot TEXT NOT NULL,
+    category_snapshot TEXT,
+    unit_snapshot TEXT,
+    current_quantity_snapshot REAL NOT NULL DEFAULT 0,
+    required_quantity REAL NOT NULL DEFAULT 0 CHECK (required_quantity >= 0),
+    ordered_quantity REAL NOT NULL DEFAULT 0 CHECK (ordered_quantity >= 0),
+    received_quantity REAL NOT NULL DEFAULT 0 CHECK (received_quantity >= 0),
+    purchase_unit TEXT NOT NULL DEFAULT 'unit',
+    units_per_purchase REAL NOT NULL DEFAULT 1 CHECK (units_per_purchase > 0),
+    ordered_purchase_quantity REAL NOT NULL DEFAULT 0 CHECK (ordered_purchase_quantity >= 0),
+    received_purchase_quantity REAL NOT NULL DEFAULT 0 CHECK (received_purchase_quantity >= 0),
+    applied_received_quantity REAL NOT NULL DEFAULT 0 CHECK (applied_received_quantity >= 0),
+    order_url_snapshot TEXT,
+    order_url_override TEXT,
+    notes TEXT,
+    ordered_by_user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    ordered_at TEXT,
+    received_by_user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    received_at TEXT,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CHECK (received_quantity <= ordered_quantity OR ordered_quantity = 0),
+    CHECK (received_purchase_quantity <= ordered_purchase_quantity OR ordered_purchase_quantity = 0),
+    CHECK (applied_received_quantity <= received_quantity)
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_standalone_inventory_order_items_unique
+ON standalone_inventory_order_items(order_id, inventory_item_id);
+
+CREATE INDEX IF NOT EXISTS idx_standalone_inventory_order_items_order_id
+ON standalone_inventory_order_items(order_id);
+
+CREATE INDEX IF NOT EXISTS idx_standalone_inventory_order_items_inventory_item_id
+ON standalone_inventory_order_items(inventory_item_id);
+
+CREATE TABLE IF NOT EXISTS standalone_inventory_transactions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    inventory_item_id INTEGER NOT NULL REFERENCES standalone_inventory(id) ON DELETE CASCADE,
+    order_id INTEGER REFERENCES standalone_inventory_orders(id) ON DELETE SET NULL,
+    order_item_id INTEGER REFERENCES standalone_inventory_order_items(id) ON DELETE SET NULL,
+    transaction_type TEXT NOT NULL CHECK (transaction_type IN ('IN', 'OUT', 'ADJUSTMENT')),
+    quantity_delta REAL NOT NULL,
+    reason TEXT,
+    user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_standalone_inventory_transactions_created_at
+ON standalone_inventory_transactions(created_at);
+
+CREATE INDEX IF NOT EXISTS idx_standalone_inventory_transactions_item_id
+ON standalone_inventory_transactions(inventory_item_id);
+
+CREATE INDEX IF NOT EXISTS idx_standalone_inventory_transactions_order_id
+ON standalone_inventory_transactions(order_id);
+
 CREATE TABLE IF NOT EXISTS retreat_inventory_categories (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL UNIQUE,

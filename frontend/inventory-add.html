@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Add Inventory - Blossom Foundation</title>
+    <title>Putaway / Add Inventory - Blossom Foundation</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -14,41 +14,27 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
     <link rel="stylesheet" href="assets/header-theme.css" />
     <style>
-      body {
-        font-family: "Plus Jakarta Sans", sans-serif;
-      }
-
-      h1, h2, h3, .navbar-brand {
-        font-family: "Instrument Serif", serif;
-      }
-
-      .inventory-shell {
-        max-width: 1120px;
-        margin: 0 auto;
-        padding: 1.4rem 1rem 2rem;
-      }
-
-      .soft-card {
-        border: 1px solid var(--ui-border);
-        border-radius: var(--ui-radius-md);
-        background: rgba(255, 255, 255, 0.88);
-        box-shadow: var(--ui-shadow-sm);
-        backdrop-filter: blur(2px);
-      }
-
-      .scanner-field {
-        font-size: 1.15rem;
+      body { font-family: "Plus Jakarta Sans", sans-serif; }
+      h1, h2, h3, .navbar-brand { font-family: "Instrument Serif", serif; }
+      .inventory-shell { max-width: 1160px; margin: 0 auto; padding: 1.4rem 1rem 2rem; }
+      .soft-card { border: 1px solid var(--ui-border); border-radius: var(--ui-radius-md); background: rgba(255, 255, 255, 0.9); box-shadow: var(--ui-shadow-sm); }
+      .table-wrap { max-height: 560px; overflow: auto; }
+      .sticky-head thead th { position: sticky; top: 0; z-index: 2; background: #fff; }
+      .stat-value { font-size: 1.75rem; font-weight: 800; font-variant-numeric: tabular-nums; }
+      .qty-input { width: 100px; font-size: 0.82rem; text-align: center; }
+      .location-input { width: 92px; font-size: 0.82rem; text-transform: uppercase; }
+      .filter-pill { display: inline-flex; align-items: center; padding: 0.3rem 0.7rem; border-radius: 999px; font-size: 0.75rem; font-weight: 600; border: 1px solid var(--ui-border); background: #fff; cursor: pointer; }
+      .filter-pill:hover, .filter-pill.active { border-color: var(--ui-primary-300); background: var(--ui-primary-100); color: var(--ui-primary-700); }
+      .remaining-chip {
+        display: inline-flex;
+        align-items: center;
+        border-radius: 999px;
+        padding: 0.15rem 0.55rem;
+        font-size: 0.72rem;
         font-weight: 700;
-        letter-spacing: 0.02em;
-      }
-
-      .product-photo {
-        width: 150px;
-        height: 150px;
-        border-radius: var(--ui-radius-md);
-        border: 1px solid var(--ui-border);
-        object-fit: cover;
-        background: #f5f5f4;
+        background: #eff6ff;
+        border: 1px solid #bfdbfe;
+        color: #1d4ed8;
       }
     </style>
     <link rel="stylesheet" href="assets/ui-theme.css" />
@@ -82,10 +68,14 @@
             <li class="nav-item dropdown">
               <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false"><i class="fa-solid fa-boxes-stacked me-1"></i> Inventory</a>
               <ul class="dropdown-menu">
-                <li><a class="dropdown-item" href="inventory-add.html"><i class="fa-solid fa-plus me-2"></i> Add Inventory</a></li>
-                <li><a class="dropdown-item" href="inventory-remove.html"><i class="fa-solid fa-minus me-2"></i> Remove Inventory</a></li>
+                <li><a class="dropdown-item" href="inventory-home.html"><i class="fa-solid fa-warehouse me-2"></i> Inventory Home</a></li>
+                <li><a class="dropdown-item" href="inventory-baseline.html"><i class="fa-solid fa-barcode me-2"></i> Baseline Scan</a></li>
                 <li><a class="dropdown-item" href="inventory-current.html"><i class="fa-solid fa-box-open me-2"></i> Current Inventory</a></li>
-                <li><a class="dropdown-item" href="inventory-orders.html"><i class="fa-solid fa-list-check me-2"></i> Order List</a></li>
+                <li><a class="dropdown-item" href="inventory.html?full=1"><i class="fa-solid fa-clipboard-list me-2"></i> Full Inventory</a></li>
+                <li><a class="dropdown-item" href="inventory-orders.html"><i class="fa-solid fa-list-check me-2"></i> Orders Planning</a></li>
+                <li><a class="dropdown-item" href="inventory-receiving.html"><i class="fa-solid fa-truck-ramp-box me-2"></i> Receiving</a></li>
+                <li><a class="dropdown-item" href="inventory-add.html"><i class="fa-solid fa-plus me-2"></i> Putaway / Add</a></li>
+                <li><a class="dropdown-item" href="inventory-remove.html"><i class="fa-solid fa-minus me-2"></i> Remove Inventory</a></li>
               </ul>
             </li>
             <li class="nav-item dropdown">
@@ -124,274 +114,441 @@
     <main class="inventory-shell">
       <div class="d-flex flex-wrap align-items-center gap-3 mb-4">
         <div class="flex-grow-1">
-          <h1 class="fw-bold mb-2"><i class="fa-solid fa-plus me-2" style="color: var(--ui-success-700);"></i>Add Inventory</h1>
-          <p class="text-muted mb-0">Scan barcodes to add items into retreat inventory. Each scan records an IN transaction.</p>
+          <h1 class="fw-bold mb-2"><i class="fa-solid fa-boxes-packing me-2" style="color: var(--ui-success-700);"></i>Putaway / Add To Inventory</h1>
+          <p class="text-muted mb-0">Move received items onto shelves. Set putaway quantity and storage location, then apply to inventory stock.</p>
         </div>
         <span id="statusPill" class="status-pill info">Ready.</span>
       </div>
 
-      <section class="soft-card p-4 mb-4">
-        <h2 class="h5 mb-3 fw-bold"><i class="fa-solid fa-barcode me-2 text-success"></i>Scan Item</h2>
-        <div class="row g-3 align-items-end">
-          <div class="col-lg-5">
-            <label for="barcodeInput" class="form-label fw-semibold">Barcode</label>
-            <input id="barcodeInput" type="text" class="form-control scanner-field" placeholder="Scan barcode and press Enter" autofocus />
+      <section class="row g-3 mb-4">
+        <div class="col-md-4">
+          <div class="soft-card p-3 text-center">
+            <div class="small text-uppercase fw-semibold text-muted mb-1"><i class="fa-solid fa-list-check me-1"></i>Pending Lines</div>
+            <div class="stat-value" id="statLines">--</div>
           </div>
-          <div class="col-sm-4 col-lg-2">
-            <label for="txQty" class="form-label fw-semibold">Quantity</label>
-            <input id="txQty" type="number" min="1" max="99999" step="1" value="1" class="form-control" />
+        </div>
+        <div class="col-md-4">
+          <div class="soft-card p-3 text-center">
+            <div class="small text-uppercase fw-semibold text-muted mb-1"><i class="fa-solid fa-cubes me-1"></i>Pending Qty</div>
+            <div class="stat-value" id="statPendingQty">--</div>
           </div>
-          <div class="col-sm-8 col-lg-3">
-            <label for="txLocation" class="form-label fw-semibold">Location</label>
-            <select id="txLocation" class="form-select">
-              <option value="">Auto / Unspecified</option>
-            </select>
-          </div>
-          <div class="col-lg-2 d-grid">
-            <button id="scanAddBtn" type="button" class="btn btn-success"><i class="fa-solid fa-plus me-1"></i>Add</button>
-          </div>
-          <div class="col-12">
-            <label for="txReason" class="form-label fw-semibold">Reason</label>
-            <input id="txReason" type="text" class="form-control" placeholder="New stock, purchase, donation" />
+        </div>
+        <div class="col-md-4">
+          <div class="soft-card p-3 text-center">
+            <div class="small text-uppercase fw-semibold text-muted mb-1"><i class="fa-solid fa-check-double me-1"></i>Selected Qty</div>
+            <div class="stat-value" id="statSelectedQty">--</div>
           </div>
         </div>
       </section>
 
       <section class="soft-card p-4 mb-4">
-        <div class="d-flex align-items-center justify-content-between mb-2">
-          <h2 class="h5 mb-0">Latest Scan Result</h2>
-        </div>
-        <div class="row g-3 mt-1" id="scanResultWrap" style="display: none">
-          <div class="col-sm-4 col-lg-2">
-            <img id="scanImage" class="product-photo" alt="Scanned item" />
+        <div class="row g-3 align-items-end">
+          <div class="col-lg-4">
+            <label class="small text-uppercase fw-semibold text-muted mb-1" for="orderFilter">Order Filter</label>
+            <select id="orderFilter" class="form-select form-select-sm">
+              <option value="">All Orders</option>
+            </select>
           </div>
-          <div class="col-sm-8 col-lg-10">
-            <div class="small text-uppercase text-muted fw-bold mb-1">Latest scan</div>
-            <h3 id="scanName" class="mb-1"></h3>
-            <div class="text-muted mb-1" id="scanCategory"></div>
-            <div class="fw-semibold" id="scanQuantity"></div>
-            <div class="small text-muted mt-1" id="scanLocation"></div>
-            <div class="small mt-1" id="scanPurchase"></div>
+          <div class="col-lg-5">
+            <label class="small text-uppercase fw-semibold text-muted mb-1" for="putawayReason">Transaction Reason</label>
+            <input id="putawayReason" type="text" class="form-control form-control-sm" placeholder="Order putaway" />
+          </div>
+          <div class="col-lg-3 d-flex gap-2">
+            <button id="refreshBtn" type="button" class="btn btn-sm btn-outline-secondary w-100"><i class="fa-solid fa-arrows-rotate me-1"></i>Refresh</button>
+            <button id="applySelectedBtn" type="button" class="btn btn-sm btn-success w-100"><i class="fa-solid fa-check me-1"></i>Apply Selected</button>
           </div>
         </div>
-        <div id="scanResultEmpty" class="text-muted small">No scans yet.</div>
+        <div class="d-flex flex-wrap gap-2 align-items-center mt-3" id="quickFilters">
+          <button type="button" class="filter-pill active" data-filter="all">All</button>
+          <button type="button" class="filter-pill" data-filter="selected">Selected</button>
+          <button type="button" class="filter-pill" data-filter="with-location">Has Location</button>
+          <button type="button" class="filter-pill" data-filter="no-location">No Location</button>
+        </div>
+      </section>
+
+      <section class="soft-card p-4">
+        <div class="table-wrap">
+          <table class="table table-sm align-middle sticky-head">
+            <thead>
+              <tr class="small text-uppercase text-muted">
+                <th>
+                  <input id="toggleAllRows" type="checkbox" class="form-check-input" checked />
+                </th>
+                <th>Order</th>
+                <th>Item</th>
+                <th>Category</th>
+                <th>Received</th>
+                <th>Already Put Away</th>
+                <th>Remaining</th>
+                <th>Put Away Qty</th>
+                <th>Location</th>
+                <th>Purchase URL</th>
+              </tr>
+            </thead>
+            <tbody id="putawayBody"></tbody>
+          </table>
+        </div>
       </section>
     </main>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
     <script src="assets/auth.js?v=20260218f"></script>
     <script>
-      const barcodeInput = document.getElementById("barcodeInput");
-      const txQty = document.getElementById("txQty");
-      const txLocation = document.getElementById("txLocation");
-      const txReason = document.getElementById("txReason");
-      const scanAddBtn = document.getElementById("scanAddBtn");
-      const statusPill = document.getElementById("statusPill");
-      const scanResultWrap = document.getElementById("scanResultWrap");
-      const scanResultEmpty = document.getElementById("scanResultEmpty");
-      const scanImage = document.getElementById("scanImage");
-      const scanName = document.getElementById("scanName");
-      const scanCategory = document.getElementById("scanCategory");
-      const scanQuantity = document.getElementById("scanQuantity");
-      const scanLocation = document.getElementById("scanLocation");
-      const scanPurchase = document.getElementById("scanPurchase");
+      var statusPill = document.getElementById("statusPill");
+      var orderFilter = document.getElementById("orderFilter");
+      var putawayReason = document.getElementById("putawayReason");
+      var refreshBtn = document.getElementById("refreshBtn");
+      var applySelectedBtn = document.getElementById("applySelectedBtn");
+      var quickFilters = document.getElementById("quickFilters");
+      var toggleAllRows = document.getElementById("toggleAllRows");
+      var putawayBody = document.getElementById("putawayBody");
 
-      let locationCache = [];
+      var statLines = document.getElementById("statLines");
+      var statPendingQty = document.getElementById("statPendingQty");
+      var statSelectedQty = document.getElementById("statSelectedQty");
+
+      var ordersCache = [];
+      var queueRows = [];
+      var activeQuickFilter = "all";
 
       function resolveApiBase() {
-        const queryValue = new URLSearchParams(window.location.search).get("api");
-        const base = queryValue && queryValue.trim() ? queryValue.trim() : window.location.origin;
+        var queryValue = new URLSearchParams(window.location.search).get("api");
+        var base = queryValue && queryValue.trim() ? queryValue.trim() : window.location.origin;
         return base.replace(/\/+$/, "");
       }
 
-      const API_BASE = resolveApiBase();
+      var API_BASE = resolveApiBase();
 
       function apiUrl(path) {
-        return `${API_BASE}${path.startsWith("/") ? path : `/${path}`}`;
+        return API_BASE + (path.charAt(0) === "/" ? path : "/" + path);
       }
 
-      function setStatus(message, mode = "info") {
+      function setStatus(message, mode) {
+        if (!mode) mode = "info";
         statusPill.textContent = message;
         statusPill.classList.remove("info", "ok", "err");
         statusPill.classList.add(mode);
       }
 
       async function parseApiError(response) {
-        const raw = await response.text();
-        if (!raw) return `HTTP ${response.status}`;
+        var raw = await response.text();
+        if (!raw) return "HTTP " + response.status;
         try {
-          const parsed = JSON.parse(raw);
-          if (parsed && typeof parsed === "object" && typeof parsed.detail === "string") return parsed.detail;
+          var parsed = JSON.parse(raw);
+          if (parsed && typeof parsed.detail === "string") return parsed.detail;
         } catch (_error) {}
         return raw;
       }
 
       function escapeHtml(text) {
-        const div = document.createElement("div");
+        var div = document.createElement("div");
         div.textContent = text == null ? "" : String(text);
         return div.innerHTML;
+      }
+
+      function asNonNegativeNumber(value) {
+        var num = Number(value);
+        if (!Number.isFinite(num) || num <= 0) return 0;
+        return Math.round(num * 1000) / 1000;
+      }
+
+      function formatQty(value) {
+        var num = Number(value);
+        if (!Number.isFinite(num)) return "0";
+        if (Math.abs(num - Math.round(num)) < 0.000001) return String(Math.round(num));
+        return String(Math.round(num * 100) / 100);
       }
 
       function toSafeHttpUrl(value) {
         if (!value) return null;
         try {
-          const parsed = new URL(String(value).trim(), window.location.origin);
-          if (parsed.protocol === "http:" || parsed.protocol === "https:") {
-            return parsed.href;
-          }
+          var parsed = new URL(String(value).trim(), window.location.origin);
+          if (parsed.protocol === "http:" || parsed.protocol === "https:") return parsed.href;
         } catch (_error) {}
         return null;
       }
 
-      function formatDateTime(value) {
-        if (!value) return "";
-        try {
-          const d = new Date(value);
-          return `${d.toLocaleDateString()} ${d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`;
-        } catch (_e) {
-          return String(value);
+      function normalizeLocationInput(value) {
+        return String(value || "").trim().toUpperCase();
+      }
+
+      function renderOrderFilterOptions() {
+        var currentValue = orderFilter.value;
+        orderFilter.innerHTML = '<option value="">All Orders</option>';
+        ordersCache.forEach(function (order) {
+          var option = document.createElement("option");
+          option.value = String(order.id);
+          option.textContent = order.name + " (" + order.status + ")";
+          orderFilter.appendChild(option);
+        });
+        if (currentValue && Array.from(orderFilter.options).some(function (option) { return option.value === currentValue; })) {
+          orderFilter.value = currentValue;
         }
       }
 
-      function renderLocationOptions() {
-        txLocation.innerHTML = "";
-
-        const defaultOption = document.createElement("option");
-        defaultOption.value = "";
-        defaultOption.textContent = "Auto / Unspecified";
-        txLocation.appendChild(defaultOption);
-
-        const activeLocations = locationCache.filter(function (location) {
-          return Boolean(location.active);
-        });
-        activeLocations.forEach(function (location) {
-          const option = document.createElement("option");
-          option.value = String(location.id);
-          option.textContent = location.name;
-          txLocation.appendChild(option);
+      function getFilteredRows() {
+        return queueRows.filter(function (row) {
+          if (activeQuickFilter === "selected" && !row.selected) return false;
+          if (activeQuickFilter === "with-location" && !row.location) return false;
+          if (activeQuickFilter === "no-location" && row.location) return false;
+          return true;
         });
       }
 
-      async function fetchLocations() {
-        const response = await fetch(apiUrl("/api/retreat-inventory/locations"), {
-          credentials: "include",
+      function renderStats() {
+        var filteredRows = getFilteredRows();
+        var pendingQty = 0;
+        var selectedQty = 0;
+
+        filteredRows.forEach(function (row) {
+          pendingQty += row.remainingQty;
+          if (row.selected) {
+            selectedQty += Math.min(row.putawayQty, row.remainingQty);
+          }
         });
-        if (!response.ok) {
-          throw new Error(await parseApiError(response));
-        }
-        const payload = await response.json();
-        locationCache = Array.isArray(payload) ? payload : [];
-        renderLocationOptions();
+
+        statLines.textContent = String(filteredRows.length);
+        statPendingQty.textContent = formatQty(pendingQty);
+        statSelectedQty.textContent = formatQty(selectedQty);
       }
 
-      async function handleAddScan() {
-        const barcode = barcodeInput.value.trim();
-        if (!barcode) {
-          setStatus("Scan barcode first.", "err");
-          barcodeInput.focus();
+      function renderTable() {
+        var rows = getFilteredRows();
+        putawayBody.innerHTML = "";
+
+        if (!rows.length) {
+          putawayBody.innerHTML = '<tr><td colspan="10" class="text-muted small">No pending putaway lines.</td></tr>';
+          renderStats();
           return;
         }
 
-        const quantity = Number.parseInt(txQty.value, 10);
-        if (!Number.isFinite(quantity) || quantity <= 0) {
-          setStatus("Quantity must be greater than zero.", "err");
-          txQty.focus();
-          return;
-        }
+        rows.forEach(function (row) {
+          var safeUrl = toSafeHttpUrl(row.orderUrl);
+          var tr = document.createElement("tr");
+          tr.dataset.orderItemId = String(row.orderItemId);
 
-        const locationId = Number.parseInt(txLocation.value, 10);
-        const requestPayload = {
-          barcode: barcode,
-          transactionType: "IN",
-          quantity: quantity,
-          reason: txReason.value.trim() || null,
-        };
-        if (Number.isFinite(locationId)) {
-          requestPayload.locationId = locationId;
-        }
+          var tdSelect = document.createElement("td");
+          tdSelect.innerHTML = '<input type="checkbox" class="form-check-input" data-order-item-id="' + row.orderItemId + '" data-field="selected"' + (row.selected ? ' checked' : '') + '>';
+          tr.appendChild(tdSelect);
 
-        setStatus("Processing addition...", "info");
-        const response = await fetch(apiUrl("/api/retreat-inventory/scan"), {
-          method: "POST",
-          credentials: "include",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(requestPayload),
+          var tdOrder = document.createElement("td");
+          tdOrder.innerHTML = '<div class="fw-semibold">#' + escapeHtml(row.orderId) + '</div><div class="text-muted small">' + escapeHtml(row.orderName) + '</div>';
+          tr.appendChild(tdOrder);
+
+          var tdItem = document.createElement("td");
+          tdItem.innerHTML = '<div class="fw-semibold">' + escapeHtml(row.itemName) + '</div>' +
+            (row.inventoryBarcode ? '<div class="text-muted small">' + escapeHtml(row.inventoryBarcode) + '</div>' : '');
+          tr.appendChild(tdItem);
+
+          var tdCategory = document.createElement("td");
+          tdCategory.textContent = row.category || "-";
+          tr.appendChild(tdCategory);
+
+          var tdReceived = document.createElement("td");
+          tdReceived.textContent = formatQty(row.receivedQty) + " " + (row.unit || "");
+          tr.appendChild(tdReceived);
+
+          var tdApplied = document.createElement("td");
+          tdApplied.textContent = formatQty(row.appliedQty) + " " + (row.unit || "");
+          tr.appendChild(tdApplied);
+
+          var tdRemaining = document.createElement("td");
+          tdRemaining.innerHTML = '<span class="remaining-chip">' + escapeHtml(formatQty(row.remainingQty)) + ' ' + escapeHtml(row.unit || '') + '</span>';
+          tr.appendChild(tdRemaining);
+
+          var tdPutawayQty = document.createElement("td");
+          tdPutawayQty.innerHTML = '<input type="number" min="0" step="0.01" class="form-control form-control-sm qty-input" data-order-item-id="' + row.orderItemId + '" data-field="putaway-qty" value="' + escapeHtml(formatQty(row.putawayQty)) + '">';
+          tr.appendChild(tdPutawayQty);
+
+          var tdLocation = document.createElement("td");
+          tdLocation.innerHTML = '<input type="text" class="form-control form-control-sm location-input" data-order-item-id="' + row.orderItemId + '" data-field="location" value="' + escapeHtml(row.location || '') + '" placeholder="A1">';
+          tr.appendChild(tdLocation);
+
+          var tdUrl = document.createElement("td");
+          tdUrl.innerHTML = safeUrl
+            ? '<a href="' + escapeHtml(safeUrl) + '" target="_blank" rel="noopener">Open</a>'
+            : '<span class="text-muted small">-</span>';
+          tr.appendChild(tdUrl);
+
+          putawayBody.appendChild(tr);
         });
 
-        if (!response.ok) {
-          throw new Error(await parseApiError(response));
-        }
-
-        const result = await response.json();
-
-        scanResultWrap.style.display = "flex";
-        if (scanResultEmpty) {
-          scanResultEmpty.style.display = "none";
-        }
-
-        scanImage.src = result.item && result.item.image_url ? result.item.image_url : "assets/blossom-mark.png";
-        scanName.textContent = result.item ? result.item.name : "";
-
-        const locations = Array.isArray(result.item && result.item.locations) ? result.item.locations : [];
-        const locationSummary = locations.length
-          ? locations.map(function (loc) { return loc.location_name + " (" + Number(loc.quantity || 0) + ")"; }).join(", ")
-          : (result.item ? result.item.shelf_location : "");
-
-        const itemUnitLabel = result.item && result.item.unit ? " " + result.item.unit : "";
-
-        scanCategory.textContent = (result.item ? result.item.category_name : "") +
-          " \u2022 " +
-          (result.item ? result.item.tracking_mode : "") +
-          (locationSummary ? " \u2022 Locations: " + locationSummary : "");
-
-        scanQuantity.textContent = "Stock: " + result.quantity_before + " \u2192 " + result.quantity_after + itemUnitLabel +
-          " (" + (result.delta > 0 ? "+" : "") + result.delta + ")";
-
-        if (result.location && result.location.name) {
-          scanLocation.textContent = "Shelf: " + result.location.name;
-        } else {
-          scanLocation.textContent = "";
-        }
-
-        scanPurchase.replaceChildren();
-        const purchaseUrl = toSafeHttpUrl(result.item ? result.item.purchase_url : null);
-        if (purchaseUrl) {
-          const purchaseLink = document.createElement("a");
-          purchaseLink.href = purchaseUrl;
-          purchaseLink.target = "_blank";
-          purchaseLink.rel = "noopener noreferrer";
-          purchaseLink.textContent = "Open purchase link";
-          scanPurchase.appendChild(purchaseLink);
-        }
-
-        barcodeInput.value = "";
-        txReason.value = "";
-        setStatus("Added " + (result.item ? result.item.name : "item") + ".", "ok");
-        barcodeInput.focus();
+        renderStats();
       }
 
-      scanAddBtn.addEventListener("click", function () {
-        void handleAddScan().catch(function (error) {
-          setStatus(error instanceof Error ? error.message : "Add inventory failed.", "err");
-          barcodeInput.focus();
+      function getRowByOrderItemId(orderItemId) {
+        return queueRows.find(function (row) { return row.orderItemId === orderItemId; }) || null;
+      }
+
+      async function fetchOrders() {
+        var response = await fetch(apiUrl('/api/inventory/orders'), { credentials: 'include' });
+        if (!response.ok) throw new Error(await parseApiError(response));
+        var payload = await response.json();
+        ordersCache = Array.isArray(payload) ? payload : [];
+      }
+
+      async function fetchQueue() {
+        var selectedOrderId = orderFilter.value ? Number(orderFilter.value) : null;
+        var query = selectedOrderId ? ('?order_id=' + encodeURIComponent(String(selectedOrderId))) : '';
+        var response = await fetch(apiUrl('/api/inventory/orders/putaway-queue' + query), { credentials: 'include' });
+        if (!response.ok) throw new Error(await parseApiError(response));
+        var payload = await response.json();
+        var parsed = Array.isArray(payload) ? payload : [];
+        queueRows = parsed.map(function (row) {
+          var remaining = asNonNegativeNumber(row.remaining_putaway_quantity);
+          return {
+            orderId: Number(row.order_id),
+            orderName: row.order_name || '',
+            orderItemId: Number(row.order_item_id),
+            inventoryItemId: Number(row.inventory_item_id),
+            itemName: row.item_name || 'Unknown',
+            category: row.category || '',
+            unit: row.unit || '',
+            inventoryBarcode: row.inventory_barcode || '',
+            receivedQty: asNonNegativeNumber(row.received_quantity),
+            appliedQty: asNonNegativeNumber(row.applied_received_quantity),
+            remainingQty: remaining,
+            putawayQty: remaining,
+            location: row.inventory_location || '',
+            orderUrl: row.order_url || '',
+            selected: true,
+          };
+        });
+      }
+
+      async function refreshAll() {
+        setStatus('Loading putaway queue...', 'info');
+        await fetchOrders();
+        renderOrderFilterOptions();
+        await fetchQueue();
+        renderTable();
+        setStatus('Putaway queue ready.', 'ok');
+      }
+
+      async function applySelectedPutaway() {
+        var selectedRows = queueRows.filter(function (row) {
+          return row.selected && row.putawayQty > 0 && row.remainingQty > 0;
+        });
+        if (!selectedRows.length) {
+          throw new Error('No selected rows with a putaway quantity greater than zero.');
+        }
+
+        var reason = String(putawayReason.value || '').trim() || null;
+        var grouped = {};
+        selectedRows.forEach(function (row) {
+          if (!grouped[row.orderId]) grouped[row.orderId] = [];
+          grouped[row.orderId].push({
+            orderItemId: row.orderItemId,
+            quantity: Math.min(row.putawayQty, row.remainingQty),
+            location: normalizeLocationInput(row.location) || null,
+            reason: reason,
+          });
+        });
+
+        var orderIds = Object.keys(grouped).map(function (value) { return Number(value); }).sort(function (a, b) { return a - b; });
+        setStatus('Applying putaway updates...', 'info');
+        applySelectedBtn.disabled = true;
+
+        var appliedItemCount = 0;
+        var appliedQtyTotal = 0;
+        for (var i = 0; i < orderIds.length; i++) {
+          var orderId = orderIds[i];
+          var response = await fetch(apiUrl('/api/inventory/orders/' + orderId + '/putaway'), {
+            method: 'POST',
+            credentials: 'include',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ items: grouped[orderId] }),
+          });
+          if (!response.ok) {
+            throw new Error(await parseApiError(response));
+          }
+          var payload = await response.json();
+          appliedItemCount += Number(payload.applied_item_count || 0);
+          appliedQtyTotal += Number(payload.applied_quantity_total || 0);
+        }
+
+        await refreshAll();
+        setStatus('Putaway applied for ' + appliedItemCount + ' item(s), total ' + formatQty(appliedQtyTotal) + '.', 'ok');
+      }
+
+      orderFilter.addEventListener('change', function () {
+        void fetchQueue()
+          .then(function () {
+            renderTable();
+          })
+          .catch(function (error) {
+            setStatus(error instanceof Error ? error.message : 'Could not refresh queue.', 'err');
+          });
+      });
+
+      quickFilters.addEventListener('click', function (event) {
+        var target = event.target;
+        if (!(target instanceof HTMLElement)) return;
+        var pill = target.closest('.filter-pill');
+        if (!(pill instanceof HTMLElement)) return;
+        activeQuickFilter = pill.dataset.filter || 'all';
+        Array.from(quickFilters.querySelectorAll('.filter-pill')).forEach(function (node) {
+          node.classList.remove('active');
+        });
+        pill.classList.add('active');
+        renderTable();
+      });
+
+      toggleAllRows.addEventListener('change', function () {
+        var checked = Boolean(toggleAllRows.checked);
+        getFilteredRows().forEach(function (row) {
+          row.selected = checked;
+        });
+        renderTable();
+      });
+
+      putawayBody.addEventListener('change', function (event) {
+        var target = event.target;
+        if (!(target instanceof HTMLElement)) return;
+        var orderItemId = Number(target.getAttribute('data-order-item-id'));
+        if (!orderItemId) return;
+        var row = getRowByOrderItemId(orderItemId);
+        if (!row) return;
+
+        var field = target.getAttribute('data-field') || '';
+        if (field === 'selected' && target instanceof HTMLInputElement) {
+          row.selected = Boolean(target.checked);
+          renderStats();
+          return;
+        }
+        if (field === 'putaway-qty' && target instanceof HTMLInputElement) {
+          row.putawayQty = asNonNegativeNumber(target.value);
+          if (row.putawayQty > row.remainingQty) row.putawayQty = row.remainingQty;
+          target.value = formatQty(row.putawayQty);
+          renderStats();
+          return;
+        }
+        if (field === 'location' && target instanceof HTMLInputElement) {
+          row.location = normalizeLocationInput(target.value);
+          target.value = row.location;
+          return;
+        }
+      });
+
+      refreshBtn.addEventListener('click', function () {
+        void refreshAll().catch(function (error) {
+          setStatus(error instanceof Error ? error.message : 'Could not refresh putaway queue.', 'err');
         });
       });
 
-      barcodeInput.addEventListener("keydown", function (event) {
-        if (event.key === "Enter") {
-          event.preventDefault();
-          scanAddBtn.click();
-        }
+      applySelectedBtn.addEventListener('click', function () {
+        void applySelectedPutaway().catch(function (error) {
+          setStatus(error instanceof Error ? error.message : 'Could not apply putaway.', 'err');
+        }).finally(function () {
+          applySelectedBtn.disabled = false;
+        });
       });
 
       async function init() {
-        setStatus("Loading...", "info");
         try {
-          await fetchLocations();
-          setStatus("Ready to scan.", "ok");
-          barcodeInput.focus();
+          await refreshAll();
         } catch (error) {
-          setStatus(error instanceof Error ? error.message : "Could not load locations.", "err");
+          setStatus(error instanceof Error ? error.message : 'Could not load putaway page.', 'err');
         }
       }
 

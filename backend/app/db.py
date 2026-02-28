@@ -639,6 +639,65 @@ def init_db() -> None:
                 """
             )
 
+        standalone_order_item_columns = table_columns(conn, "standalone_inventory_order_items")
+        if standalone_order_item_columns and "purchase_unit" not in standalone_order_item_columns:
+            conn.execute("ALTER TABLE standalone_inventory_order_items ADD COLUMN purchase_unit TEXT NOT NULL DEFAULT 'unit'")
+        if standalone_order_item_columns and "units_per_purchase" not in standalone_order_item_columns:
+            conn.execute("ALTER TABLE standalone_inventory_order_items ADD COLUMN units_per_purchase REAL NOT NULL DEFAULT 1")
+        if standalone_order_item_columns and "ordered_purchase_quantity" not in standalone_order_item_columns:
+            conn.execute(
+                "ALTER TABLE standalone_inventory_order_items ADD COLUMN ordered_purchase_quantity REAL NOT NULL DEFAULT 0"
+            )
+        if standalone_order_item_columns and "received_purchase_quantity" not in standalone_order_item_columns:
+            conn.execute(
+                "ALTER TABLE standalone_inventory_order_items ADD COLUMN received_purchase_quantity REAL NOT NULL DEFAULT 0"
+            )
+        standalone_order_item_columns = table_columns(conn, "standalone_inventory_order_items")
+        if standalone_order_item_columns:
+            conn.execute(
+                """
+                UPDATE standalone_inventory_order_items
+                SET purchase_unit = 'unit'
+                WHERE purchase_unit IS NULL OR trim(COALESCE(purchase_unit, '')) = ''
+                """
+            )
+            conn.execute(
+                """
+                UPDATE standalone_inventory_order_items
+                SET units_per_purchase = 1
+                WHERE units_per_purchase IS NULL OR units_per_purchase <= 0
+                """
+            )
+            conn.execute(
+                """
+                UPDATE standalone_inventory_order_items
+                SET ordered_purchase_quantity = ROUND(
+                    ordered_quantity / COALESCE(NULLIF(units_per_purchase, 0), 1),
+                    3
+                )
+                WHERE ordered_quantity > 0
+                  AND ordered_purchase_quantity <= 0
+                """
+            )
+            conn.execute(
+                """
+                UPDATE standalone_inventory_order_items
+                SET received_purchase_quantity = ROUND(
+                    received_quantity / COALESCE(NULLIF(units_per_purchase, 0), 1),
+                    3
+                )
+                WHERE received_quantity > 0
+                  AND received_purchase_quantity <= 0
+                """
+            )
+            conn.execute(
+                """
+                UPDATE standalone_inventory_order_items
+                SET ordered_purchase_quantity = received_purchase_quantity
+                WHERE received_purchase_quantity > ordered_purchase_quantity
+                """
+            )
+
         retreat_inventory_item_columns = table_columns(conn, "retreat_inventory_items")
         if retreat_inventory_item_columns and "shelf_location" not in retreat_inventory_item_columns:
             conn.execute("ALTER TABLE retreat_inventory_items ADD COLUMN shelf_location TEXT")

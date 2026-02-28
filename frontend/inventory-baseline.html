@@ -150,11 +150,17 @@
             <li class="nav-item dropdown">
               <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false"><i class="fa-solid fa-boxes-stacked me-1"></i> Inventory</a>
               <ul class="dropdown-menu">
+                <li><a class="dropdown-item" href="inventory-home.html"><i class="fa-solid fa-warehouse me-2"></i> Inventory Home</a></li>
                 <li><a class="dropdown-item" href="inventory-baseline.html"><i class="fa-solid fa-barcode me-2"></i> Baseline Scan</a></li>
-                <li><a class="dropdown-item" href="inventory.html"><i class="fa-solid fa-clipboard-list me-2"></i> Full Inventory</a></li>
-                <li><a class="dropdown-item" href="shopping-list.html"><i class="fa-solid fa-list-check me-2"></i> Retreat Order Lists</a></li>
+                <li><a class="dropdown-item" href="inventory-current.html"><i class="fa-solid fa-box-open me-2"></i> Current Inventory</a></li>
+                <li><a class="dropdown-item" href="inventory.html?full=1"><i class="fa-solid fa-clipboard-list me-2"></i> Full Inventory</a></li>
+                <li><a class="dropdown-item" href="inventory-orders.html"><i class="fa-solid fa-list-check me-2"></i> Orders Planning</a></li>
+                <li><a class="dropdown-item" href="inventory-receiving.html"><i class="fa-solid fa-truck-ramp-box me-2"></i> Receiving</a></li>
+                <li><a class="dropdown-item" href="inventory-add.html"><i class="fa-solid fa-plus me-2"></i> Putaway / Add</a></li>
+                <li><a class="dropdown-item" href="inventory-remove.html"><i class="fa-solid fa-minus me-2"></i> Remove Inventory</a></li>
               </ul>
             </li>
+
             <li class="nav-item dropdown">
               <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false"><i class="fa-solid fa-gear me-1"></i> Admin</a>
               <ul class="dropdown-menu">
@@ -315,21 +321,16 @@
           </div>
           <div class="col-md-4">
             <label for="itemUnit" class="form-label fw-semibold">Unit *</label>
-            <input id="itemUnit" type="text" class="form-control" list="unitOptions" placeholder="each" required />
-            <datalist id="unitOptions">
-              <option value="each"></option>
-              <option value="bottle"></option>
-              <option value="box"></option>
-              <option value="pack"></option>
-              <option value="case"></option>
-              <option value="roll"></option>
-              <option value="pair"></option>
-              <option value="set"></option>
-              <option value="lb"></option>
-              <option value="oz"></option>
-              <option value="ml"></option>
-              <option value="l"></option>
-            </datalist>
+            <select id="itemUnit" class="form-select" required>
+              <option value="each">each (single item)</option>
+              <option value="pack">pack</option>
+              <option value="box">box</option>
+              <option value="bottle">bottle</option>
+              <option value="bag">bag</option>
+              <option value="roll">roll</option>
+              <option value="pair">pair</option>
+              <option value="set">set</option>
+            </select>
           </div>
           <div class="col-md-4">
             <label for="itemLocation" class="form-label fw-semibold">Storage Location *</label>
@@ -377,7 +378,24 @@
       const BARCODE_PATTERN = /^\d{8,14}$/;
       const STORAGE_LOCATION_PATTERN = /^([a-zA-Z])\s*-?\s*([1-9]|[1-9][0-9])$/;
       const BASELINE_VERIFIED_NOTE_RE = /^\[baseline-verified:(\d{4}-\d{2}-\d{2})\]$/i;
-      const DEFAULT_INVENTORY_CATEGORIES = ["Cleaning", "Infra"];
+      const FIXED_INVENTORY_CATEGORIES = [
+        "Books for sale",
+        "Cleaning",
+        "Dining",
+        "Dishes, Pots & Pans",
+        "Infra",
+        "Kitchen",
+        "Lodges",
+        "Miscellaneous Items, Tools & Hardware",
+        "Office",
+        "Personal Protective Equipment (PPE)",
+        "Registration Area",
+        "Store",
+        "Toilets",
+      ];
+      const FIXED_INVENTORY_CATEGORY_INDEX = new Map(
+        FIXED_INVENTORY_CATEGORIES.map((value) => [value.toLowerCase(), value]),
+      );
 
       const statusPill = document.getElementById("statusPill");
       const metricTotal = document.getElementById("metricTotal");
@@ -431,7 +449,6 @@
       let bindCandidates = [];
       let activeCurrentCandidate = null;
       let activeIndustryCandidate = null;
-      let categoryOptionsCache = [];
 
       function resolveApiBase() {
         const queryValue = new URLSearchParams(window.location.search).get("api");
@@ -485,42 +502,23 @@
         else bindStatus.classList.add("text-muted");
       }
 
-      function combineCategoryValues(...sources) {
-        const seen = new Set();
-        const combined = [];
-        sources.forEach((source) => {
-          (Array.isArray(source) ? source : []).forEach((raw) => {
-            const value = normalizeCategoryValue(raw);
-            if (!value) return;
-            const key = value.toLowerCase();
-            if (seen.has(key)) return;
-            seen.add(key);
-            combined.push(value);
-          });
-        });
-        combined.sort((a, b) => a.localeCompare(b));
-        return combined;
-      }
-
       function renderCategoryDropdown() {
         const selectedValue = normalizeCategoryValue(itemCategory.value);
-        const categories = combineCategoryValues(
-          DEFAULT_INVENTORY_CATEGORIES,
-          categoryOptionsCache,
-          selectedValue ? [selectedValue] : [],
-        );
+        const selectedFixedValue = selectedValue
+          ? (FIXED_INVENTORY_CATEGORY_INDEX.get(selectedValue.toLowerCase()) || "")
+          : "";
         itemCategory.innerHTML = "";
         const placeholder = document.createElement("option");
         placeholder.value = "";
         placeholder.textContent = "Select category";
         itemCategory.appendChild(placeholder);
-        categories.forEach((category) => {
+        FIXED_INVENTORY_CATEGORIES.forEach((category) => {
           const option = document.createElement("option");
           option.value = category;
           option.textContent = category;
           itemCategory.appendChild(option);
         });
-        itemCategory.value = selectedValue || "";
+        itemCategory.value = selectedFixedValue;
       }
 
       function setItemCategoryValue(rawValue) {
@@ -529,17 +527,7 @@
           itemCategory.value = "";
           return;
         }
-        categoryOptionsCache = combineCategoryValues(categoryOptionsCache, [normalized]);
-        renderCategoryDropdown();
-        itemCategory.value = normalized;
-      }
-
-      async function refreshCategoryOptions() {
-        const response = await fetch(apiUrl("/api/inventory/categories"), { credentials: "include" });
-        if (!response.ok) throw new Error(await parseApiError(response));
-        const payload = await response.json();
-        categoryOptionsCache = combineCategoryValues(payload);
-        renderCategoryDropdown();
+        itemCategory.value = FIXED_INVENTORY_CATEGORY_INDEX.get(normalized.toLowerCase()) || "";
       }
 
       async function parseApiError(response) {
@@ -564,6 +552,32 @@
 
       function normalizeCategoryValue(rawValue) {
         return normalizeText(rawValue);
+      }
+
+      function normalizeUnitValue(rawValue) {
+        const raw = normalizeText(rawValue);
+        if (!raw) return "each";
+        const value = raw.toLowerCase();
+
+        if (value === "each" || value === "ea" || value === "single" || value === "singleton") return "each";
+        if (
+          value.includes("pack") ||
+          value.includes("pk") ||
+          value.includes("count") ||
+          value === "packs" ||
+          /^\d+$/.test(value) ||
+          value.includes("case")
+        ) {
+          return "pack";
+        }
+        if (value.includes("box")) return "box";
+        if (value.includes("bottle")) return "bottle";
+        if (value.includes("bag")) return "bag";
+        if (value.includes("roll")) return "roll";
+        if (value.includes("pair")) return "pair";
+        if (value.includes("set")) return "set";
+
+        return "each";
       }
 
       function normalizeStorageLocation(rawValue) {
@@ -617,7 +631,7 @@
           barcode: normalizeBarcode(raw.barcode) || normalizeBarcode(fallbackBarcode),
           name: normalizeText(raw.name),
           category: normalizeText(raw.category),
-          unit: normalizeText(raw.unit),
+          unit: normalizeUnitValue(raw.unit),
           image_url: normalizeText(raw.image_url),
           match_type: normalizeText(raw.match_type) || "lookup",
         };
@@ -641,7 +655,7 @@
           ...activeCurrentCandidate,
           item_name: normalizeText(itemName.value) || activeCurrentCandidate.item_name || "",
           category: normalizeCategoryValue(itemCategory.value),
-          unit: normalizeText(itemUnit.value),
+          unit: normalizeUnitValue(itemUnit.value),
           image_url: normalizeText(itemImageUrl.value),
         };
         setActiveCurrentCandidate(activeCurrentCandidate, { render: true });
@@ -710,7 +724,7 @@
         itemBarcode.value = existing.barcode || itemBarcode.value;
         itemName.value = existing.item_name || "";
         itemQuantity.value = existing.quantity != null ? String(existing.quantity) : "0";
-        itemUnit.value = existing.unit || "each";
+        itemUnit.value = normalizeUnitValue(existing.unit);
         itemLocation.value = existing.location || "";
         setItemCategoryValue(existing.category);
         itemImageUrl.value = existing.image_url || "";
@@ -719,7 +733,7 @@
         updateImagePreview();
       }
 
-      function applyLookupToForm(lookup, { overwrite = false, imageOnly = false } = {}) {
+      function applyLookupToForm(lookup, { overwrite = false, imageOnly = false, preserveCategory = false } = {}) {
         if (!lookup) return;
         if (imageOnly) {
           if (lookup.image_url) itemImageUrl.value = lookup.image_url;
@@ -727,11 +741,24 @@
           return;
         }
         if (lookup.name && (overwrite || !itemName.value.trim())) itemName.value = lookup.name;
-        if (lookup.category && (overwrite || !normalizeCategoryValue(itemCategory.value))) setItemCategoryValue(lookup.category);
-        if (lookup.unit && (overwrite || !itemUnit.value.trim())) itemUnit.value = lookup.unit;
+        if (!preserveCategory && lookup.category && (overwrite || !normalizeCategoryValue(itemCategory.value))) {
+          setItemCategoryValue(lookup.category);
+        }
+        if (lookup.unit && (overwrite || !itemUnit.value.trim())) itemUnit.value = normalizeUnitValue(lookup.unit);
         if (lookup.image_url && (overwrite || !itemImageUrl.value.trim())) itemImageUrl.value = lookup.image_url;
         if (!itemBarcode.value.trim() && lookup.barcode) itemBarcode.value = lookup.barcode;
         updateImagePreview();
+      }
+
+      function applyIndustryDetailsPreservingCoreFields(lookup) {
+        if (!lookup) return;
+        const preservedCategory = itemCategory.value;
+        const preservedQuantity = itemQuantity.value;
+        const preservedLocation = itemLocation.value;
+        applyLookupToForm(lookup, { overwrite: true, preserveCategory: true });
+        itemCategory.value = preservedCategory;
+        itemQuantity.value = preservedQuantity;
+        itemLocation.value = preservedLocation;
       }
 
       function buildCombinedCandidateRows(inventoryRows, industryRows) {
@@ -958,8 +985,9 @@
             applyBtn.textContent = "Apply Industry";
             applyBtn.addEventListener("click", () => {
               setActiveIndustryCandidate(payload);
-              applyLookupToForm(payload, { overwrite: true });
-              setStatus(`Applied industry details from "${payload.name || "(unnamed)"}".`, "ok");
+              applyIndustryDetailsPreservingCoreFields(payload);
+              reflectCurrentCandidateFromForm();
+              setStatus(`Applied industry name/unit/image from "${payload.name || "(unnamed)"}" and kept category/qty/location.`, "ok");
             });
             tdAction.appendChild(applyBtn);
 
@@ -1133,7 +1161,7 @@
           item_name: name,
           barcode,
           quantity: qty,
-          unit,
+          unit: normalizeUnitValue(unit),
           category: normalizeCategoryValue(itemCategory.value),
           location,
           image_url: imageUrl,
@@ -1211,9 +1239,9 @@
           setStatus("Select an industry candidate first.", "err");
           return;
         }
-        applyLookupToForm(activeIndustryCandidate, { overwrite: true });
+        applyIndustryDetailsPreservingCoreFields(activeIndustryCandidate);
         reflectCurrentCandidateFromForm();
-        setStatus("Applied industry name/category/unit/image to the form.", "ok");
+        setStatus("Applied industry name/unit/image to the form and kept category/qty/location.", "ok");
       });
 
       applyIndustryImageBtn.addEventListener("click", () => {
@@ -1248,15 +1276,6 @@
         renderCategoryDropdown();
         try {
           await refreshMetrics();
-          try {
-            await refreshCategoryOptions();
-          } catch (_error) {
-            categoryOptionsCache = combineCategoryValues(
-              categoryOptionsCache,
-              inventoryCache.map((row) => row.category),
-            );
-            renderCategoryDropdown();
-          }
           setActiveCurrentCandidate(null);
           setActiveIndustryCandidate(null);
           setStatus("Ready to scan.", "ok");

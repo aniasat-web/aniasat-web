@@ -132,27 +132,40 @@ Volunteer-first baseline counting workflow:
 - Optionally bind a newly scanned barcode to an existing imported item.
 - Mark baseline verification on save.
 
-### Inventory (`inventory.html`)
+### Inventory Orders Planning (`inventory-orders.html`)
+
+- Purpose: planning + placing only (no receiving/putaway actions on this page).
+- Enter required quantity per line and auto-calculate `to_order` from current stock snapshot.
+- Track ordered quantities with purchase-unit support (`unit`, `case`, `pack`) and units-per-purchase conversion.
+- Override purchase URL per order line.
+- Create ad-hoc new items directly from Orders when they do not yet exist in inventory.
+
+### Inventory Receiving (`inventory-receiving.html`)
+
+- Purpose: record what arrived for each order line (including partial receipts).
+- Dedicated receipt inputs for ordered vs received quantities in purchase units.
+- Keeps receiving state separate from physical stocking.
+- Includes direct handoff link to Putaway page.
+
+### Inventory Putaway / Add (`inventory-add.html`)
+
+- Purpose: move already-received quantities into live on-hand inventory.
+- Pulls a queue of lines where `received_quantity > applied_received_quantity`.
+- Lets users set putaway quantity and shelf grid location (`A1`, `B3`, etc.) before applying.
+- Writes inventory transactions and increments `standalone_inventory.quantity`.
+
+### Full Inventory (`inventory.html?full=1`)
 
 Volunteer-focused storage inventory for campus supplies:
 
-- Scanner-first receive flow using wireless barcode scanners (keyboard wedge mode).
-- Barcode lookup endpoint enriches products from external catalogs.
-- Barcode lookup also returns similar current-inventory candidates when no exact barcode match exists.
-- Auto-fills product name, category, unit, and image when lookup succeeds.
-- Baseline mode supports scan-confirm-save with cleanup filters (`Pending Verify`, `Missing Image`, `Missing Barcode`, `Missing Location`).
-- Items can be marked baseline-verified during save (stored in notes as `[baseline-verified:YYYY-MM-DD]`).
-- Category normalization preserves `Cleaning`; only explicit infra aliases normalize to `Infra`.
 - Full inventory list supports inline item-name editing; changes are saved only when Enter is pressed.
 - Full inventory list supports inline category editing; changes are saved only when Enter is pressed.
 - Full inventory list supports inline notes editing; changes are saved only when Enter is pressed.
 - `order_url` is tracked separately from notes for replenishment links.
 - Import/source markers are removed from visible notes and stored in `import_source`.
-- If barcode already exists in inventory, auto-fills stored location and opens confirm/update flow for current quantity.
-- If barcode is new, volunteers can bind it to an existing imported item on first scan.
 - Uses shelf-grid locations in the format `A1` through `Z99` (`A1`-`A20` preferred for new shelf mapping).
 - Lookup providers: local `inventory_product_catalog` (for example Webstaurant UPC imports), Open Products Facts, Open Beauty Facts, Open Food Facts, plus UPCItemDB (optional auth via `UPCITEMDB_API_KEY`).
-- Legacy `retreat-inventory.html` now redirects to `inventory.html` so teams use one inventory workflow.
+- `inventory.html` now routes to Inventory Home by default; use `inventory.html?full=1` for the full table view.
 
 ### Inventory Background (Shared Project Context)
 
@@ -169,6 +182,18 @@ Keep that file updated so new sessions start with the same Inventory context.
   - `backend/scripts/import_inventory_product_catalog.py`
   - Supports Webstaurant CSV imports (source label: `webstaurantstore`).
 - Inventory-only Render sync now includes `inventory_product_catalog`.
+- Added Inventory workflow split pages:
+  - `inventory-orders.html` now focuses on planning and ordering only.
+  - `inventory-receiving.html` (new) handles receipt entry only.
+  - `inventory-add.html` now handles putaway/add-to-stock from received lines.
+- Added backend endpoints for new flow:
+  - `POST /api/inventory/order-draft-item` to create new orderable items not yet in cataloged inventory.
+  - `GET /api/inventory/orders/putaway-queue` for pending putaway lines.
+  - `POST /api/inventory/orders/{order_id}/putaway` to apply putaway quantity + location to inventory.
+- Inventory navigation and Inventory Home cards were updated to show:
+  - Orders Planning
+  - Receiving
+  - Putaway / Add
 
 #### 2026-02-27
 
@@ -483,11 +508,18 @@ Base URL: `http://localhost:8000`
 | GET | `/api/inventory/equivalent-search` | Search both current inventory and industry sources for equivalent candidates |
 | POST | `/api/inventory/barcode-bind` | Bind a barcode to an existing inventory item |
 | POST | `/api/inventory` | Create general inventory record |
+| POST | `/api/inventory/order-draft-item` | Create a draft inventory item (qty `0`) for ordering a brand-new item |
 | PUT | `/api/inventory/{item_id}` | Update general inventory record |
 | PATCH | `/api/inventory/{item_id}/item-name` | Update only item name for one inventory item |
 | PATCH | `/api/inventory/{item_id}/category` | Update only the category for one inventory item |
 | PATCH | `/api/inventory/{item_id}/notes` | Update only notes for one inventory item |
 | DELETE | `/api/inventory/{item_id}` | Delete general inventory record |
+| GET | `/api/inventory/orders` | List inventory orders (planning/receiving flow) |
+| POST | `/api/inventory/orders` | Create a new inventory order |
+| GET | `/api/inventory/orders/{order_id}` | Get one inventory order with line detail |
+| PATCH | `/api/inventory/orders/{order_id}` | Update order metadata and line quantities |
+| GET | `/api/inventory/orders/putaway-queue` | List order lines pending putaway (`received > applied`) |
+| POST | `/api/inventory/orders/{order_id}/putaway` | Apply putaway qty/location to inventory for selected order lines |
 | GET | `/api/shopping-lists` | List shopping lists with ordered/received rollups |
 | GET | `/api/shopping-lists/{shopping_list_id}` | Get a shopping list with item detail |
 | POST | `/api/shopping-lists/generate` | Generate a shopping list from a retreat plan |
@@ -791,6 +823,8 @@ Notes:
 - `sync_db_from_render.sh --scope kitchen` overwrites only kitchen/planning tables
   (`ingredients`, `recipes`, `retreats`, `retreat_plans`, shopping + service snapshot tables, etc.)
   and preserves local inventory tables (`standalone_inventory`, `retreat_inventory_*`, `inventory_items`).
+- `sync_db_to_render.sh` full sync now creates a local SQLite backup snapshot before upload,
+  so pending WAL changes are included in what gets pushed.
 - `sync_db_to_render.sh --scope inventory` overwrites only inventory tables on Render
   (`inventory_product_catalog`, `standalone_inventory`, `inventory_items`, and `retreat_inventory_*`).
 - Default remote DB path is `/opt/render/project/src/backend/data/retreat_ops.db`.

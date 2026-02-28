@@ -329,6 +329,50 @@ class StandaloneInventoryBarcodeBindPayload(BaseModel):
     barcode: str = Field(min_length=8)
 
 
+class StandaloneInventoryOrderItemInput(BaseModel):
+    inventoryItemId: int = Field(gt=0)
+    requiredQuantity: float = Field(default=0, ge=0)
+    orderedQuantity: float = Field(default=0, ge=0)
+    receivedQuantity: float = Field(default=0, ge=0)
+    purchaseUnit: str | None = None
+    unitsPerPurchase: float = Field(default=1, gt=0)
+    orderedPurchaseQuantity: float | None = Field(default=None, ge=0)
+    receivedPurchaseQuantity: float | None = Field(default=None, ge=0)
+    orderUrlOverride: str | None = None
+    notes: str | None = None
+
+
+class StandaloneInventoryOrderCreate(BaseModel):
+    name: str | None = None
+    notes: str | None = None
+    items: list[StandaloneInventoryOrderItemInput] = Field(default_factory=list)
+
+
+class StandaloneInventoryOrderUpdate(BaseModel):
+    name: str | None = None
+    notes: str | None = None
+    items: list[StandaloneInventoryOrderItemInput] | None = None
+
+
+class StandaloneInventoryOrderDraftItemCreate(BaseModel):
+    itemName: str = Field(min_length=1)
+    category: str | None = None
+    unit: str | None = None
+    orderUrl: str | None = None
+    notes: str | None = None
+
+
+class StandaloneInventoryOrderPutawayItemInput(BaseModel):
+    orderItemId: int = Field(gt=0)
+    quantity: float | None = Field(default=None, ge=0)
+    location: str | None = None
+    reason: str | None = None
+
+
+class StandaloneInventoryOrderPutawayPayload(BaseModel):
+    items: list[StandaloneInventoryOrderPutawayItemInput] = Field(default_factory=list)
+
+
 class RetreatInventoryCategoryCreate(BaseModel):
     name: str = Field(min_length=1)
     trackingMode: Literal["ITEM", "CATEGORY"] = "ITEM"
@@ -4121,6 +4165,13 @@ def normalize_storage_grid_location(value: Any) -> str:
     return f"{match.group(1).upper()}{match.group(2)}"
 
 
+def normalize_optional_storage_grid_location(value: Any) -> str | None:
+    text = normalize_optional_text(value)
+    if not text:
+        return None
+    return normalize_storage_grid_location(text)
+
+
 def normalize_inventory_barcode(value: Any) -> str:
     digits = re.sub(r"\D+", "", str(value or ""))
     if not INVENTORY_BARCODE_RE.fullmatch(digits):
@@ -6013,6 +6064,498 @@ def query_standalone_inventory_rows(
     return [format_standalone_inventory_row(row) for row in rows]
 
 
+def format_standalone_inventory_order_row(row: Any) -> dict[str, Any]:
+    return {
+        "id": int(row["id"]),
+        "name": row["name"],
+        "status": row["status"],
+        "notes": row["notes"],
+        "created_by_user_id": int(row["created_by_user_id"]) if row["created_by_user_id"] is not None else None,
+        "ordered_by_user_id": int(row["ordered_by_user_id"]) if row["ordered_by_user_id"] is not None else None,
+        "ordered_at": row["ordered_at"],
+        "received_by_user_id": int(row["received_by_user_id"]) if row["received_by_user_id"] is not None else None,
+        "received_at": row["received_at"],
+        "created_at": row["created_at"],
+        "updated_at": row["updated_at"],
+    }
+
+
+def as_non_negative_quantity(value: Any) -> float:
+    try:
+        numeric = float(value)
+    except (TypeError, ValueError):
+        return 0.0
+    if numeric <= 0:
+        return 0.0
+    return float(numeric)
+
+
+def rounded_quantity(value: Any) -> float:
+    return round(as_non_negative_quantity(value), 3)
+
+
+def normalize_purchase_unit(value: Any) -> str:
+    normalized = normalize_optional_text(value)
+    if not normalized:
+        return "unit"
+    key = normalized.lower()
+    aliases = {
+        "unit": "unit",
+        "units": "unit",
+        "each": "unit",
+        "ea": "unit",
+        "case": "case",
+        "cases": "case",
+        "cs": "case",
+        "pack": "pack",
+        "packs": "pack",
+    }
+    return aliases.get(key, key)
+
+
+def normalize_units_per_purchase(value: Any) -> float:
+    units = rounded_quantity(value)
+    if units <= 0:
+        return 1.0
+    return units
+
+
+def derive_standalone_inventory_item_status(
+    *,
+    to_order_quantity: float,
+    ordered_quantity: float,
+    received_quantity: float,
+) -> str:
+    to_order = max(0.0, float(to_order_quantity))
+    ordered = max(0.0, float(ordered_quantity))
+    received = max(0.0, float(received_quantity))
+
+    if to_order <= 0:
+        return "SUFFICIENT"
+    if received >= to_order:
+        return "RECEIVED"
+    if received > 0:
+        return "PARTIAL"
+    if ordered > 0:
+        return "ORDERED"
+    return "NOT_ORDERED"
+
+
+def derive_standalone_inventory_order_status(items: list[dict[str, Any]]) -> str:
+    relevant = [item for item in items if float(item.get("to_order_quantity") or 0.0) > 0]
+    if not relevant:
+        return "DRAFT"
+
+    all_received = all(item.get("status") == "RECEIVED" for item in relevant)
+    if all_received:
+        return "RECEIVED"
+
+    any_received = any(item.get("status") in {"RECEIVED", "PARTIAL"} for item in relevant)
+    if any_received:
+        return "PARTIAL"
+
+    any_ordered = any(item.get("status") == "ORDERED" for item in relevant)
+    if any_ordered:
+        return "ORDERED"
+
+    return "DRAFT"
+
+
+def load_standalone_inventory_order_items(conn: Any, order_ids: list[int]) -> dict[int, list[dict[str, Any]]]:
+    if not order_ids:
+        return {}
+    placeholders = ", ".join("?" for _ in order_ids)
+    rows = conn.execute(
+        f"""
+        SELECT
+            soi.id,
+            soi.order_id,
+            soi.inventory_item_id,
+            soi.item_name_snapshot,
+            soi.category_snapshot,
+            soi.unit_snapshot,
+            soi.current_quantity_snapshot,
+            soi.required_quantity,
+            soi.ordered_quantity,
+            soi.received_quantity,
+            soi.purchase_unit,
+            soi.units_per_purchase,
+            soi.ordered_purchase_quantity,
+            soi.received_purchase_quantity,
+            soi.applied_received_quantity,
+            soi.order_url_snapshot,
+            soi.order_url_override,
+            soi.notes,
+            soi.ordered_by_user_id,
+            soi.ordered_at,
+            soi.received_by_user_id,
+            soi.received_at,
+            soi.created_at,
+            soi.updated_at,
+            si.item_name AS inventory_item_name,
+            si.category AS inventory_category,
+            si.quantity AS inventory_quantity,
+            si.unit AS inventory_unit,
+            si.order_url AS inventory_order_url,
+            si.location AS inventory_location,
+            si.barcode AS inventory_barcode
+        FROM standalone_inventory_order_items soi
+        LEFT JOIN standalone_inventory si
+          ON si.id = soi.inventory_item_id
+        WHERE soi.order_id IN ({placeholders})
+        ORDER BY lower(soi.item_name_snapshot), soi.id
+        """,
+        tuple(order_ids),
+    ).fetchall()
+
+    grouped: dict[int, list[dict[str, Any]]] = {}
+    for row in rows:
+        required_quantity = rounded_quantity(row["required_quantity"])
+        ordered_quantity = rounded_quantity(row["ordered_quantity"])
+        received_quantity = rounded_quantity(row["received_quantity"])
+        applied_received_quantity = rounded_quantity(row["applied_received_quantity"])
+        current_snapshot = rounded_quantity(row["current_quantity_snapshot"])
+        purchase_unit = normalize_purchase_unit(row["purchase_unit"])
+        units_per_purchase = normalize_units_per_purchase(row["units_per_purchase"])
+        ordered_purchase_quantity = rounded_quantity(row["ordered_purchase_quantity"])
+        received_purchase_quantity = rounded_quantity(row["received_purchase_quantity"])
+        if ordered_purchase_quantity <= 0 and ordered_quantity > 0:
+            ordered_purchase_quantity = round(ordered_quantity / units_per_purchase, 3)
+        if received_purchase_quantity <= 0 and received_quantity > 0:
+            received_purchase_quantity = round(received_quantity / units_per_purchase, 3)
+        to_order_quantity = max(0.0, required_quantity - current_snapshot)
+        effective_url = (
+            normalize_optional_text(row["order_url_override"])
+            or normalize_optional_text(row["order_url_snapshot"])
+            or normalize_optional_text(row["inventory_order_url"])
+        )
+        status = derive_standalone_inventory_item_status(
+            to_order_quantity=to_order_quantity,
+            ordered_quantity=ordered_quantity,
+            received_quantity=received_quantity,
+        )
+        payload = {
+            "id": int(row["id"]),
+            "order_id": int(row["order_id"]),
+            "inventory_item_id": int(row["inventory_item_id"]),
+            "item_name_snapshot": row["item_name_snapshot"],
+            "category_snapshot": normalize_inventory_category(row["category_snapshot"]),
+            "unit_snapshot": row["unit_snapshot"],
+            "current_quantity_snapshot": current_snapshot,
+            "required_quantity": required_quantity,
+            "to_order_quantity": to_order_quantity,
+            "ordered_quantity": ordered_quantity,
+            "received_quantity": received_quantity,
+            "purchase_unit": purchase_unit,
+            "units_per_purchase": units_per_purchase,
+            "ordered_purchase_quantity": ordered_purchase_quantity,
+            "received_purchase_quantity": received_purchase_quantity,
+            "applied_received_quantity": applied_received_quantity,
+            "order_url_snapshot": normalize_optional_text(row["order_url_snapshot"]),
+            "order_url_override": normalize_optional_text(row["order_url_override"]),
+            "effective_order_url": effective_url,
+            "notes": normalize_optional_text(row["notes"]),
+            "ordered_by_user_id": int(row["ordered_by_user_id"]) if row["ordered_by_user_id"] is not None else None,
+            "ordered_at": row["ordered_at"],
+            "received_by_user_id": int(row["received_by_user_id"]) if row["received_by_user_id"] is not None else None,
+            "received_at": row["received_at"],
+            "created_at": row["created_at"],
+            "updated_at": row["updated_at"],
+            "inventory_item_name": row["inventory_item_name"],
+            "inventory_category": normalize_inventory_category(row["inventory_category"]),
+            "inventory_quantity": rounded_quantity(row["inventory_quantity"]),
+            "inventory_unit": row["inventory_unit"],
+            "inventory_order_url": normalize_optional_text(row["inventory_order_url"]),
+            "inventory_location": row["inventory_location"],
+            "inventory_barcode": row["inventory_barcode"],
+            "status": status,
+        }
+        order_id = int(row["order_id"])
+        grouped.setdefault(order_id, []).append(payload)
+    return grouped
+
+
+def refresh_standalone_inventory_order_status(conn: Any, order_id: int, *, actor_user_id: int | None = None) -> str:
+    items_map = load_standalone_inventory_order_items(conn, [order_id])
+    items = items_map.get(order_id, [])
+    status = derive_standalone_inventory_order_status(items)
+    now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+    existing = conn.execute(
+        """
+        SELECT ordered_at, ordered_by_user_id, received_at, received_by_user_id
+        FROM standalone_inventory_orders
+        WHERE id = ? AND deleted_at IS NULL
+        """,
+        (order_id,),
+    ).fetchone()
+    if not existing:
+        raise HTTPException(status_code=404, detail="Inventory order not found")
+
+    any_ordered = any(as_non_negative_quantity(item.get("ordered_quantity")) > 0 for item in items)
+    any_received = any(as_non_negative_quantity(item.get("received_quantity")) > 0 for item in items)
+
+    ordered_at = existing["ordered_at"]
+    ordered_by_user_id = existing["ordered_by_user_id"]
+    received_at = existing["received_at"]
+    received_by_user_id = existing["received_by_user_id"]
+
+    if any_ordered and not ordered_at:
+        ordered_at = now
+        ordered_by_user_id = actor_user_id
+    if not any_ordered:
+        ordered_at = None
+        ordered_by_user_id = None
+
+    if any_received and not received_at:
+        received_at = now
+        received_by_user_id = actor_user_id
+    if not any_received:
+        received_at = None
+        received_by_user_id = None
+
+    conn.execute(
+        """
+        UPDATE standalone_inventory_orders
+        SET status = ?, ordered_at = ?, ordered_by_user_id = ?, received_at = ?, received_by_user_id = ?, updated_at = CURRENT_TIMESTAMP
+        WHERE id = ?
+        """,
+        (status, ordered_at, ordered_by_user_id, received_at, received_by_user_id, order_id),
+    )
+    return status
+
+
+def upsert_standalone_inventory_order_items(
+    conn: Any,
+    order_id: int,
+    *,
+    items: list[StandaloneInventoryOrderItemInput],
+    actor_user_id: int | None,
+) -> None:
+    existing_rows = conn.execute(
+        """
+        SELECT *
+        FROM standalone_inventory_order_items
+        WHERE order_id = ?
+        """,
+        (order_id,),
+    ).fetchall()
+    existing_by_inventory_id = {int(row["inventory_item_id"]): row for row in existing_rows}
+    keep_inventory_ids: set[int] = set()
+    now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+
+    for item in items:
+        inventory_item_id = int(item.inventoryItemId)
+        inventory_row = conn.execute(
+            """
+            SELECT id, item_name, category, unit, quantity, order_url
+            FROM standalone_inventory
+            WHERE id = ?
+            """,
+            (inventory_item_id,),
+        ).fetchone()
+        if not inventory_row:
+            raise HTTPException(status_code=400, detail=f"Inventory item {inventory_item_id} does not exist.")
+
+        required_quantity = rounded_quantity(item.requiredQuantity)
+        purchase_unit = normalize_purchase_unit(item.purchaseUnit)
+        units_per_purchase = normalize_units_per_purchase(item.unitsPerPurchase)
+        ordered_purchase_quantity = rounded_quantity(item.orderedPurchaseQuantity)
+        received_purchase_quantity = rounded_quantity(item.receivedPurchaseQuantity)
+        ordered_quantity = rounded_quantity(item.orderedQuantity)
+        received_quantity = rounded_quantity(item.receivedQuantity)
+
+        if ordered_purchase_quantity > 0:
+            ordered_quantity = round(ordered_purchase_quantity * units_per_purchase, 3)
+        elif ordered_quantity > 0:
+            ordered_purchase_quantity = round(ordered_quantity / units_per_purchase, 3)
+
+        if received_purchase_quantity > 0:
+            received_quantity = round(received_purchase_quantity * units_per_purchase, 3)
+        elif received_quantity > 0:
+            received_purchase_quantity = round(received_quantity / units_per_purchase, 3)
+
+        if received_quantity > ordered_quantity:
+            ordered_quantity = received_quantity
+        if received_purchase_quantity > ordered_purchase_quantity:
+            ordered_purchase_quantity = received_purchase_quantity
+        if ordered_quantity <= 0:
+            received_quantity = 0.0
+            ordered_purchase_quantity = 0.0
+            received_purchase_quantity = 0.0
+
+        order_url_override = normalize_optional_text(item.orderUrlOverride)
+        notes = normalize_optional_text(item.notes)
+
+        # Skip empty lines and remove them from the order if currently present.
+        if (
+            required_quantity <= 0
+            and ordered_quantity <= 0
+            and received_quantity <= 0
+            and not order_url_override
+            and not notes
+        ):
+            continue
+
+        existing = existing_by_inventory_id.get(inventory_item_id)
+        old_ordered = as_non_negative_quantity(existing["ordered_quantity"]) if existing else 0.0
+        old_received = as_non_negative_quantity(existing["received_quantity"]) if existing else 0.0
+        ordered_at = existing["ordered_at"] if existing else None
+        ordered_by_user_id = existing["ordered_by_user_id"] if existing else None
+        received_at = existing["received_at"] if existing else None
+        received_by_user_id = existing["received_by_user_id"] if existing else None
+        applied_received_quantity = as_non_negative_quantity(existing["applied_received_quantity"]) if existing else 0.0
+
+        if ordered_quantity > 0 and old_ordered <= 0:
+            ordered_at = now
+            ordered_by_user_id = actor_user_id
+        if ordered_quantity <= 0:
+            ordered_at = None
+            ordered_by_user_id = None
+            received_at = None
+            received_by_user_id = None
+            applied_received_quantity = 0.0
+
+        if received_quantity > 0 and old_received <= 0:
+            received_at = now
+            received_by_user_id = actor_user_id
+        if received_quantity <= 0:
+            received_at = None
+            received_by_user_id = None
+
+        if received_quantity < applied_received_quantity:
+            applied_received_quantity = received_quantity
+
+        conn.execute(
+            """
+            INSERT INTO standalone_inventory_order_items(
+                order_id,
+                inventory_item_id,
+                item_name_snapshot,
+                category_snapshot,
+                unit_snapshot,
+                current_quantity_snapshot,
+                required_quantity,
+                ordered_quantity,
+                received_quantity,
+                purchase_unit,
+                units_per_purchase,
+                ordered_purchase_quantity,
+                received_purchase_quantity,
+                applied_received_quantity,
+                order_url_snapshot,
+                order_url_override,
+                notes,
+                ordered_by_user_id,
+                ordered_at,
+                received_by_user_id,
+                received_at,
+                created_at,
+                updated_at
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+            ON CONFLICT(order_id, inventory_item_id) DO UPDATE SET
+                item_name_snapshot = excluded.item_name_snapshot,
+                category_snapshot = excluded.category_snapshot,
+                unit_snapshot = excluded.unit_snapshot,
+                current_quantity_snapshot = excluded.current_quantity_snapshot,
+                required_quantity = excluded.required_quantity,
+                ordered_quantity = excluded.ordered_quantity,
+                received_quantity = excluded.received_quantity,
+                purchase_unit = excluded.purchase_unit,
+                units_per_purchase = excluded.units_per_purchase,
+                ordered_purchase_quantity = excluded.ordered_purchase_quantity,
+                received_purchase_quantity = excluded.received_purchase_quantity,
+                applied_received_quantity = excluded.applied_received_quantity,
+                order_url_snapshot = excluded.order_url_snapshot,
+                order_url_override = excluded.order_url_override,
+                notes = excluded.notes,
+                ordered_by_user_id = excluded.ordered_by_user_id,
+                ordered_at = excluded.ordered_at,
+                received_by_user_id = excluded.received_by_user_id,
+                received_at = excluded.received_at,
+                updated_at = CURRENT_TIMESTAMP
+            """,
+            (
+                order_id,
+                inventory_item_id,
+                inventory_row["item_name"],
+                normalize_inventory_category(inventory_row["category"]),
+                normalize_optional_text(inventory_row["unit"]),
+                as_non_negative_quantity(inventory_row["quantity"]),
+                required_quantity,
+                ordered_quantity,
+                received_quantity,
+                purchase_unit,
+                units_per_purchase,
+                ordered_purchase_quantity,
+                received_purchase_quantity,
+                applied_received_quantity,
+                normalize_optional_text(inventory_row["order_url"]),
+                order_url_override,
+                notes,
+                ordered_by_user_id,
+                ordered_at,
+                received_by_user_id,
+                received_at,
+            ),
+        )
+        keep_inventory_ids.add(inventory_item_id)
+
+    if keep_inventory_ids:
+        placeholders = ", ".join("?" for _ in keep_inventory_ids)
+        conn.execute(
+            f"""
+            DELETE FROM standalone_inventory_order_items
+            WHERE order_id = ?
+              AND inventory_item_id NOT IN ({placeholders})
+            """,
+            (order_id, *tuple(sorted(keep_inventory_ids))),
+        )
+    else:
+        conn.execute("DELETE FROM standalone_inventory_order_items WHERE order_id = ?", (order_id,))
+
+
+def load_standalone_inventory_order_detail(conn: Any, order_id: int) -> dict[str, Any]:
+    row = conn.execute(
+        """
+        SELECT
+            id,
+            name,
+            status,
+            notes,
+            created_by_user_id,
+            ordered_by_user_id,
+            ordered_at,
+            received_by_user_id,
+            received_at,
+            created_at,
+            updated_at
+        FROM standalone_inventory_orders
+        WHERE id = ?
+          AND deleted_at IS NULL
+        """,
+        (order_id,),
+    ).fetchone()
+    if not row:
+        raise HTTPException(status_code=404, detail="Inventory order not found")
+    payload = format_standalone_inventory_order_row(row)
+    items_map = load_standalone_inventory_order_items(conn, [order_id])
+    items = items_map.get(order_id, [])
+    payload["items"] = items
+
+    relevant = [item for item in items if float(item.get("to_order_quantity") or 0.0) > 0]
+    payload["item_count"] = len(items)
+    payload["relevant_item_count"] = len(relevant)
+    payload["to_order_count"] = sum(1 for item in relevant if item.get("status") == "NOT_ORDERED")
+    payload["ordered_count"] = sum(1 for item in relevant if item.get("status") in {"ORDERED", "PARTIAL"})
+    payload["received_count"] = sum(1 for item in relevant if item.get("status") == "RECEIVED")
+    payload["total_required_quantity"] = round(sum(float(item.get("required_quantity") or 0.0) for item in items), 3)
+    payload["total_to_order_quantity"] = round(sum(float(item.get("to_order_quantity") or 0.0) for item in items), 3)
+    payload["total_ordered_quantity"] = round(sum(float(item.get("ordered_quantity") or 0.0) for item in items), 3)
+    payload["total_received_quantity"] = round(sum(float(item.get("received_quantity") or 0.0) for item in items), 3)
+    return payload
+
+
 def tokenize_similarity_terms(value: Any) -> list[str]:
     text = normalize_optional_text(value)
     if not text:
@@ -6284,6 +6827,559 @@ def list_inventory(
 ) -> list[dict[str, Any]]:
     with get_connection() as conn:
         return query_standalone_inventory_rows(conn, category=category, search=search)
+
+
+@app.post("/api/inventory/order-draft-item", status_code=201)
+def create_inventory_order_draft_item(
+    payload: StandaloneInventoryOrderDraftItemCreate,
+    _user: Annotated[AuthUser, Depends(require_roles(ROLE_PLANNER, ROLE_ADMIN))],
+) -> dict[str, Any]:
+    item_name = normalize_required_text(payload.itemName, field_name="Item name")
+    category = normalize_inventory_category(payload.category)
+    unit = normalize_optional_text(payload.unit) or "each"
+    unit = normalize_required_text(unit, field_name="Unit")
+    order_url = normalize_optional_text(payload.orderUrl)
+    notes = normalize_optional_text(payload.notes)
+    now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+
+    with get_connection() as conn:
+        row = conn.execute(
+            """
+            INSERT INTO standalone_inventory(
+                item_name,
+                barcode,
+                quantity,
+                unit,
+                category,
+                location,
+                image_url,
+                notes,
+                order_url,
+                import_source,
+                created_at,
+                updated_at
+            )
+            VALUES (?, NULL, 0, ?, ?, NULL, NULL, ?, ?, 'order-draft', ?, ?)
+            RETURNING *
+            """,
+            (
+                item_name,
+                unit,
+                category,
+                notes,
+                order_url,
+                now,
+                now,
+            ),
+        ).fetchone()
+        conn.commit()
+
+    return format_standalone_inventory_row(row)
+
+
+@app.get("/api/inventory/orders")
+def list_standalone_inventory_orders(
+    _user: Annotated[AuthUser, Depends(require_roles(ROLE_VIEWER, ROLE_PLANNER, ROLE_ADMIN))],
+    status: str | None = Query(default=None),
+) -> list[dict[str, Any]]:
+    filters = ["deleted_at IS NULL"]
+    params: list[Any] = []
+    normalized_status = normalize_optional_text(status)
+    if normalized_status:
+        upper_status = normalized_status.upper()
+        if upper_status not in {"DRAFT", "ORDERED", "PARTIAL", "RECEIVED"}:
+            raise HTTPException(status_code=400, detail="Invalid order status filter.")
+        filters.append("status = ?")
+        params.append(upper_status)
+
+    where_sql = f"WHERE {' AND '.join(filters)}"
+    with get_connection() as conn:
+        rows = conn.execute(
+            f"""
+            SELECT
+                id,
+                name,
+                status,
+                notes,
+                created_by_user_id,
+                ordered_by_user_id,
+                ordered_at,
+                received_by_user_id,
+                received_at,
+                created_at,
+                updated_at
+            FROM standalone_inventory_orders
+            {where_sql}
+            ORDER BY updated_at DESC, id DESC
+            """,
+            tuple(params),
+        ).fetchall()
+        order_ids = [int(row["id"]) for row in rows]
+        items_map = load_standalone_inventory_order_items(conn, order_ids)
+
+    payloads: list[dict[str, Any]] = []
+    for row in rows:
+        order_id = int(row["id"])
+        payload = format_standalone_inventory_order_row(row)
+        items = items_map.get(order_id, [])
+        relevant = [item for item in items if float(item.get("to_order_quantity") or 0.0) > 0]
+        payload["item_count"] = len(items)
+        payload["relevant_item_count"] = len(relevant)
+        payload["to_order_count"] = sum(1 for item in relevant if item.get("status") == "NOT_ORDERED")
+        payload["ordered_count"] = sum(1 for item in relevant if item.get("status") in {"ORDERED", "PARTIAL"})
+        payload["received_count"] = sum(1 for item in relevant if item.get("status") == "RECEIVED")
+        payload["total_to_order_quantity"] = round(sum(float(item.get("to_order_quantity") or 0.0) for item in items), 3)
+        payload["total_ordered_quantity"] = round(sum(float(item.get("ordered_quantity") or 0.0) for item in items), 3)
+        payload["total_received_quantity"] = round(sum(float(item.get("received_quantity") or 0.0) for item in items), 3)
+        payloads.append(payload)
+    return payloads
+
+
+@app.get("/api/inventory/orders/putaway-queue")
+def list_standalone_inventory_putaway_queue(
+    _user: Annotated[AuthUser, Depends(require_roles(ROLE_VIEWER, ROLE_PLANNER, ROLE_ADMIN))],
+    order_id: int | None = Query(default=None, ge=1),
+) -> list[dict[str, Any]]:
+    filters = [
+        "so.deleted_at IS NULL",
+        "soi.received_quantity > soi.applied_received_quantity",
+    ]
+    params: list[Any] = []
+    if order_id is not None:
+        filters.append("so.id = ?")
+        params.append(int(order_id))
+
+    where_sql = f"WHERE {' AND '.join(filters)}"
+    with get_connection() as conn:
+        rows = conn.execute(
+            f"""
+            SELECT
+                so.id AS order_id,
+                so.name AS order_name,
+                so.status AS order_status,
+                so.updated_at AS order_updated_at,
+                soi.id AS order_item_id,
+                soi.inventory_item_id,
+                soi.item_name_snapshot,
+                soi.category_snapshot,
+                soi.unit_snapshot,
+                soi.purchase_unit,
+                soi.units_per_purchase,
+                soi.received_quantity,
+                soi.applied_received_quantity,
+                soi.order_url_snapshot,
+                soi.order_url_override,
+                soi.notes,
+                si.quantity AS inventory_quantity,
+                si.location AS inventory_location,
+                si.barcode AS inventory_barcode,
+                si.order_url AS inventory_order_url
+            FROM standalone_inventory_order_items soi
+            JOIN standalone_inventory_orders so
+              ON so.id = soi.order_id
+            LEFT JOIN standalone_inventory si
+              ON si.id = soi.inventory_item_id
+            {where_sql}
+            ORDER BY so.updated_at DESC, so.id DESC, lower(soi.item_name_snapshot), soi.id
+            """,
+            tuple(params),
+        ).fetchall()
+
+    queue: list[dict[str, Any]] = []
+    for row in rows:
+        received_quantity = rounded_quantity(row["received_quantity"])
+        applied_quantity = rounded_quantity(row["applied_received_quantity"])
+        remaining_quantity = round(max(0.0, received_quantity - applied_quantity), 3)
+        if remaining_quantity <= 0:
+            continue
+        effective_url = (
+            normalize_optional_text(row["order_url_override"])
+            or normalize_optional_text(row["order_url_snapshot"])
+            or normalize_optional_text(row["inventory_order_url"])
+        )
+        unit = normalize_optional_text(row["unit_snapshot"]) or "each"
+        queue.append(
+            {
+                "order_id": int(row["order_id"]),
+                "order_name": row["order_name"],
+                "order_status": row["order_status"],
+                "order_updated_at": row["order_updated_at"],
+                "order_item_id": int(row["order_item_id"]),
+                "inventory_item_id": int(row["inventory_item_id"]),
+                "item_name": row["item_name_snapshot"],
+                "category": normalize_inventory_category(row["category_snapshot"]),
+                "unit": unit,
+                "purchase_unit": normalize_purchase_unit(row["purchase_unit"]),
+                "units_per_purchase": normalize_units_per_purchase(row["units_per_purchase"]),
+                "received_quantity": received_quantity,
+                "applied_received_quantity": applied_quantity,
+                "remaining_putaway_quantity": remaining_quantity,
+                "inventory_quantity": rounded_quantity(row["inventory_quantity"]),
+                "inventory_location": normalize_optional_text(row["inventory_location"]),
+                "inventory_barcode": normalize_optional_text(row["inventory_barcode"]),
+                "order_url": effective_url,
+                "notes": normalize_optional_text(row["notes"]),
+            }
+        )
+    return queue
+
+
+@app.post("/api/inventory/orders", status_code=201)
+def create_standalone_inventory_order(
+    payload: StandaloneInventoryOrderCreate,
+    user: Annotated[AuthUser, Depends(require_roles(ROLE_PLANNER, ROLE_ADMIN))],
+) -> dict[str, Any]:
+    now = datetime.now(timezone.utc)
+    name = normalize_optional_text(payload.name) or f"Inventory Order {now.strftime('%Y-%m-%d %H:%M')}"
+    notes = normalize_optional_text(payload.notes)
+    with get_connection() as conn:
+        row = conn.execute(
+            """
+            INSERT INTO standalone_inventory_orders(
+                name,
+                status,
+                notes,
+                created_by_user_id,
+                created_at,
+                updated_at
+            )
+            VALUES (?, 'DRAFT', ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+            RETURNING id
+            """,
+            (name, notes, user.id),
+        ).fetchone()
+        order_id = int(row["id"])
+
+        if payload.items:
+            upsert_standalone_inventory_order_items(
+                conn,
+                order_id,
+                items=payload.items,
+                actor_user_id=user.id,
+            )
+        refresh_standalone_inventory_order_status(conn, order_id, actor_user_id=user.id)
+        detail = load_standalone_inventory_order_detail(conn, order_id)
+        conn.commit()
+    return detail
+
+
+@app.get("/api/inventory/orders/{order_id}")
+def get_standalone_inventory_order(
+    order_id: int,
+    _user: Annotated[AuthUser, Depends(require_roles(ROLE_VIEWER, ROLE_PLANNER, ROLE_ADMIN))],
+) -> dict[str, Any]:
+    with get_connection() as conn:
+        return load_standalone_inventory_order_detail(conn, order_id)
+
+
+@app.patch("/api/inventory/orders/{order_id}")
+def update_standalone_inventory_order(
+    order_id: int,
+    payload: StandaloneInventoryOrderUpdate,
+    user: Annotated[AuthUser, Depends(require_roles(ROLE_PLANNER, ROLE_ADMIN))],
+) -> dict[str, Any]:
+    updates: list[str] = []
+    params: list[Any] = []
+
+    if payload.name is not None:
+        clean_name = normalize_optional_text(payload.name)
+        if not clean_name:
+            raise HTTPException(status_code=400, detail="Order name cannot be empty.")
+        updates.append("name = ?")
+        params.append(clean_name)
+    if payload.notes is not None:
+        updates.append("notes = ?")
+        params.append(normalize_optional_text(payload.notes))
+
+    with get_connection() as conn:
+        existing = conn.execute(
+            "SELECT id FROM standalone_inventory_orders WHERE id = ? AND deleted_at IS NULL",
+            (order_id,),
+        ).fetchone()
+        if not existing:
+            raise HTTPException(status_code=404, detail="Inventory order not found")
+
+        if updates:
+            updates.append("updated_at = CURRENT_TIMESTAMP")
+            params.append(order_id)
+            conn.execute(
+                f"""
+                UPDATE standalone_inventory_orders
+                SET {', '.join(updates)}
+                WHERE id = ?
+                """,
+                tuple(params),
+            )
+
+        if payload.items is not None:
+            upsert_standalone_inventory_order_items(
+                conn,
+                order_id,
+                items=payload.items,
+                actor_user_id=user.id,
+            )
+
+        refresh_standalone_inventory_order_status(conn, order_id, actor_user_id=user.id)
+        detail = load_standalone_inventory_order_detail(conn, order_id)
+        conn.commit()
+    return detail
+
+
+@app.post("/api/inventory/orders/{order_id}/apply-received")
+def apply_standalone_inventory_order_receipts(
+    order_id: int,
+    user: Annotated[AuthUser, Depends(require_roles(ROLE_PLANNER, ROLE_ADMIN))],
+) -> dict[str, Any]:
+    applied_items: list[dict[str, Any]] = []
+    applied_quantity_total = 0.0
+
+    with get_connection() as conn:
+        existing = conn.execute(
+            "SELECT id FROM standalone_inventory_orders WHERE id = ? AND deleted_at IS NULL",
+            (order_id,),
+        ).fetchone()
+        if not existing:
+            raise HTTPException(status_code=404, detail="Inventory order not found")
+
+        rows = conn.execute(
+            """
+            SELECT
+                soi.id,
+                soi.inventory_item_id,
+                soi.item_name_snapshot,
+                soi.received_quantity,
+                soi.applied_received_quantity
+            FROM standalone_inventory_order_items soi
+            WHERE soi.order_id = ?
+            ORDER BY soi.id
+            """,
+            (order_id,),
+        ).fetchall()
+
+        for row in rows:
+            received_quantity = as_non_negative_quantity(row["received_quantity"])
+            applied_received_quantity = as_non_negative_quantity(row["applied_received_quantity"])
+            delta = max(0.0, received_quantity - applied_received_quantity)
+            if delta <= 0:
+                continue
+
+            inventory_item_id = int(row["inventory_item_id"])
+            order_item_id = int(row["id"])
+            item_name = row["item_name_snapshot"]
+            conn.execute(
+                """
+                UPDATE standalone_inventory
+                SET quantity = COALESCE(quantity, 0) + ?, updated_at = CURRENT_TIMESTAMP
+                WHERE id = ?
+                """,
+                (delta, inventory_item_id),
+            )
+            conn.execute(
+                """
+                UPDATE standalone_inventory_order_items
+                SET applied_received_quantity = ?, updated_at = CURRENT_TIMESTAMP
+                WHERE id = ?
+                """,
+                (received_quantity, order_item_id),
+            )
+            conn.execute(
+                """
+                INSERT INTO standalone_inventory_transactions(
+                    inventory_item_id,
+                    order_id,
+                    order_item_id,
+                    transaction_type,
+                    quantity_delta,
+                    reason,
+                    user_id,
+                    created_at
+                )
+                VALUES (?, ?, ?, 'IN', ?, ?, ?, CURRENT_TIMESTAMP)
+                """,
+                (
+                    inventory_item_id,
+                    order_id,
+                    order_item_id,
+                    delta,
+                    "Order received apply",
+                    user.id,
+                ),
+            )
+            applied_quantity_total += delta
+            applied_items.append(
+                {
+                    "order_item_id": order_item_id,
+                    "inventory_item_id": inventory_item_id,
+                    "item_name": item_name,
+                    "delta_applied": round(delta, 3),
+                }
+            )
+
+        refresh_standalone_inventory_order_status(conn, order_id, actor_user_id=user.id)
+        detail = load_standalone_inventory_order_detail(conn, order_id)
+        conn.commit()
+
+    return {
+        "order_id": order_id,
+        "applied_item_count": len(applied_items),
+        "applied_quantity_total": round(applied_quantity_total, 3),
+        "items": applied_items,
+        "order": detail,
+    }
+
+
+@app.post("/api/inventory/orders/{order_id}/putaway")
+def putaway_standalone_inventory_order_items(
+    order_id: int,
+    payload: StandaloneInventoryOrderPutawayPayload,
+    user: Annotated[AuthUser, Depends(require_roles(ROLE_PLANNER, ROLE_ADMIN))],
+) -> dict[str, Any]:
+    if not payload.items:
+        raise HTTPException(status_code=400, detail="Provide at least one order item to put away.")
+
+    requested_by_item_id: dict[int, StandaloneInventoryOrderPutawayItemInput] = {}
+    for item in payload.items:
+        order_item_id = int(item.orderItemId)
+        if order_item_id in requested_by_item_id:
+            raise HTTPException(status_code=400, detail=f"Order item {order_item_id} is duplicated in request.")
+        requested_by_item_id[order_item_id] = item
+
+    requested_ids = sorted(requested_by_item_id.keys())
+    placeholders = ", ".join("?" for _ in requested_ids)
+    applied_items: list[dict[str, Any]] = []
+    applied_quantity_total = 0.0
+
+    with get_connection() as conn:
+        existing = conn.execute(
+            "SELECT id FROM standalone_inventory_orders WHERE id = ? AND deleted_at IS NULL",
+            (order_id,),
+        ).fetchone()
+        if not existing:
+            raise HTTPException(status_code=404, detail="Inventory order not found")
+
+        rows = conn.execute(
+            f"""
+            SELECT
+                soi.id,
+                soi.inventory_item_id,
+                soi.item_name_snapshot,
+                soi.received_quantity,
+                soi.applied_received_quantity,
+                si.location AS inventory_location
+            FROM standalone_inventory_order_items soi
+            JOIN standalone_inventory si
+              ON si.id = soi.inventory_item_id
+            WHERE soi.order_id = ?
+              AND soi.id IN ({placeholders})
+            ORDER BY soi.id
+            """,
+            (order_id, *requested_ids),
+        ).fetchall()
+
+        rows_by_id = {int(row["id"]): row for row in rows}
+        missing_ids = [order_item_id for order_item_id in requested_ids if order_item_id not in rows_by_id]
+        if missing_ids:
+            joined_missing = ", ".join(str(item_id) for item_id in missing_ids)
+            raise HTTPException(status_code=400, detail=f"Order item(s) not found for order {order_id}: {joined_missing}.")
+
+        for order_item_id in requested_ids:
+            row = rows_by_id[order_item_id]
+            request_item = requested_by_item_id[order_item_id]
+            inventory_item_id = int(row["inventory_item_id"])
+            item_name = row["item_name_snapshot"]
+
+            received_quantity = rounded_quantity(row["received_quantity"])
+            applied_received_quantity = rounded_quantity(row["applied_received_quantity"])
+            remaining_quantity = round(max(0.0, received_quantity - applied_received_quantity), 3)
+            if remaining_quantity <= 0:
+                continue
+
+            requested_quantity = (
+                rounded_quantity(request_item.quantity) if request_item.quantity is not None else remaining_quantity
+            )
+            if requested_quantity <= 0:
+                continue
+            delta = round(min(remaining_quantity, requested_quantity), 3)
+            if delta <= 0:
+                continue
+
+            location_override = normalize_optional_storage_grid_location(request_item.location)
+            if location_override is not None:
+                conn.execute(
+                    """
+                    UPDATE standalone_inventory
+                    SET quantity = COALESCE(quantity, 0) + ?, location = ?, updated_at = CURRENT_TIMESTAMP
+                    WHERE id = ?
+                    """,
+                    (delta, location_override, inventory_item_id),
+                )
+            else:
+                conn.execute(
+                    """
+                    UPDATE standalone_inventory
+                    SET quantity = COALESCE(quantity, 0) + ?, updated_at = CURRENT_TIMESTAMP
+                    WHERE id = ?
+                    """,
+                    (delta, inventory_item_id),
+                )
+
+            next_applied_quantity = round(min(received_quantity, applied_received_quantity + delta), 3)
+            conn.execute(
+                """
+                UPDATE standalone_inventory_order_items
+                SET applied_received_quantity = ?, updated_at = CURRENT_TIMESTAMP
+                WHERE id = ?
+                """,
+                (next_applied_quantity, order_item_id),
+            )
+
+            reason = normalize_optional_text(request_item.reason) or "Order putaway"
+            conn.execute(
+                """
+                INSERT INTO standalone_inventory_transactions(
+                    inventory_item_id,
+                    order_id,
+                    order_item_id,
+                    transaction_type,
+                    quantity_delta,
+                    reason,
+                    user_id,
+                    created_at
+                )
+                VALUES (?, ?, ?, 'IN', ?, ?, ?, CURRENT_TIMESTAMP)
+                """,
+                (
+                    inventory_item_id,
+                    order_id,
+                    order_item_id,
+                    delta,
+                    reason,
+                    user.id,
+                ),
+            )
+
+            applied_quantity_total += delta
+            applied_items.append(
+                {
+                    "order_item_id": order_item_id,
+                    "inventory_item_id": inventory_item_id,
+                    "item_name": item_name,
+                    "delta_put_away": delta,
+                    "location": location_override or normalize_optional_text(row["inventory_location"]),
+                }
+            )
+
+        refresh_standalone_inventory_order_status(conn, order_id, actor_user_id=user.id)
+        detail = load_standalone_inventory_order_detail(conn, order_id)
+        conn.commit()
+
+    return {
+        "order_id": order_id,
+        "applied_item_count": len(applied_items),
+        "applied_quantity_total": round(applied_quantity_total, 3),
+        "items": applied_items,
+        "order": detail,
+    }
 
 
 @app.get("/api/inventory/equivalent-search")

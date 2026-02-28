@@ -4,6 +4,24 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Full Inventory - Blossom Foundation</title>
+    <script>
+      (function redirectLegacyInventoryEntry() {
+        var params = new URLSearchParams(window.location.search || "");
+        var fullFlag = String(params.get("full") || "").toLowerCase();
+        if (fullFlag === "1" || fullFlag === "true" || fullFlag === "yes") {
+          return;
+        }
+        var api = params.get("api");
+        var target = new URL("inventory-home.html", window.location.href);
+        if (api && api.trim()) {
+          target.searchParams.set("api", api.trim());
+        }
+        if (window.location.hash) {
+          target.hash = window.location.hash;
+        }
+        window.location.replace(target.toString());
+      })();
+    </script>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -210,11 +228,17 @@
             <li class="nav-item dropdown">
               <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false"><i class="fa-solid fa-boxes-stacked me-1"></i> Inventory</a>
               <ul class="dropdown-menu">
+                <li><a class="dropdown-item" href="inventory-home.html"><i class="fa-solid fa-warehouse me-2"></i> Inventory Home</a></li>
                 <li><a class="dropdown-item" href="inventory-baseline.html"><i class="fa-solid fa-barcode me-2"></i> Baseline Scan</a></li>
-                <li><a class="dropdown-item" href="inventory.html"><i class="fa-solid fa-clipboard-list me-2"></i> Full Inventory</a></li>
-                <li><a class="dropdown-item" href="shopping-list.html"><i class="fa-solid fa-list-check me-2"></i> Retreat Order Lists</a></li>
+                <li><a class="dropdown-item" href="inventory-current.html"><i class="fa-solid fa-box-open me-2"></i> Current Inventory</a></li>
+                <li><a class="dropdown-item" href="inventory.html?full=1"><i class="fa-solid fa-clipboard-list me-2"></i> Full Inventory</a></li>
+                <li><a class="dropdown-item" href="inventory-orders.html"><i class="fa-solid fa-list-check me-2"></i> Orders Planning</a></li>
+                <li><a class="dropdown-item" href="inventory-receiving.html"><i class="fa-solid fa-truck-ramp-box me-2"></i> Receiving</a></li>
+                <li><a class="dropdown-item" href="inventory-add.html"><i class="fa-solid fa-plus me-2"></i> Putaway / Add</a></li>
+                <li><a class="dropdown-item" href="inventory-remove.html"><i class="fa-solid fa-minus me-2"></i> Remove Inventory</a></li>
               </ul>
             </li>
+
             <li class="nav-item dropdown">
               <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false"><i class="fa-solid fa-seedling me-1"></i> About</a>
               <ul class="dropdown-menu">

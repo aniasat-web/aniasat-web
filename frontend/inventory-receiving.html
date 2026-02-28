@@ -1,0 +1,667 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Inventory Receiving - Blossom Foundation</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+    <link rel="stylesheet" href="assets/header-theme.css" />
+    <style>
+      body { font-family: "Plus Jakarta Sans", sans-serif; }
+      h1, h2, h3, .navbar-brand { font-family: "Instrument Serif", serif; }
+      .inventory-shell { max-width: 1140px; margin: 0 auto; padding: 1.4rem 1rem 2rem; }
+      .soft-card { border: 1px solid var(--ui-border); border-radius: var(--ui-radius-md); background: rgba(255, 255, 255, 0.9); box-shadow: var(--ui-shadow-sm); }
+      .table-wrap { max-height: 520px; overflow: auto; }
+      .sticky-head thead th { position: sticky; top: 0; z-index: 2; background: #fff; }
+      .stat-value { font-size: 1.7rem; font-weight: 800; font-variant-numeric: tabular-nums; }
+      .qty-input { width: 104px; font-size: 0.82rem; padding: 0.25rem 0.4rem; text-align: center; }
+      .purchase-unit-select { width: 88px; font-size: 0.78rem; padding: 0.2rem 0.35rem; }
+      .qty-helper { font-size: 0.68rem; color: var(--ui-muted); line-height: 1.1; margin-top: 0.15rem; }
+      .status-chip { font-size: 0.66rem; font-weight: 700; border-radius: 999px; padding: 0.15rem 0.5rem; border: 1px solid var(--ui-border); display: inline-flex; }
+      .status-chip.not-ordered { background: #fff7ed; color: #9a3412; border-color: #fdba74; }
+      .status-chip.ordered { background: #eff6ff; color: #1d4ed8; border-color: #93c5fd; }
+      .status-chip.partial { background: #fefce8; color: #854d0e; border-color: #fde68a; }
+      .status-chip.received { background: #ecfdf5; color: #047857; border-color: #86efac; }
+      .status-chip.sufficient { background: #f5f5f4; color: #57534e; border-color: #d6d3d1; }
+      .filter-pill { display: inline-flex; align-items: center; padding: 0.3rem 0.7rem; border-radius: 999px; font-size: 0.75rem; font-weight: 600; border: 1px solid var(--ui-border); background: #fff; cursor: pointer; }
+      .filter-pill:hover, .filter-pill.active { border-color: var(--ui-primary-300); background: var(--ui-primary-100); color: var(--ui-primary-700); }
+    </style>
+    <link rel="stylesheet" href="assets/ui-theme.css" />
+  </head>
+  <body>
+    <nav class="navbar navbar-expand-lg navbar-light fixed-top">
+      <div class="container">
+        <a class="navbar-brand" href="index.html">
+          <img class="brand-logo" src="assets/blossom-mark.png" alt="Blossom logo" />
+          <span>Blossom Foundation</span>
+        </a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarContent">
+          <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarContent">
+          <ul class="navbar-nav ms-auto mb-2 mb-lg-0 fw-semibold small text-uppercase">
+            <li class="nav-item">
+              <a class="nav-link" href="index.html"><i class="fa-solid fa-house me-1"></i> Home</a>
+            </li>
+            <li class="nav-item dropdown">
+              <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false"><i class="fa-solid fa-utensils me-1"></i> Kitchen</a>
+              <ul class="dropdown-menu">
+                <li><a class="dropdown-item" href="retreat-planner-sample.html"><i class="fa-solid fa-calendar-days me-2"></i> Planner</a></li>
+                <li><a class="dropdown-item" href="shopping-list.html"><i class="fa-solid fa-cart-shopping me-2"></i> Shopping</a></li>
+                <li><a class="dropdown-item" href="kitchen-service-view.html"><i class="fa-solid fa-fire-burner me-2"></i> Retreat View</a></li>
+                <li><a class="dropdown-item" href="kitchen-test-view.html"><i class="fa-solid fa-vial me-2"></i> Testing View</a></li>
+                <li><a class="dropdown-item" href="recipe-admin.html"><i class="fa-solid fa-book me-2"></i> Recipes</a></li>
+                <li><a class="dropdown-item" href="ingredient-admin.html"><i class="fa-solid fa-carrot me-2"></i> Ingredients</a></li>
+              </ul>
+            </li>
+            <li class="nav-item dropdown">
+              <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false"><i class="fa-solid fa-boxes-stacked me-1"></i> Inventory</a>
+              <ul class="dropdown-menu">
+                <li><a class="dropdown-item" href="inventory-home.html"><i class="fa-solid fa-warehouse me-2"></i> Inventory Home</a></li>
+                <li><a class="dropdown-item" href="inventory-baseline.html"><i class="fa-solid fa-barcode me-2"></i> Baseline Scan</a></li>
+                <li><a class="dropdown-item" href="inventory-current.html"><i class="fa-solid fa-box-open me-2"></i> Current Inventory</a></li>
+                <li><a class="dropdown-item" href="inventory.html?full=1"><i class="fa-solid fa-clipboard-list me-2"></i> Full Inventory</a></li>
+                <li><a class="dropdown-item" href="inventory-orders.html"><i class="fa-solid fa-list-check me-2"></i> Orders Planning</a></li>
+                <li><a class="dropdown-item" href="inventory-receiving.html"><i class="fa-solid fa-truck-ramp-box me-2"></i> Receiving</a></li>
+                <li><a class="dropdown-item" href="inventory-add.html"><i class="fa-solid fa-plus me-2"></i> Putaway / Add</a></li>
+                <li><a class="dropdown-item" href="inventory-remove.html"><i class="fa-solid fa-minus me-2"></i> Remove Inventory</a></li>
+              </ul>
+            </li>
+            <li class="nav-item dropdown">
+              <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false"><i class="fa-solid fa-seedling me-1"></i> About</a>
+              <ul class="dropdown-menu">
+                <li><a class="dropdown-item" href="about.html"><i class="fa-solid fa-heart me-2"></i> About &amp; Mission</a></li>
+                <li><a class="dropdown-item" href="about-sri-m.html"><i class="fa-solid fa-user me-2"></i> About Sri M</a></li>
+                <li><a class="dropdown-item" href="sacred-grove.html"><i class="fa-solid fa-tree me-2"></i> Sacred Grove</a></li>
+                <li><a class="dropdown-item" href="faq.html"><i class="fa-solid fa-circle-question me-2"></i> FAQ</a></li>
+              </ul>
+            </li>
+            <li class="nav-item dropdown">
+              <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false"><i class="fa-solid fa-hand-holding-heart me-1"></i> Volunteer</a>
+              <ul class="dropdown-menu">
+                <li><a class="dropdown-item" href="volunteer.html"><i class="fa-solid fa-hands-helping me-2"></i> How to Volunteer</a></li>
+                <li><a class="dropdown-item" href="volunteer-contact.html"><i class="fa-solid fa-envelope me-2"></i> Contact Us</a></li>
+              </ul>
+            </li>
+            <li class="nav-item dropdown">
+              <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false"><i class="fa-solid fa-gear me-1"></i> Admin</a>
+              <ul class="dropdown-menu">
+                <li><a class="dropdown-item" href="user-admin.html"><i class="fa-solid fa-users-gear me-2"></i> Users</a></li>
+              </ul>
+            </li>
+            <li class="nav-item d-flex align-items-center">
+              <span class="nav-link text-muted d-none" id="authUserLabel"></span>
+            </li>
+            <li class="nav-item d-flex align-items-center ms-lg-2">
+              <button class="btn btn-sm btn-outline-secondary d-none" id="logoutBtn" type="button">Logout</button>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </nav>
+
+    <main class="inventory-shell">
+      <div class="d-flex flex-wrap align-items-center gap-3 mb-4">
+        <div class="flex-grow-1">
+          <h1 class="fw-bold mb-2"><i class="fa-solid fa-truck-ramp-box me-2" style="color: #0d9488;"></i>Receiving</h1>
+          <p class="text-muted mb-0">Record what has arrived for each order line. Physical shelf putaway is handled separately on the Putaway page.</p>
+        </div>
+        <span id="statusPill" class="status-pill info">Ready.</span>
+      </div>
+
+      <section class="row g-3 mb-4">
+        <div class="col-md-4">
+          <div class="soft-card p-3 text-center">
+            <div class="small text-uppercase fw-semibold text-muted mb-1"><i class="fa-solid fa-truck me-1"></i> Ordered Lines</div>
+            <div class="stat-value" id="statOrdered">--</div>
+          </div>
+        </div>
+        <div class="col-md-4">
+          <div class="soft-card p-3 text-center">
+            <div class="small text-uppercase fw-semibold text-muted mb-1"><i class="fa-solid fa-hourglass-half me-1"></i> Pending Receipt</div>
+            <div class="stat-value" id="statPending">--</div>
+          </div>
+        </div>
+        <div class="col-md-4">
+          <div class="soft-card p-3 text-center">
+            <div class="small text-uppercase fw-semibold text-muted mb-1"><i class="fa-solid fa-circle-check me-1"></i> Fully Received</div>
+            <div class="stat-value" id="statReceived">--</div>
+          </div>
+        </div>
+      </section>
+
+      <section class="soft-card p-4 mb-4">
+        <div class="row g-3 align-items-end">
+          <div class="col-lg-4">
+            <label class="small text-uppercase fw-semibold text-muted mb-1" for="orderSelect">Active Order</label>
+            <select id="orderSelect" class="form-select form-select-sm"></select>
+          </div>
+          <div class="col-lg-4">
+            <label class="small text-uppercase fw-semibold text-muted mb-1" for="orderNameInput">Order Name</label>
+            <input id="orderNameInput" type="text" class="form-control form-control-sm" placeholder="Inventory Order" />
+          </div>
+          <div class="col-lg-4">
+            <label class="small text-uppercase fw-semibold text-muted mb-1" for="orderNotesInput">Order Notes</label>
+            <input id="orderNotesInput" type="text" class="form-control form-control-sm" placeholder="Optional notes" />
+          </div>
+        </div>
+
+        <div class="d-flex flex-wrap gap-2 align-items-center mt-3" id="statusFilters">
+          <span class="small text-uppercase fw-semibold text-muted me-1">Filter:</span>
+          <button type="button" class="filter-pill active" data-status="all">All</button>
+          <button type="button" class="filter-pill" data-status="ORDERED">Ordered</button>
+          <button type="button" class="filter-pill" data-status="PARTIAL">Partial</button>
+          <button type="button" class="filter-pill" data-status="RECEIVED">Received</button>
+          <button type="button" class="filter-pill" data-status="NOT_ORDERED">Not Ordered</button>
+        </div>
+
+        <div class="d-flex flex-wrap gap-2 mt-3">
+          <button id="refreshBtn" type="button" class="btn btn-sm btn-outline-secondary"><i class="fa-solid fa-arrows-rotate me-1"></i>Refresh</button>
+          <button id="saveBtn" type="button" class="btn btn-sm btn-primary"><i class="fa-solid fa-floppy-disk me-1"></i>Save Receipts</button>
+          <a class="btn btn-sm btn-outline-success" href="inventory-add.html"><i class="fa-solid fa-boxes-packing me-1"></i>Go To Putaway</a>
+        </div>
+      </section>
+
+      <section class="soft-card p-4">
+        <div class="table-wrap">
+          <table class="table table-sm align-middle sticky-head">
+            <thead>
+              <tr class="small text-uppercase text-muted">
+                <th>Item</th>
+                <th>Category</th>
+                <th>To Order (Units)</th>
+                <th>Order In</th>
+                <th>Units/Order</th>
+                <th>Ordered (Order Unit)</th>
+                <th>Received (Order Unit)</th>
+                <th>Status</th>
+                <th>Notes</th>
+              </tr>
+            </thead>
+            <tbody id="receivingBody"></tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="assets/auth.js?v=20260218f"></script>
+    <script>
+      var statusPill = document.getElementById("statusPill");
+      var orderSelect = document.getElementById("orderSelect");
+      var orderNameInput = document.getElementById("orderNameInput");
+      var orderNotesInput = document.getElementById("orderNotesInput");
+      var receivingBody = document.getElementById("receivingBody");
+      var statusFilters = document.getElementById("statusFilters");
+      var refreshBtn = document.getElementById("refreshBtn");
+      var saveBtn = document.getElementById("saveBtn");
+
+      var statOrdered = document.getElementById("statOrdered");
+      var statPending = document.getElementById("statPending");
+      var statReceived = document.getElementById("statReceived");
+
+      var inventoryRows = [];
+      var orderList = [];
+      var activeOrder = null;
+      var orderRows = [];
+      var activeStatus = "all";
+
+      function resolveApiBase() {
+        var queryValue = new URLSearchParams(window.location.search).get("api");
+        var base = queryValue && queryValue.trim() ? queryValue.trim() : window.location.origin;
+        return base.replace(/\/+$/, "");
+      }
+
+      var API_BASE = resolveApiBase();
+
+      function apiUrl(path) {
+        return API_BASE + (path.charAt(0) === "/" ? path : "/" + path);
+      }
+
+      function setStatus(message, mode) {
+        if (!mode) mode = "info";
+        statusPill.textContent = message;
+        statusPill.classList.remove("info", "ok", "err");
+        statusPill.classList.add(mode);
+      }
+
+      async function parseApiError(response) {
+        var raw = await response.text();
+        if (!raw) return "HTTP " + response.status;
+        try {
+          var parsed = JSON.parse(raw);
+          if (parsed && typeof parsed.detail === "string") return parsed.detail;
+        } catch (_error) {}
+        return raw;
+      }
+
+      function escapeHtml(text) {
+        var div = document.createElement("div");
+        div.textContent = text == null ? "" : String(text);
+        return div.innerHTML;
+      }
+
+      function asNonNegativeNumber(value) {
+        var num = Number(value);
+        if (!Number.isFinite(num) || num <= 0) return 0;
+        return Math.round(num * 1000) / 1000;
+      }
+
+      function formatQty(value) {
+        var num = Number(value);
+        if (!Number.isFinite(num)) return "0";
+        if (Math.abs(num - Math.round(num)) < 0.000001) return String(Math.round(num));
+        return String(Math.round(num * 100) / 100);
+      }
+
+      function normalizePurchaseUnit(value) {
+        var raw = String(value || "").trim().toLowerCase();
+        if (!raw || raw === "unit" || raw === "units" || raw === "each" || raw === "ea") return "unit";
+        if (raw === "cases" || raw === "cs") return "case";
+        if (raw === "packs") return "pack";
+        return raw;
+      }
+
+      function deriveRowStatus(row) {
+        if (row.toOrderQty <= 0) return "SUFFICIENT";
+        if (row.receivedQty >= row.toOrderQty) return "RECEIVED";
+        if (row.receivedQty > 0) return "PARTIAL";
+        if (row.orderedQty > 0) return "ORDERED";
+        return "NOT_ORDERED";
+      }
+
+      function statusLabel(status) {
+        if (status === "NOT_ORDERED") return "Not Ordered";
+        if (status === "ORDERED") return "Ordered";
+        if (status === "PARTIAL") return "Partial";
+        if (status === "RECEIVED") return "Received";
+        return "Sufficient";
+      }
+
+      function statusClass(status) {
+        if (status === "NOT_ORDERED") return "not-ordered";
+        if (status === "ORDERED") return "ordered";
+        if (status === "PARTIAL") return "partial";
+        if (status === "RECEIVED") return "received";
+        return "sufficient";
+      }
+
+      function recomputeRow(row) {
+        row.requiredQty = asNonNegativeNumber(row.requiredQty);
+        row.purchaseUnit = normalizePurchaseUnit(row.purchaseUnit);
+        row.unitsPerPurchase = asNonNegativeNumber(row.unitsPerPurchase);
+        if (row.unitsPerPurchase <= 0) row.unitsPerPurchase = 1;
+        row.orderedPurchaseQty = asNonNegativeNumber(row.orderedPurchaseQty);
+        row.receivedPurchaseQty = asNonNegativeNumber(row.receivedPurchaseQty);
+
+        if (row.purchaseUnit === "unit") {
+          row.unitsPerPurchase = 1;
+          row.orderedQty = asNonNegativeNumber(row.orderedPurchaseQty);
+          row.receivedQty = asNonNegativeNumber(row.receivedPurchaseQty);
+        } else {
+          row.orderedQty = asNonNegativeNumber(row.orderedPurchaseQty * row.unitsPerPurchase);
+          row.receivedQty = asNonNegativeNumber(row.receivedPurchaseQty * row.unitsPerPurchase);
+        }
+
+        if (row.receivedQty > row.orderedQty) {
+          row.orderedQty = row.receivedQty;
+          if (row.purchaseUnit === "unit") {
+            row.orderedPurchaseQty = row.receivedQty;
+          } else {
+            row.orderedPurchaseQty = row.unitsPerPurchase > 0 ? row.receivedQty / row.unitsPerPurchase : row.receivedQty;
+          }
+        }
+
+        row.toOrderQty = Math.max(0, Math.round((row.requiredQty - row.currentStock) * 1000) / 1000);
+        row.status = deriveRowStatus(row);
+      }
+
+      function buildOrderRows() {
+        var byInventoryId = {};
+        if (activeOrder && Array.isArray(activeOrder.items)) {
+          activeOrder.items.forEach(function (item) {
+            byInventoryId[Number(item.inventory_item_id)] = item;
+          });
+        }
+
+        orderRows = inventoryRows.map(function (inventory) {
+          var itemId = Number(inventory.id);
+          var orderItem = byInventoryId[itemId] || null;
+          var row = {
+            itemId: itemId,
+            name: orderItem && orderItem.item_name_snapshot ? orderItem.item_name_snapshot : (inventory.item_name || "Unknown"),
+            barcode: inventory.barcode || "",
+            categoryName: inventory.category || "",
+            unit: orderItem && orderItem.unit_snapshot ? orderItem.unit_snapshot : (inventory.unit || "each"),
+            requiredQty: orderItem ? asNonNegativeNumber(orderItem.required_quantity) : 0,
+            currentStock: orderItem ? asNonNegativeNumber(orderItem.current_quantity_snapshot) : asNonNegativeNumber(inventory.quantity),
+            orderedQty: orderItem ? asNonNegativeNumber(orderItem.ordered_quantity) : 0,
+            receivedQty: orderItem ? asNonNegativeNumber(orderItem.received_quantity) : 0,
+            purchaseUnit: orderItem ? normalizePurchaseUnit(orderItem.purchase_unit || "unit") : "unit",
+            unitsPerPurchase: orderItem ? asNonNegativeNumber(orderItem.units_per_purchase || 1) : 1,
+            orderedPurchaseQty: orderItem ? asNonNegativeNumber(orderItem.ordered_purchase_quantity || 0) : 0,
+            receivedPurchaseQty: orderItem ? asNonNegativeNumber(orderItem.received_purchase_quantity || 0) : 0,
+            orderUrlOverride: orderItem ? (orderItem.order_url_override || "") : "",
+            notes: orderItem ? (orderItem.notes || "") : "",
+            toOrderQty: 0,
+            status: "NOT_ORDERED",
+          };
+          if (row.orderedPurchaseQty <= 0 && row.orderedQty > 0) {
+            row.orderedPurchaseQty = row.unitsPerPurchase > 0 ? row.orderedQty / row.unitsPerPurchase : row.orderedQty;
+          }
+          if (row.receivedPurchaseQty <= 0 && row.receivedQty > 0) {
+            row.receivedPurchaseQty = row.unitsPerPurchase > 0 ? row.receivedQty / row.unitsPerPurchase : row.receivedQty;
+          }
+          recomputeRow(row);
+          return row;
+        }).filter(function (row) {
+          return row.requiredQty > 0 || row.orderedQty > 0 || row.receivedQty > 0 || row.toOrderQty > 0;
+        });
+
+        orderRows.sort(function (a, b) {
+          return String(a.name || "").localeCompare(String(b.name || ""));
+        });
+      }
+
+      function getFilteredRows() {
+        return orderRows.filter(function (row) {
+          if (activeStatus !== "all" && row.status !== activeStatus) return false;
+          return true;
+        });
+      }
+
+      function renderStats() {
+        var orderedCount = 0;
+        var pendingCount = 0;
+        var receivedCount = 0;
+
+        orderRows.forEach(function (row) {
+          if (row.orderedQty > 0 || row.receivedQty > 0) orderedCount++;
+          if (row.status === "ORDERED" || row.status === "PARTIAL") pendingCount++;
+          if (row.status === "RECEIVED") receivedCount++;
+        });
+
+        statOrdered.textContent = String(orderedCount);
+        statPending.textContent = String(pendingCount);
+        statReceived.textContent = String(receivedCount);
+      }
+
+      function renderOrderSelect() {
+        orderSelect.innerHTML = "";
+        if (!orderList.length) {
+          var noneOption = document.createElement("option");
+          noneOption.value = "";
+          noneOption.textContent = "No orders";
+          orderSelect.appendChild(noneOption);
+          return;
+        }
+        orderList.forEach(function (order) {
+          var option = document.createElement("option");
+          option.value = String(order.id);
+          option.textContent = order.name + " (" + order.status + ")";
+          if (activeOrder && Number(activeOrder.id) === Number(order.id)) option.selected = true;
+          orderSelect.appendChild(option);
+        });
+      }
+
+      function renderTable() {
+        var rows = getFilteredRows();
+        receivingBody.innerHTML = "";
+
+        if (!rows.length) {
+          receivingBody.innerHTML = '<tr><td colspan="9" class="text-muted small">No lines match this filter.</td></tr>';
+          renderStats();
+          return;
+        }
+
+        rows.forEach(function (row) {
+          var tr = document.createElement("tr");
+          tr.dataset.itemId = String(row.itemId);
+
+          var tdItem = document.createElement("td");
+          tdItem.innerHTML =
+            '<div class="fw-semibold">' + escapeHtml(row.name) + '</div>' +
+            (row.barcode ? '<div class="text-muted small">' + escapeHtml(row.barcode) + '</div>' : '');
+          tr.appendChild(tdItem);
+
+          var tdCategory = document.createElement("td");
+          tdCategory.textContent = row.categoryName || "-";
+          tr.appendChild(tdCategory);
+
+          var tdToOrder = document.createElement("td");
+          tdToOrder.innerHTML = '<span class="fw-semibold">' + escapeHtml(formatQty(row.toOrderQty)) + '</span>';
+          tr.appendChild(tdToOrder);
+
+          var tdPurchaseUnit = document.createElement("td");
+          tdPurchaseUnit.innerHTML =
+            '<select class="form-select form-select-sm purchase-unit-select" data-item-id="' + row.itemId + '" data-field="purchase-unit">' +
+              '<option value="unit"' + (row.purchaseUnit === "unit" ? " selected" : "") + '>unit</option>' +
+              '<option value="case"' + (row.purchaseUnit === "case" ? " selected" : "") + '>case</option>' +
+              '<option value="pack"' + (row.purchaseUnit === "pack" ? " selected" : "") + '>pack</option>' +
+            '</select>';
+          tr.appendChild(tdPurchaseUnit);
+
+          var tdUnitsPerPurchase = document.createElement("td");
+          tdUnitsPerPurchase.innerHTML =
+            '<input type="number" min="0.001" step="0.01" class="form-control form-control-sm qty-input" ' +
+            'data-item-id="' + row.itemId + '" data-field="units-per-purchase" value="' + escapeHtml(formatQty(row.unitsPerPurchase)) + '"' +
+            (row.purchaseUnit === "unit" ? " disabled" : "") + '>';
+          tr.appendChild(tdUnitsPerPurchase);
+
+          var tdOrderedQty = document.createElement("td");
+          tdOrderedQty.innerHTML =
+            '<input type="number" min="0" step="0.01" class="form-control form-control-sm qty-input" data-item-id="' + row.itemId + '" data-field="ordered-purchase" value="' + escapeHtml(formatQty(row.orderedPurchaseQty)) + '">' +
+            '<div class="qty-helper">= ' + escapeHtml(formatQty(row.orderedQty)) + ' ' + escapeHtml(row.unit || "units") + '</div>';
+          tr.appendChild(tdOrderedQty);
+
+          var tdReceivedQty = document.createElement("td");
+          tdReceivedQty.innerHTML =
+            '<input type="number" min="0" step="0.01" class="form-control form-control-sm qty-input" data-item-id="' + row.itemId + '" data-field="received-purchase" value="' + escapeHtml(formatQty(row.receivedPurchaseQty)) + '">' +
+            '<div class="qty-helper">= ' + escapeHtml(formatQty(row.receivedQty)) + ' ' + escapeHtml(row.unit || "units") + '</div>';
+          tr.appendChild(tdReceivedQty);
+
+          var tdStatus = document.createElement("td");
+          tdStatus.innerHTML = '<span class="status-chip ' + statusClass(row.status) + '">' + statusLabel(row.status) + '</span>';
+          tr.appendChild(tdStatus);
+
+          var tdNotes = document.createElement("td");
+          tdNotes.innerHTML =
+            '<input type="text" class="form-control form-control-sm" data-item-id="' + row.itemId + '" data-field="notes" value="' + escapeHtml(row.notes || '') + '" placeholder="Optional notes">';
+          tr.appendChild(tdNotes);
+
+          receivingBody.appendChild(tr);
+        });
+
+        renderStats();
+      }
+
+      function getRowByItemId(itemId) {
+        return orderRows.find(function (row) { return row.itemId === itemId; }) || null;
+      }
+
+      async function fetchInventory() {
+        var response = await fetch(apiUrl("/api/inventory"), { credentials: "include" });
+        if (!response.ok) throw new Error(await parseApiError(response));
+        var payload = await response.json();
+        inventoryRows = Array.isArray(payload) ? payload : [];
+      }
+
+      async function fetchOrderList() {
+        var response = await fetch(apiUrl("/api/inventory/orders"), { credentials: "include" });
+        if (!response.ok) throw new Error(await parseApiError(response));
+        var payload = await response.json();
+        orderList = (Array.isArray(payload) ? payload : []).filter(function (order) {
+          return order.status !== "DRAFT" || Number(order.relevant_item_count || 0) > 0;
+        });
+      }
+
+      async function fetchOrderDetail(orderId) {
+        var response = await fetch(apiUrl("/api/inventory/orders/" + orderId), { credentials: "include" });
+        if (!response.ok) throw new Error(await parseApiError(response));
+        return response.json();
+      }
+
+      async function loadOrderById(orderId) {
+        activeOrder = await fetchOrderDetail(orderId);
+        renderOrderSelect();
+        orderNameInput.value = activeOrder.name || "";
+        orderNotesInput.value = activeOrder.notes || "";
+        buildOrderRows();
+        renderTable();
+      }
+
+      function collectPayloadItems() {
+        return orderRows
+          .filter(function (row) {
+            return row.requiredQty > 0 || row.orderedQty > 0 || row.receivedQty > 0 || row.toOrderQty > 0 || String(row.notes || "").trim();
+          })
+          .map(function (row) {
+            return {
+              inventoryItemId: row.itemId,
+              requiredQuantity: row.requiredQty,
+              orderedQuantity: row.orderedQty,
+              receivedQuantity: row.receivedQty,
+              purchaseUnit: row.purchaseUnit || "unit",
+              unitsPerPurchase: row.unitsPerPurchase > 0 ? row.unitsPerPurchase : 1,
+              orderedPurchaseQuantity: row.orderedPurchaseQty,
+              receivedPurchaseQuantity: row.receivedPurchaseQty,
+              orderUrlOverride: String(row.orderUrlOverride || "").trim() || null,
+              notes: String(row.notes || "").trim() || null,
+            };
+          });
+      }
+
+      async function saveReceipts() {
+        if (!activeOrder || !activeOrder.id) throw new Error("No active order selected.");
+        setStatus("Saving receipt updates...", "info");
+        var response = await fetch(apiUrl("/api/inventory/orders/" + activeOrder.id), {
+          method: "PATCH",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            name: String(orderNameInput.value || "").trim(),
+            notes: String(orderNotesInput.value || "").trim() || null,
+            items: collectPayloadItems(),
+          }),
+        });
+        if (!response.ok) throw new Error(await parseApiError(response));
+        activeOrder = await response.json();
+        await fetchOrderList();
+        renderOrderSelect();
+        buildOrderRows();
+        renderTable();
+        setStatus("Receipt updates saved.", "ok");
+      }
+
+      async function refreshAll(options) {
+        var preserveOrder = !options || options.preserveOrder !== false;
+        var previousId = preserveOrder && activeOrder ? Number(activeOrder.id) : null;
+        setStatus("Loading receiving workspace...", "info");
+        await fetchInventory();
+        await fetchOrderList();
+        if (!orderList.length) {
+          orderSelect.innerHTML = '<option value="">No orders found</option>';
+          activeOrder = null;
+          orderRows = [];
+          renderTable();
+          setStatus("No orders available yet.", "ok");
+          return;
+        }
+
+        var targetId = previousId && orderList.some(function (order) { return Number(order.id) === previousId; })
+          ? previousId
+          : Number(orderList[0].id);
+        await loadOrderById(targetId);
+        setStatus("Receiving workspace ready.", "ok");
+      }
+
+      orderSelect.addEventListener("change", function () {
+        var selectedId = Number(orderSelect.value);
+        if (!selectedId) return;
+        void loadOrderById(selectedId).catch(function (error) {
+          setStatus(error instanceof Error ? error.message : "Could not load order.", "err");
+        });
+      });
+
+      statusFilters.addEventListener("click", function (event) {
+        var target = event.target;
+        if (!(target instanceof HTMLElement)) return;
+        var pill = target.closest(".filter-pill");
+        if (!(pill instanceof HTMLElement)) return;
+        activeStatus = pill.dataset.status || "all";
+        Array.from(statusFilters.querySelectorAll(".filter-pill")).forEach(function (node) {
+          node.classList.remove("active");
+        });
+        pill.classList.add("active");
+        renderTable();
+      });
+
+      receivingBody.addEventListener("change", function (event) {
+        var target = event.target;
+        if (!(target instanceof HTMLElement)) return;
+        var itemId = Number(target.getAttribute("data-item-id"));
+        if (!itemId) return;
+        var row = getRowByItemId(itemId);
+        if (!row) return;
+
+        var field = target.getAttribute("data-field") || "";
+        if (field === "purchase-unit" && target instanceof HTMLSelectElement) {
+          row.purchaseUnit = normalizePurchaseUnit(target.value);
+          recomputeRow(row);
+          renderTable();
+          return;
+        }
+        if (field === "units-per-purchase" && target instanceof HTMLInputElement) {
+          row.unitsPerPurchase = asNonNegativeNumber(target.value);
+          recomputeRow(row);
+          renderTable();
+          return;
+        }
+        if (field === "ordered-purchase" && target instanceof HTMLInputElement) {
+          row.orderedPurchaseQty = asNonNegativeNumber(target.value);
+          recomputeRow(row);
+          renderTable();
+          return;
+        }
+        if (field === "received-purchase" && target instanceof HTMLInputElement) {
+          row.receivedPurchaseQty = asNonNegativeNumber(target.value);
+          recomputeRow(row);
+          renderTable();
+          return;
+        }
+        if (field === "notes" && target instanceof HTMLInputElement) {
+          row.notes = target.value || "";
+        }
+      });
+
+      refreshBtn.addEventListener("click", function () {
+        void refreshAll({ preserveOrder: true }).catch(function (error) {
+          setStatus(error instanceof Error ? error.message : "Could not refresh receiving data.", "err");
+        });
+      });
+
+      saveBtn.addEventListener("click", function () {
+        void saveReceipts().catch(function (error) {
+          setStatus(error instanceof Error ? error.message : "Could not save receiving updates.", "err");
+        });
+      });
+
+      async function init() {
+        try {
+          await refreshAll({ preserveOrder: false });
+        } catch (error) {
+          setStatus(error instanceof Error ? error.message : "Could not load receiving page.", "err");
+        }
+      }
+
+      void init();
+    </script>
+  </body>
+</html>

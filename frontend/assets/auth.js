@@ -25,7 +25,13 @@
     "/kitchen-service-view.html": ["viewer", "planner", "admin"],
     "/kitchen-test-view.html": ["viewer", "planner", "admin"],
     "/recipe-scaling.html": ["viewer", "planner", "admin"],
+    "/inventory-home.html": ["viewer", "planner", "admin"],
     "/inventory-baseline.html": ["viewer", "planner", "admin"],
+    "/inventory-current.html": ["viewer", "planner", "admin"],
+    "/inventory-orders.html": ["viewer", "planner", "admin"],
+    "/inventory-receiving.html": ["viewer", "planner", "admin"],
+    "/inventory-add.html": ["viewer", "planner", "admin"],
+    "/inventory-remove.html": ["viewer", "planner", "admin"],
     "/inventory.html": ["viewer", "planner", "admin"],
     "/retreat-inventory.html": ["viewer", "planner", "admin"],
     "/change-password.html": ["viewer", "planner", "admin"],
@@ -162,34 +168,6 @@
       }
     });
 
-    // Keep Inventory dropdown expanded when the current route is one of its submenu pages.
-    const inventoryDropdowns = Array.from(document.querySelectorAll(".navbar .nav-item.dropdown"))
-      .filter((dropdown) => Boolean(dropdown.querySelector(".dropdown-toggle .fa-boxes-stacked")));
-    inventoryDropdowns.forEach((dropdown) => {
-      if (dropdown.classList.contains("d-none")) {
-        return;
-      }
-      const toggle = dropdown.querySelector(".dropdown-toggle");
-      const menu = dropdown.querySelector(".dropdown-menu");
-      if (!toggle || !menu) {
-        return;
-      }
-      const matchingItems = Array.from(dropdown.querySelectorAll(".dropdown-item[href]"))
-        .filter((item) => {
-          if (item.classList.contains("d-none")) {
-            return false;
-          }
-          const path = resolvePathnameFromHref(item.getAttribute("href") || "");
-          return path && routeCandidates.includes(path);
-        });
-      if (!matchingItems.length) {
-        return;
-      }
-      dropdown.classList.add("show");
-      menu.classList.add("show");
-      toggle.classList.add("show", "active");
-      toggle.setAttribute("aria-expanded", "true");
-    });
   }
 
   function ensureGuestLoginCta(role) {

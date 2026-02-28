@@ -16,6 +16,9 @@ RENDER_REMOTE_DB_PATH="${RENDER_REMOTE_DB_PATH:-/opt/render/project/src/backend/
 LOCAL_DB_PATH="${LOCAL_DB_PATH:-${BACKEND_DIR}/data/retreat_ops.db}"
 SKIP_REMOTE_BACKUP=0
 SYNC_SCOPE="${SYNC_SCOPE:-full}"
+TMP_REMOTE_DB_LOCAL_PATH=""
+TMP_LOCAL_UPLOAD_PATH=""
+LOCAL_UPLOAD_PATH="${LOCAL_DB_PATH}"
 
 usage() {
   cat <<'EOF'
@@ -124,10 +127,10 @@ require_cmd scp
 require_cmd date
 
 PY_BIN=""
-if [[ "${SYNC_SCOPE}" == "inventory" ]]; then
+if [[ "${SYNC_SCOPE}" == "inventory" || "${SYNC_SCOPE}" == "full" ]]; then
   PY_BIN="$(resolve_python_bin || true)"
   if [[ -z "${PY_BIN}" ]]; then
-    echo "Missing required command for inventory scope: python3 or python" >&2
+    echo "Missing required command for ${SYNC_SCOPE} scope: python3 or python" >&2
     exit 1
   fi
 fi
@@ -156,9 +159,43 @@ REMOTE_UPLOAD_PATH="${REMOTE_DIR}/retreat_ops-upload-${TIMESTAMP}.db"
 REMOTE_SNAPSHOT_PATH="${REMOTE_DIR}/retreat_ops-snapshot-${TIMESTAMP}.db"
 REMOTE_BACKUP_PATH="${RENDER_REMOTE_DB_PATH}.pre-sync-${TIMESTAMP}"
 
+cleanup() {
+  if [[ -n "${TMP_REMOTE_DB_LOCAL_PATH:-}" ]]; then
+    rm -f "${TMP_REMOTE_DB_LOCAL_PATH}" || true
+  fi
+  if [[ -n "${TMP_LOCAL_UPLOAD_PATH:-}" ]]; then
+    rm -f "${TMP_LOCAL_UPLOAD_PATH}" || true
+  fi
+}
+trap cleanup EXIT
+
 if [[ "${SYNC_SCOPE}" == "full" ]]; then
-  echo "Uploading local DB ${LOCAL_DB_PATH} -> ${REMOTE_UPLOAD_PATH} ..."
-  scp "${SCP_OPTS[@]}" "${LOCAL_DB_PATH}" "${TARGET}:${REMOTE_UPLOAD_PATH}"
+  TMP_LOCAL_UPLOAD_PATH="${LOCAL_DB_PATH}.upload-${TIMESTAMP}.db"
+  LOCAL_UPLOAD_PATH="${TMP_LOCAL_UPLOAD_PATH}"
+
+  echo "Creating local SQLite snapshot ${LOCAL_DB_PATH} -> ${LOCAL_UPLOAD_PATH} ..."
+  "${PY_BIN}" - <<PY
+import sqlite3
+from pathlib import Path
+
+source_db = Path(r'''${LOCAL_DB_PATH}''')
+snapshot_db = Path(r'''${LOCAL_UPLOAD_PATH}''')
+if snapshot_db.exists():
+    snapshot_db.unlink()
+
+source_conn = sqlite3.connect(source_db)
+try:
+    snapshot_conn = sqlite3.connect(snapshot_db)
+    try:
+        source_conn.backup(snapshot_conn)
+    finally:
+        snapshot_conn.close()
+finally:
+    source_conn.close()
+PY
+
+  echo "Uploading local snapshot ${LOCAL_UPLOAD_PATH} -> ${REMOTE_UPLOAD_PATH} ..."
+  scp "${SCP_OPTS[@]}" "${LOCAL_UPLOAD_PATH}" "${TARGET}:${REMOTE_UPLOAD_PATH}"
 else
   TMP_REMOTE_DB_LOCAL_PATH="${LOCAL_DB_PATH}.remote-${TIMESTAMP}"
 
@@ -295,7 +332,6 @@ PY
 
   echo "Uploading inventory-merged DB ${TMP_REMOTE_DB_LOCAL_PATH} -> ${REMOTE_UPLOAD_PATH} ..."
   scp "${SCP_OPTS[@]}" "${TMP_REMOTE_DB_LOCAL_PATH}" "${TARGET}:${REMOTE_UPLOAD_PATH}"
-  rm -f "${TMP_REMOTE_DB_LOCAL_PATH}"
 fi
 
 if [[ "${SKIP_REMOTE_BACKUP}" -eq 0 ]]; then

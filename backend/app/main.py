@@ -4209,6 +4209,162 @@ def normalize_lookup_barcode_candidate(value: Any) -> str | None:
     return digits
 
 
+def parse_inventory_product_catalog_row(row: Any) -> dict[str, Any] | None:
+    source = normalize_optional_text(row["source"]) or "catalog"
+    barcode = normalize_lookup_barcode_candidate(row["barcode"])
+    name = normalize_optional_text(row["product_name"])
+    brand = normalize_optional_text(row["brand"])
+    category = normalize_inventory_category(row["category"])
+    if not category:
+        category = infer_inventory_category_from_text(
+            name,
+            brand,
+            row["source_sku"],
+            row["notes"],
+            row["product_url"],
+        )
+    unit = normalize_optional_text(row["unit"]) or infer_inventory_unit_from_text(name)
+    image_url = normalize_optional_text(row["image_url"])
+    product_url = normalize_optional_text(row["product_url"])
+    source_sku = normalize_optional_text(row["source_sku"])
+
+    if not any([barcode, name, category, unit, image_url, product_url]):
+        return None
+
+    return {
+        "source": source,
+        "barcode": barcode,
+        "name": name,
+        "brand": brand,
+        "category": category,
+        "unit": unit,
+        "image_url": image_url,
+        "product_url": product_url,
+        "source_sku": source_sku,
+    }
+
+
+def lookup_product_inventory_catalog(barcode: str) -> dict[str, Any] | None:
+    normalized_barcode = normalize_lookup_barcode_candidate(barcode)
+    if not normalized_barcode:
+        return None
+
+    with get_connection() as conn:
+        if not table_exists(conn, "inventory_product_catalog"):
+            return None
+        rows = conn.execute(
+            """
+            SELECT
+                source,
+                barcode,
+                product_name,
+                brand,
+                category,
+                unit,
+                image_url,
+                product_url,
+                source_sku,
+                notes
+            FROM inventory_product_catalog
+            WHERE barcode = ?
+            ORDER BY
+                CASE WHEN lower(source) = 'webstaurantstore' THEN 0 ELSE 1 END,
+                updated_at DESC,
+                id DESC
+            LIMIT 10
+            """,
+            (normalized_barcode,),
+        ).fetchall()
+
+    hits: list[dict[str, Any]] = []
+    for row in rows:
+        parsed = parse_inventory_product_catalog_row(row)
+        if not parsed:
+            continue
+        hits.append(parsed)
+    if not hits:
+        return None
+
+    merged: dict[str, Any] = {"source": None}
+    for hit in hits:
+        merged["source"] = merge_lookup_source_names(merged.get("source"), hit.get("source"))
+        for key in ("name", "category", "unit", "image_url"):
+            if not merged.get(key) and hit.get(key):
+                merged[key] = hit[key]
+    if not any(merged.get(key) for key in ("name", "category", "unit", "image_url")):
+        return None
+    return merged
+
+
+def search_inventory_product_catalog(query: str, *, limit: int = 12) -> list[dict[str, Any]]:
+    search_query = normalize_lookup_query(query)
+    if not search_query:
+        return []
+    bounded_limit = max(1, min(int(limit), 60))
+    like_pattern = f"%{search_query.lower()}%"
+    barcode_digits = re.sub(r"\D+", "", search_query)
+    barcode_like = f"%{barcode_digits}%"
+
+    with get_connection() as conn:
+        if not table_exists(conn, "inventory_product_catalog"):
+            return []
+        rows = conn.execute(
+            """
+            SELECT
+                source,
+                barcode,
+                product_name,
+                brand,
+                category,
+                unit,
+                image_url,
+                product_url,
+                source_sku,
+                notes
+            FROM inventory_product_catalog
+            WHERE
+                lower(COALESCE(product_name, '')) LIKE ?
+                OR lower(COALESCE(brand, '')) LIKE ?
+                OR lower(COALESCE(category, '')) LIKE ?
+                OR lower(COALESCE(source_sku, '')) LIKE ?
+                OR lower(COALESCE(product_url, '')) LIKE ?
+                OR (? != '' AND barcode LIKE ?)
+            ORDER BY
+                CASE WHEN lower(source) = 'webstaurantstore' THEN 0 ELSE 1 END,
+                updated_at DESC,
+                id DESC
+            LIMIT ?
+            """,
+            (
+                like_pattern,
+                like_pattern,
+                like_pattern,
+                like_pattern,
+                like_pattern,
+                barcode_digits,
+                barcode_like,
+                bounded_limit,
+            ),
+        ).fetchall()
+
+    hits: list[dict[str, Any]] = []
+    seen: set[tuple[str, str]] = set()
+    for row in rows:
+        parsed = parse_inventory_product_catalog_row(row)
+        if not parsed:
+            continue
+        barcode_key = str(parsed.get("barcode") or "")
+        name_key = str(parsed.get("name") or "").strip().lower()
+        dedupe_key = (barcode_key, name_key)
+        if dedupe_key in seen:
+            continue
+        seen.add(dedupe_key)
+        hits.append(parsed)
+        if len(hits) >= bounded_limit:
+            break
+    return hits
+
+
 def parse_open_facts_product_row(
     product: dict[str, Any],
     *,
@@ -4417,6 +4573,7 @@ def lookup_product_upcitemdb(barcode: str) -> dict[str, Any] | None:
 
 def lookup_inventory_product_metadata(barcode: str) -> dict[str, Any] | None:
     providers = [
+        lookup_product_inventory_catalog,
         lookup_product_open_products_facts,
         lookup_product_open_beauty_facts,
         lookup_product_open_food_facts,
@@ -4461,6 +4618,7 @@ def search_inventory_product_metadata(query: str, *, limit: int = 12) -> list[di
     bounded_limit = max(1, min(int(limit), 60))
     provider_limit = max(2, min(8, bounded_limit))
     providers = [
+        lambda q: search_inventory_product_catalog(q, limit=provider_limit),
         lambda q: search_products_open_facts_catalog(
             q,
             endpoint=OPEN_PRODUCTS_FACTS_SEARCH_ENDPOINT,

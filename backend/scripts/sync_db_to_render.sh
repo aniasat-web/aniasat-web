@@ -137,8 +137,8 @@ if [[ -n "${RENDER_SSH_KEY}" && ! -f "${RENDER_SSH_KEY}" ]]; then
   exit 1
 fi
 
-SSH_OPTS=(-o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ServerAliveInterval=30)
-SCP_OPTS=(-o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ServerAliveInterval=30)
+SSH_OPTS=(-o BatchMode=yes -o StrictHostKeyChecking=accept-new -o UpdateHostKeys=no -o ServerAliveInterval=30)
+SCP_OPTS=(-o BatchMode=yes -o StrictHostKeyChecking=accept-new -o UpdateHostKeys=no -o ServerAliveInterval=30)
 
 if [[ -n "${RENDER_SSH_PORT}" ]]; then
   SSH_OPTS+=(-p "${RENDER_SSH_PORT}")
@@ -153,6 +153,7 @@ TARGET="${RENDER_SSH_USER}@${RENDER_SSH_HOST}"
 TIMESTAMP="$(date -u +%Y%m%d-%H%M%S)"
 REMOTE_DIR="$(dirname "${RENDER_REMOTE_DB_PATH}")"
 REMOTE_UPLOAD_PATH="${REMOTE_DIR}/retreat_ops-upload-${TIMESTAMP}.db"
+REMOTE_SNAPSHOT_PATH="${REMOTE_DIR}/retreat_ops-snapshot-${TIMESTAMP}.db"
 REMOTE_BACKUP_PATH="${RENDER_REMOTE_DB_PATH}.pre-sync-${TIMESTAMP}"
 
 if [[ "${SYNC_SCOPE}" == "full" ]]; then
@@ -161,8 +162,15 @@ if [[ "${SYNC_SCOPE}" == "full" ]]; then
 else
   TMP_REMOTE_DB_LOCAL_PATH="${LOCAL_DB_PATH}.remote-${TIMESTAMP}"
 
-  echo "Downloading remote DB ${RENDER_REMOTE_DB_PATH} -> ${TMP_REMOTE_DB_LOCAL_PATH} ..."
-  scp "${SCP_OPTS[@]}" "${TARGET}:${RENDER_REMOTE_DB_PATH}" "${TMP_REMOTE_DB_LOCAL_PATH}"
+  echo "Creating remote SQLite snapshot ${RENDER_REMOTE_DB_PATH} -> ${REMOTE_SNAPSHOT_PATH} ..."
+  ssh "${SSH_OPTS[@]}" "${TARGET}" \
+    "set -euo pipefail; \
+     PY_BIN=\$(command -v python3 || command -v python); \
+     \"\${PY_BIN}\" -c \"import sqlite3; src=sqlite3.connect(r'''${RENDER_REMOTE_DB_PATH}'''); dst=sqlite3.connect(r'''${REMOTE_SNAPSHOT_PATH}'''); src.backup(dst); dst.close(); src.close()\""
+
+  echo "Downloading remote snapshot ${REMOTE_SNAPSHOT_PATH} -> ${TMP_REMOTE_DB_LOCAL_PATH} ..."
+  scp "${SCP_OPTS[@]}" "${TARGET}:${REMOTE_SNAPSHOT_PATH}" "${TMP_REMOTE_DB_LOCAL_PATH}"
+  ssh "${SSH_OPTS[@]}" "${TARGET}" "rm -f '${REMOTE_SNAPSHOT_PATH}'" || true
 
   echo "Applying inventory-only table overwrite from local DB snapshot ..."
   "${PY_BIN}" - <<PY
@@ -173,6 +181,7 @@ local_db = Path(r'''${LOCAL_DB_PATH}''')
 remote_db_local = Path(r'''${TMP_REMOTE_DB_LOCAL_PATH}''')
 
 inventory_tables = [
+    "inventory_product_catalog",
     "standalone_inventory",
     "inventory_items",
     "retreat_inventory_categories",
@@ -201,6 +210,26 @@ def table_columns(conn: sqlite3.Connection, table: str) -> list[str]:
     rows = conn.execute(f"PRAGMA table_info({qident(table)})").fetchall()
     return [str(row[1]) for row in rows]
 
+def create_table_from_local_schema(remote_conn: sqlite3.Connection, local_conn: sqlite3.Connection, table: str) -> bool:
+    table_row = local_conn.execute(
+        "SELECT sql FROM sqlite_master WHERE type='table' AND name = ?",
+        (table,),
+    ).fetchone()
+    if not table_row or not table_row[0]:
+        return False
+
+    remote_conn.execute(str(table_row[0]))
+
+    index_rows = local_conn.execute(
+        "SELECT sql FROM sqlite_master WHERE type='index' AND tbl_name = ? AND sql IS NOT NULL",
+        (table,),
+    ).fetchall()
+    for index_row in index_rows:
+        sql = str(index_row[0] or "").strip()
+        if sql:
+            remote_conn.execute(sql)
+    return True
+
 remote_conn = sqlite3.connect(remote_db_local)
 remote_conn.row_factory = sqlite3.Row
 local_conn = sqlite3.connect(local_db)
@@ -211,8 +240,11 @@ try:
     remote_conn.execute("BEGIN")
     for table in inventory_tables:
         if not table_exists(remote_conn, table):
-            print(f"SKIP {table}: missing in remote DB")
-            continue
+            if table_exists(local_conn, table) and create_table_from_local_schema(remote_conn, local_conn, table):
+                print(f"CREATE {table}: created in remote DB from local schema")
+            else:
+                print(f"SKIP {table}: missing in remote DB and unavailable in local schema")
+                continue
         if not table_exists(local_conn, table):
             print(f"SKIP {table}: missing in local DB")
             continue

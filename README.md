@@ -151,7 +151,7 @@ Volunteer-focused storage inventory for campus supplies:
 - If barcode already exists in inventory, auto-fills stored location and opens confirm/update flow for current quantity.
 - If barcode is new, volunteers can bind it to an existing imported item on first scan.
 - Uses shelf-grid locations in the format `A1` through `Z99` (`A1`-`A20` preferred for new shelf mapping).
-- Lookup providers: Open Products Facts, Open Beauty Facts, Open Food Facts, plus UPCItemDB (optional auth via `UPCITEMDB_API_KEY`).
+- Lookup providers: local `inventory_product_catalog` (for example Webstaurant UPC imports), Open Products Facts, Open Beauty Facts, Open Food Facts, plus UPCItemDB (optional auth via `UPCITEMDB_API_KEY`).
 - Legacy `retreat-inventory.html` now redirects to `inventory.html` so teams use one inventory workflow.
 
 ### Inventory Background (Shared Project Context)
@@ -160,6 +160,15 @@ Canonical project background is maintained in `AGENTS.md` at the repo root.
 Keep that file updated so new sessions start with the same Inventory context.
 
 ### Inventory Change Log
+
+#### 2026-02-28
+
+- Added local UPC catalog table `inventory_product_catalog` for store-specific lookup.
+- Barcode/equivalent-search now query local catalog first, ahead of external providers.
+- Added importer script:
+  - `backend/scripts/import_inventory_product_catalog.py`
+  - Supports Webstaurant CSV imports (source label: `webstaurantstore`).
+- Inventory-only Render sync now includes `inventory_product_catalog`.
 
 #### 2026-02-27
 
@@ -708,6 +717,32 @@ Notes:
 - `barcode` and direct `image_url` are often missing in spreadsheet data and can be filled later during scan-based updates.
 - `--resolve-image-from-links` attempts to fetch `og:image`/`twitter:image` from product links when available.
 
+### Import UPC catalog for store-specific barcode lookup (Webstaurant)
+
+Use this helper to import a CSV of UPC rows into `inventory_product_catalog`.
+This catalog is checked first during `/api/inventory/barcode-lookup/{barcode}`
+and included in equivalent-search industry matches.
+
+```bash
+# Dry-run (auto-detects CSV columns like upc/barcode, name, category, unit, url)
+python scripts/import_inventory_product_catalog.py \
+  --csv /tmp/webstaurant_upcs.csv
+
+# Apply and replace previously imported rows for source=webstaurantstore
+python scripts/import_inventory_product_catalog.py \
+  --csv /tmp/webstaurant_upcs.csv \
+  --source webstaurantstore \
+  --apply \
+  --replace-source
+```
+
+CSV tips:
+- Required: one UPC/barcode column (`upc`, `barcode`, `gtin`, etc.).
+- Optional fields: `product_name`/`name`, `brand`, `category`, `unit`,
+  `image_url`, `product_url`, `source_sku`, `notes`.
+- Example UPC row:
+  - `barcode=400015839112`, `product_name=Dish Sponges`, `source=webstaurantstore`
+
 ### Startup auto-seeding
 
 - On app startup, if master tables are empty and `backend/seeds/master_data.json` exists, the app auto-imports master data.
@@ -757,7 +792,7 @@ Notes:
   (`ingredients`, `recipes`, `retreats`, `retreat_plans`, shopping + service snapshot tables, etc.)
   and preserves local inventory tables (`standalone_inventory`, `retreat_inventory_*`, `inventory_items`).
 - `sync_db_to_render.sh --scope inventory` overwrites only inventory tables on Render
-  (`standalone_inventory`, `inventory_items`, and `retreat_inventory_*`).
+  (`inventory_product_catalog`, `standalone_inventory`, `inventory_items`, and `retreat_inventory_*`).
 - Default remote DB path is `/opt/render/project/src/backend/data/retreat_ops.db`.
 - `sync_db_to_render.sh` creates a remote pre-sync backup unless `--skip-remote-backup` is set.
 - Restart the Render service after push so all workers use the updated file.

@@ -106,16 +106,80 @@ Planner/admin workflow for procurement:
 - Assign source vendor per item.
 - Track item state with explicit `ordered` and `received` toggles.
 
-### Retreat Inventory (`retreat-inventory.html`)
+### Inventory Baseline (`inventory-baseline.html`)
 
-Scanner-first retreat supply inventory:
+Volunteer-first baseline counting workflow:
 
-- Create categories in `ITEM` or `CATEGORY` tracking mode.
-- Admin category manager supports view, edit, and activate/deactivate.
-- Create barcode-mapped items.
-- Store per-item shelf location within the main storage room.
-- Scan `IN`, `OUT`, or `ADJUSTMENT` transactions.
-- View current stock levels and transaction history.
+- No full-list editing on entry; scanner/search-first screen for one item at a time.
+- Scan barcode or search an item, then compare:
+  - current inventory data (qty/location/category/notes)
+  - industry lookup data (name/category/unit/image/source)
+- `Search Equivalent Item` returns mixed candidates from both:
+  - current inventory (`exact` + `similar` matches)
+  - industry lookup providers
+- Mixed-source candidate table supports:
+  - `Use Current` to load/update an existing inventory row
+  - `Apply Industry` to overwrite descriptive fields (name/category/unit/image)
+  - `Lookup` to pivot by candidate barcode
+- Merge shortcuts above the form support:
+  - `Use Current Candidate`
+  - `Apply Industry Details`
+  - `Apply Industry Image`
+- If scan has no exact inventory barcode match, flow stays in create mode by default;
+  users can still bind to an existing row or save a new item.
+- Applying industry image/details immediately updates the current-inventory panel preview before save.
+- Confirm quantity, unit, location, image, and save.
+- Optionally bind a newly scanned barcode to an existing imported item.
+- Mark baseline verification on save.
+
+### Inventory (`inventory.html`)
+
+Volunteer-focused storage inventory for campus supplies:
+
+- Scanner-first receive flow using wireless barcode scanners (keyboard wedge mode).
+- Barcode lookup endpoint enriches products from external catalogs.
+- Barcode lookup also returns similar current-inventory candidates when no exact barcode match exists.
+- Auto-fills product name, category, unit, and image when lookup succeeds.
+- Baseline mode supports scan-confirm-save with cleanup filters (`Pending Verify`, `Missing Image`, `Missing Barcode`, `Missing Location`).
+- Items can be marked baseline-verified during save (stored in notes as `[baseline-verified:YYYY-MM-DD]`).
+- Category normalization preserves `Cleaning`; only explicit infra aliases normalize to `Infra`.
+- Full inventory list supports inline item-name editing; changes are saved only when Enter is pressed.
+- Full inventory list supports inline category editing; changes are saved only when Enter is pressed.
+- Full inventory list supports inline notes editing; changes are saved only when Enter is pressed.
+- `order_url` is tracked separately from notes for replenishment links.
+- Import/source markers are removed from visible notes and stored in `import_source`.
+- If barcode already exists in inventory, auto-fills stored location and opens confirm/update flow for current quantity.
+- If barcode is new, volunteers can bind it to an existing imported item on first scan.
+- Uses shelf-grid locations in the format `A1` through `Z99` (`A1`-`A20` preferred for new shelf mapping).
+- Lookup providers: Open Products Facts, Open Beauty Facts, Open Food Facts, plus UPCItemDB (optional auth via `UPCITEMDB_API_KEY`).
+- Legacy `retreat-inventory.html` now redirects to `inventory.html` so teams use one inventory workflow.
+
+### Inventory Background (Shared Project Context)
+
+Canonical project background is maintained in `AGENTS.md` at the repo root.
+Keep that file updated so new sessions start with the same Inventory context.
+
+### Inventory Change Log
+
+#### 2026-02-27
+
+- Baseline scan form (`inventory-baseline.html`) now uses a **Category dropdown** instead of free text.
+  - Options are loaded from `GET /api/inventory/categories` with defaults (`Cleaning`, `Infra`).
+  - Industry-apply and current-item merge flows still populate category automatically.
+- Inventory navigation behavior was improved:
+  - Inventory dropdown remains active on shared routes that are linked from Inventory (for example `shopping-list.html`).
+  - Inventory dropdown auto-opens when user is on an Inventory submenu page.
+  - Fixed-top navbar z-index was set explicitly so nav stays above page-level sticky content.
+- Full inventory naming was clarified:
+  - `inventory.html` browser/page title now reads **Full Inventory**.
+- Added inventory-only Render sync mode:
+  - `backend/scripts/sync_db_to_render.sh --scope inventory`
+  - Syncs local inventory tables to Render without overwriting kitchen/planning tables.
+  - Synced on 2026-02-27 with counts:
+    - `standalone_inventory`: 396
+    - `inventory_items`: 50
+    - `retreat_inventory_items`: 0
+    - `retreat_inventory_transactions`: 0
 
 ### Recipe Admin (`recipe-admin.html`)
 
@@ -404,6 +468,17 @@ Base URL: `http://localhost:8000`
 | GET | `/api/purchase-tiers` | List supported purchase tiers (`bulk`, `fresh`, `daily`) |
 | GET | `/api/shopping-phases` | List supported shopping phases (`bulk`, `fresh`, `daily`, `custom`) |
 | GET | `/api/vendors` | List vendor/source options |
+| GET | `/api/inventory` | List general inventory records |
+| GET | `/api/inventory/categories` | List distinct general inventory categories |
+| GET | `/api/inventory/barcode-lookup/{barcode}` | Lookup barcode metadata, exact inventory match, and similar current-inventory candidates |
+| GET | `/api/inventory/equivalent-search` | Search both current inventory and industry sources for equivalent candidates |
+| POST | `/api/inventory/barcode-bind` | Bind a barcode to an existing inventory item |
+| POST | `/api/inventory` | Create general inventory record |
+| PUT | `/api/inventory/{item_id}` | Update general inventory record |
+| PATCH | `/api/inventory/{item_id}/item-name` | Update only item name for one inventory item |
+| PATCH | `/api/inventory/{item_id}/category` | Update only the category for one inventory item |
+| PATCH | `/api/inventory/{item_id}/notes` | Update only notes for one inventory item |
+| DELETE | `/api/inventory/{item_id}` | Delete general inventory record |
 | GET | `/api/shopping-lists` | List shopping lists with ordered/received rollups |
 | GET | `/api/shopping-lists/{shopping_list_id}` | Get a shopping list with item detail |
 | POST | `/api/shopping-lists/generate` | Generate a shopping list from a retreat plan |
@@ -603,6 +678,36 @@ Default column mapping for `Inventory - Food`:
 - storage qty: `D`
 - kitchen pantry (`E`) is intentionally not imported
 
+### Import non-food inventory for scanner workflow
+
+Use this helper to seed `standalone_inventory` from the workbook tab
+`Non-Food Inventory` (sheet match is case-insensitive).
+
+```bash
+# Dry-run
+python scripts/import_nonfood_inventory.py --xlsx "/mnt/nas_home/Spring 2026 Inventory File.xlsx"
+
+# Apply and replace only rows previously imported by this script
+python scripts/import_nonfood_inventory.py \
+  --xlsx "/mnt/nas_home/Spring 2026 Inventory File.xlsx" \
+  --apply \
+  --replace-existing-import
+
+# Optional: also try to resolve image URLs from product links in the sheet
+python scripts/import_nonfood_inventory.py \
+  --xlsx "/mnt/nas_home/Spring 2026 Inventory File.xlsx" \
+  --apply \
+  --replace-existing-import \
+  --resolve-image-from-links
+```
+
+Notes:
+- Imported rows are tracked via `standalone_inventory.import_source` (value: `nonfood-inventory`).
+- Product/order links are stored in `order_url` (when present in the workbook link columns).
+- Existing non-imported rows are left untouched.
+- `barcode` and direct `image_url` are often missing in spreadsheet data and can be filled later during scan-based updates.
+- `--resolve-image-from-links` attempts to fetch `og:image`/`twitter:image` from product links when available.
+
 ### Startup auto-seeding
 
 - On app startup, if master tables are empty and `backend/seeds/master_data.json` exists, the app auto-imports master data.
@@ -624,16 +729,35 @@ Pull Render -> local:
 scripts/sync_db_from_render.sh
 ```
 
+Pull only kitchen-related tables from Render and overwrite those tables locally
+while keeping local inventory tables untouched:
+
+```bash
+scripts/sync_db_from_render.sh --scope kitchen
+```
+
 Push local -> Render:
 
 ```bash
 scripts/sync_db_to_render.sh
 ```
 
+Push only inventory-related tables from local -> Render
+while preserving kitchen/planning tables on Render:
+
+```bash
+scripts/sync_db_to_render.sh --scope inventory
+```
+
 Notes:
 - You need SSH access configured in Render (service SSH user + your local SSH key).
 - Script defaults are preconfigured for this service user/host and auto-detect `~/.ssh/bitbucket_ed25519` if present.
 - Override any default with flags like `--host`, `--user`, `--key`, `--remote-db`, `--local-db`.
+- `sync_db_from_render.sh --scope kitchen` overwrites only kitchen/planning tables
+  (`ingredients`, `recipes`, `retreats`, `retreat_plans`, shopping + service snapshot tables, etc.)
+  and preserves local inventory tables (`standalone_inventory`, `retreat_inventory_*`, `inventory_items`).
+- `sync_db_to_render.sh --scope inventory` overwrites only inventory tables on Render
+  (`standalone_inventory`, `inventory_items`, and `retreat_inventory_*`).
 - Default remote DB path is `/opt/render/project/src/backend/data/retreat_ops.db`.
 - `sync_db_to_render.sh` creates a remote pre-sync backup unless `--skip-remote-backup` is set.
 - Restart the Render service after push so all workers use the updated file.

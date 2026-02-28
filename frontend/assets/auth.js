@@ -25,8 +25,9 @@
     "/kitchen-service-view.html": ["viewer", "planner", "admin"],
     "/kitchen-test-view.html": ["viewer", "planner", "admin"],
     "/recipe-scaling.html": ["viewer", "planner", "admin"],
-    "/inventory.html": ["planner", "admin"],
-    "/retreat-inventory.html": ["planner", "admin"],
+    "/inventory-baseline.html": ["viewer", "planner", "admin"],
+    "/inventory.html": ["viewer", "planner", "admin"],
+    "/retreat-inventory.html": ["viewer", "planner", "admin"],
     "/change-password.html": ["viewer", "planner", "admin"],
     "/kitchen.html": ["viewer", "planner", "admin"],
     "/about.html": ["viewer", "planner", "admin"],
@@ -128,29 +129,67 @@
 
     const routeCandidates = currentPath === "/" ? ["/", "/index.html"] : [currentPath];
 
-    const activeLink = links.find((link) => {
+    const activeLinks = links.filter((link) => {
       const parent = link.closest(".nav-item");
       if (parent && parent.classList.contains("d-none")) {
+        return false;
+      }
+      if (link.classList.contains("d-none")) {
         return false;
       }
       const path = resolvePathnameFromHref(link.getAttribute("href") || "");
       return path && routeCandidates.includes(path);
     });
-    if (activeLink) {
-      activeLink.classList.add("active");
-    }
+    activeLinks.forEach((link) => link.classList.add("active"));
 
-    const activeDropdownItem = dropdownItems.find((item) => {
+    const activeDropdownItems = dropdownItems.filter((item) => {
+      if (item.classList.contains("d-none")) {
+        return false;
+      }
+      const parentDropdown = item.closest(".nav-item.dropdown");
+      if (parentDropdown && parentDropdown.classList.contains("d-none")) {
+        return false;
+      }
       const path = resolvePathnameFromHref(item.getAttribute("href") || "");
       return path && routeCandidates.includes(path);
     });
-    if (activeDropdownItem) {
+
+    activeDropdownItems.forEach((activeDropdownItem) => {
       activeDropdownItem.classList.add("active");
       const parentToggle = activeDropdownItem.closest(".dropdown")?.querySelector(".dropdown-toggle");
       if (parentToggle) {
         parentToggle.classList.add("active");
       }
-    }
+    });
+
+    // Keep Inventory dropdown expanded when the current route is one of its submenu pages.
+    const inventoryDropdowns = Array.from(document.querySelectorAll(".navbar .nav-item.dropdown"))
+      .filter((dropdown) => Boolean(dropdown.querySelector(".dropdown-toggle .fa-boxes-stacked")));
+    inventoryDropdowns.forEach((dropdown) => {
+      if (dropdown.classList.contains("d-none")) {
+        return;
+      }
+      const toggle = dropdown.querySelector(".dropdown-toggle");
+      const menu = dropdown.querySelector(".dropdown-menu");
+      if (!toggle || !menu) {
+        return;
+      }
+      const matchingItems = Array.from(dropdown.querySelectorAll(".dropdown-item[href]"))
+        .filter((item) => {
+          if (item.classList.contains("d-none")) {
+            return false;
+          }
+          const path = resolvePathnameFromHref(item.getAttribute("href") || "");
+          return path && routeCandidates.includes(path);
+        });
+      if (!matchingItems.length) {
+        return;
+      }
+      dropdown.classList.add("show");
+      menu.classList.add("show");
+      toggle.classList.add("show", "active");
+      toggle.setAttribute("aria-expanded", "true");
+    });
   }
 
   function ensureGuestLoginCta(role) {

@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Inventory - Blossom Foundation</title>
+    <title>Full Inventory - Blossom Foundation</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -68,7 +68,7 @@
       .cat-pill:hover { border-color: #f59e0b; color: var(--ink); }
       .cat-pill.active { background: var(--primary); border-color: var(--primary); color: white; }
 
-      #inventoryTableWrap { max-height: calc(100vh - 380px); overflow: auto; }
+      #inventoryTableWrap { max-height: calc(100vh - 460px); overflow: auto; }
 
       #inventoryTable .form-control,
       #inventoryTable .form-select { font-size: 0.82rem; padding: 0.25rem 0.4rem; }
@@ -78,6 +78,105 @@
       .table thead th {
         position: sticky; top: 0; background: white; z-index: 2;
         border-bottom: 2px solid var(--border);
+      }
+
+      .item-thumb-wrap {
+        width: 52px;
+        height: 52px;
+        border-radius: 0.55rem;
+        overflow: hidden;
+        border: 1px solid var(--border);
+        background: #f5f5f4;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .item-thumb {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+      }
+
+      .item-thumb-fallback {
+        color: #a8a29e;
+        font-size: 1rem;
+      }
+
+      .modal-image-preview {
+        width: 112px;
+        height: 112px;
+        border-radius: 0.75rem;
+        border: 1px solid var(--border);
+        object-fit: cover;
+        background: #f5f5f4;
+      }
+
+      .baseline-card {
+        padding: 0.75rem 1rem;
+        text-align: center;
+        background: white;
+        border: 1px solid var(--border);
+        border-radius: 0.75rem;
+        min-width: 130px;
+      }
+      .baseline-card span { display: block; font-size: 1.25rem; font-weight: 800; color: #1d4ed8; }
+      .baseline-card small { color: var(--muted); font-weight: 700; text-transform: uppercase; font-size: 0.65rem; letter-spacing: 0.04em; }
+
+      .cleanup-pill {
+        font-size: 0.72rem;
+        font-weight: 700;
+        padding: 0.24rem 0.62rem;
+        border-radius: 999px;
+        border: 1px solid var(--border);
+        background: #fff;
+        color: #57534e;
+        cursor: pointer;
+        white-space: nowrap;
+      }
+      .cleanup-pill:hover { border-color: #93c5fd; color: #1d4ed8; }
+      .cleanup-pill.active { background: #dbeafe; border-color: #93c5fd; color: #1d4ed8; }
+
+      .item-flags { display: flex; flex-wrap: wrap; gap: 0.25rem; margin-top: 0.2rem; }
+      .flag-chip {
+        display: inline-flex;
+        align-items: center;
+        border-radius: 999px;
+        padding: 0.08rem 0.45rem;
+        font-size: 0.64rem;
+        font-weight: 700;
+        border: 1px solid #d6d3d1;
+        background: #fafaf9;
+        color: #57534e;
+      }
+      .flag-chip.ok { background: #ecfdf5; border-color: #a7f3d0; color: #047857; }
+      .flag-chip.warn { background: #fff7ed; border-color: #fdba74; color: #9a3412; }
+
+      .name-inline-input {
+        min-width: 200px;
+      }
+      .name-inline-input:focus {
+        border-color: #f59e0b;
+        box-shadow: 0 0 0 0.14rem rgba(245, 158, 11, 0.2);
+      }
+
+      .category-inline-input {
+        min-width: 118px;
+      }
+      .category-inline-input:focus {
+        border-color: #f59e0b;
+        box-shadow: 0 0 0 0.14rem rgba(245, 158, 11, 0.2);
+      }
+
+      .order-url-link {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.3rem;
+        font-size: 0.78rem;
+      }
+
+      .notes-inline-input {
+        min-width: 130px;
       }
     </style>
     <link rel="stylesheet" href="assets/ui-theme.css" />
@@ -111,8 +210,9 @@
             <li class="nav-item dropdown">
               <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false"><i class="fa-solid fa-boxes-stacked me-1"></i> Inventory</a>
               <ul class="dropdown-menu">
-                <li><a class="dropdown-item" href="inventory.html"><i class="fa-solid fa-clipboard-list me-2"></i> General Inventory</a></li>
-                <li><a class="dropdown-item" href="retreat-inventory.html"><i class="fa-solid fa-barcode me-2"></i> Retreat Inventory</a></li>
+                <li><a class="dropdown-item" href="inventory-baseline.html"><i class="fa-solid fa-barcode me-2"></i> Baseline Scan</a></li>
+                <li><a class="dropdown-item" href="inventory.html"><i class="fa-solid fa-clipboard-list me-2"></i> Full Inventory</a></li>
+                <li><a class="dropdown-item" href="shopping-list.html"><i class="fa-solid fa-list-check me-2"></i> Retreat Order Lists</a></li>
               </ul>
             </li>
             <li class="nav-item dropdown">
@@ -152,15 +252,31 @@
       <section class="card hero-gradient p-4 mb-4 border-0">
         <div class="d-flex flex-wrap align-items-center gap-3">
           <div class="flex-grow-1">
-            <h1 class="fw-bold mb-2"><i class="fa-solid fa-boxes-stacked me-2" style="color: #7c3aed;"></i>Inventory</h1>
+            <h1 class="fw-bold mb-2"><i class="fa-solid fa-boxes-stacked me-2" style="color: #7c3aed;"></i>Full Inventory</h1>
             <p class="text-secondary mb-0">
-              Track general supplies, cleaning products, paper goods, and other non-recipe items.
+              Campus storage inventory for volunteers. Use shelf-grid locations like A1, A2 ... A20 for each shelf.
             </p>
           </div>
           <div class="d-flex gap-2 flex-wrap">
             <div class="stat-card">
               <span id="statItems">0</span>
               <small>Items</small>
+            </div>
+            <div class="stat-card">
+              <span id="statShelves">0</span>
+              <small>Shelves</small>
+            </div>
+            <div class="baseline-card">
+              <span id="statBaselineVerified">0</span>
+              <small>Verified</small>
+            </div>
+            <div class="baseline-card">
+              <span id="statBaselinePending">0</span>
+              <small>Pending</small>
+            </div>
+            <div class="baseline-card">
+              <span id="statMissingImages">0</span>
+              <small>Missing Image</small>
             </div>
           </div>
         </div>
@@ -170,7 +286,7 @@
         <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
           <div class="input-group" style="max-width: 300px;">
             <span class="input-group-text bg-white"><i class="fa-solid fa-magnifying-glass text-muted"></i></span>
-            <input id="inventorySearch" type="text" class="form-control" placeholder="Search item name" />
+            <input id="inventorySearch" type="text" class="form-control" placeholder="Search name, category, or location" />
           </div>
           <button id="addItemBtn" type="button" class="btn btn-sm btn-primary">
             <i class="fa-solid fa-plus me-1"></i> Add Item
@@ -178,24 +294,64 @@
           <div class="flex-grow-1"></div>
           <span id="saveStatus" class="status-pill info">Ready.</span>
         </div>
+        <section class="p-3 rounded border bg-white mb-3">
+          <div class="row g-2 align-items-end">
+            <div class="col-md-5">
+              <label class="form-label fw-semibold" for="scanBarcodeInput">Scan Barcode</label>
+              <input
+                id="scanBarcodeInput"
+                type="text"
+                class="form-control"
+                placeholder="Scan with wireless scanner and press Enter"
+              />
+            </div>
+            <div class="col-md-2 d-grid">
+              <button id="scanLookupBtn" type="button" class="btn btn-outline-primary">
+                <i class="fa-solid fa-barcode me-1"></i> Lookup
+              </button>
+            </div>
+            <div class="col-md-3">
+              <div class="small text-muted">Lookup source</div>
+              <div id="scanLookupMeta" class="small fw-semibold">Waiting for scan.</div>
+            </div>
+            <div class="col-md-2">
+              <div class="small text-muted">Existing item</div>
+              <div id="scanExistingMeta" class="small fw-semibold">Not found.</div>
+            </div>
+          </div>
+        </section>
+        <section class="p-3 rounded border bg-light-subtle mb-3">
+          <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
+            <div class="small text-uppercase fw-semibold text-muted">Baseline Filters</div>
+            <div id="cleanupFilter" class="d-flex flex-wrap gap-1"></div>
+          </div>
+          <div class="small text-muted">
+            Default focus is <strong>Pending Verify</strong>. Scan item, confirm quantity/location/image, mark verified, save, and move to next.
+          </div>
+        </section>
+        <p class="small text-muted mb-3">Required per item: barcode, product name, quantity, unit, storage location, and product image. Preferred shelf slots are A1-A20.</p>
         <div id="categoryFilter" class="d-flex flex-wrap gap-1 mb-3"></div>
 
         <div id="inventoryTableWrap">
           <table id="inventoryTable" class="table table-hover align-middle mb-0">
             <thead>
               <tr class="small text-muted text-uppercase fw-bold">
-                <th>Item Name</th>
+                <th style="width: 68px;">Image</th>
+                <th style="width: 220px;">Item Name (Enter to save)</th>
+                <th style="width: 130px;">Barcode</th>
                 <th style="width: 90px;">Qty</th>
                 <th style="width: 90px;">Unit</th>
-                <th style="width: 140px;">Category</th>
-                <th style="width: 130px;">Location</th>
-                <th style="width: 160px;">Notes</th>
-                <th style="width: 60px;"></th>
+                <th style="width: 110px;">Storage</th>
+                <th style="width: 150px;">Category (Enter to save)</th>
+                <th style="width: 135px;">Order URL</th>
+                <th style="width: 170px;">Notes (Enter to save)</th>
+                <th style="width: 108px;"></th>
               </tr>
             </thead>
             <tbody id="inventoryBody"></tbody>
           </table>
           <datalist id="inventoryCategoryOptions"></datalist>
+          <datalist id="storageLocationOptions"></datalist>
         </div>
       </section>
     </main>
@@ -211,34 +367,91 @@
           <div class="modal-body">
             <form id="itemForm">
               <input type="hidden" id="itemId" />
+              <input type="hidden" id="itemMode" value="create" />
+              <div class="row g-3 mb-2">
+                <div class="col-8">
+                  <label class="form-label fw-semibold" for="itemBarcode">Barcode *</label>
+                  <input id="itemBarcode" type="text" class="form-control" required />
+                </div>
+                <div class="col-4 d-grid">
+                  <button id="lookupBarcodeBtn" type="button" class="btn btn-outline-primary mt-4">
+                    <i class="fa-solid fa-magnifying-glass me-1"></i> Lookup
+                  </button>
+                </div>
+              </div>
+              <div id="itemLookupHint" class="small text-muted mb-3">Scan or enter barcode, then lookup product details.</div>
+              <div id="barcodeBindSection" class="border rounded p-2 mb-3 d-none">
+                <div class="fw-semibold small mb-2">No barcode match found. Bind this barcode to an existing item:</div>
+                <div class="input-group input-group-sm mb-2">
+                  <input id="bindSearchInput" type="text" class="form-control" placeholder="Search existing inventory item name" />
+                  <button id="bindSearchBtn" type="button" class="btn btn-outline-secondary">Search</button>
+                </div>
+                <div class="mb-2">
+                  <select id="bindItemSelect" class="form-select form-select-sm">
+                    <option value="">Select inventory item</option>
+                  </select>
+                </div>
+                <div class="d-grid">
+                  <button id="bindBarcodeBtn" type="button" class="btn btn-sm btn-outline-success">
+                    <i class="fa-solid fa-link me-1"></i> Bind Barcode To Selected Item
+                  </button>
+                </div>
+                <div id="bindStatus" class="small text-muted mt-2">Lookup a matching item, then bind.</div>
+              </div>
               <div class="mb-3">
                 <label class="form-label fw-semibold" for="itemName">Item Name *</label>
                 <input id="itemName" type="text" class="form-control" required />
               </div>
               <div class="row g-3 mb-3">
                 <div class="col-6">
-                  <label class="form-label fw-semibold" for="itemQty">Quantity</label>
-                  <input id="itemQty" type="number" class="form-control" min="0" step="0.01" value="0" />
+                  <label id="itemQtyLabel" class="form-label fw-semibold" for="itemQty">Quantity Received *</label>
+                  <input id="itemQty" type="number" class="form-control" min="0" step="0.01" value="1" />
                 </div>
                 <div class="col-6">
-                  <label class="form-label fw-semibold" for="itemUnit">Unit</label>
-                  <input id="itemUnit" type="text" class="form-control" placeholder="e.g. rolls, boxes, bags" />
+                  <label class="form-label fw-semibold" for="itemUnit">Unit *</label>
+                  <input id="itemUnit" type="text" class="form-control" placeholder="e.g. bag, bottle, box" required />
                 </div>
               </div>
               <div class="row g-3 mb-3">
                 <div class="col-6">
-                  <label class="form-label fw-semibold" for="itemCategory">Category</label>
-                  <input id="itemCategory" type="text" class="form-control" list="inventoryCategoryOptions" placeholder="e.g. Cleaning, Paper" />
+                  <label class="form-label fw-semibold" for="itemLocation">Storage Location *</label>
+                  <input
+                    id="itemLocation"
+                    type="text"
+                    class="form-control"
+                    list="storageLocationOptions"
+                    placeholder="A1"
+                    required
+                  />
+                  <div class="form-text">Shelf letter + slot number (example: A7). A1-A20 preferred.</div>
                 </div>
                 <div class="col-6">
-                  <label class="form-label fw-semibold" for="itemLocation">Location</label>
-                  <input id="itemLocation" type="text" class="form-control" placeholder="e.g. Kitchen, Storage" />
+                  <label class="form-label fw-semibold" for="itemCategory">Category</label>
+                  <input id="itemCategory" type="text" class="form-control" list="inventoryCategoryOptions" placeholder="e.g. Infra, Registration Area" />
                 </div>
+              </div>
+              <div class="mb-3">
+                <label class="form-label fw-semibold" for="itemImageUrl">Product Image *</label>
+                <input id="itemImageUrl" type="text" class="form-control" placeholder="https://... or data:image/..." required />
+                <div class="form-text">Paste an image URL or upload a photo.</div>
+              </div>
+              <div class="mb-3">
+                <label class="form-label fw-semibold" for="itemImageFile">Upload Image</label>
+                <input id="itemImageFile" type="file" class="form-control" accept="image/*" />
+              </div>
+              <div class="mb-3 d-flex align-items-center gap-2">
+                <img id="itemImagePreview" class="modal-image-preview d-none" alt="Product image preview" />
+                <span id="itemImagePreviewLabel" class="small text-muted">No image selected.</span>
               </div>
               <div class="mb-3">
                 <label class="form-label fw-semibold" for="itemNotes">Notes</label>
                 <textarea id="itemNotes" class="form-control" rows="2"></textarea>
               </div>
+              <div class="form-check mb-1">
+                <input id="itemBaselineVerified" class="form-check-input" type="checkbox" />
+                <label class="form-check-label fw-semibold" for="itemBaselineVerified">Mark as baseline verified</label>
+              </div>
+              <div class="form-text mb-0">Use this after physically confirming quantity and shelf location.</div>
             </form>
           </div>
           <div class="modal-footer">
@@ -250,22 +463,68 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="assets/auth.js?v=20260218f"></script>
+    <script src="assets/auth.js?v=20260224a"></script>
     <script>
       const inventorySearch = document.getElementById("inventorySearch");
       const statItems = document.getElementById("statItems");
+      const statShelves = document.getElementById("statShelves");
+      const statBaselineVerified = document.getElementById("statBaselineVerified");
+      const statBaselinePending = document.getElementById("statBaselinePending");
+      const statMissingImages = document.getElementById("statMissingImages");
       const saveStatus = document.getElementById("saveStatus");
+      const cleanupFilter = document.getElementById("cleanupFilter");
       const categoryFilter = document.getElementById("categoryFilter");
       const inventoryBody = document.getElementById("inventoryBody");
       const categoryOptions = document.getElementById("inventoryCategoryOptions");
+      const storageLocationOptions = document.getElementById("storageLocationOptions");
       const addItemBtn = document.getElementById("addItemBtn");
       const saveItemBtn = document.getElementById("saveItemBtn");
       const itemModalEl = document.getElementById("itemModal");
       const itemModalLabel = document.getElementById("itemModalLabel");
+      const scanBarcodeInput = document.getElementById("scanBarcodeInput");
+      const scanLookupBtn = document.getElementById("scanLookupBtn");
+      const scanLookupMeta = document.getElementById("scanLookupMeta");
+      const scanExistingMeta = document.getElementById("scanExistingMeta");
+      const lookupBarcodeBtn = document.getElementById("lookupBarcodeBtn");
+      const itemLookupHint = document.getElementById("itemLookupHint");
+      const barcodeBindSection = document.getElementById("barcodeBindSection");
+      const bindSearchInput = document.getElementById("bindSearchInput");
+      const bindSearchBtn = document.getElementById("bindSearchBtn");
+      const bindItemSelect = document.getElementById("bindItemSelect");
+      const bindBarcodeBtn = document.getElementById("bindBarcodeBtn");
+      const bindStatus = document.getElementById("bindStatus");
+      const itemQtyLabel = document.getElementById("itemQtyLabel");
+      const itemId = document.getElementById("itemId");
+      const itemMode = document.getElementById("itemMode");
+      const itemBarcode = document.getElementById("itemBarcode");
+      const itemName = document.getElementById("itemName");
+      const itemQty = document.getElementById("itemQty");
+      const itemUnit = document.getElementById("itemUnit");
+      const itemCategory = document.getElementById("itemCategory");
+      const itemLocation = document.getElementById("itemLocation");
+      const itemImageUrl = document.getElementById("itemImageUrl");
+      const itemImageFile = document.getElementById("itemImageFile");
+      const itemImagePreview = document.getElementById("itemImagePreview");
+      const itemImagePreviewLabel = document.getElementById("itemImagePreviewLabel");
+      const itemNotes = document.getElementById("itemNotes");
+      const itemBaselineVerified = document.getElementById("itemBaselineVerified");
 
       let items = [];
       let selectedCategory = null;
+      let selectedCleanupFilter = "pending";
       let itemModal = null;
+      let bindCandidates = [];
+
+      const BARCODE_PATTERN = /^\d{8,14}$/;
+      const STORAGE_LOCATION_PATTERN = /^([a-zA-Z])\s*-?\s*([1-9]|[1-9][0-9])$/;
+      const BASELINE_VERIFIED_NOTE_RE = /^\[baseline-verified:(\d{4}-\d{2}-\d{2})\]$/i;
+      const URL_IN_TEXT_RE = /https?:\/\/[^\s|]+/gi;
+      const IMAGE_URL_SUFFIX_RE = /\.(png|jpe?g|webp|gif|bmp|svg)(\?.*)?$/i;
+      const IMPORT_NOTE_PREFIX_RE = /^\[import:[^\]]+\]\s*/i;
+      const IMPORT_NOTE_ROW_RE = /^row=\d+\b/i;
+      const SOURCE_NOTE_LABEL_RE = /^(reference url|image reference|source|data source)\s*:?\s*$/i;
+      const SHELF_CODES = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
+      const DEFAULT_INVENTORY_CATEGORIES = ["Infra"];
 
       function resolveApiBase() {
         const queryValue = new URLSearchParams(window.location.search).get("api");
@@ -285,6 +544,66 @@
         saveStatus.classList.add(mode);
       }
 
+      function setLookupHint(message, tone = "muted") {
+        itemLookupHint.textContent = message;
+        itemLookupHint.classList.remove("text-muted", "text-success", "text-danger", "text-primary");
+        if (tone === "ok") {
+          itemLookupHint.classList.add("text-success");
+        } else if (tone === "err") {
+          itemLookupHint.classList.add("text-danger");
+        } else if (tone === "info") {
+          itemLookupHint.classList.add("text-primary");
+        } else {
+          itemLookupHint.classList.add("text-muted");
+        }
+      }
+
+      function setBindStatus(message, tone = "muted") {
+        bindStatus.textContent = message;
+        bindStatus.classList.remove("text-muted", "text-success", "text-danger", "text-primary");
+        if (tone === "ok") {
+          bindStatus.classList.add("text-success");
+        } else if (tone === "err") {
+          bindStatus.classList.add("text-danger");
+        } else if (tone === "info") {
+          bindStatus.classList.add("text-primary");
+        } else {
+          bindStatus.classList.add("text-muted");
+        }
+      }
+
+      function toggleBindSection(show) {
+        barcodeBindSection.classList.toggle("d-none", !show);
+        if (!show) {
+          bindCandidates = [];
+          bindItemSelect.innerHTML = '<option value="">Select inventory item</option>';
+          setBindStatus("Lookup a matching item, then bind.");
+        }
+      }
+
+      function setFormMode(mode) {
+        itemMode.value = mode;
+        if (mode === "edit") {
+          itemModalLabel.textContent = "Edit Inventory Item";
+          itemQtyLabel.textContent = "Current Quantity *";
+        } else {
+          itemModalLabel.textContent = "Add Inventory Item";
+          itemQtyLabel.textContent = "Quantity Received *";
+        }
+      }
+
+      function normalizeBarcode(rawValue) {
+        const digitsOnly = String(rawValue || "").replace(/\D+/g, "");
+        return BARCODE_PATTERN.test(digitsOnly) ? digitsOnly : null;
+      }
+
+      function normalizeStorageLocation(rawValue) {
+        const input = String(rawValue || "").trim();
+        const match = STORAGE_LOCATION_PATTERN.exec(input);
+        if (!match) return null;
+        return `${match[1].toUpperCase()}${match[2]}`;
+      }
+
       async function parseApiError(response) {
         const raw = await response.text();
         if (!raw) return `HTTP ${response.status}`;
@@ -295,8 +614,297 @@
         return raw;
       }
 
+      function buildLocationOptions() {
+        storageLocationOptions.innerHTML = "";
+        SHELF_CODES.forEach((shelf) => {
+          for (let slot = 1; slot <= 20; slot += 1) {
+            const option = document.createElement("option");
+            option.value = `${shelf}${slot}`;
+            storageLocationOptions.appendChild(option);
+          }
+        });
+      }
+
+      function formatQuantity(value) {
+        const num = Number(value);
+        if (!Number.isFinite(num)) return "";
+        if (Number.isInteger(num)) return String(num);
+        return String(Math.round(num * 100) / 100);
+      }
+
+      function splitNoteParts(rawValue) {
+        return String(rawValue || "")
+          .split("|")
+          .map((part) => part.trim())
+          .filter(Boolean);
+      }
+
+      function stripBaselineVerificationNotes(rawValue) {
+        const parts = splitNoteParts(rawValue).filter((part) => !BASELINE_VERIFIED_NOTE_RE.test(part));
+        return parts.length ? parts.join(" | ") : "";
+      }
+
+      function normalizeDisplayNotePart(rawPart) {
+        let part = String(rawPart || "").trim();
+        if (!part) return null;
+        part = part.replace(IMPORT_NOTE_PREFIX_RE, "").trim();
+        part = part.replace(IMPORT_NOTE_ROW_RE, "").trim();
+        part = part.replace(URL_IN_TEXT_RE, " ");
+        part = part.replace(/\s+/g, " ").trim();
+        part = part.replace(/\s*[:;,.\-]+\s*$/g, "").trim();
+        if (!part) return null;
+        if (SOURCE_NOTE_LABEL_RE.test(part)) return null;
+        return part;
+      }
+
+      function extractUrls(rawValue) {
+        const source = String(rawValue || "");
+        const matches = source.match(URL_IN_TEXT_RE);
+        if (!matches || !matches.length) return [];
+        const seen = new Set();
+        const urls = [];
+        matches.forEach((match) => {
+          const candidate = String(match || "").trim();
+          if (!candidate || seen.has(candidate)) return;
+          seen.add(candidate);
+          urls.push(candidate);
+        });
+        return urls;
+      }
+
+      function normalizeHttpUrl(rawValue) {
+        const candidate = String(rawValue || "").trim();
+        if (!candidate) return null;
+        return /^https?:\/\//i.test(candidate) ? candidate : null;
+      }
+
+      function isImageLikeUrl(rawValue) {
+        const candidate = String(rawValue || "").trim();
+        if (!candidate) return false;
+        return IMAGE_URL_SUFFIX_RE.test(candidate);
+      }
+
+      function extractOrderUrlFromItem(item) {
+        const explicit = normalizeHttpUrl(item && item.order_url ? item.order_url : "");
+        if (explicit) return explicit;
+        const urls = extractUrls(stripBaselineVerificationNotes(item && item.notes ? item.notes : ""));
+        if (!urls.length) return null;
+        const nonImage = urls.find((url) => !isImageLikeUrl(url));
+        return normalizeHttpUrl(nonImage || urls[0]);
+      }
+
+      function removeUrlsFromNotes(rawValue) {
+        const parts = splitNoteParts(rawValue)
+          .filter((part) => !BASELINE_VERIFIED_NOTE_RE.test(part))
+          .map(normalizeDisplayNotePart)
+          .filter(Boolean);
+        return parts.join(" | ");
+      }
+
+      function mergeInlineNotesKeepingSystem(existingRawNotes, editedNotesRaw) {
+        const visibleParts = splitNoteParts(editedNotesRaw)
+          .map(normalizeDisplayNotePart)
+          .filter(Boolean);
+        const baselineParts = splitNoteParts(existingRawNotes).filter((part) => BASELINE_VERIFIED_NOTE_RE.test(part));
+        const merged = [];
+        visibleParts.forEach((part) => {
+          if (!merged.includes(part)) merged.push(part);
+        });
+        baselineParts.forEach((part) => {
+          if (!merged.includes(part)) merged.push(part);
+        });
+        return merged.length ? merged.join(" | ") : null;
+      }
+
+      function hasBaselineVerification(rawValue) {
+        return splitNoteParts(rawValue).some((part) => BASELINE_VERIFIED_NOTE_RE.test(part));
+      }
+
+      function currentLocalIsoDate() {
+        const now = new Date();
+        const year = String(now.getFullYear());
+        const month = String(now.getMonth() + 1).padStart(2, "0");
+        const day = String(now.getDate()).padStart(2, "0");
+        return `${year}-${month}-${day}`;
+      }
+
+      function mergeNotesForSave(rawValue, markVerified) {
+        const parts = splitNoteParts(rawValue).filter((part) => !BASELINE_VERIFIED_NOTE_RE.test(part));
+        if (markVerified) {
+          parts.push(`[baseline-verified:${currentLocalIsoDate()}]`);
+        }
+        return parts.length ? parts.join(" | ") : null;
+      }
+
+      function hasImage(item) {
+        const value = String(item && item.image_url ? item.image_url : "").trim();
+        return Boolean(value);
+      }
+
+      function hasBarcode(item) {
+        const value = String(item && item.barcode ? item.barcode : "").trim();
+        return BARCODE_PATTERN.test(value);
+      }
+
+      function hasValidLocation(item) {
+        return Boolean(normalizeStorageLocation(item && item.location ? item.location : ""));
+      }
+
+      function getBaselineMetrics() {
+        const verified = items.filter((item) => hasBaselineVerification(item.notes)).length;
+        return {
+          total: items.length,
+          verified,
+          pending: Math.max(items.length - verified, 0),
+          missingImage: items.filter((item) => !hasImage(item)).length,
+          missingBarcode: items.filter((item) => !hasBarcode(item)).length,
+          missingLocation: items.filter((item) => !hasValidLocation(item)).length,
+        };
+      }
+
+      function updateStats() {
+        const metrics = getBaselineMetrics();
+        statItems.textContent = String(items.length);
+        const shelves = new Set();
+        items.forEach((item) => {
+          const location = normalizeStorageLocation(item.location || "");
+          if (location) shelves.add(location.slice(0, 1));
+        });
+        statShelves.textContent = String(shelves.size);
+        statBaselineVerified.textContent = String(metrics.verified);
+        statBaselinePending.textContent = String(metrics.pending);
+        statMissingImages.textContent = String(metrics.missingImage);
+      }
+
+      function bindCandidateScore(row, query) {
+        const needle = String(query || "").trim().toLowerCase();
+        const name = String(row.item_name || "").toLowerCase();
+        const category = String(row.category || "").toLowerCase();
+        const note = String(row.notes || "");
+        let score = 0;
+        if (!row.barcode) score += 1200;
+        if (name === needle) score += 600;
+        else if (name.startsWith(needle)) score += 320;
+        else if (name.includes(needle)) score += 120;
+        if (category.includes(needle)) score += 40;
+        if (note.startsWith("[import:nonfood-inventory]")) score += 100;
+        return score;
+      }
+
+      function populateBindCandidates(rows, query) {
+        const optionDefault = '<option value="">Select inventory item</option>';
+        bindItemSelect.innerHTML = optionDefault;
+        bindCandidates = rows;
+        if (!rows.length) {
+          setBindStatus("No candidate items found for binding.", "err");
+          return;
+        }
+
+        rows.forEach((row) => {
+          const option = document.createElement("option");
+          option.value = String(row.id);
+          const qtyPart = `${formatQuantity(row.quantity)} ${row.unit || ""}`.trim();
+          const locationPart = row.location ? row.location : "No location";
+          const barcodePart = row.barcode ? ` | barcode ${row.barcode}` : "";
+          option.textContent = `${row.item_name} | ${row.category || "Uncategorized"} | ${qtyPart} | ${locationPart}${barcodePart}`;
+          bindItemSelect.appendChild(option);
+        });
+        setBindStatus(`Found ${rows.length} candidate items for "${query}".`, "ok");
+      }
+
+      async function loadBindCandidates(rawQuery) {
+        const query = String(rawQuery || "").trim();
+        bindSearchInput.value = query;
+        if (!query) {
+          populateBindCandidates([], "");
+          setBindStatus("Enter item name and search to bind barcode.", "info");
+          return;
+        }
+
+        try {
+          setBindStatus("Searching candidate items...", "info");
+          const response = await fetch(apiUrl(`/api/inventory?search=${encodeURIComponent(query)}`), {
+            credentials: "include",
+          });
+          if (!response.ok) throw new Error(await parseApiError(response));
+          const payload = await response.json();
+          const barcode = normalizeBarcode(itemBarcode.value);
+          const rows = Array.isArray(payload) ? payload : [];
+          const filtered = rows
+            .filter((row) => {
+              const rowBarcode = String(row.barcode || "").trim();
+              return !rowBarcode || (barcode && rowBarcode === barcode);
+            })
+            .sort((a, b) => {
+              const scoreDiff = bindCandidateScore(b, query) - bindCandidateScore(a, query);
+              if (scoreDiff !== 0) return scoreDiff;
+              return String(a.item_name || "").localeCompare(String(b.item_name || ""));
+            })
+            .slice(0, 40);
+          populateBindCandidates(filtered, query);
+        } catch (error) {
+          populateBindCandidates([], query);
+          setBindStatus(error instanceof Error ? error.message : "Could not search candidates.", "err");
+        }
+      }
+
+      async function bindBarcodeToSelectedItem() {
+        const selectedId = Number.parseInt(bindItemSelect.value, 10);
+        if (!Number.isInteger(selectedId) || selectedId <= 0) {
+          setBindStatus("Select an inventory item to bind.", "err");
+          return;
+        }
+
+        const barcode = normalizeBarcode(itemBarcode.value);
+        if (!barcode) {
+          setBindStatus("Barcode must be 8-14 digits before binding.", "err");
+          return;
+        }
+
+        try {
+          setBindStatus("Binding barcode to selected item...", "info");
+          const response = await fetch(apiUrl("/api/inventory/barcode-bind"), {
+            method: "POST",
+            credentials: "include",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ item_id: selectedId, barcode }),
+          });
+          if (!response.ok) throw new Error(await parseApiError(response));
+          const result = await response.json();
+          const boundItem = result && result.item ? result.item : null;
+          if (!boundItem) throw new Error("Barcode bound, but item response was missing.");
+
+          await fetchItems();
+          renderCategoryFilter();
+          renderTable();
+
+          setFormMode("edit");
+          itemId.value = String(boundItem.id);
+          itemName.value = boundItem.item_name || itemName.value;
+          itemUnit.value = boundItem.unit || itemUnit.value;
+          itemCategory.value = boundItem.category || itemCategory.value;
+          itemLocation.value = boundItem.location || itemLocation.value;
+          itemImageUrl.value = boundItem.image_url || itemImageUrl.value;
+          itemNotes.value = removeUrlsFromNotes(boundItem.notes || "");
+          itemQty.value = String(Number(boundItem.quantity || 0));
+          itemBaselineVerified.checked = true;
+          scanExistingMeta.textContent = "Bound";
+          toggleBindSection(false);
+          setLookupHint(
+            `Barcode bound to "${boundItem.item_name}". Confirm/update quantity and location, then save.`,
+            "ok",
+          );
+          updateImagePreview();
+          setBindStatus(`Bound barcode ${barcode} to "${boundItem.item_name}".`, "ok");
+          setStatus(`Bound barcode ${barcode} to "${boundItem.item_name}".`, "ok");
+        } catch (error) {
+          setBindStatus(error instanceof Error ? error.message : "Could not bind barcode.", "err");
+          setStatus(error instanceof Error ? error.message : "Could not bind barcode.", "err");
+        }
+      }
+
       function renderCategoryOptions() {
-        const categories = new Set();
+        const categories = new Set(DEFAULT_INVENTORY_CATEGORIES);
         items.forEach((item) => {
           const cat = String(item.category || "").trim();
           if (cat) categories.add(cat);
@@ -342,16 +950,190 @@
         });
       }
 
+      function renderCleanupFilter() {
+        const metrics = getBaselineMetrics();
+        const options = [
+          { key: "all", label: "All", count: metrics.total },
+          { key: "pending", label: "Pending Verify", count: metrics.pending },
+          { key: "verified", label: "Verified", count: metrics.verified },
+          { key: "missing-image", label: "Missing Image", count: metrics.missingImage },
+          { key: "missing-barcode", label: "Missing Barcode", count: metrics.missingBarcode },
+          { key: "missing-location", label: "Missing Location", count: metrics.missingLocation },
+        ];
+
+        cleanupFilter.innerHTML = "";
+        options.forEach((option) => {
+          const btn = document.createElement("button");
+          btn.type = "button";
+          btn.className = "cleanup-pill" + (selectedCleanupFilter === option.key ? " active" : "");
+          btn.textContent = `${option.label} (${option.count})`;
+          btn.addEventListener("click", () => {
+            selectedCleanupFilter = option.key;
+            renderCleanupFilter();
+            renderTable();
+          });
+          cleanupFilter.appendChild(btn);
+        });
+      }
+
       function filterItems() {
         const term = inventorySearch.value.trim().toLowerCase();
         return items.filter((item) => {
-          if (term && !item.item_name.toLowerCase().includes(term)) return false;
+          const searchCorpus = [
+            item.item_name || "",
+            item.category || "",
+            item.location || "",
+            item.barcode || "",
+            item.order_url || "",
+            removeUrlsFromNotes(item.notes || ""),
+          ].join(" ").toLowerCase();
+          if (term && !searchCorpus.includes(term)) return false;
           if (selectedCategory !== null) {
             const cat = item.category || "Uncategorized";
             if (cat !== selectedCategory) return false;
           }
+          if (selectedCleanupFilter === "pending" && hasBaselineVerification(item.notes)) return false;
+          if (selectedCleanupFilter === "verified" && !hasBaselineVerification(item.notes)) return false;
+          if (selectedCleanupFilter === "missing-image" && hasImage(item)) return false;
+          if (selectedCleanupFilter === "missing-barcode" && hasBarcode(item)) return false;
+          if (selectedCleanupFilter === "missing-location" && hasValidLocation(item)) return false;
           return true;
         });
+      }
+
+      async function saveInlineName(item, rawName, inputEl) {
+        const previousName = String(item && item.item_name ? item.item_name : "").trim();
+        const nextName = String(rawName || "").trim();
+        if (previousName === nextName) {
+          inputEl.value = previousName;
+          return;
+        }
+        if (!nextName) {
+          inputEl.value = previousName;
+          setStatus("Item name cannot be blank.", "err");
+          return;
+        }
+
+        inputEl.dataset.saving = "1";
+        inputEl.disabled = true;
+        try {
+          setStatus(`Updating name for "${previousName}"...`, "info");
+          const response = await fetch(apiUrl(`/api/inventory/${item.id}/item-name`), {
+            method: "PATCH",
+            credentials: "include",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ item_name: nextName }),
+          });
+          if (!response.ok) {
+            const detail = await parseApiError(response);
+            if (response.status === 404 && String(detail || "").trim().toLowerCase() === "not found") {
+              throw new Error("Inline item-name updates require the latest backend. Restart backend and try again.");
+            }
+            throw new Error(detail);
+          }
+          const updated = await response.json();
+          item.item_name = updated.item_name || nextName;
+          items.sort((a, b) => String(a.item_name || "").localeCompare(String(b.item_name || "")));
+          renderTable();
+          setStatus(`Saved item name as "${item.item_name}".`, "ok");
+        } catch (error) {
+          inputEl.value = previousName;
+          const message = error instanceof Error ? error.message : "Could not update item name.";
+          setStatus(message, "err");
+          window.alert(`${message}\nAPI: ${API_BASE}`);
+        } finally {
+          inputEl.dataset.saving = "0";
+          inputEl.disabled = false;
+        }
+      }
+
+      async function saveInlineCategory(item, rawCategory, inputEl) {
+        const previousCategory = String(item && item.category ? item.category : "").trim();
+        const nextCategory = String(rawCategory || "").trim();
+        if (previousCategory === nextCategory) {
+          inputEl.value = previousCategory;
+          return;
+        }
+
+        inputEl.dataset.saving = "1";
+        inputEl.disabled = true;
+        try {
+          setStatus(`Updating category for "${item.item_name}"...`, "info");
+          const response = await fetch(apiUrl(`/api/inventory/${item.id}/category`), {
+            method: "PATCH",
+            credentials: "include",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ category: nextCategory || null }),
+          });
+          if (!response.ok) {
+            const detail = await parseApiError(response);
+            if (response.status === 404 && String(detail || "").trim().toLowerCase() === "not found") {
+              throw new Error("Inline category updates require the latest backend. Restart backend and try again.");
+            }
+            throw new Error(detail);
+          }
+          const updated = await response.json();
+          item.category = updated.category || null;
+          renderCategoryOptions();
+          if (selectedCategory !== null) {
+            const stillPresent = items.some((candidate) => (candidate.category || "Uncategorized") === selectedCategory);
+            if (!stillPresent) selectedCategory = null;
+          }
+          renderCategoryFilter();
+          renderTable();
+          setStatus(`Saved category for "${item.item_name}".`, "ok");
+        } catch (error) {
+          inputEl.value = previousCategory;
+          const message = error instanceof Error ? error.message : "Could not update category.";
+          setStatus(message, "err");
+          window.alert(`${message}\nAPI: ${API_BASE}`);
+        } finally {
+          inputEl.dataset.saving = "0";
+          inputEl.disabled = false;
+        }
+      }
+
+      async function saveInlineNotes(item, rawNotes, inputEl) {
+        const previousVisibleNotes = removeUrlsFromNotes(item && item.notes ? item.notes : "");
+        const nextVisibleNotes = removeUrlsFromNotes(rawNotes);
+        if (previousVisibleNotes === nextVisibleNotes) {
+          inputEl.value = previousVisibleNotes;
+          return;
+        }
+
+        inputEl.dataset.saving = "1";
+        inputEl.disabled = true;
+        try {
+          setStatus(`Updating notes for "${item.item_name}"...`, "info");
+          const mergedNotes = mergeInlineNotesKeepingSystem(item.notes || "", rawNotes);
+          const response = await fetch(apiUrl(`/api/inventory/${item.id}/notes`), {
+            method: "PATCH",
+            credentials: "include",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ notes: mergedNotes }),
+          });
+          if (!response.ok) {
+            const detail = await parseApiError(response);
+            if (response.status === 404 && String(detail || "").trim().toLowerCase() === "not found") {
+              throw new Error("Inline notes updates require the latest backend. Restart backend and try again.");
+            }
+            throw new Error(detail);
+          }
+          const updated = await response.json();
+          item.notes = updated.notes || null;
+          updateStats();
+          renderCleanupFilter();
+          renderTable();
+          setStatus(`Saved notes for "${item.item_name}".`, "ok");
+        } catch (error) {
+          inputEl.value = previousVisibleNotes;
+          const message = error instanceof Error ? error.message : "Could not update notes.";
+          setStatus(message, "err");
+          window.alert(`${message}\nAPI: ${API_BASE}`);
+        } finally {
+          inputEl.dataset.saving = "0";
+          inputEl.disabled = false;
+        }
       }
 
       function renderTable() {
@@ -361,7 +1143,7 @@
         if (!filtered.length) {
           const tr = document.createElement("tr");
           const td = document.createElement("td");
-          td.colSpan = 7;
+          td.colSpan = 10;
           td.className = "text-muted small py-3";
           td.textContent = items.length ? "No matching items." : "No inventory items yet. Click \"Add Item\" to get started.";
           tr.appendChild(td);
@@ -371,30 +1153,194 @@
 
         filtered.forEach((item) => {
           const tr = document.createElement("tr");
-          tr.innerHTML = `
-            <td>${escapeHtml(item.item_name)}</td>
-            <td>${item.quantity != null ? item.quantity : ""}</td>
-            <td class="text-muted">${escapeHtml(item.unit || "")}</td>
-            <td class="text-muted">${escapeHtml(item.category || "")}</td>
-            <td class="text-muted">${escapeHtml(item.location || "")}</td>
-            <td class="text-muted small">${escapeHtml(item.notes || "")}</td>
-            <td>
-              <div class="d-flex gap-1">
-                <button class="btn btn-sm btn-outline-secondary py-0 px-1 edit-btn" title="Edit"><i class="fa-solid fa-pen-to-square"></i></button>
-                <button class="btn btn-sm btn-outline-danger py-0 px-1 delete-btn" title="Delete"><i class="fa-solid fa-trash"></i></button>
-              </div>
-            </td>
-          `;
-          tr.querySelector(".edit-btn").addEventListener("click", () => openEditModal(item));
-          tr.querySelector(".delete-btn").addEventListener("click", () => deleteItem(item));
+
+          const imageTd = document.createElement("td");
+          const imageWrap = document.createElement("div");
+          imageWrap.className = "item-thumb-wrap";
+          const image = document.createElement("img");
+          image.className = "item-thumb";
+          image.alt = `${item.item_name || "Item"} image`;
+          image.loading = "lazy";
+          const fallback = document.createElement("span");
+          fallback.className = "item-thumb-fallback d-none";
+          fallback.innerHTML = '<i class="fa-solid fa-image"></i>';
+          if (item.image_url) {
+            image.src = item.image_url;
+            image.addEventListener("error", () => {
+              image.classList.add("d-none");
+              fallback.classList.remove("d-none");
+            });
+          } else {
+            image.classList.add("d-none");
+            fallback.classList.remove("d-none");
+          }
+          imageWrap.appendChild(image);
+          imageWrap.appendChild(fallback);
+          imageTd.appendChild(imageWrap);
+          tr.appendChild(imageTd);
+
+          const nameTd = document.createElement("td");
+          const nameInput = document.createElement("input");
+          nameInput.type = "text";
+          nameInput.className = "form-control form-control-sm name-inline-input";
+          nameInput.value = item.item_name || "";
+          nameInput.placeholder = "Item name";
+          nameInput.addEventListener("keydown", (event) => {
+            if (event.key === "Enter") {
+              event.preventDefault();
+              void saveInlineName(item, nameInput.value, nameInput);
+              return;
+            }
+            if (event.key === "Escape") {
+              event.preventDefault();
+              nameInput.value = item.item_name || "";
+              nameInput.blur();
+            }
+          });
+          nameInput.addEventListener("blur", () => {
+            if (nameInput.dataset.saving === "1") return;
+            nameInput.value = item.item_name || "";
+          });
+          nameTd.appendChild(nameInput);
+          const flags = document.createElement("div");
+          flags.className = "item-flags";
+          const verifiedChip = document.createElement("span");
+          verifiedChip.className = "flag-chip " + (hasBaselineVerification(item.notes) ? "ok" : "warn");
+          verifiedChip.textContent = hasBaselineVerification(item.notes) ? "Verified" : "Pending";
+          flags.appendChild(verifiedChip);
+          if (!hasImage(item)) {
+            const chip = document.createElement("span");
+            chip.className = "flag-chip warn";
+            chip.textContent = "No image";
+            flags.appendChild(chip);
+          }
+          if (!hasBarcode(item)) {
+            const chip = document.createElement("span");
+            chip.className = "flag-chip warn";
+            chip.textContent = "No barcode";
+            flags.appendChild(chip);
+          }
+          if (!hasValidLocation(item)) {
+            const chip = document.createElement("span");
+            chip.className = "flag-chip warn";
+            chip.textContent = "No location";
+            flags.appendChild(chip);
+          }
+          nameTd.appendChild(flags);
+          tr.appendChild(nameTd);
+
+          const barcodeTd = document.createElement("td");
+          barcodeTd.className = "text-muted small";
+          barcodeTd.textContent = item.barcode || "";
+          tr.appendChild(barcodeTd);
+
+          const quantityTd = document.createElement("td");
+          quantityTd.textContent = formatQuantity(item.quantity);
+          tr.appendChild(quantityTd);
+
+          const unitTd = document.createElement("td");
+          unitTd.className = "text-muted";
+          unitTd.textContent = item.unit || "";
+          tr.appendChild(unitTd);
+
+          const locationTd = document.createElement("td");
+          locationTd.className = "text-muted";
+          locationTd.textContent = item.location || "";
+          tr.appendChild(locationTd);
+
+          const categoryTd = document.createElement("td");
+          const categoryInput = document.createElement("input");
+          categoryInput.type = "text";
+          categoryInput.className = "form-control form-control-sm category-inline-input";
+          categoryInput.value = item.category || "";
+          categoryInput.placeholder = "Category";
+          categoryInput.setAttribute("list", "inventoryCategoryOptions");
+          categoryInput.addEventListener("keydown", (event) => {
+            if (event.key === "Enter") {
+              event.preventDefault();
+              void saveInlineCategory(item, categoryInput.value, categoryInput);
+              return;
+            }
+            if (event.key === "Escape") {
+              event.preventDefault();
+              categoryInput.value = item.category || "";
+              categoryInput.blur();
+            }
+          });
+          categoryInput.addEventListener("blur", () => {
+            if (categoryInput.dataset.saving === "1") return;
+            categoryInput.value = item.category || "";
+          });
+          categoryTd.appendChild(categoryInput);
+          tr.appendChild(categoryTd);
+
+          const orderUrlTd = document.createElement("td");
+          const orderUrl = extractOrderUrlFromItem(item);
+          if (orderUrl) {
+            const orderLink = document.createElement("a");
+            orderLink.href = orderUrl;
+            orderLink.target = "_blank";
+            orderLink.rel = "noopener noreferrer";
+            orderLink.className = "order-url-link";
+            orderLink.innerHTML = '<i class="fa-solid fa-up-right-from-square"></i><span>Open</span>';
+            orderUrlTd.appendChild(orderLink);
+          } else {
+            orderUrlTd.className = "text-muted small";
+            orderUrlTd.textContent = "";
+          }
+          tr.appendChild(orderUrlTd);
+
+          const notesTd = document.createElement("td");
+          const notesInput = document.createElement("input");
+          notesInput.type = "text";
+          notesInput.className = "form-control form-control-sm notes-inline-input";
+          notesInput.value = removeUrlsFromNotes(item.notes || "");
+          notesInput.placeholder = "Notes";
+          notesInput.addEventListener("keydown", (event) => {
+            if (event.key === "Enter") {
+              event.preventDefault();
+              void saveInlineNotes(item, notesInput.value, notesInput);
+              return;
+            }
+            if (event.key === "Escape") {
+              event.preventDefault();
+              notesInput.value = removeUrlsFromNotes(item.notes || "");
+              notesInput.blur();
+            }
+          });
+          notesInput.addEventListener("blur", () => {
+            if (notesInput.dataset.saving === "1") return;
+            notesInput.value = removeUrlsFromNotes(item.notes || "");
+          });
+          notesTd.appendChild(notesInput);
+          tr.appendChild(notesTd);
+
+          const actionTd = document.createElement("td");
+          const actionWrap = document.createElement("div");
+          actionWrap.className = "d-flex gap-1";
+          const editBtn = document.createElement("button");
+          editBtn.className = "btn btn-sm btn-outline-secondary py-0 px-1";
+          editBtn.title = "Edit";
+          editBtn.innerHTML = '<i class="fa-solid fa-pen-to-square"></i>';
+          editBtn.addEventListener("click", () => openEditModal(item));
+          const verifyBtn = document.createElement("button");
+          verifyBtn.className = "btn btn-sm btn-outline-success py-0 px-1";
+          verifyBtn.title = "Verify baseline";
+          verifyBtn.innerHTML = '<i class="fa-solid fa-circle-check"></i>';
+          verifyBtn.addEventListener("click", () => openEditModal(item, { forceBaselineVerify: true }));
+          const deleteBtn = document.createElement("button");
+          deleteBtn.className = "btn btn-sm btn-outline-danger py-0 px-1";
+          deleteBtn.title = "Delete";
+          deleteBtn.innerHTML = '<i class="fa-solid fa-trash"></i>';
+          deleteBtn.addEventListener("click", () => deleteItem(item));
+          actionWrap.appendChild(verifyBtn);
+          actionWrap.appendChild(editBtn);
+          actionWrap.appendChild(deleteBtn);
+          actionTd.appendChild(actionWrap);
+          tr.appendChild(actionTd);
+
           inventoryBody.appendChild(tr);
         });
-      }
-
-      function escapeHtml(text) {
-        const div = document.createElement("div");
-        div.textContent = text;
-        return div.innerHTML;
       }
 
       async function fetchItems() {
@@ -405,55 +1351,196 @@
           ? payload.sort((a, b) => (a.item_name || "").localeCompare(b.item_name || ""))
           : [];
         renderCategoryOptions();
-        statItems.textContent = String(items.length);
+        updateStats();
+        renderCleanupFilter();
+      }
+
+      function updateImagePreview() {
+        const source = itemImageUrl.value.trim();
+        if (!source) {
+          itemImagePreview.classList.add("d-none");
+          itemImagePreview.removeAttribute("src");
+          itemImagePreviewLabel.textContent = "No image selected.";
+          return;
+        }
+        itemImagePreview.src = source;
+        itemImagePreview.classList.remove("d-none");
+        itemImagePreviewLabel.textContent = "Image preview";
+      }
+
+      function resetItemForm() {
+        setFormMode("create");
+        itemId.value = "";
+        itemBarcode.value = "";
+        itemName.value = "";
+        itemQty.value = "1";
+        itemUnit.value = "";
+        itemCategory.value = "";
+        itemLocation.value = "";
+        itemImageUrl.value = "";
+        itemImageFile.value = "";
+        itemNotes.value = "";
+        itemBaselineVerified.checked = false;
+        bindSearchInput.value = "";
+        toggleBindSection(false);
+        setLookupHint("Scan or enter barcode, then lookup product details.");
+        updateImagePreview();
+      }
+
+      async function applyLookupToForm(result, { openModal = true } = {}) {
+        const existing = result.existing_item || null;
+        const lookup = result.lookup || {};
+        scanLookupMeta.textContent = lookup.source || (existing ? "existing-inventory" : "none");
+        scanExistingMeta.textContent = existing ? "Found" : "Not found";
+
+        if (openModal) {
+          itemModal.show();
+        }
+
+        itemBarcode.value = result.barcode || itemBarcode.value;
+        if (existing) {
+          setFormMode("edit");
+          itemId.value = String(existing.id);
+          itemName.value = existing.item_name || lookup.name || "";
+          itemUnit.value = existing.unit || lookup.unit || "";
+          itemCategory.value = existing.category || lookup.category || "";
+          itemLocation.value = existing.location || "";
+          itemImageUrl.value = existing.image_url || lookup.image_url || "";
+          itemNotes.value = removeUrlsFromNotes(existing.notes || "");
+          itemQty.value = String(Number(existing.quantity || 0));
+          itemBaselineVerified.checked = true;
+          toggleBindSection(false);
+          setLookupHint(
+            "Existing item found. Confirm/update quantity and location, then save.",
+            "ok",
+          );
+        } else {
+          setFormMode("create");
+          itemId.value = "";
+          if (lookup.name) itemName.value = lookup.name;
+          if (lookup.unit) itemUnit.value = lookup.unit;
+          if (lookup.category && !itemCategory.value.trim()) itemCategory.value = lookup.category;
+          if (lookup.image_url) itemImageUrl.value = lookup.image_url;
+          itemNotes.value = "";
+          if (!itemQty.value || Number(itemQty.value) <= 0) itemQty.value = "1";
+          itemBaselineVerified.checked = true;
+          toggleBindSection(true);
+          const seedQuery = lookup.name || itemName.value || "";
+          bindSearchInput.value = seedQuery;
+          await loadBindCandidates(seedQuery);
+          if (lookup.name) {
+            setLookupHint(`Loaded product details from ${lookup.source || "external lookup"}. Enter quantity received and save.`, "info");
+          } else {
+            setLookupHint("Barcode not found in lookup sources. Fill in item details manually or bind to an existing item.", "err");
+          }
+        }
+        updateImagePreview();
+      }
+
+      async function lookupBarcode(rawBarcode, { openModal = true } = {}) {
+        const barcode = normalizeBarcode(rawBarcode);
+        if (!barcode) {
+          setStatus("Barcode must be 8-14 digits.", "err");
+          return;
+        }
+
+        try {
+          setStatus("Looking up barcode...", "info");
+          const response = await fetch(apiUrl(`/api/inventory/barcode-lookup/${encodeURIComponent(barcode)}`), {
+            credentials: "include",
+          });
+          if (!response.ok) throw new Error(await parseApiError(response));
+          const result = await response.json();
+          await applyLookupToForm(result, { openModal });
+          setStatus("Barcode lookup complete.", "ok");
+        } catch (error) {
+          setStatus(error instanceof Error ? error.message : "Could not lookup barcode.", "err");
+        }
       }
 
       function openAddModal() {
-        itemModalLabel.textContent = "Add Inventory Item";
-        document.getElementById("itemId").value = "";
-        document.getElementById("itemName").value = "";
-        document.getElementById("itemQty").value = "0";
-        document.getElementById("itemUnit").value = "";
-        document.getElementById("itemCategory").value = "";
-        document.getElementById("itemLocation").value = "";
-        document.getElementById("itemNotes").value = "";
+        resetItemForm();
         itemModal.show();
       }
 
-      function openEditModal(item) {
-        itemModalLabel.textContent = "Edit Inventory Item";
-        document.getElementById("itemId").value = item.id;
-        document.getElementById("itemName").value = item.item_name || "";
-        document.getElementById("itemQty").value = item.quantity != null ? item.quantity : 0;
-        document.getElementById("itemUnit").value = item.unit || "";
-        document.getElementById("itemCategory").value = item.category || "";
-        document.getElementById("itemLocation").value = item.location || "";
-        document.getElementById("itemNotes").value = item.notes || "";
+      function openEditModal(item, options = {}) {
+        setFormMode("edit");
+        itemId.value = String(item.id);
+        itemBarcode.value = item.barcode || "";
+        itemName.value = item.item_name || "";
+        itemQty.value = item.quantity != null ? String(item.quantity) : "0";
+        itemUnit.value = item.unit || "";
+        itemCategory.value = item.category || "";
+        itemLocation.value = item.location || "";
+        itemImageUrl.value = item.image_url || "";
+        itemNotes.value = removeUrlsFromNotes(item.notes || "");
+        itemBaselineVerified.checked = options.forceBaselineVerify ? true : hasBaselineVerification(item.notes);
+        bindSearchInput.value = "";
+        toggleBindSection(false);
+        setLookupHint("Editing existing inventory record.");
+        updateImagePreview();
         itemModal.show();
       }
 
       async function saveItem() {
-        const id = document.getElementById("itemId").value;
-        const itemName = document.getElementById("itemName").value.trim();
-        if (!itemName) {
+        const mode = itemMode.value || "create";
+        const id = itemId.value.trim();
+        if (mode === "edit" && !id) {
+          setStatus("Could not determine which inventory item to update.", "err");
+          return;
+        }
+        const barcode = normalizeBarcode(itemBarcode.value);
+        if (!barcode) {
+          setStatus("Barcode must be 8-14 digits.", "err");
+          return;
+        }
+
+        const cleanName = itemName.value.trim();
+        if (!cleanName) {
           setStatus("Item name is required.", "err");
           return;
         }
 
+        const qtyValue = Number.parseFloat(itemQty.value);
+        if (!Number.isFinite(qtyValue) || qtyValue < 0 || (mode !== "edit" && qtyValue <= 0)) {
+          setStatus(mode === "edit" ? "Quantity must be 0 or greater." : "Quantity received must be greater than 0.", "err");
+          return;
+        }
+
+        const cleanUnit = itemUnit.value.trim();
+        if (!cleanUnit) {
+          setStatus("Unit is required.", "err");
+          return;
+        }
+
+        const location = normalizeStorageLocation(itemLocation.value);
+        if (!location) {
+          setStatus("Storage location must be in shelf-grid format like A1 through Z99 (A1-A20 preferred).", "err");
+          return;
+        }
+
+        const imageUrl = itemImageUrl.value.trim();
+        if (!imageUrl) {
+          setStatus("Product image is required.", "err");
+          return;
+        }
+
         const payload = {
-          item_name: itemName,
-          quantity: parseFloat(document.getElementById("itemQty").value) || 0,
-          unit: document.getElementById("itemUnit").value.trim() || null,
-          category: document.getElementById("itemCategory").value.trim() || null,
-          location: document.getElementById("itemLocation").value.trim() || null,
-          notes: document.getElementById("itemNotes").value.trim() || null,
+          item_name: cleanName,
+          barcode,
+          quantity: qtyValue,
+          unit: cleanUnit,
+          category: itemCategory.value.trim() || null,
+          location,
+          image_url: imageUrl,
+          notes: mergeNotesForSave(itemNotes.value, itemBaselineVerified.checked),
         };
 
         try {
-          const isEdit = id !== "";
+          const isEdit = mode === "edit";
           const url = isEdit ? apiUrl(`/api/inventory/${id}`) : apiUrl("/api/inventory");
           const method = isEdit ? "PUT" : "POST";
-          setStatus(isEdit ? "Updating..." : "Creating...", "info");
+          setStatus(isEdit ? "Saving inventory..." : "Creating inventory item...", "info");
 
           const response = await fetch(url, {
             method,
@@ -468,7 +1555,16 @@
           await fetchItems();
           renderCategoryFilter();
           renderTable();
-          setStatus(isEdit ? `Updated "${itemName}".` : `Created "${itemName}".`, "ok");
+          if (mode === "edit") {
+            setStatus(
+              itemBaselineVerified.checked
+                ? `Updated "${cleanName}" and marked baseline verified.`
+                : `Updated "${cleanName}".`,
+              "ok",
+            );
+          } else {
+            setStatus(`Created "${cleanName}".`, "ok");
+          }
         } catch (error) {
           setStatus(error instanceof Error ? error.message : "Could not save.", "err");
         }
@@ -493,12 +1589,76 @@
         }
       }
 
+      function fileToDataUrl(file) {
+        return new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(String(reader.result || ""));
+          reader.onerror = () => reject(new Error("Could not read image file."));
+          reader.readAsDataURL(file);
+        });
+      }
+
       inventorySearch.addEventListener("input", renderTable);
       addItemBtn.addEventListener("click", openAddModal);
       saveItemBtn.addEventListener("click", saveItem);
+      scanLookupBtn.addEventListener("click", () => lookupBarcode(scanBarcodeInput.value, { openModal: true }));
+      lookupBarcodeBtn.addEventListener("click", () => lookupBarcode(itemBarcode.value, { openModal: false }));
+      bindSearchBtn.addEventListener("click", () => {
+        void loadBindCandidates(bindSearchInput.value);
+      });
+      bindBarcodeBtn.addEventListener("click", () => {
+        void bindBarcodeToSelectedItem();
+      });
+
+      scanBarcodeInput.addEventListener("keydown", (event) => {
+        if (event.key !== "Enter") return;
+        event.preventDefault();
+        void lookupBarcode(scanBarcodeInput.value, { openModal: true });
+      });
+
+      itemBarcode.addEventListener("keydown", (event) => {
+        if (event.key !== "Enter") return;
+        event.preventDefault();
+        void lookupBarcode(itemBarcode.value, { openModal: false });
+      });
+
+      bindSearchInput.addEventListener("keydown", (event) => {
+        if (event.key !== "Enter") return;
+        event.preventDefault();
+        void loadBindCandidates(bindSearchInput.value);
+      });
+
+      itemImageUrl.addEventListener("input", updateImagePreview);
+      itemImagePreview.addEventListener("error", () => {
+        itemImagePreview.classList.add("d-none");
+        itemImagePreviewLabel.textContent = "Image preview unavailable.";
+      });
+
+      itemImageFile.addEventListener("change", async () => {
+        const file = itemImageFile.files && itemImageFile.files[0] ? itemImageFile.files[0] : null;
+        if (!file) return;
+        if (!file.type.startsWith("image/")) {
+          setStatus("Uploaded file must be an image.", "err");
+          return;
+        }
+        if (file.size > 2 * 1024 * 1024) {
+          setStatus("Image file is too large. Use 2MB or smaller.", "err");
+          return;
+        }
+        try {
+          const dataUrl = await fileToDataUrl(file);
+          itemImageUrl.value = dataUrl;
+          updateImagePreview();
+          setStatus(`Loaded image "${file.name}".`, "ok");
+        } catch (error) {
+          setStatus(error instanceof Error ? error.message : "Could not read image file.", "err");
+        }
+      });
 
       async function init() {
         itemModal = new bootstrap.Modal(itemModalEl);
+        buildLocationOptions();
+        resetItemForm();
         try {
           setStatus("Loading inventory...", "info");
           await fetchItems();
@@ -512,6 +1672,7 @@
         } catch (error) {
           setStatus("Could not load inventory. Check API.", "err");
         }
+        scanBarcodeInput.focus();
       }
 
       void init();

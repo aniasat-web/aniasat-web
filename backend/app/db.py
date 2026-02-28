@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import re
 import sqlite3
 from pathlib import Path
 from typing import Any
@@ -24,8 +25,14 @@ AUTO_SEED_MASTER_DATA_ENV = "RETREAT_OPS_AUTO_SEED_MASTER_DATA"
 AUTO_SEED_DISABLED_VALUES = {"0", "false", "off", "no"}
 DATABASE_URL_ENV = "DATABASE_URL"
 SQLITE_DB_PATH_ENV = "RETREAT_OPS_SQLITE_DB_PATH"
+SQLITE_BUSY_TIMEOUT_MS = 5000
 
 LOGGER = logging.getLogger(__name__)
+URL_IN_NOTES_RE = re.compile(r"https?://[^\s|]+", re.IGNORECASE)
+IMAGE_URL_SUFFIX_RE = re.compile(r"\.(?:png|jpe?g|webp|gif|bmp|svg)(?:\?.*)?$", re.IGNORECASE)
+REFERENCE_URL_LABEL_RE = re.compile(r"^(reference url|image reference)\s*:?\s*$", re.IGNORECASE)
+IMPORT_TAG_PREFIX_RE = re.compile(r"^\[import:([^\]]+)\]\s*", re.IGNORECASE)
+IMPORT_ROW_TOKEN_RE = re.compile(r"^row=\d+\b", re.IGNORECASE)
 
 DEFAULT_VENDOR_NAMES = [
     "OmProduce",
@@ -266,6 +273,8 @@ def get_connection() -> CompatConnection:
     raw = sqlite3.connect(sqlite_path)
     raw.row_factory = sqlite3.Row
     raw.execute("PRAGMA foreign_keys = ON")
+    raw.execute("PRAGMA journal_mode = WAL")
+    raw.execute(f"PRAGMA busy_timeout = {SQLITE_BUSY_TIMEOUT_MS}")
     return CompatConnection(raw, backend="sqlite")
 
 
@@ -312,6 +321,130 @@ def table_columns(conn: CompatConnection, table_name: str) -> set[str]:
 
     rows = conn.execute(f"PRAGMA table_info({table_name})").fetchall()
     return {str(row["name"]).strip() for row in rows}
+
+
+def normalize_optional_text(value: Any) -> str | None:
+    text = str(value or "").strip()
+    return text if text else None
+
+
+def extract_urls_from_text(raw_text: Any) -> list[str]:
+    text = normalize_optional_text(raw_text)
+    if not text:
+        return []
+    seen: set[str] = set()
+    urls: list[str] = []
+    for match in URL_IN_NOTES_RE.findall(text):
+        candidate = match.strip()
+        if not candidate or candidate in seen:
+            continue
+        seen.add(candidate)
+        urls.append(candidate)
+    return urls
+
+
+def is_image_url(url: str | None) -> bool:
+    candidate = normalize_optional_text(url)
+    if not candidate:
+        return False
+    return bool(IMAGE_URL_SUFFIX_RE.search(candidate))
+
+
+def extract_order_url_and_clean_notes(raw_notes: Any) -> tuple[str | None, str | None, str | None]:
+    notes = normalize_optional_text(raw_notes)
+    if not notes:
+        return None, None, None
+
+    extracted_urls: list[str] = []
+    cleaned_parts: list[str] = []
+    import_source: str | None = None
+    for raw_part in notes.split("|"):
+        part = normalize_optional_text(raw_part)
+        if not part:
+            continue
+
+        import_match = IMPORT_TAG_PREFIX_RE.match(part)
+        if import_match:
+            extracted_source = normalize_optional_text(import_match.group(1))
+            if extracted_source and not import_source:
+                import_source = extracted_source
+            part = normalize_optional_text(part[import_match.end() :])
+            part = normalize_optional_text(IMPORT_ROW_TOKEN_RE.sub("", part or ""))
+            if not part:
+                continue
+
+        part_urls = extract_urls_from_text(part)
+        for url in part_urls:
+            if url not in extracted_urls:
+                extracted_urls.append(url)
+
+        part_no_urls = URL_IN_NOTES_RE.sub(" ", part)
+        part_no_urls = re.sub(r"\s+", " ", part_no_urls).strip()
+        part_no_urls = re.sub(r"\s*[:;,.\-]+\s*$", "", part_no_urls).strip()
+        if not part_no_urls:
+            continue
+        if REFERENCE_URL_LABEL_RE.match(part_no_urls):
+            continue
+        if part_no_urls not in cleaned_parts:
+            cleaned_parts.append(part_no_urls)
+
+    order_url: str | None = None
+    for url in extracted_urls:
+        if not is_image_url(url):
+            order_url = url
+            break
+    if not order_url and extracted_urls:
+        order_url = extracted_urls[0]
+
+    cleaned_notes = " | ".join(cleaned_parts) if cleaned_parts else None
+    return order_url, cleaned_notes, import_source
+
+
+def migrate_standalone_inventory_order_urls(conn: CompatConnection) -> None:
+    columns = table_columns(conn, "standalone_inventory")
+    if not columns:
+        return
+    if "notes" not in columns or "order_url" not in columns:
+        return
+    has_import_source = "import_source" in columns
+
+    select_fields = "id, notes, order_url"
+    if has_import_source:
+        select_fields += ", import_source"
+    rows = conn.execute(
+        f"SELECT {select_fields} FROM standalone_inventory"
+    ).fetchall()
+    for row in rows:
+        existing_order_url = normalize_optional_text(row["order_url"])
+        existing_notes = normalize_optional_text(row["notes"])
+        existing_import_source = normalize_optional_text(row["import_source"]) if has_import_source else None
+        extracted_order_url, cleaned_notes, extracted_import_source = extract_order_url_and_clean_notes(row["notes"])
+        next_order_url = existing_order_url or extracted_order_url
+        next_import_source = existing_import_source or extracted_import_source
+        if (
+            existing_order_url == next_order_url
+            and existing_notes == cleaned_notes
+            and existing_import_source == next_import_source
+        ):
+            continue
+        if has_import_source:
+            conn.execute(
+                """
+                UPDATE standalone_inventory
+                SET notes = ?, order_url = ?, import_source = ?
+                WHERE id = ?
+                """,
+                (cleaned_notes, next_order_url, next_import_source, int(row["id"])),
+            )
+        else:
+            conn.execute(
+                """
+                UPDATE standalone_inventory
+                SET notes = ?, order_url = ?
+                WHERE id = ?
+                """,
+                (cleaned_notes, next_order_url, int(row["id"])),
+            )
 
 
 def ensure_retreat_inventory_location(conn: CompatConnection, location_name: str) -> int:
@@ -472,6 +605,39 @@ def init_db() -> None:
         shopping_item_source_columns = table_columns(conn, "shopping_list_item_sources")
         if shopping_item_source_columns and "dish_name" not in shopping_item_source_columns:
             conn.execute("ALTER TABLE shopping_list_item_sources ADD COLUMN dish_name TEXT")
+
+        standalone_inventory_columns = table_columns(conn, "standalone_inventory")
+        if standalone_inventory_columns and "barcode" not in standalone_inventory_columns:
+            conn.execute("ALTER TABLE standalone_inventory ADD COLUMN barcode TEXT")
+        if standalone_inventory_columns and "image_url" not in standalone_inventory_columns:
+            conn.execute("ALTER TABLE standalone_inventory ADD COLUMN image_url TEXT")
+        if standalone_inventory_columns and "order_url" not in standalone_inventory_columns:
+            conn.execute("ALTER TABLE standalone_inventory ADD COLUMN order_url TEXT")
+        if standalone_inventory_columns and "import_source" not in standalone_inventory_columns:
+            conn.execute("ALTER TABLE standalone_inventory ADD COLUMN import_source TEXT")
+        standalone_inventory_columns = table_columns(conn, "standalone_inventory")
+        if standalone_inventory_columns and "barcode" in standalone_inventory_columns:
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_standalone_inventory_barcode ON standalone_inventory(barcode)")
+        if standalone_inventory_columns and "order_url" in standalone_inventory_columns:
+            migrate_standalone_inventory_order_urls(conn)
+        if standalone_inventory_columns and "category" in standalone_inventory_columns:
+            conn.execute(
+                """
+                UPDATE standalone_inventory
+                SET category = 'Infra'
+                WHERE category IS NOT NULL
+                  AND trim(category) != ''
+                  AND lower(trim(category)) IN (
+                    'infra',
+                    'infrastructure',
+                    'maintenance',
+                    'facility maintenance',
+                    'facilities maintenance',
+                    'janitorial',
+                    'housekeeping'
+                  )
+                """
+            )
 
         retreat_inventory_item_columns = table_columns(conn, "retreat_inventory_items")
         if retreat_inventory_item_columns and "shelf_location" not in retreat_inventory_item_columns:

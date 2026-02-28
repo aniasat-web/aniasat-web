@@ -15,6 +15,7 @@ RENDER_SSH_KEY="${RENDER_SSH_KEY:-}"
 RENDER_REMOTE_DB_PATH="${RENDER_REMOTE_DB_PATH:-/opt/render/project/src/backend/data/retreat_ops.db}"
 LOCAL_DB_PATH="${LOCAL_DB_PATH:-${BACKEND_DIR}/data/retreat_ops.db}"
 SKIP_REMOTE_BACKUP=0
+SYNC_SCOPE="${SYNC_SCOPE:-full}"
 
 usage() {
   cat <<'EOF'
@@ -28,6 +29,7 @@ Options:
   --key PATH             SSH private key path (default auto-detect: ~/.ssh/bitbucket_ed25519)
   --remote-db PATH       Remote DB path (default: /opt/render/project/src/backend/data/retreat_ops.db)
   --local-db PATH        Local DB path (default: backend/data/retreat_ops.db)
+  --scope SCOPE          Sync scope: full (default) or inventory
   --skip-remote-backup   Do not create a remote pre-sync backup
   -h, --help             Show this help
 
@@ -43,6 +45,18 @@ require_cmd() {
     echo "Missing required command: $1" >&2
     exit 1
   fi
+}
+
+resolve_python_bin() {
+  if command -v python3 >/dev/null 2>&1; then
+    command -v python3
+    return 0
+  fi
+  if command -v python >/dev/null 2>&1; then
+    command -v python
+    return 0
+  fi
+  return 1
 }
 
 if [[ -z "${RENDER_SSH_KEY}" && -f "${DEFAULT_RENDER_SSH_KEY}" ]]; then
@@ -75,6 +89,10 @@ while [[ $# -gt 0 ]]; do
       LOCAL_DB_PATH="${2:-}"
       shift 2
       ;;
+    --scope)
+      SYNC_SCOPE="${2:-}"
+      shift 2
+      ;;
     --skip-remote-backup)
       SKIP_REMOTE_BACKUP=1
       shift 1
@@ -91,6 +109,11 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
+if [[ "${SYNC_SCOPE}" != "full" && "${SYNC_SCOPE}" != "inventory" ]]; then
+  echo "Invalid --scope value: ${SYNC_SCOPE}. Expected: full or inventory" >&2
+  exit 1
+fi
+
 if [[ ! -f "${LOCAL_DB_PATH}" ]]; then
   echo "Local DB not found: ${LOCAL_DB_PATH}" >&2
   exit 1
@@ -99,6 +122,15 @@ fi
 require_cmd ssh
 require_cmd scp
 require_cmd date
+
+PY_BIN=""
+if [[ "${SYNC_SCOPE}" == "inventory" ]]; then
+  PY_BIN="$(resolve_python_bin || true)"
+  if [[ -z "${PY_BIN}" ]]; then
+    echo "Missing required command for inventory scope: python3 or python" >&2
+    exit 1
+  fi
+fi
 
 if [[ -n "${RENDER_SSH_KEY}" && ! -f "${RENDER_SSH_KEY}" ]]; then
   echo "SSH key not found: ${RENDER_SSH_KEY}" >&2
@@ -123,8 +155,116 @@ REMOTE_DIR="$(dirname "${RENDER_REMOTE_DB_PATH}")"
 REMOTE_UPLOAD_PATH="${REMOTE_DIR}/retreat_ops-upload-${TIMESTAMP}.db"
 REMOTE_BACKUP_PATH="${RENDER_REMOTE_DB_PATH}.pre-sync-${TIMESTAMP}"
 
-echo "Uploading local DB ${LOCAL_DB_PATH} -> ${REMOTE_UPLOAD_PATH} ..."
-scp "${SCP_OPTS[@]}" "${LOCAL_DB_PATH}" "${TARGET}:${REMOTE_UPLOAD_PATH}"
+if [[ "${SYNC_SCOPE}" == "full" ]]; then
+  echo "Uploading local DB ${LOCAL_DB_PATH} -> ${REMOTE_UPLOAD_PATH} ..."
+  scp "${SCP_OPTS[@]}" "${LOCAL_DB_PATH}" "${TARGET}:${REMOTE_UPLOAD_PATH}"
+else
+  TMP_REMOTE_DB_LOCAL_PATH="${LOCAL_DB_PATH}.remote-${TIMESTAMP}"
+
+  echo "Downloading remote DB ${RENDER_REMOTE_DB_PATH} -> ${TMP_REMOTE_DB_LOCAL_PATH} ..."
+  scp "${SCP_OPTS[@]}" "${TARGET}:${RENDER_REMOTE_DB_PATH}" "${TMP_REMOTE_DB_LOCAL_PATH}"
+
+  echo "Applying inventory-only table overwrite from local DB snapshot ..."
+  "${PY_BIN}" - <<PY
+import sqlite3
+from pathlib import Path
+
+local_db = Path(r'''${LOCAL_DB_PATH}''')
+remote_db_local = Path(r'''${TMP_REMOTE_DB_LOCAL_PATH}''')
+
+inventory_tables = [
+    "standalone_inventory",
+    "inventory_items",
+    "retreat_inventory_categories",
+    "retreat_inventory_items",
+    "retreat_inventory_locations",
+    "retreat_inventory_item_locations",
+    "retreat_inventory_levels",
+    "retreat_inventory_transactions",
+    "retreat_inventory_retreats",
+    "retreat_inventory_retreat_requirements",
+    "retreat_inventory_purchase_orders",
+    "retreat_inventory_purchase_order_items",
+]
+
+def qident(name: str) -> str:
+    return '"' + name.replace('"', '""') + '"'
+
+def table_exists(conn: sqlite3.Connection, table: str) -> bool:
+    row = conn.execute(
+        "SELECT 1 FROM sqlite_master WHERE type='table' AND name = ?",
+        (table,),
+    ).fetchone()
+    return bool(row)
+
+def table_columns(conn: sqlite3.Connection, table: str) -> list[str]:
+    rows = conn.execute(f"PRAGMA table_info({qident(table)})").fetchall()
+    return [str(row[1]) for row in rows]
+
+remote_conn = sqlite3.connect(remote_db_local)
+remote_conn.row_factory = sqlite3.Row
+local_conn = sqlite3.connect(local_db)
+local_conn.row_factory = sqlite3.Row
+
+try:
+    remote_conn.execute("PRAGMA foreign_keys = OFF")
+    remote_conn.execute("BEGIN")
+    for table in inventory_tables:
+        if not table_exists(remote_conn, table):
+            print(f"SKIP {table}: missing in remote DB")
+            continue
+        if not table_exists(local_conn, table):
+            print(f"SKIP {table}: missing in local DB")
+            continue
+
+        remote_cols = table_columns(remote_conn, table)
+        local_cols = set(table_columns(local_conn, table))
+        common_cols = [col for col in remote_cols if col in local_cols]
+        if not common_cols:
+            print(f"SKIP {table}: no common columns")
+            continue
+
+        cols_sql = ", ".join(qident(col) for col in common_cols)
+        placeholders_sql = ", ".join("?" for _ in common_cols)
+        rows = local_conn.execute(f"SELECT {cols_sql} FROM {qident(table)}").fetchall()
+
+        remote_conn.execute(f"DELETE FROM {qident(table)}")
+        if rows:
+            tuples = [tuple(row[col] for col in common_cols) for row in rows]
+            remote_conn.executemany(
+                f"INSERT INTO {qident(table)} ({cols_sql}) VALUES ({placeholders_sql})",
+                tuples,
+            )
+        print(f"SYNC {table}: {len(rows)} row(s)")
+
+        if "id" in common_cols:
+            max_id_row = remote_conn.execute(f"SELECT COALESCE(MAX(id), 0) FROM {qident(table)}").fetchone()
+            max_id = int(max_id_row[0] or 0)
+            seq_exists = remote_conn.execute(
+                "SELECT 1 FROM sqlite_master WHERE type='table' AND name='sqlite_sequence'"
+            ).fetchone()
+            if seq_exists:
+                remote_conn.execute(
+                    "UPDATE sqlite_sequence SET seq = ? WHERE name = ?",
+                    (max_id, table),
+                )
+                remote_conn.execute(
+                    "INSERT INTO sqlite_sequence(name, seq) SELECT ?, ? WHERE NOT EXISTS (SELECT 1 FROM sqlite_sequence WHERE name = ?)",
+                    (table, max_id, table),
+                )
+    remote_conn.commit()
+finally:
+    try:
+        remote_conn.execute("PRAGMA foreign_keys = ON")
+    finally:
+        local_conn.close()
+        remote_conn.close()
+PY
+
+  echo "Uploading inventory-merged DB ${TMP_REMOTE_DB_LOCAL_PATH} -> ${REMOTE_UPLOAD_PATH} ..."
+  scp "${SCP_OPTS[@]}" "${TMP_REMOTE_DB_LOCAL_PATH}" "${TARGET}:${REMOTE_UPLOAD_PATH}"
+  rm -f "${TMP_REMOTE_DB_LOCAL_PATH}"
+fi
 
 if [[ "${SKIP_REMOTE_BACKUP}" -eq 0 ]]; then
   echo "Backing up remote DB -> ${REMOTE_BACKUP_PATH} ..."

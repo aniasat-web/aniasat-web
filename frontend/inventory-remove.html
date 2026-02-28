@@ -1,0 +1,400 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Remove Inventory - Blossom Foundation</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+    <link rel="stylesheet" href="assets/header-theme.css" />
+    <style>
+      body {
+        font-family: "Plus Jakarta Sans", sans-serif;
+      }
+
+      h1, h2, h3, .navbar-brand {
+        font-family: "Instrument Serif", serif;
+      }
+
+      .inventory-shell {
+        max-width: 1120px;
+        margin: 0 auto;
+        padding: 1.4rem 1rem 2rem;
+      }
+
+      .soft-card {
+        border: 1px solid var(--ui-border);
+        border-radius: var(--ui-radius-md);
+        background: rgba(255, 255, 255, 0.88);
+        box-shadow: var(--ui-shadow-sm);
+        backdrop-filter: blur(2px);
+      }
+
+      .scanner-field {
+        font-size: 1.15rem;
+        font-weight: 700;
+        letter-spacing: 0.02em;
+      }
+
+      .product-photo {
+        width: 150px;
+        height: 150px;
+        border-radius: var(--ui-radius-md);
+        border: 1px solid var(--ui-border);
+        object-fit: cover;
+        background: #f5f5f4;
+      }
+    </style>
+    <link rel="stylesheet" href="assets/ui-theme.css" />
+  </head>
+  <body>
+    <nav class="navbar navbar-expand-lg navbar-light fixed-top">
+      <div class="container">
+        <a class="navbar-brand" href="index.html">
+          <img class="brand-logo" src="assets/blossom-mark.png" alt="Blossom logo" />
+          <span>Blossom Foundation</span>
+        </a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarContent">
+          <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarContent">
+          <ul class="navbar-nav ms-auto mb-2 mb-lg-0 fw-semibold small text-uppercase">
+            <li class="nav-item">
+              <a class="nav-link" href="index.html"><i class="fa-solid fa-house me-1"></i> Home</a>
+            </li>
+            <li class="nav-item dropdown">
+              <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false"><i class="fa-solid fa-utensils me-1"></i> Kitchen</a>
+              <ul class="dropdown-menu">
+                <li><a class="dropdown-item" href="retreat-planner-sample.html"><i class="fa-solid fa-calendar-days me-2"></i> Planner</a></li>
+                <li><a class="dropdown-item" href="shopping-list.html"><i class="fa-solid fa-cart-shopping me-2"></i> Shopping</a></li>
+                <li><a class="dropdown-item" href="kitchen-service-view.html"><i class="fa-solid fa-fire-burner me-2"></i> Retreat View</a></li>
+                <li><a class="dropdown-item" href="kitchen-test-view.html"><i class="fa-solid fa-vial me-2"></i> Testing View</a></li>
+                <li><a class="dropdown-item" href="recipe-admin.html"><i class="fa-solid fa-book me-2"></i> Recipes</a></li>
+                <li><a class="dropdown-item" href="ingredient-admin.html"><i class="fa-solid fa-carrot me-2"></i> Ingredients</a></li>
+              </ul>
+            </li>
+            <li class="nav-item dropdown">
+              <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false"><i class="fa-solid fa-boxes-stacked me-1"></i> Inventory</a>
+              <ul class="dropdown-menu">
+                <li><a class="dropdown-item" href="inventory-add.html"><i class="fa-solid fa-plus me-2"></i> Add Inventory</a></li>
+                <li><a class="dropdown-item" href="inventory-remove.html"><i class="fa-solid fa-minus me-2"></i> Remove Inventory</a></li>
+                <li><a class="dropdown-item" href="inventory-current.html"><i class="fa-solid fa-box-open me-2"></i> Current Inventory</a></li>
+                <li><a class="dropdown-item" href="inventory-orders.html"><i class="fa-solid fa-list-check me-2"></i> Order List</a></li>
+              </ul>
+            </li>
+            <li class="nav-item dropdown">
+              <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false"><i class="fa-solid fa-seedling me-1"></i> About</a>
+              <ul class="dropdown-menu">
+                <li><a class="dropdown-item" href="about.html"><i class="fa-solid fa-heart me-2"></i> About &amp; Mission</a></li>
+                <li><a class="dropdown-item" href="about-sri-m.html"><i class="fa-solid fa-user me-2"></i> About Sri M</a></li>
+                <li><a class="dropdown-item" href="sacred-grove.html"><i class="fa-solid fa-tree me-2"></i> Sacred Grove</a></li>
+                <li><a class="dropdown-item" href="faq.html"><i class="fa-solid fa-circle-question me-2"></i> FAQ</a></li>
+              </ul>
+            </li>
+            <li class="nav-item dropdown">
+              <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false"><i class="fa-solid fa-hand-holding-heart me-1"></i> Volunteer</a>
+              <ul class="dropdown-menu">
+                <li><a class="dropdown-item" href="volunteer.html"><i class="fa-solid fa-hands-helping me-2"></i> How to Volunteer</a></li>
+                <li><a class="dropdown-item" href="volunteer-contact.html"><i class="fa-solid fa-envelope me-2"></i> Contact Us</a></li>
+              </ul>
+            </li>
+            <li class="nav-item dropdown">
+              <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false"><i class="fa-solid fa-gear me-1"></i> Admin</a>
+              <ul class="dropdown-menu">
+                <li><a class="dropdown-item" href="user-admin.html"><i class="fa-solid fa-users-gear me-2"></i> Users</a></li>
+              </ul>
+            </li>
+            <li class="nav-item d-flex align-items-center">
+              <span class="nav-link text-muted d-none" id="authUserLabel"></span>
+            </li>
+            <li class="nav-item d-flex align-items-center ms-lg-2">
+              <button class="btn btn-sm btn-outline-secondary d-none" id="logoutBtn" type="button">Logout</button>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </nav>
+
+    <main class="inventory-shell">
+      <div class="d-flex flex-wrap align-items-center gap-3 mb-4">
+        <div class="flex-grow-1">
+          <h1 class="fw-bold mb-2"><i class="fa-solid fa-minus me-2" style="color: var(--ui-danger-700);"></i>Remove Inventory</h1>
+          <p class="text-muted mb-0">Scan barcodes to remove items from retreat inventory. Each scan records an OUT transaction.</p>
+        </div>
+        <span id="statusPill" class="status-pill info">Ready.</span>
+      </div>
+
+      <section class="soft-card p-4 mb-4">
+        <h2 class="h5 mb-3 fw-bold"><i class="fa-solid fa-barcode me-2 text-success"></i>Scan Item</h2>
+        <div class="row g-3 align-items-end">
+          <div class="col-lg-5">
+            <label for="barcodeInput" class="form-label fw-semibold">Barcode</label>
+            <input id="barcodeInput" type="text" class="form-control scanner-field" placeholder="Scan barcode and press Enter" />
+          </div>
+          <div class="col-sm-4 col-lg-2">
+            <label for="txQty" class="form-label fw-semibold">Quantity</label>
+            <input id="txQty" type="number" min="1" max="99999" step="1" value="1" class="form-control" />
+          </div>
+          <div class="col-sm-8 col-lg-3">
+            <label for="txLocation" class="form-label fw-semibold">Location</label>
+            <select id="txLocation" class="form-select">
+              <option value="">Auto / Unspecified</option>
+            </select>
+          </div>
+          <div class="col-lg-2 d-grid">
+            <button id="scanAddBtn" type="button" class="btn btn-danger"><i class="fa-solid fa-minus me-1"></i>Remove</button>
+          </div>
+          <div class="col-12">
+            <label for="txReason" class="form-label fw-semibold">Reason</label>
+            <input id="txReason" type="text" class="form-control" placeholder="Retreat use, damaged, consumed" />
+          </div>
+        </div>
+      </section>
+
+      <section class="soft-card p-4 mb-4">
+        <div class="d-flex align-items-center justify-content-between mb-2">
+          <h2 class="h5 mb-0">Latest Scan Result</h2>
+        </div>
+        <div class="row g-3 mt-1" id="scanResultWrap" style="display: none">
+          <div class="col-sm-4 col-lg-2">
+            <img id="scanImage" class="product-photo" alt="Scanned item" />
+          </div>
+          <div class="col-sm-8 col-lg-10">
+            <div class="small text-uppercase text-muted fw-bold mb-1">Latest scan</div>
+            <h3 id="scanName" class="mb-1"></h3>
+            <div class="text-muted mb-1" id="scanCategory"></div>
+            <div class="fw-semibold" id="scanQuantity"></div>
+            <div class="small text-muted mt-1" id="scanLocation"></div>
+            <div class="small mt-1" id="scanPurchase"></div>
+          </div>
+        </div>
+        <div id="scanResultEmpty" class="text-muted small">No scans yet.</div>
+      </section>
+    </main>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="assets/auth.js?v=20260218f"></script>
+    <script>
+      const barcodeInput = document.getElementById("barcodeInput");
+      const txQty = document.getElementById("txQty");
+      const txLocation = document.getElementById("txLocation");
+      const txReason = document.getElementById("txReason");
+      const scanAddBtn = document.getElementById("scanAddBtn");
+      const statusPill = document.getElementById("statusPill");
+      const scanResultWrap = document.getElementById("scanResultWrap");
+      const scanResultEmpty = document.getElementById("scanResultEmpty");
+      const scanImage = document.getElementById("scanImage");
+      const scanName = document.getElementById("scanName");
+      const scanCategory = document.getElementById("scanCategory");
+      const scanQuantity = document.getElementById("scanQuantity");
+      const scanLocation = document.getElementById("scanLocation");
+      const scanPurchase = document.getElementById("scanPurchase");
+
+      let locationCache = [];
+
+      function resolveApiBase() {
+        const queryValue = new URLSearchParams(window.location.search).get("api");
+        const base = queryValue && queryValue.trim() ? queryValue.trim() : window.location.origin;
+        return base.replace(/\/+$/, "");
+      }
+
+      const API_BASE = resolveApiBase();
+
+      function apiUrl(path) {
+        return `${API_BASE}${path.startsWith("/") ? path : `/${path}`}`;
+      }
+
+      function setStatus(message, mode = "info") {
+        statusPill.textContent = message;
+        statusPill.classList.remove("info", "ok", "err");
+        statusPill.classList.add(mode);
+      }
+
+      async function parseApiError(response) {
+        const raw = await response.text();
+        if (!raw) return `HTTP ${response.status}`;
+        try {
+          const parsed = JSON.parse(raw);
+          if (parsed && typeof parsed === "object" && typeof parsed.detail === "string") return parsed.detail;
+        } catch (_error) {}
+        return raw;
+      }
+
+      function escapeHtml(text) {
+        const div = document.createElement("div");
+        div.textContent = text == null ? "" : String(text);
+        return div.innerHTML;
+      }
+
+      function toSafeHttpUrl(value) {
+        if (!value) return null;
+        try {
+          const parsed = new URL(String(value).trim(), window.location.origin);
+          if (parsed.protocol === "http:" || parsed.protocol === "https:") {
+            return parsed.href;
+          }
+        } catch (_error) {}
+        return null;
+      }
+
+      function formatDateTime(value) {
+        if (!value) return "";
+        try {
+          const d = new Date(value);
+          return `${d.toLocaleDateString()} ${d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`;
+        } catch (_e) {
+          return String(value);
+        }
+      }
+
+      function renderLocationOptions() {
+        txLocation.innerHTML = "";
+
+        const defaultOption = document.createElement("option");
+        defaultOption.value = "";
+        defaultOption.textContent = "Auto / Unspecified";
+        txLocation.appendChild(defaultOption);
+
+        const activeLocations = locationCache.filter(function (location) {
+          return Boolean(location.active);
+        });
+        activeLocations.forEach(function (location) {
+          const option = document.createElement("option");
+          option.value = String(location.id);
+          option.textContent = location.name;
+          txLocation.appendChild(option);
+        });
+      }
+
+      async function fetchLocations() {
+        const response = await fetch(apiUrl("/api/retreat-inventory/locations"), {
+          credentials: "include",
+        });
+        if (!response.ok) {
+          throw new Error(await parseApiError(response));
+        }
+        const payload = await response.json();
+        locationCache = Array.isArray(payload) ? payload : [];
+        renderLocationOptions();
+      }
+
+      async function handleRemoveScan() {
+        const barcode = barcodeInput.value.trim();
+        if (!barcode) {
+          setStatus("Scan barcode first.", "err");
+          barcodeInput.focus();
+          return;
+        }
+
+        const quantity = Number.parseInt(txQty.value, 10);
+        if (!Number.isFinite(quantity) || quantity <= 0) {
+          setStatus("Quantity must be greater than zero.", "err");
+          txQty.focus();
+          return;
+        }
+
+        const locationId = Number.parseInt(txLocation.value, 10);
+        const requestPayload = {
+          barcode: barcode,
+          transactionType: "OUT",
+          quantity: quantity,
+          reason: txReason.value.trim() || null,
+        };
+        if (Number.isFinite(locationId)) {
+          requestPayload.locationId = locationId;
+        }
+
+        setStatus("Processing removal...", "info");
+        const response = await fetch(apiUrl("/api/retreat-inventory/scan"), {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(requestPayload),
+        });
+
+        if (!response.ok) {
+          throw new Error(await parseApiError(response));
+        }
+
+        const result = await response.json();
+
+        scanResultWrap.style.display = "flex";
+        if (scanResultEmpty) {
+          scanResultEmpty.style.display = "none";
+        }
+
+        scanImage.src = result.item && result.item.image_url ? result.item.image_url : "assets/blossom-mark.png";
+        scanName.textContent = result.item ? result.item.name : "";
+
+        const locations = Array.isArray(result.item && result.item.locations) ? result.item.locations : [];
+        const locationSummary = locations.length
+          ? locations.map(function (loc) { return loc.location_name + " (" + Number(loc.quantity || 0) + ")"; }).join(", ")
+          : (result.item ? result.item.shelf_location : "");
+
+        const itemUnitLabel = result.item && result.item.unit ? " " + result.item.unit : "";
+
+        scanCategory.textContent = (result.item ? result.item.category_name : "") +
+          " \u2022 " +
+          (result.item ? result.item.tracking_mode : "") +
+          (locationSummary ? " \u2022 Locations: " + locationSummary : "");
+
+        scanQuantity.textContent = "Stock: " + result.quantity_before + " \u2192 " + result.quantity_after + itemUnitLabel +
+          " (" + (result.delta > 0 ? "+" : "") + result.delta + ")";
+
+        if (result.location && result.location.name) {
+          scanLocation.textContent = "Shelf: " + result.location.name;
+        } else {
+          scanLocation.textContent = "";
+        }
+
+        scanPurchase.replaceChildren();
+        const purchaseUrl = toSafeHttpUrl(result.item ? result.item.purchase_url : null);
+        if (purchaseUrl) {
+          const purchaseLink = document.createElement("a");
+          purchaseLink.href = purchaseUrl;
+          purchaseLink.target = "_blank";
+          purchaseLink.rel = "noopener noreferrer";
+          purchaseLink.textContent = "Open purchase link";
+          scanPurchase.appendChild(purchaseLink);
+        }
+
+        barcodeInput.value = "";
+        txReason.value = "";
+        setStatus("Removed " + (result.item ? result.item.name : "item") + ".", "ok");
+        barcodeInput.focus();
+      }
+
+      scanAddBtn.addEventListener("click", function () {
+        void handleRemoveScan().catch(function (error) {
+          setStatus(error instanceof Error ? error.message : "Remove inventory failed.", "err");
+          barcodeInput.focus();
+        });
+      });
+
+      barcodeInput.addEventListener("keydown", function (event) {
+        if (event.key === "Enter") {
+          event.preventDefault();
+          scanAddBtn.click();
+        }
+      });
+
+      async function init() {
+        setStatus("Loading...", "info");
+        try {
+          await fetchLocations();
+          setStatus("Ready to scan.", "ok");
+        } catch (error) {
+          setStatus(error instanceof Error ? error.message : "Could not load locations.", "err");
+        }
+      }
+
+      void init();
+    </script>
+  </body>
+</html>

@@ -9,6 +9,7 @@ from typing import Annotated
 from typing import Any
 from typing import Literal
 from urllib import error as urllib_error
+from urllib import parse as urllib_parse
 from urllib import request as urllib_request
 
 from fastapi import Depends, FastAPI, HTTPException, Query, Request, Response
@@ -22,6 +23,7 @@ from .auth import (
     BOOTSTRAP_ADMIN_USERNAME_ENV,
     ROLE_ADMIN,
     ROLE_PLANNER,
+    ROLE_VIEWER,
     SESSION_COOKIE_NAME,
     AuthUser,
     authenticate_credentials,
@@ -92,6 +94,43 @@ COUNT_UNITS = {
 }
 
 DAL_RICE_TOKEN_RE = re.compile(r"\b(rice|dal|moong|mung|toor|urad|masoor)\b")
+STORAGE_GRID_LOCATION_RE = re.compile(r"^([A-Za-z])\s*-?\s*([1-9]|[1-9][0-9])$")
+INVENTORY_BARCODE_RE = re.compile(r"^\d{8,14}$")
+INFRA_CATEGORY_NAME = "Infra"
+INFRA_CATEGORY_EXACT = {
+    "infra",
+    "infrastructure",
+    "maintenance",
+    "facility maintenance",
+    "facilities maintenance",
+    "janitorial",
+    "housekeeping",
+}
+INFRA_CATEGORY_HINTS = (
+    "cleaning",
+    "maintenance",
+    "janitorial",
+    "housekeeping",
+    "facility",
+    "facilities",
+)
+INFRA_ITEM_HINTS = (
+    "all purpose cleaner",
+    "cleaner",
+    "detergent",
+    "dish soap",
+    "dishwashing",
+    "disinfect",
+    "sanitizer",
+    "sanitiser",
+    "toilet cleaner",
+    "trash bag",
+    "garbage bag",
+    "paper towel",
+    "broom",
+    "mop",
+    "vacuum",
+)
 
 RECIPE_CATEGORIES = [
     "M's Recipes",
@@ -132,6 +171,14 @@ DEFAULT_TEST_HEADCOUNT = 4.0
 DEFAULT_SHOPPING_PROFILE = "retreat"
 SHOPPING_PHASES = ["bulk", "fresh", "daily", "custom"]
 MANUAL_INVENTORY_SOURCE = "Shopping Manual Override"
+OPEN_FOOD_FACTS_PRODUCT_ENDPOINT = "https://world.openfoodfacts.org/api/v2/product/{barcode}.json"
+OPEN_PRODUCTS_FACTS_PRODUCT_ENDPOINT = "https://world.openproductsfacts.org/api/v2/product/{barcode}.json"
+OPEN_BEAUTY_FACTS_PRODUCT_ENDPOINT = "https://world.openbeautyfacts.org/api/v2/product/{barcode}.json"
+OPEN_FOOD_FACTS_SEARCH_ENDPOINT = "https://world.openfoodfacts.org/cgi/search.pl"
+OPEN_PRODUCTS_FACTS_SEARCH_ENDPOINT = "https://world.openproductsfacts.org/cgi/search.pl"
+OPEN_BEAUTY_FACTS_SEARCH_ENDPOINT = "https://world.openbeautyfacts.org/cgi/search.pl"
+UPCITEMDB_LOOKUP_ENDPOINT = "https://api.upcitemdb.com/prod/trial/lookup?upc={barcode}"
+UPCITEMDB_API_KEY_ENV = "UPCITEMDB_API_KEY"
 
 
 class IngredientInput(BaseModel):
@@ -245,20 +292,41 @@ class IngredientDuplicateScanPayload(BaseModel):
 
 class StandaloneInventoryCreate(BaseModel):
     item_name: str = Field(min_length=1)
+    barcode: str = Field(min_length=8)
     quantity: float = Field(ge=0, default=0)
-    unit: str | None = None
+    unit: str = Field(min_length=1)
     category: str | None = None
-    location: str | None = None
+    location: str = Field(min_length=1)
+    image_url: str = Field(min_length=1)
     notes: str | None = None
 
 
 class StandaloneInventoryUpdate(BaseModel):
     item_name: str = Field(min_length=1)
+    barcode: str = Field(min_length=8)
     quantity: float = Field(ge=0, default=0)
-    unit: str | None = None
+    unit: str = Field(min_length=1)
     category: str | None = None
-    location: str | None = None
+    location: str = Field(min_length=1)
+    image_url: str = Field(min_length=1)
     notes: str | None = None
+
+
+class StandaloneInventoryCategoryPatch(BaseModel):
+    category: str | None = None
+
+
+class StandaloneInventoryNotesPatch(BaseModel):
+    notes: str | None = None
+
+
+class StandaloneInventoryNamePatch(BaseModel):
+    item_name: str = Field(min_length=1)
+
+
+class StandaloneInventoryBarcodeBindPayload(BaseModel):
+    item_id: int = Field(gt=0)
+    barcode: str = Field(min_length=8)
 
 
 class RetreatInventoryCategoryCreate(BaseModel):
@@ -272,6 +340,19 @@ class RetreatInventoryCategoryUpdate(BaseModel):
     trackingMode: Literal["ITEM", "CATEGORY"] | None = None
     imageUrl: str | None = None
     active: bool | None = None
+
+
+SHELF_LOCATION_PATTERN = re.compile(r"^[A-Za-z]\d+$")
+
+
+def validate_shelf_location_name(name: str) -> str:
+    clean = name.strip().upper()
+    if not SHELF_LOCATION_PATTERN.match(clean):
+        raise HTTPException(
+            status_code=400,
+            detail=f"Location name '{name}' must follow shelf-location pattern (letter + number, e.g. A1, B12).",
+        )
+    return clean
 
 
 class RetreatInventoryLocationCreate(BaseModel):
@@ -327,6 +408,29 @@ class RetreatInventoryScanPayload(BaseModel):
     quantity: int = 1
     reason: str | None = None
     locationId: int | None = Field(default=None, gt=0)
+
+
+class PurchaseOrderCreate(BaseModel):
+    supplierName: str | None = None
+    status: Literal["DRAFT", "ORDERED", "PARTIAL", "RECEIVED"] = "DRAFT"
+    expectedDate: str | None = None
+    notes: str | None = None
+    items: list["PurchaseOrderItemInput"] = Field(default_factory=list)
+
+
+class PurchaseOrderUpdate(BaseModel):
+    supplierName: str | None = None
+    status: Literal["DRAFT", "ORDERED", "PARTIAL", "RECEIVED"] | None = None
+    expectedDate: str | None = None
+    notes: str | None = None
+    items: list["PurchaseOrderItemInput"] | None = None
+
+
+class PurchaseOrderItemInput(BaseModel):
+    entityType: Literal["ITEM", "CATEGORY"] = "ITEM"
+    entityId: int = Field(gt=0)
+    orderedQuantity: int = Field(ge=0)
+    receivedQuantity: int = Field(default=0, ge=0)
 
 
 class ShoppingListGeneratePayload(BaseModel):
@@ -3999,6 +4103,409 @@ def normalize_optional_text(value: Any) -> str | None:
     return text if text else None
 
 
+def normalize_required_text(value: Any, *, field_name: str) -> str:
+    text = str(value or "").strip()
+    if not text:
+        raise HTTPException(status_code=400, detail=f"{field_name} is required.")
+    return text
+
+
+def normalize_storage_grid_location(value: Any) -> str:
+    text = normalize_required_text(value, field_name="Storage location")
+    match = STORAGE_GRID_LOCATION_RE.fullmatch(text)
+    if not match:
+        raise HTTPException(
+            status_code=400,
+            detail="Storage location must use shelf grid format like A1 through Z99 (A1-A20 preferred).",
+        )
+    return f"{match.group(1).upper()}{match.group(2)}"
+
+
+def normalize_inventory_barcode(value: Any) -> str:
+    digits = re.sub(r"\D+", "", str(value or ""))
+    if not INVENTORY_BARCODE_RE.fullmatch(digits):
+        raise HTTPException(status_code=400, detail="Barcode must be 8-14 digits.")
+    return digits
+
+
+def infer_inventory_unit_from_text(value: Any) -> str | None:
+    text = normalize_optional_text(value)
+    if not text:
+        return None
+    lowered = text.lower()
+    match = re.search(r"\b(kg|g|lb|lbs|oz|l|ml|ct|count|pack|packs|ea|each)\b", lowered)
+    if match:
+        token = match.group(1)
+        normalized = {
+            "lbs": "lb",
+            "ct": "each",
+            "count": "each",
+            "ea": "each",
+            "packs": "pack",
+        }.get(token, token)
+        return normalized
+    if re.search(r"\b\d+\b", lowered):
+        return "each"
+    return None
+
+
+def is_infra_category_hint(value: Any) -> bool:
+    text = normalize_optional_text(value)
+    if not text:
+        return False
+    lowered = text.lower()
+    compact = re.sub(r"\s+", " ", lowered).strip()
+    if compact in INFRA_CATEGORY_EXACT:
+        return True
+    return False
+
+
+def infer_inventory_category_from_text(*values: Any) -> str | None:
+    for value in values:
+        text = normalize_optional_text(value)
+        if not text:
+            continue
+        lowered = text.lower()
+        if any(hint in lowered for hint in INFRA_ITEM_HINTS):
+            return INFRA_CATEGORY_NAME
+    return None
+
+
+def normalize_inventory_category(value: Any) -> str | None:
+    text = normalize_optional_text(value)
+    if not text:
+        return None
+    normalized = re.sub(r"\s+", " ", text).strip()
+    if is_infra_category_hint(normalized):
+        return INFRA_CATEGORY_NAME
+    return normalized
+
+
+def normalize_lookup_category(value: Any) -> str | None:
+    text = normalize_optional_text(value)
+    if not text:
+        return None
+    normalized = text.split(",")[0].split(":")[-1].replace("-", " ").replace("_", " ")
+    normalized = re.sub(r"\s+", " ", normalized).strip()
+    if not normalized:
+        return None
+    return normalize_inventory_category(normalized.title())
+
+
+def normalize_lookup_query(value: Any) -> str | None:
+    text = normalize_optional_text(value)
+    if not text:
+        return None
+    normalized = re.sub(r"\s+", " ", text).strip()
+    if len(normalized) < 2:
+        return None
+    return normalized[:120]
+
+
+def normalize_lookup_barcode_candidate(value: Any) -> str | None:
+    digits = re.sub(r"\D+", "", str(value or ""))
+    if not INVENTORY_BARCODE_RE.fullmatch(digits):
+        return None
+    return digits
+
+
+def parse_open_facts_product_row(
+    product: dict[str, Any],
+    *,
+    source_name: str,
+) -> dict[str, Any] | None:
+    name = (
+        normalize_optional_text(product.get("product_name"))
+        or normalize_optional_text(product.get("product_name_en"))
+        or normalize_optional_text(product.get("generic_name"))
+    )
+    category_tags = product.get("categories_tags")
+    primary_tag = category_tags[0] if isinstance(category_tags, list) and category_tags else None
+    category = normalize_lookup_category(primary_tag) or normalize_lookup_category(product.get("categories"))
+    if not category:
+        category = infer_inventory_category_from_text(
+            name,
+            product.get("categories"),
+            product.get("generic_name"),
+            product.get("quantity"),
+            product.get("packaging"),
+            product.get("packaging_text"),
+        )
+    image_url = (
+        normalize_optional_text(product.get("image_front_url"))
+        or normalize_optional_text(product.get("image_url"))
+        or normalize_optional_text(product.get("image_front_small_url"))
+    )
+    unit = infer_inventory_unit_from_text(
+        product.get("quantity")
+        or product.get("packaging_text")
+        or product.get("packaging")
+    )
+    barcode = normalize_lookup_barcode_candidate(product.get("code"))
+
+    if not any([name, category, unit, image_url, barcode]):
+        return None
+
+    return {
+        "source": source_name,
+        "barcode": barcode,
+        "name": name,
+        "category": category,
+        "unit": unit,
+        "image_url": image_url,
+    }
+
+
+def lookup_product_open_facts_catalog(
+    barcode: str,
+    *,
+    endpoint_template: str,
+    source_name: str,
+) -> dict[str, Any] | None:
+    endpoint = endpoint_template.format(barcode=barcode)
+    request = urllib_request.Request(endpoint, method="GET")
+    try:
+        with urllib_request.urlopen(request, timeout=8) as response:
+            raw = response.read().decode("utf-8")
+    except (urllib_error.HTTPError, urllib_error.URLError):
+        return None
+
+    try:
+        payload = json.loads(raw)
+    except Exception:
+        return None
+
+    if int(payload.get("status") or 0) != 1:
+        return None
+
+    product = payload.get("product")
+    if not isinstance(product, dict):
+        return None
+
+    parsed = parse_open_facts_product_row(product, source_name=source_name)
+    if not parsed:
+        return None
+    parsed.pop("barcode", None)
+    return parsed
+
+
+def search_products_open_facts_catalog(
+    query: str,
+    *,
+    endpoint: str,
+    source_name: str,
+    limit: int = 6,
+) -> list[dict[str, Any]]:
+    search_query = normalize_lookup_query(query)
+    if not search_query:
+        return []
+    bounded_limit = max(1, min(int(limit), 20))
+    params = {
+        "search_terms": search_query,
+        "search_simple": 1,
+        "action": "process",
+        "json": 1,
+        "page_size": bounded_limit,
+        "fields": (
+            "code,product_name,product_name_en,generic_name,categories,categories_tags,"
+            "image_front_url,image_url,image_front_small_url,quantity,packaging,packaging_text"
+        ),
+    }
+    endpoint_with_query = f"{endpoint}?{urllib_parse.urlencode(params)}"
+    request = urllib_request.Request(endpoint_with_query, method="GET")
+    try:
+        with urllib_request.urlopen(request, timeout=8) as response:
+            raw = response.read().decode("utf-8")
+    except (urllib_error.HTTPError, urllib_error.URLError):
+        return []
+
+    try:
+        payload = json.loads(raw)
+    except Exception:
+        return []
+
+    products = payload.get("products")
+    if not isinstance(products, list):
+        return []
+
+    hits: list[dict[str, Any]] = []
+    for product in products:
+        if not isinstance(product, dict):
+            continue
+        parsed = parse_open_facts_product_row(product, source_name=source_name)
+        if not parsed:
+            continue
+        hits.append(parsed)
+        if len(hits) >= bounded_limit:
+            break
+    return hits
+
+
+def lookup_product_open_products_facts(barcode: str) -> dict[str, Any] | None:
+    return lookup_product_open_facts_catalog(
+        barcode,
+        endpoint_template=OPEN_PRODUCTS_FACTS_PRODUCT_ENDPOINT,
+        source_name="openproductsfacts",
+    )
+
+
+def lookup_product_open_beauty_facts(barcode: str) -> dict[str, Any] | None:
+    return lookup_product_open_facts_catalog(
+        barcode,
+        endpoint_template=OPEN_BEAUTY_FACTS_PRODUCT_ENDPOINT,
+        source_name="openbeautyfacts",
+    )
+
+
+def lookup_product_open_food_facts(barcode: str) -> dict[str, Any] | None:
+    return lookup_product_open_facts_catalog(
+        barcode,
+        endpoint_template=OPEN_FOOD_FACTS_PRODUCT_ENDPOINT,
+        source_name="openfoodfacts",
+    )
+
+
+def lookup_product_upcitemdb(barcode: str) -> dict[str, Any] | None:
+    endpoint = UPCITEMDB_LOOKUP_ENDPOINT.format(barcode=barcode)
+    headers: dict[str, str] = {}
+    api_key = str(os.getenv(UPCITEMDB_API_KEY_ENV, "") or "").strip()
+    if api_key:
+        headers["Authorization"] = f"Bearer {api_key}"
+    request = urllib_request.Request(endpoint, headers=headers, method="GET")
+    try:
+        with urllib_request.urlopen(request, timeout=8) as response:
+            raw = response.read().decode("utf-8")
+    except (urllib_error.HTTPError, urllib_error.URLError):
+        return None
+
+    try:
+        payload = json.loads(raw)
+    except Exception:
+        return None
+
+    rows = payload.get("items")
+    if not isinstance(rows, list) or not rows:
+        return None
+    row = rows[0]
+    if not isinstance(row, dict):
+        return None
+
+    images = row.get("images")
+    image_url = normalize_optional_text(images[0]) if isinstance(images, list) and images else None
+    name = normalize_optional_text(row.get("title"))
+    category = normalize_lookup_category(row.get("category"))
+    if not category:
+        category = infer_inventory_category_from_text(
+            name,
+            row.get("description"),
+            row.get("title"),
+            row.get("category"),
+        )
+    unit = infer_inventory_unit_from_text(name)
+
+    if not any([name, category, unit, image_url]):
+        return None
+
+    return {
+        "source": "upcitemdb",
+        "name": name,
+        "category": category,
+        "unit": unit,
+        "image_url": image_url,
+    }
+
+
+def lookup_inventory_product_metadata(barcode: str) -> dict[str, Any] | None:
+    providers = [
+        lookup_product_open_products_facts,
+        lookup_product_open_beauty_facts,
+        lookup_product_open_food_facts,
+        lookup_product_upcitemdb,
+    ]
+    hits: list[dict[str, Any]] = []
+    for provider in providers:
+        hit = provider(barcode)
+        if hit:
+            hits.append(hit)
+        merged_preview = {
+            key: next((source.get(key) for source in hits if source.get(key)), None)
+            for key in ("name", "category", "unit", "image_url")
+        }
+        if all(merged_preview.values()):
+            break
+    if not hits:
+        return None
+
+    merged: dict[str, Any] = {"source": ", ".join(source["source"] for source in hits)}
+    for key in ("name", "category", "unit", "image_url"):
+        merged[key] = next((source.get(key) for source in hits if source.get(key)), None)
+    return merged
+
+
+def merge_lookup_source_names(existing_source: Any, incoming_source: Any) -> str | None:
+    ordered_parts: list[str] = []
+    for raw in (existing_source, incoming_source):
+        for part in str(raw or "").split(","):
+            token = part.strip()
+            if token and token not in ordered_parts:
+                ordered_parts.append(token)
+    if not ordered_parts:
+        return None
+    return ", ".join(ordered_parts)
+
+
+def search_inventory_product_metadata(query: str, *, limit: int = 12) -> list[dict[str, Any]]:
+    search_query = normalize_lookup_query(query)
+    if not search_query:
+        return []
+    bounded_limit = max(1, min(int(limit), 60))
+    provider_limit = max(2, min(8, bounded_limit))
+    providers = [
+        lambda q: search_products_open_facts_catalog(
+            q,
+            endpoint=OPEN_PRODUCTS_FACTS_SEARCH_ENDPOINT,
+            source_name="openproductsfacts",
+            limit=provider_limit,
+        ),
+        lambda q: search_products_open_facts_catalog(
+            q,
+            endpoint=OPEN_BEAUTY_FACTS_SEARCH_ENDPOINT,
+            source_name="openbeautyfacts",
+            limit=provider_limit,
+        ),
+        lambda q: search_products_open_facts_catalog(
+            q,
+            endpoint=OPEN_FOOD_FACTS_SEARCH_ENDPOINT,
+            source_name="openfoodfacts",
+            limit=provider_limit,
+        ),
+    ]
+    merged_hits: list[dict[str, Any]] = []
+    index_by_key: dict[tuple[str, str], int] = {}
+    for provider in providers:
+        for hit in provider(search_query):
+            barcode_key = str(hit.get("barcode") or "")
+            name_key = str(hit.get("name") or "").strip().lower()
+            if not barcode_key and not name_key:
+                continue
+            key = (barcode_key, name_key)
+            existing_index = index_by_key.get(key)
+            if existing_index is None:
+                index_by_key[key] = len(merged_hits)
+                merged_hits.append(dict(hit))
+                if len(merged_hits) >= bounded_limit:
+                    break
+                continue
+            existing = merged_hits[existing_index]
+            existing["source"] = merge_lookup_source_names(existing.get("source"), hit.get("source"))
+            for field in ("name", "category", "unit", "image_url", "barcode"):
+                if not existing.get(field) and hit.get(field):
+                    existing[field] = hit[field]
+        if len(merged_hits) >= bounded_limit:
+            break
+    return merged_hits[:bounded_limit]
+
+
 def normalize_item_unit(value: Any) -> str:
     text = str(value or "").strip().lower()
     return text if text else "each"
@@ -4027,9 +4534,7 @@ def format_retreat_inventory_location_row(row: Any) -> dict[str, Any]:
 
 
 def ensure_retreat_inventory_location(conn: Any, location_name: str) -> int:
-    clean_name = str(location_name or "").strip()
-    if not clean_name:
-        raise HTTPException(status_code=400, detail="Location name cannot be blank.")
+    clean_name = validate_shelf_location_name(str(location_name or ""))
 
     existing = conn.execute(
         """
@@ -4409,9 +4914,7 @@ def create_retreat_inventory_location(
     payload: RetreatInventoryLocationCreate,
     _user: Annotated[AuthUser, Depends(require_roles(ROLE_ADMIN))],
 ) -> dict[str, Any]:
-    name = payload.name.strip()
-    if not name:
-        raise HTTPException(status_code=400, detail="Location name is required.")
+    name = validate_shelf_location_name(payload.name)
 
     with get_connection() as conn:
         try:
@@ -4449,9 +4952,7 @@ def update_retreat_inventory_location(
     params: list[Any] = []
 
     if payload.name is not None:
-        name = payload.name.strip()
-        if not name:
-            raise HTTPException(status_code=400, detail="Location name cannot be blank.")
+        name = validate_shelf_location_name(payload.name)
         updates.append("name = ?")
         params.append(name)
     if payload.description is not None:
@@ -5205,105 +5706,895 @@ def scan_retreat_inventory(
     }
 
 
+@app.get("/api/retreat-inventory/locations/by-shelf")
+def list_retreat_inventory_locations_by_shelf(
+    _user: Annotated[AuthUser, Depends(require_roles(ROLE_PLANNER, ROLE_ADMIN))],
+) -> list[dict[str, Any]]:
+    with get_connection() as conn:
+        rows = conn.execute(
+            """
+            SELECT l.id, l.name, l.description, l.active,
+                   COUNT(il.id) AS item_count
+            FROM retreat_inventory_locations l
+            LEFT JOIN retreat_inventory_item_locations il ON il.location_id = l.id
+            WHERE l.deleted_at IS NULL AND l.active = 1
+            GROUP BY l.id, l.name, l.description, l.active
+            ORDER BY lower(l.name), l.id
+            """
+        ).fetchall()
+
+    shelves: dict[str, list[dict[str, Any]]] = {}
+    for row in rows:
+        name = row["name"] or ""
+        shelf_letter = name[0].upper() if name else "?"
+        shelves.setdefault(shelf_letter, []).append(
+            {
+                "id": int(row["id"]),
+                "name": row["name"],
+                "description": row["description"],
+                "item_count": int(row["item_count"]),
+            }
+        )
+
+    return [
+        {"shelf": letter, "locations": locs}
+        for letter, locs in sorted(shelves.items())
+    ]
+
+
+def format_purchase_order_row(row: Any) -> dict[str, Any]:
+    return {
+        "id": int(row["id"]),
+        "supplier_name": row["supplier_name"],
+        "status": row["status"],
+        "expected_date": row["expected_date"],
+        "notes": row["notes"],
+        "created_by_user_id": int(row["created_by_user_id"]) if row["created_by_user_id"] else None,
+        "created_at": row["created_at"],
+        "updated_at": row["updated_at"],
+    }
+
+
+def load_purchase_order_items(conn: Any, order_ids: list[int]) -> dict[int, list[dict[str, Any]]]:
+    if not order_ids:
+        return {}
+    placeholders = ", ".join("?" for _ in order_ids)
+    rows = conn.execute(
+        f"""
+        SELECT
+            poi.id,
+            poi.purchase_order_id,
+            poi.entity_type,
+            poi.entity_id,
+            poi.ordered_quantity,
+            poi.received_quantity,
+            poi.created_at,
+            poi.updated_at,
+            CASE WHEN poi.entity_type = 'ITEM' THEN i.name ELSE c.name END AS entity_name,
+            i.barcode AS item_barcode,
+            i.unit AS item_unit,
+            i.purchase_url AS item_purchase_url
+        FROM retreat_inventory_purchase_order_items poi
+        LEFT JOIN retreat_inventory_items i
+          ON poi.entity_type = 'ITEM' AND i.id = poi.entity_id
+        LEFT JOIN retreat_inventory_categories c
+          ON poi.entity_type = 'CATEGORY' AND c.id = poi.entity_id
+        WHERE poi.purchase_order_id IN ({placeholders})
+        ORDER BY poi.purchase_order_id, poi.id
+        """,
+        tuple(order_ids),
+    ).fetchall()
+
+    by_order: dict[int, list[dict[str, Any]]] = {}
+    for row in rows:
+        oid = int(row["purchase_order_id"])
+        by_order.setdefault(oid, []).append(
+            {
+                "id": int(row["id"]),
+                "entity_type": row["entity_type"],
+                "entity_id": int(row["entity_id"]),
+                "entity_name": row["entity_name"],
+                "item_barcode": row["item_barcode"],
+                "item_unit": row["item_unit"],
+                "item_purchase_url": row["item_purchase_url"],
+                "ordered_quantity": int(row["ordered_quantity"]),
+                "received_quantity": int(row["received_quantity"]),
+            }
+        )
+    return by_order
+
+
+def format_standalone_inventory_row(row: Any) -> dict[str, Any]:
+    entry = dict(row)
+    entry["category"] = normalize_inventory_category(entry.get("category"))
+    return entry
+
+
+def build_standalone_inventory_filters(
+    *,
+    category: str | None = None,
+    search: str | None = None,
+) -> tuple[list[str], list[Any]]:
+    filters: list[str] = []
+    params: list[Any] = []
+
+    category_filter = normalize_inventory_category(category)
+    if category_filter:
+        filters.append("lower(category) = lower(?)")
+        params.append(category_filter)
+
+    if search and search.strip():
+        needle = search.strip().lower()
+        filters.append(
+            (
+                "(lower(item_name) LIKE ? OR lower(COALESCE(category, '')) LIKE ? "
+                "OR lower(COALESCE(location, '')) LIKE ? OR COALESCE(barcode, '') LIKE ? "
+                "OR lower(COALESCE(notes, '')) LIKE ? OR lower(COALESCE(order_url, '')) LIKE ?)"
+            )
+        )
+        params.extend([f"%{needle}%", f"%{needle}%", f"%{needle}%", f"%{needle}%", f"%{needle}%", f"%{needle}%"])
+
+    return filters, params
+
+
+def query_standalone_inventory_rows(
+    conn: Any,
+    *,
+    category: str | None = None,
+    search: str | None = None,
+    limit: int | None = None,
+) -> list[dict[str, Any]]:
+    filters, params = build_standalone_inventory_filters(category=category, search=search)
+    where_sql = f"WHERE {' AND '.join(filters)}" if filters else ""
+    sql = f"SELECT * FROM standalone_inventory {where_sql} ORDER BY lower(item_name)"
+    if limit is not None:
+        bounded_limit = max(1, min(int(limit), 200))
+        sql = f"{sql} LIMIT ?"
+        params.append(bounded_limit)
+    rows = conn.execute(sql, tuple(params)).fetchall()
+    return [format_standalone_inventory_row(row) for row in rows]
+
+
+def tokenize_similarity_terms(value: Any) -> list[str]:
+    text = normalize_optional_text(value)
+    if not text:
+        return []
+    cleaned = re.sub(r"[^a-z0-9]+", " ", text.lower())
+    stop_tokens = {"the", "and", "for", "with", "from", "item"}
+    seen: set[str] = set()
+    tokens: list[str] = []
+    for token in cleaned.split():
+        if len(token) < 2 or token in stop_tokens or token in seen:
+            continue
+        seen.add(token)
+        tokens.append(token)
+        if len(tokens) >= 12:
+            break
+    return tokens
+
+
+def score_inventory_similarity(
+    row: dict[str, Any],
+    *,
+    name_hint: str | None = None,
+    category_hint: str | None = None,
+    unit_hint: str | None = None,
+) -> float:
+    row_name = str(row.get("item_name") or "").strip().lower()
+    row_category = str(row.get("category") or "").strip().lower()
+    row_notes = str(row.get("notes") or "").strip().lower()
+    row_location = str(row.get("location") or "").strip().lower()
+    searchable_blob = f"{row_name} {row_category} {row_notes} {row_location}"
+    score = 0.0
+
+    normalized_name_hint = normalize_lookup_query(name_hint)
+    if normalized_name_hint:
+        name_phrase = normalized_name_hint.lower()
+        name_tokens = tokenize_similarity_terms(name_phrase)
+        if row_name and row_name == name_phrase:
+            score += 12.0
+        elif row_name and name_phrase in row_name:
+            score += 8.0
+        elif row_name and row_name in name_phrase and len(row_name) >= 5:
+            score += 4.0
+        for token in name_tokens:
+            if token in row_name:
+                score += 2.0
+            elif token in searchable_blob:
+                score += 0.8
+
+    normalized_category_hint = normalize_optional_text(category_hint)
+    if normalized_category_hint and row_category:
+        category_phrase = normalized_category_hint.lower()
+        if row_category == category_phrase:
+            score += 2.5
+        elif category_phrase in row_category or row_category in category_phrase:
+            score += 1.4
+
+    normalized_unit_hint = normalize_optional_text(unit_hint)
+    if normalized_unit_hint:
+        unit_phrase = normalized_unit_hint.lower()
+        row_unit = str(row.get("unit") or "").strip().lower()
+        if row_unit and row_unit == unit_phrase:
+            score += 0.75
+
+    return score
+
+
+def search_similar_inventory_items(
+    conn: Any,
+    *,
+    name_hint: str | None = None,
+    category_hint: str | None = None,
+    unit_hint: str | None = None,
+    exclude_item_ids: set[int] | None = None,
+    limit: int = 12,
+) -> list[dict[str, Any]]:
+    if not any([normalize_optional_text(name_hint), normalize_optional_text(category_hint), normalize_optional_text(unit_hint)]):
+        return []
+    excluded = exclude_item_ids or set()
+    bounded_limit = max(1, min(int(limit), 80))
+    rows = conn.execute("SELECT * FROM standalone_inventory ORDER BY lower(item_name)").fetchall()
+
+    scored_rows: list[dict[str, Any]] = []
+    for row in rows:
+        payload = format_standalone_inventory_row(row)
+        row_id = int(payload.get("id") or 0)
+        if row_id and row_id in excluded:
+            continue
+        score = score_inventory_similarity(
+            payload,
+            name_hint=name_hint,
+            category_hint=category_hint,
+            unit_hint=unit_hint,
+        )
+        if score < 1.1:
+            continue
+        payload["similarity_score"] = round(score, 3)
+        scored_rows.append(payload)
+
+    scored_rows.sort(
+        key=lambda item: (
+            -float(item.get("similarity_score") or 0.0),
+            str(item.get("item_name") or "").lower(),
+            int(item.get("id") or 0),
+        )
+    )
+    return scored_rows[:bounded_limit]
+
+
+@app.get("/api/retreat-inventory/purchase-orders")
+def list_purchase_orders(
+    _user: Annotated[AuthUser, Depends(require_roles(ROLE_PLANNER, ROLE_ADMIN))],
+    status: str | None = Query(default=None),
+) -> list[dict[str, Any]]:
+    filters = ["deleted_at IS NULL"]
+    params: list[Any] = []
+    if status and status.strip():
+        filters.append("status = ?")
+        params.append(status.strip().upper())
+    where_sql = f"WHERE {' AND '.join(filters)}"
+    with get_connection() as conn:
+        rows = conn.execute(
+            f"""
+            SELECT id, supplier_name, status, expected_date, notes,
+                   created_by_user_id, created_at, updated_at
+            FROM retreat_inventory_purchase_orders
+            {where_sql}
+            ORDER BY id DESC
+            """,
+            tuple(params),
+        ).fetchall()
+        order_ids = [int(r["id"]) for r in rows]
+        items_map = load_purchase_order_items(conn, order_ids)
+    result = []
+    for row in rows:
+        order = format_purchase_order_row(row)
+        order["items"] = items_map.get(int(row["id"]), [])
+        result.append(order)
+    return result
+
+
+@app.post("/api/retreat-inventory/purchase-orders", status_code=201)
+def create_purchase_order(
+    payload: PurchaseOrderCreate,
+    user: Annotated[AuthUser, Depends(require_roles(ROLE_PLANNER, ROLE_ADMIN))],
+) -> dict[str, Any]:
+    with get_connection() as conn:
+        row = conn.execute(
+            """
+            INSERT INTO retreat_inventory_purchase_orders(
+                supplier_name, status, expected_date, notes,
+                created_by_user_id, created_at, updated_at
+            )
+            VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+            RETURNING id, supplier_name, status, expected_date, notes,
+                      created_by_user_id, created_at, updated_at
+            """,
+            (
+                normalize_optional_text(payload.supplierName),
+                payload.status,
+                normalize_optional_text(payload.expectedDate),
+                normalize_optional_text(payload.notes),
+                user.id,
+            ),
+        ).fetchone()
+        order_id = int(row["id"])
+
+        for item in payload.items:
+            conn.execute(
+                """
+                INSERT INTO retreat_inventory_purchase_order_items(
+                    purchase_order_id, entity_type, entity_id,
+                    ordered_quantity, received_quantity,
+                    created_at, updated_at
+                )
+                VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                """,
+                (order_id, item.entityType, item.entityId, item.orderedQuantity, item.receivedQuantity),
+            )
+
+        conn.commit()
+        items_map = load_purchase_order_items(conn, [order_id])
+
+    order = format_purchase_order_row(row)
+    order["items"] = items_map.get(order_id, [])
+    return order
+
+
+@app.patch("/api/retreat-inventory/purchase-orders/{order_id}")
+def update_purchase_order(
+    order_id: int,
+    payload: PurchaseOrderUpdate,
+    _user: Annotated[AuthUser, Depends(require_roles(ROLE_PLANNER, ROLE_ADMIN))],
+) -> dict[str, Any]:
+    updates: list[str] = []
+    params: list[Any] = []
+    if payload.supplierName is not None:
+        updates.append("supplier_name = ?")
+        params.append(normalize_optional_text(payload.supplierName))
+    if payload.status is not None:
+        updates.append("status = ?")
+        params.append(payload.status)
+    if payload.expectedDate is not None:
+        updates.append("expected_date = ?")
+        params.append(normalize_optional_text(payload.expectedDate))
+    if payload.notes is not None:
+        updates.append("notes = ?")
+        params.append(normalize_optional_text(payload.notes))
+
+    with get_connection() as conn:
+        existing = conn.execute(
+            "SELECT id FROM retreat_inventory_purchase_orders WHERE id = ? AND deleted_at IS NULL",
+            (order_id,),
+        ).fetchone()
+        if not existing:
+            raise HTTPException(status_code=404, detail="Purchase order not found")
+
+        if updates:
+            updates.append("updated_at = CURRENT_TIMESTAMP")
+            params.append(order_id)
+            conn.execute(
+                f"""
+                UPDATE retreat_inventory_purchase_orders
+                SET {', '.join(updates)}
+                WHERE id = ?
+                """,
+                tuple(params),
+            )
+
+        if payload.items is not None:
+            conn.execute(
+                "DELETE FROM retreat_inventory_purchase_order_items WHERE purchase_order_id = ?",
+                (order_id,),
+            )
+            for item in payload.items:
+                conn.execute(
+                    """
+                    INSERT INTO retreat_inventory_purchase_order_items(
+                        purchase_order_id, entity_type, entity_id,
+                        ordered_quantity, received_quantity,
+                        created_at, updated_at
+                    )
+                    VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                    """,
+                    (order_id, item.entityType, item.entityId, item.orderedQuantity, item.receivedQuantity),
+                )
+
+        row = conn.execute(
+            """
+            SELECT id, supplier_name, status, expected_date, notes,
+                   created_by_user_id, created_at, updated_at
+            FROM retreat_inventory_purchase_orders
+            WHERE id = ?
+            """,
+            (order_id,),
+        ).fetchone()
+        conn.commit()
+        items_map = load_purchase_order_items(conn, [order_id])
+
+    order = format_purchase_order_row(row)
+    order["items"] = items_map.get(order_id, [])
+    return order
+
+
 @app.get("/api/inventory")
 def list_inventory(
-    _user: Annotated[AuthUser, Depends(require_roles(ROLE_PLANNER, ROLE_ADMIN))],
+    _user: Annotated[AuthUser, Depends(require_roles(ROLE_VIEWER, ROLE_PLANNER, ROLE_ADMIN))],
     category: str | None = Query(default=None),
     search: str | None = Query(default=None),
 ) -> list[dict[str, Any]]:
-    filters: list[str] = []
-    params: list[Any] = []
-    if category and category.strip():
-        filters.append("lower(category) = lower(?)")
-        params.append(category.strip())
-    if search and search.strip():
-        filters.append("lower(item_name) LIKE ?")
-        params.append(f"%{search.strip().lower()}%")
-    where_sql = f"WHERE {' AND '.join(filters)}" if filters else ""
     with get_connection() as conn:
-        rows = conn.execute(
-            f"SELECT * FROM standalone_inventory {where_sql} ORDER BY lower(item_name)",
-            tuple(params),
-        ).fetchall()
-    return [dict(r) for r in rows]
+        return query_standalone_inventory_rows(conn, category=category, search=search)
+
+
+@app.get("/api/inventory/equivalent-search")
+def search_inventory_equivalents(
+    _user: Annotated[AuthUser, Depends(require_roles(ROLE_VIEWER, ROLE_PLANNER, ROLE_ADMIN))],
+    query: str | None = Query(default=None),
+    barcode: str | None = Query(default=None),
+    limit: int = Query(default=20, ge=1, le=80),
+) -> dict[str, Any]:
+    normalized_query = normalize_lookup_query(query)
+    normalized_barcode = normalize_lookup_barcode_candidate(barcode)
+    if not normalized_query and not normalized_barcode:
+        raise HTTPException(status_code=400, detail="Provide a search query or barcode.")
+
+    bounded_limit = max(1, min(int(limit), 80))
+    lookup_hit = lookup_inventory_product_metadata(normalized_barcode) if normalized_barcode else None
+
+    inventory_matches: list[dict[str, Any]] = []
+    seen_inventory_ids: set[int] = set()
+    with get_connection() as conn:
+        if normalized_barcode:
+            exact = conn.execute(
+                """
+                SELECT *
+                FROM standalone_inventory
+                WHERE barcode = ?
+                ORDER BY updated_at DESC, id DESC
+                LIMIT 1
+                """,
+                (normalized_barcode,),
+            ).fetchone()
+            if exact:
+                payload = format_standalone_inventory_row(exact)
+                payload["match_type"] = "exact_barcode"
+                row_id = int(payload.get("id") or 0)
+                if row_id:
+                    seen_inventory_ids.add(row_id)
+                inventory_matches.append(payload)
+
+        if normalized_query:
+            for payload in query_standalone_inventory_rows(conn, search=normalized_query, limit=bounded_limit):
+                row_id = int(payload.get("id") or 0)
+                if row_id and row_id in seen_inventory_ids:
+                    continue
+                payload["match_type"] = "text_search"
+                if row_id:
+                    seen_inventory_ids.add(row_id)
+                inventory_matches.append(payload)
+                if len(inventory_matches) >= bounded_limit:
+                    break
+
+        leading_inventory = inventory_matches[0] if inventory_matches else None
+        similar_name_hint = (
+            normalized_query
+            or normalize_optional_text((lookup_hit or {}).get("name"))
+            or normalize_optional_text((leading_inventory or {}).get("item_name"))
+        )
+        similar_category_hint = (
+            normalize_optional_text((lookup_hit or {}).get("category"))
+            or normalize_optional_text((leading_inventory or {}).get("category"))
+        )
+        similar_unit_hint = (
+            normalize_optional_text((lookup_hit or {}).get("unit"))
+            or normalize_optional_text((leading_inventory or {}).get("unit"))
+        )
+        similar_matches = search_similar_inventory_items(
+            conn,
+            name_hint=similar_name_hint,
+            category_hint=similar_category_hint,
+            unit_hint=similar_unit_hint,
+            exclude_item_ids=seen_inventory_ids,
+            limit=bounded_limit,
+        )
+        for payload in similar_matches:
+            row_id = int(payload.get("id") or 0)
+            if row_id and row_id in seen_inventory_ids:
+                continue
+            payload["match_type"] = "similar_lookup" if normalized_barcode else "similar_text"
+            if row_id:
+                seen_inventory_ids.add(row_id)
+            inventory_matches.append(payload)
+            if len(inventory_matches) >= bounded_limit:
+                break
+
+    raw_industry_hits: list[dict[str, Any]] = []
+    if normalized_barcode and lookup_hit:
+        hit = dict(lookup_hit)
+        hit["barcode"] = normalized_barcode
+        hit["match_type"] = "barcode_lookup"
+        raw_industry_hits.append(hit)
+    if normalized_query:
+        for hit in search_inventory_product_metadata(normalized_query, limit=bounded_limit):
+            payload = dict(hit)
+            payload["match_type"] = "text_search"
+            raw_industry_hits.append(payload)
+
+    deduped_industry: list[dict[str, Any]] = []
+    industry_index: dict[tuple[str, str], int] = {}
+    for hit in raw_industry_hits:
+        barcode_key = normalize_lookup_barcode_candidate(hit.get("barcode")) or ""
+        name_value = normalize_optional_text(hit.get("name")) or ""
+        key = (barcode_key, name_value.lower())
+        if not key[0] and not key[1]:
+            continue
+        existing_idx = industry_index.get(key)
+        if existing_idx is None:
+            industry_index[key] = len(deduped_industry)
+            deduped_industry.append(
+                {
+                    "source": normalize_optional_text(hit.get("source")),
+                    "barcode": barcode_key or None,
+                    "name": name_value or None,
+                    "category": normalize_inventory_category(hit.get("category")),
+                    "unit": normalize_optional_text(hit.get("unit")),
+                    "image_url": normalize_optional_text(hit.get("image_url")),
+                    "match_type": normalize_optional_text(hit.get("match_type")) or "text_search",
+                }
+            )
+            continue
+        existing = deduped_industry[existing_idx]
+        existing["source"] = merge_lookup_source_names(existing.get("source"), hit.get("source"))
+        for field in ("barcode", "name", "category", "unit", "image_url"):
+            if existing.get(field):
+                continue
+            if field == "barcode":
+                existing[field] = normalize_lookup_barcode_candidate(hit.get(field))
+            elif field == "category":
+                existing[field] = normalize_inventory_category(hit.get(field))
+            else:
+                existing[field] = normalize_optional_text(hit.get(field))
+
+    return {
+        "query": normalized_query,
+        "barcode": normalized_barcode,
+        "inventory_matches": inventory_matches[:bounded_limit],
+        "industry_matches": deduped_industry[:bounded_limit],
+    }
 
 
 @app.get("/api/inventory/categories")
 def list_inventory_categories(
-    _user: Annotated[AuthUser, Depends(require_roles(ROLE_PLANNER, ROLE_ADMIN))],
+    _user: Annotated[AuthUser, Depends(require_roles(ROLE_VIEWER, ROLE_PLANNER, ROLE_ADMIN))],
 ) -> list[str]:
     with get_connection() as conn:
         rows = conn.execute(
-            "SELECT DISTINCT category FROM standalone_inventory WHERE category IS NOT NULL AND category != '' ORDER BY lower(category)"
+            "SELECT DISTINCT category FROM standalone_inventory WHERE category IS NOT NULL AND category != ''"
         ).fetchall()
-    return [row["category"] for row in rows]
+    seen: set[str] = set()
+    categories: list[str] = []
+    for row in rows:
+        category = normalize_inventory_category(row["category"])
+        if not category:
+            continue
+        key = category.lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        categories.append(category)
+    categories.sort(key=lambda value: value.lower())
+    return categories
+
+
+@app.get("/api/inventory/barcode-lookup/{barcode}")
+def lookup_inventory_barcode(
+    barcode: str,
+    _user: Annotated[AuthUser, Depends(require_roles(ROLE_VIEWER, ROLE_PLANNER, ROLE_ADMIN))],
+) -> dict[str, Any]:
+    normalized_barcode = normalize_inventory_barcode(barcode)
+    with get_connection() as conn:
+        existing = conn.execute(
+            """
+            SELECT *
+            FROM standalone_inventory
+            WHERE barcode = ?
+            ORDER BY updated_at DESC, id DESC
+            LIMIT 1
+            """,
+            (normalized_barcode,),
+        ).fetchone()
+    existing_item = format_standalone_inventory_row(existing) if existing else None
+    lookup_hit = lookup_inventory_product_metadata(normalized_barcode)
+
+    similar_matches: list[dict[str, Any]] = []
+    with get_connection() as conn:
+        excluded_ids = {int(existing_item["id"])} if existing_item and existing_item.get("id") else set()
+        similar_matches = search_similar_inventory_items(
+            conn,
+            name_hint=(existing_item or {}).get("item_name") or (lookup_hit or {}).get("name"),
+            category_hint=(existing_item or {}).get("category") or (lookup_hit or {}).get("category"),
+            unit_hint=(existing_item or {}).get("unit") or (lookup_hit or {}).get("unit"),
+            exclude_item_ids=excluded_ids,
+            limit=12,
+        )
+        for payload in similar_matches:
+            payload["match_type"] = "similar_lookup"
+    return {
+        "barcode": normalized_barcode,
+        "existing_item": existing_item,
+        "similar_matches": similar_matches,
+        "lookup": lookup_hit,
+    }
+
+
+@app.post("/api/inventory/barcode-bind")
+def bind_inventory_barcode(
+    payload: StandaloneInventoryBarcodeBindPayload,
+    _user: Annotated[AuthUser, Depends(require_roles(ROLE_VIEWER, ROLE_PLANNER, ROLE_ADMIN))],
+) -> dict[str, Any]:
+    item_id = int(payload.item_id)
+    barcode = normalize_inventory_barcode(payload.barcode)
+    now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+
+    with get_connection() as conn:
+        item = conn.execute(
+            "SELECT * FROM standalone_inventory WHERE id = ?",
+            (item_id,),
+        ).fetchone()
+        if not item:
+            raise HTTPException(status_code=404, detail="Inventory item not found")
+
+        existing_barcode = normalize_optional_text(item["barcode"])
+        if existing_barcode and existing_barcode != barcode:
+            raise HTTPException(
+                status_code=409,
+                detail=(
+                    f'Item "{item["item_name"]}" already has barcode {existing_barcode}. '
+                    "Use edit mode to replace barcode."
+                ),
+            )
+
+        duplicate = conn.execute(
+            """
+            SELECT id, item_name
+            FROM standalone_inventory
+            WHERE barcode = ?
+              AND id != ?
+            """,
+            (barcode, item_id),
+        ).fetchone()
+        if duplicate:
+            raise HTTPException(
+                status_code=409,
+                detail=f'Barcode {barcode} already exists for "{duplicate["item_name"]}".',
+            )
+
+        conn.execute(
+            """
+            UPDATE standalone_inventory
+            SET barcode = ?, updated_at = ?
+            WHERE id = ?
+            """,
+            (barcode, now, item_id),
+        )
+        row = conn.execute("SELECT * FROM standalone_inventory WHERE id = ?", (item_id,)).fetchone()
+        conn.commit()
+
+    item_payload = dict(row)
+    item_payload["category"] = normalize_inventory_category(item_payload.get("category"))
+    return {
+        "status": "bound",
+        "barcode": barcode,
+        "item": item_payload,
+    }
 
 
 @app.post("/api/inventory", status_code=201)
 def create_inventory_item(
     payload: StandaloneInventoryCreate,
-    _user: Annotated[AuthUser, Depends(require_roles(ROLE_PLANNER, ROLE_ADMIN))],
+    _user: Annotated[AuthUser, Depends(require_roles(ROLE_VIEWER, ROLE_PLANNER, ROLE_ADMIN))],
 ) -> dict[str, Any]:
+    item_name = normalize_required_text(payload.item_name, field_name="Item name")
+    barcode = normalize_inventory_barcode(payload.barcode)
+    unit = normalize_required_text(payload.unit, field_name="Unit")
+    location = normalize_storage_grid_location(payload.location)
+    image_url = normalize_required_text(payload.image_url, field_name="Product image")
+    category = normalize_inventory_category(payload.category)
     now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
     with get_connection() as conn:
+        duplicate = conn.execute(
+            "SELECT id, item_name FROM standalone_inventory WHERE barcode = ?",
+            (barcode,),
+        ).fetchone()
+        if duplicate:
+            raise HTTPException(
+                status_code=409,
+                detail=f'Barcode {barcode} already exists for "{duplicate["item_name"]}".',
+            )
         row = conn.execute(
             """
-            INSERT INTO standalone_inventory(item_name, quantity, unit, category, location, notes, created_at, updated_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO standalone_inventory(
+                item_name,
+                barcode,
+                quantity,
+                unit,
+                category,
+                location,
+                image_url,
+                notes,
+                created_at,
+                updated_at
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             RETURNING *
             """,
             (
-                payload.item_name.strip(),
+                item_name,
+                barcode,
                 payload.quantity,
-                (payload.unit or "").strip() or None,
-                (payload.category or "").strip() or None,
-                (payload.location or "").strip() or None,
-                (payload.notes or "").strip() or None,
+                unit,
+                category,
+                location,
+                image_url,
+                normalize_optional_text(payload.notes),
                 now,
                 now,
             ),
         ).fetchone()
         conn.commit()
-    return dict(row)
+    payload_row = dict(row)
+    payload_row["category"] = normalize_inventory_category(payload_row.get("category"))
+    return payload_row
 
 
 @app.put("/api/inventory/{item_id}")
 def update_inventory_item(
     item_id: int,
     payload: StandaloneInventoryUpdate,
-    _user: Annotated[AuthUser, Depends(require_roles(ROLE_PLANNER, ROLE_ADMIN))],
+    _user: Annotated[AuthUser, Depends(require_roles(ROLE_VIEWER, ROLE_PLANNER, ROLE_ADMIN))],
 ) -> dict[str, Any]:
+    item_name = normalize_required_text(payload.item_name, field_name="Item name")
+    barcode = normalize_inventory_barcode(payload.barcode)
+    unit = normalize_required_text(payload.unit, field_name="Unit")
+    location = normalize_storage_grid_location(payload.location)
+    image_url = normalize_required_text(payload.image_url, field_name="Product image")
+    category = normalize_inventory_category(payload.category)
     now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
     with get_connection() as conn:
         existing = conn.execute("SELECT id FROM standalone_inventory WHERE id = ?", (item_id,)).fetchone()
         if not existing:
             raise HTTPException(status_code=404, detail="Inventory item not found")
+        duplicate = conn.execute(
+            "SELECT id, item_name FROM standalone_inventory WHERE barcode = ? AND id != ?",
+            (barcode, item_id),
+        ).fetchone()
+        if duplicate:
+            raise HTTPException(
+                status_code=409,
+                detail=f'Barcode {barcode} already exists for "{duplicate["item_name"]}".',
+            )
         conn.execute(
             """
             UPDATE standalone_inventory
-            SET item_name = ?, quantity = ?, unit = ?, category = ?, location = ?, notes = ?, updated_at = ?
+            SET item_name = ?, barcode = ?, quantity = ?, unit = ?, category = ?, location = ?, image_url = ?, notes = ?, updated_at = ?
             WHERE id = ?
             """,
             (
-                payload.item_name.strip(),
+                item_name,
+                barcode,
                 payload.quantity,
-                (payload.unit or "").strip() or None,
-                (payload.category or "").strip() or None,
-                (payload.location or "").strip() or None,
-                (payload.notes or "").strip() or None,
+                unit,
+                category,
+                location,
+                image_url,
+                normalize_optional_text(payload.notes),
                 now,
                 item_id,
             ),
         )
         row = conn.execute("SELECT * FROM standalone_inventory WHERE id = ?", (item_id,)).fetchone()
         conn.commit()
-    return dict(row)
+    payload_row = dict(row)
+    payload_row["category"] = normalize_inventory_category(payload_row.get("category"))
+    return payload_row
+
+
+@app.patch("/api/inventory/{item_id}/category")
+def patch_inventory_item_category(
+    item_id: int,
+    payload: StandaloneInventoryCategoryPatch,
+    _user: Annotated[AuthUser, Depends(require_roles(ROLE_VIEWER, ROLE_PLANNER, ROLE_ADMIN))],
+) -> dict[str, Any]:
+    category = normalize_inventory_category(payload.category)
+    now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+    with get_connection() as conn:
+        existing = conn.execute(
+            "SELECT id FROM standalone_inventory WHERE id = ?",
+            (item_id,),
+        ).fetchone()
+        if not existing:
+            raise HTTPException(status_code=404, detail="Inventory item not found")
+        conn.execute(
+            """
+            UPDATE standalone_inventory
+            SET category = ?, updated_at = ?
+            WHERE id = ?
+            """,
+            (category, now, item_id),
+        )
+        row = conn.execute("SELECT * FROM standalone_inventory WHERE id = ?", (item_id,)).fetchone()
+        conn.commit()
+    payload_row = dict(row)
+    payload_row["category"] = normalize_inventory_category(payload_row.get("category"))
+    return payload_row
+
+
+@app.patch("/api/inventory/{item_id}/notes")
+def patch_inventory_item_notes(
+    item_id: int,
+    payload: StandaloneInventoryNotesPatch,
+    _user: Annotated[AuthUser, Depends(require_roles(ROLE_VIEWER, ROLE_PLANNER, ROLE_ADMIN))],
+) -> dict[str, Any]:
+    notes = normalize_optional_text(payload.notes)
+    now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+    with get_connection() as conn:
+        existing = conn.execute(
+            "SELECT id FROM standalone_inventory WHERE id = ?",
+            (item_id,),
+        ).fetchone()
+        if not existing:
+            raise HTTPException(status_code=404, detail="Inventory item not found")
+        conn.execute(
+            """
+            UPDATE standalone_inventory
+            SET notes = ?, updated_at = ?
+            WHERE id = ?
+            """,
+            (notes, now, item_id),
+        )
+        row = conn.execute("SELECT * FROM standalone_inventory WHERE id = ?", (item_id,)).fetchone()
+        conn.commit()
+    payload_row = dict(row)
+    payload_row["category"] = normalize_inventory_category(payload_row.get("category"))
+    return payload_row
+
+
+@app.patch("/api/inventory/{item_id}/item-name")
+def patch_inventory_item_name(
+    item_id: int,
+    payload: StandaloneInventoryNamePatch,
+    _user: Annotated[AuthUser, Depends(require_roles(ROLE_VIEWER, ROLE_PLANNER, ROLE_ADMIN))],
+) -> dict[str, Any]:
+    item_name = normalize_required_text(payload.item_name, field_name="Item name")
+    now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+    with get_connection() as conn:
+        existing = conn.execute(
+            "SELECT id FROM standalone_inventory WHERE id = ?",
+            (item_id,),
+        ).fetchone()
+        if not existing:
+            raise HTTPException(status_code=404, detail="Inventory item not found")
+        conn.execute(
+            """
+            UPDATE standalone_inventory
+            SET item_name = ?, updated_at = ?
+            WHERE id = ?
+            """,
+            (item_name, now, item_id),
+        )
+        row = conn.execute("SELECT * FROM standalone_inventory WHERE id = ?", (item_id,)).fetchone()
+        conn.commit()
+    payload_row = dict(row)
+    payload_row["category"] = normalize_inventory_category(payload_row.get("category"))
+    return payload_row
 
 
 @app.delete("/api/inventory/{item_id}")
 def delete_inventory_item(
     item_id: int,
-    _user: Annotated[AuthUser, Depends(require_roles(ROLE_PLANNER, ROLE_ADMIN))],
+    _user: Annotated[AuthUser, Depends(require_roles(ROLE_VIEWER, ROLE_PLANNER, ROLE_ADMIN))],
 ) -> dict[str, Any]:
     with get_connection() as conn:
         existing = conn.execute("SELECT id, item_name FROM standalone_inventory WHERE id = ?", (item_id,)).fetchone()

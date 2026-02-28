@@ -181,8 +181,8 @@
             <li class="nav-item dropdown">
               <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false"><i class="fa-solid fa-boxes-stacked me-1"></i> Inventory</a>
               <ul class="dropdown-menu">
-                <li><a class="dropdown-item" href="inventory.html"><i class="fa-solid fa-clipboard-list me-2"></i> General Inventory</a></li>
-                <li><a class="dropdown-item" href="retreat-inventory.html"><i class="fa-solid fa-barcode me-2"></i> Retreat Inventory</a></li>
+                <li><a class="dropdown-item" href="inventory.html"><i class="fa-solid fa-clipboard-list me-2"></i> Inventory</a></li>
+                <li><a class="dropdown-item" href="shopping-list.html"><i class="fa-solid fa-list-check me-2"></i> Retreat Order Lists</a></li>
               </ul>
             </li>
             <li class="nav-item dropdown">
@@ -302,15 +302,15 @@
           button: "Open Shopping List",
         },
         {
-          title: "Retreat Inventory",
-          description: "Scan barcodes to add/remove stock and track inventory movements for retreat supplies.",
-          path: "retreat-inventory.html",
-          icon: "fa-barcode",
-          roles: ["planner", "admin"],
+          title: "Inventory",
+          description: "Single inventory workflow for retreat supplies, infra items, and barcode receiving.",
+          path: "inventory.html",
+          icon: "fa-boxes-stacked",
+          roles: ["viewer", "planner", "admin"],
           badge: "Operations",
           color: "#0f766e",
           bg: "#ccfbf1",
-          button: "Open Retreat Inventory",
+          button: "Open Inventory",
         },
       ];
 

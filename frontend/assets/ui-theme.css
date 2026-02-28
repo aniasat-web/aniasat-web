@@ -169,6 +169,10 @@ h6 {
   box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
 }
 
+.navbar.fixed-top {
+  z-index: 1045;
+}
+
 .navbar .container {
   max-width: 1320px;
 }

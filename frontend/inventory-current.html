@@ -1,0 +1,1272 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Current Inventory - Blossom Foundation</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+    <link rel="stylesheet" href="assets/header-theme.css" />
+    <style>
+      body { font-family: "Plus Jakarta Sans", sans-serif; }
+      h1, h2, h3, .navbar-brand { font-family: "Instrument Serif", serif; }
+      .inventory-shell { max-width: 1120px; margin: 0 auto; padding: 1.4rem 1rem 2rem; }
+      .soft-card { border: 1px solid var(--ui-border); border-radius: var(--ui-radius-md); background: rgba(255,255,255,0.88); box-shadow: var(--ui-shadow-sm); backdrop-filter: blur(2px); }
+      .table-wrap { max-height: 400px; overflow: auto; }
+      .sticky-head thead th { position: sticky; top: 0; z-index: 2; background: #fff; }
+      .low-pill { font-size: 0.72rem; font-weight: 700; border-radius: 999px; padding: 0.16rem 0.5rem; border: 1px solid #fca5a5; color: var(--ui-danger-700); background: var(--ui-danger-100); }
+      .shelf-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 1rem; }
+      .shelf-card { border: 1px solid var(--ui-border); border-radius: var(--ui-radius-md); background: rgba(255,255,255,0.92); padding: 1rem; transition: transform 0.14s ease, box-shadow 0.14s ease; }
+      .shelf-card:hover { transform: translateY(-2px); box-shadow: var(--ui-shadow-md); }
+      .shelf-letter { font-family: "Instrument Serif", serif; font-size: 2rem; font-weight: 700; color: var(--ui-primary-700); }
+      .location-chip { display: inline-flex; align-items: center; gap: 0.3rem; padding: 0.25rem 0.6rem; border-radius: 999px; font-size: 0.78rem; font-weight: 600; border: 1px solid var(--ui-border); background: #fff; cursor: pointer; transition: all 0.14s ease; }
+      .location-chip:hover { border-color: var(--ui-primary-300); background: #fffaf0; }
+      .location-chip .chip-count { font-weight: 800; color: var(--ui-primary-700); }
+      .stat-value { font-size: 1.8rem; font-weight: 800; font-variant-numeric: tabular-nums; color: var(--ui-ink-strong); }
+      .filter-pill { display: inline-flex; align-items: center; padding: 0.3rem 0.7rem; border-radius: 999px; font-size: 0.75rem; font-weight: 600; border: 1px solid var(--ui-border); background: #fff; cursor: pointer; transition: all 0.14s ease; }
+      .filter-pill:hover, .filter-pill.active { border-color: var(--ui-primary-300); background: var(--ui-primary-100); color: var(--ui-primary-700); }
+      .product-photo { width: 150px; height: 150px; border-radius: var(--ui-radius-md); border: 1px solid var(--ui-border); object-fit: cover; background: #f5f5f4; }
+    </style>
+    <link rel="stylesheet" href="assets/ui-theme.css" />
+  </head>
+  <body>
+    <nav class="navbar navbar-expand-lg navbar-light fixed-top">
+      <div class="container">
+        <a class="navbar-brand" href="index.html">
+          <img class="brand-logo" src="assets/blossom-mark.png" alt="Blossom logo" />
+          <span>Blossom Foundation</span>
+        </a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarContent">
+          <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarContent">
+          <ul class="navbar-nav ms-auto mb-2 mb-lg-0 fw-semibold small text-uppercase">
+            <li class="nav-item">
+              <a class="nav-link" href="index.html"><i class="fa-solid fa-house me-1"></i> Home</a>
+            </li>
+            <li class="nav-item dropdown">
+              <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false"><i class="fa-solid fa-utensils me-1"></i> Kitchen</a>
+              <ul class="dropdown-menu">
+                <li><a class="dropdown-item" href="retreat-planner-sample.html"><i class="fa-solid fa-calendar-days me-2"></i> Planner</a></li>
+                <li><a class="dropdown-item" href="shopping-list.html"><i class="fa-solid fa-cart-shopping me-2"></i> Shopping</a></li>
+                <li><a class="dropdown-item" href="kitchen-service-view.html"><i class="fa-solid fa-fire-burner me-2"></i> Retreat View</a></li>
+                <li><a class="dropdown-item" href="kitchen-test-view.html"><i class="fa-solid fa-vial me-2"></i> Testing View</a></li>
+                <li><a class="dropdown-item" href="recipe-admin.html"><i class="fa-solid fa-book me-2"></i> Recipes</a></li>
+                <li><a class="dropdown-item" href="ingredient-admin.html"><i class="fa-solid fa-carrot me-2"></i> Ingredients</a></li>
+              </ul>
+            </li>
+            <li class="nav-item dropdown">
+              <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false"><i class="fa-solid fa-boxes-stacked me-1"></i> Inventory</a>
+              <ul class="dropdown-menu">
+                <li><a class="dropdown-item" href="inventory-add.html"><i class="fa-solid fa-plus me-2"></i> Add Inventory</a></li>
+                <li><a class="dropdown-item" href="inventory-remove.html"><i class="fa-solid fa-minus me-2"></i> Remove Inventory</a></li>
+                <li><a class="dropdown-item" href="inventory-current.html"><i class="fa-solid fa-box-open me-2"></i> Current Inventory</a></li>
+                <li><a class="dropdown-item" href="inventory-orders.html"><i class="fa-solid fa-list-check me-2"></i> Order List</a></li>
+              </ul>
+            </li>
+            <li class="nav-item dropdown">
+              <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false"><i class="fa-solid fa-seedling me-1"></i> About</a>
+              <ul class="dropdown-menu">
+                <li><a class="dropdown-item" href="about.html"><i class="fa-solid fa-heart me-2"></i> About &amp; Mission</a></li>
+                <li><a class="dropdown-item" href="about-sri-m.html"><i class="fa-solid fa-user me-2"></i> About Sri M</a></li>
+                <li><a class="dropdown-item" href="sacred-grove.html"><i class="fa-solid fa-tree me-2"></i> Sacred Grove</a></li>
+                <li><a class="dropdown-item" href="faq.html"><i class="fa-solid fa-circle-question me-2"></i> FAQ</a></li>
+              </ul>
+            </li>
+            <li class="nav-item dropdown">
+              <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false"><i class="fa-solid fa-hand-holding-heart me-1"></i> Volunteer</a>
+              <ul class="dropdown-menu">
+                <li><a class="dropdown-item" href="volunteer.html"><i class="fa-solid fa-hands-helping me-2"></i> How to Volunteer</a></li>
+                <li><a class="dropdown-item" href="volunteer-contact.html"><i class="fa-solid fa-envelope me-2"></i> Contact Us</a></li>
+              </ul>
+            </li>
+            <li class="nav-item dropdown">
+              <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false"><i class="fa-solid fa-gear me-1"></i> Admin</a>
+              <ul class="dropdown-menu">
+                <li><a class="dropdown-item" href="user-admin.html"><i class="fa-solid fa-users-gear me-2"></i> Users</a></li>
+              </ul>
+            </li>
+            <li class="nav-item d-flex align-items-center">
+              <span class="nav-link text-muted d-none" id="authUserLabel"></span>
+            </li>
+            <li class="nav-item d-flex align-items-center ms-lg-2">
+              <button class="btn btn-sm btn-outline-secondary d-none" id="logoutBtn" type="button">Logout</button>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </nav>
+
+    <main class="inventory-shell">
+      <!-- Hero header -->
+      <div class="d-flex flex-wrap align-items-center gap-3 mb-4">
+        <div class="flex-grow-1">
+          <h1 class="fw-bold mb-2"><i class="fa-solid fa-box-open me-2" style="color: var(--ui-primary-700);"></i>Current Inventory</h1>
+          <p class="text-muted mb-0">Real-time view of all retreat inventory levels, shelf locations, and recent transactions.</p>
+        </div>
+        <span id="statusPill" class="status-pill info">Ready.</span>
+      </div>
+
+      <!-- Stats row -->
+      <section class="row g-3 mb-4">
+        <div class="col-md-4">
+          <div class="soft-card p-3 text-center">
+            <div class="small text-uppercase fw-semibold text-muted mb-1"><i class="fa-solid fa-cubes me-1"></i> Total Items</div>
+            <div class="stat-value" id="statTotalItems">--</div>
+          </div>
+        </div>
+        <div class="col-md-4">
+          <div class="soft-card p-3 text-center">
+            <div class="small text-uppercase fw-semibold text-muted mb-1"><i class="fa-solid fa-warehouse me-1"></i> Shelves In Use</div>
+            <div class="stat-value" id="statShelvesInUse">--</div>
+          </div>
+        </div>
+        <div class="col-md-4">
+          <div class="soft-card p-3 text-center">
+            <div class="small text-uppercase fw-semibold text-muted mb-1"><i class="fa-solid fa-triangle-exclamation me-1"></i> Low Stock</div>
+            <div class="stat-value" id="statLowStock">--</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Search bar and category filters -->
+      <section class="soft-card p-3 mb-4">
+        <div class="row g-2 align-items-center">
+          <div class="col-lg-5">
+            <div class="input-group">
+              <span class="input-group-text"><i class="fa-solid fa-magnifying-glass"></i></span>
+              <input id="searchInput" type="text" class="form-control" placeholder="Search by item name or barcode..." />
+            </div>
+          </div>
+          <div class="col-lg-7">
+            <div class="d-flex flex-wrap gap-2 align-items-center" id="categoryFilters">
+              <span class="small text-uppercase fw-semibold text-muted me-1">Filter:</span>
+              <button type="button" class="filter-pill active" data-category="all">All</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Shelf Grid View -->
+      <section class="soft-card p-4 mb-4">
+        <div class="d-flex align-items-center justify-content-between mb-3">
+          <h2 class="h5 mb-0"><i class="fa-solid fa-grip me-2 text-muted"></i>Shelf Grid</h2>
+        </div>
+        <div class="shelf-grid" id="shelfGrid">
+          <div class="text-muted small">Loading shelf data...</div>
+        </div>
+      </section>
+
+      <!-- Inventory Levels Table -->
+      <section class="soft-card p-4 mb-4">
+        <div class="d-flex align-items-center justify-content-between mb-3">
+          <h2 class="h5 mb-0"><i class="fa-solid fa-layer-group me-2 text-muted"></i>Inventory Levels</h2>
+          <button id="refreshLevelsBtn" type="button" class="btn btn-sm btn-outline-secondary"><i class="fa-solid fa-arrows-rotate me-1"></i>Refresh</button>
+        </div>
+        <div class="table-wrap">
+          <table class="table table-sm align-middle sticky-head">
+            <thead>
+              <tr class="small text-uppercase text-muted">
+                <th>Item</th>
+                <th>Category</th>
+                <th>Qty</th>
+                <th>Unit</th>
+                <th>Threshold</th>
+                <th>Location</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody id="levelsBody"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- Transaction History -->
+      <section class="soft-card p-4 mb-4">
+        <div class="d-flex align-items-center justify-content-between mb-3">
+          <h2 class="h5 mb-0"><i class="fa-solid fa-clock-rotate-left me-2 text-muted"></i>Recent Transactions</h2>
+          <button id="refreshTxBtn" type="button" class="btn btn-sm btn-outline-secondary"><i class="fa-solid fa-arrows-rotate me-1"></i>Refresh</button>
+        </div>
+        <div class="table-wrap">
+          <table class="table table-sm align-middle sticky-head">
+            <thead>
+              <tr class="small text-uppercase text-muted">
+                <th>When</th>
+                <th>Type</th>
+                <th>Entity</th>
+                <th>User</th>
+                <th>Qty</th>
+              </tr>
+            </thead>
+            <tbody id="txBody"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- Admin Section -->
+      <section id="catalogAdmin" class="soft-card p-4 mb-4" style="display: none">
+        <div class="d-flex align-items-center justify-content-between mb-3">
+          <h2 class="h4 mb-0"><i class="fa-solid fa-screwdriver-wrench me-2" style="color: var(--ui-primary-700);"></i>Catalog Management (Admin)</h2>
+          <small class="text-muted">Create and manage categories, items, and locations</small>
+        </div>
+
+        <!-- Manage Categories -->
+        <div class="mb-4">
+          <div class="d-flex align-items-center justify-content-between mb-2">
+            <h3 class="h5 mb-0">Manage Categories</h3>
+            <button id="refreshCategoriesBtn" type="button" class="btn btn-sm btn-outline-secondary">Refresh</button>
+          </div>
+          <div class="row g-2 mb-3">
+            <div class="col-md-4">
+              <label class="form-label fw-semibold" for="catName">Category Name</label>
+              <input id="catName" class="form-control" type="text" placeholder="Soap" />
+            </div>
+            <div class="col-md-3">
+              <label class="form-label fw-semibold" for="catMode">Tracking Mode</label>
+              <select id="catMode" class="form-select">
+                <option value="ITEM">ITEM</option>
+                <option value="CATEGORY">CATEGORY</option>
+              </select>
+            </div>
+            <div class="col-md-3">
+              <label class="form-label fw-semibold" for="catImage">Image URL</label>
+              <input id="catImage" class="form-control" type="text" placeholder="https://..." />
+            </div>
+            <div class="col-md-2 d-grid align-self-end">
+              <button id="addCategoryBtn" class="btn btn-outline-primary"><i class="fa-solid fa-plus me-1"></i>Add Category</button>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table class="table table-sm align-middle sticky-head">
+              <thead>
+                <tr class="small text-uppercase text-muted">
+                  <th>Category</th>
+                  <th>Tracking</th>
+                  <th>Status</th>
+                  <th>Image</th>
+                  <th>Updated</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="categoryBody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Manage Items -->
+        <div class="mb-4 pt-3 border-top">
+          <h3 class="h5 mb-2">Manage Items</h3>
+          <div class="row g-2 mb-2">
+            <div class="col-md-3">
+              <label class="form-label fw-semibold" for="itemName">Item Name</label>
+              <input id="itemName" class="form-control" type="text" placeholder="Manduka Pro Yoga Mat" />
+            </div>
+            <div class="col-md-2">
+              <label class="form-label fw-semibold" for="itemBarcode">Barcode</label>
+              <input id="itemBarcode" class="form-control" type="text" placeholder="0123456789012" />
+            </div>
+            <div class="col-md-2">
+              <label class="form-label fw-semibold" for="itemCategory">Category</label>
+              <select id="itemCategory" class="form-select"></select>
+            </div>
+            <div class="col-md-1">
+              <label class="form-label fw-semibold" for="itemUnit">Unit</label>
+              <input id="itemUnit" class="form-control" type="text" value="each" placeholder="each" />
+            </div>
+            <div class="col-md-2">
+              <label class="form-label fw-semibold" for="itemBrand">Brand</label>
+              <input id="itemBrand" class="form-control" type="text" placeholder="Brand" />
+            </div>
+            <div class="col-md-2 d-grid align-self-end">
+              <button id="addItemBtn" class="btn btn-outline-primary"><i class="fa-solid fa-plus me-1"></i>Add Item</button>
+            </div>
+          </div>
+          <div class="row g-2 mt-1">
+            <div class="col-md-4">
+              <label class="form-label fw-semibold" for="itemLocationSelect">Item Location</label>
+              <select id="itemLocationSelect" class="form-select">
+                <option value="">Select location</option>
+              </select>
+            </div>
+            <div class="col-md-2">
+              <label class="form-label fw-semibold" for="itemLocationQty">Location Qty</label>
+              <input id="itemLocationQty" class="form-control" type="number" min="0" step="1" value="0" />
+            </div>
+            <div class="col-md-2 d-grid">
+              <label class="form-label fw-semibold opacity-0" for="addItemLocationBtn">Add</label>
+              <button id="addItemLocationBtn" type="button" class="btn btn-outline-secondary">Add Location</button>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-semibold" for="itemLocationsList">Assigned Locations</label>
+              <div id="itemLocationsList" class="small border rounded p-2 bg-light-subtle">No locations assigned.</div>
+            </div>
+          </div>
+          <div class="row g-2 mt-1">
+            <div class="col-md-12">
+              <label class="form-label fw-semibold" for="itemPurchaseUrl">Purchase URL</label>
+              <input id="itemPurchaseUrl" class="form-control" type="url" placeholder="https://www.amazon.com/..." />
+            </div>
+          </div>
+          <p class="text-muted small mt-2 mb-0"><i class="fa-solid fa-circle-info me-1"></i>Items can also be managed via the inventory items list.</p>
+        </div>
+
+        <!-- Manage Locations -->
+        <div class="pt-3 border-top">
+          <div class="d-flex align-items-center justify-content-between mb-2">
+            <h3 class="h5 mb-0">Manage Locations</h3>
+            <button id="refreshLocationsBtn" type="button" class="btn btn-sm btn-outline-secondary">Refresh</button>
+          </div>
+          <div class="row g-2 mb-2">
+            <div class="col-md-4">
+              <input id="locationName" class="form-control" type="text" placeholder="Shelf A3" />
+            </div>
+            <div class="col-md-6">
+              <input id="locationDescription" class="form-control" type="text" placeholder="Optional note (left wall, top rack)" />
+            </div>
+            <div class="col-md-2 d-grid">
+              <button id="addLocationBtn" type="button" class="btn btn-outline-primary">Add Location</button>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table class="table table-sm align-middle sticky-head">
+              <thead>
+                <tr class="small text-uppercase text-muted">
+                  <th>Location</th>
+                  <th>Description</th>
+                  <th>Status</th>
+                  <th>Updated</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="locationBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- Edit Category Modal -->
+    <div class="modal fade" id="editCategoryModal" tabindex="-1" aria-labelledby="editCategoryModalLabel" aria-hidden="true">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h2 class="modal-title fs-5" id="editCategoryModalLabel">Edit Category</h2>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <input type="hidden" id="editCategoryId" />
+            <div class="mb-3">
+              <label class="form-label fw-semibold" for="editCategoryName">Category Name</label>
+              <input id="editCategoryName" class="form-control" type="text" />
+            </div>
+            <div class="mb-3">
+              <label class="form-label fw-semibold" for="editCategoryMode">Tracking Mode</label>
+              <select id="editCategoryMode" class="form-select">
+                <option value="ITEM">ITEM</option>
+                <option value="CATEGORY">CATEGORY</option>
+              </select>
+            </div>
+            <div class="mb-3">
+              <label class="form-label fw-semibold" for="editCategoryImage">Image URL</label>
+              <input id="editCategoryImage" class="form-control" type="text" placeholder="https://..." />
+            </div>
+            <div class="form-check form-switch">
+              <input class="form-check-input" type="checkbox" role="switch" id="editCategoryActive" />
+              <label class="form-check-label fw-semibold" for="editCategoryActive">Active</label>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+            <button type="button" id="saveCategoryEditBtn" class="btn btn-primary">Save</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="assets/auth.js?v=20260218f"></script>
+    <script>
+      /* ── DOM refs ─────────────────────────────────── */
+      const statusPill = document.getElementById("statusPill");
+      const searchInput = document.getElementById("searchInput");
+      const categoryFilters = document.getElementById("categoryFilters");
+      const shelfGrid = document.getElementById("shelfGrid");
+      const levelsBody = document.getElementById("levelsBody");
+      const txBody = document.getElementById("txBody");
+      const refreshLevelsBtn = document.getElementById("refreshLevelsBtn");
+      const refreshTxBtn = document.getElementById("refreshTxBtn");
+      const statTotalItems = document.getElementById("statTotalItems");
+      const statShelvesInUse = document.getElementById("statShelvesInUse");
+      const statLowStock = document.getElementById("statLowStock");
+
+      /* Admin DOM refs */
+      const catalogAdmin = document.getElementById("catalogAdmin");
+      const catName = document.getElementById("catName");
+      const catMode = document.getElementById("catMode");
+      const catImage = document.getElementById("catImage");
+      const addCategoryBtn = document.getElementById("addCategoryBtn");
+      const categoryBody = document.getElementById("categoryBody");
+      const refreshCategoriesBtn = document.getElementById("refreshCategoriesBtn");
+      const itemName = document.getElementById("itemName");
+      const itemBarcode = document.getElementById("itemBarcode");
+      const itemCategory = document.getElementById("itemCategory");
+      const itemUnit = document.getElementById("itemUnit");
+      const itemBrand = document.getElementById("itemBrand");
+      const itemPurchaseUrl = document.getElementById("itemPurchaseUrl");
+      const itemLocationSelect = document.getElementById("itemLocationSelect");
+      const itemLocationQty = document.getElementById("itemLocationQty");
+      const addItemLocationBtn = document.getElementById("addItemLocationBtn");
+      const itemLocationsList = document.getElementById("itemLocationsList");
+      const addItemBtn = document.getElementById("addItemBtn");
+      const locationName = document.getElementById("locationName");
+      const locationDescription = document.getElementById("locationDescription");
+      const addLocationBtn = document.getElementById("addLocationBtn");
+      const refreshLocationsBtn = document.getElementById("refreshLocationsBtn");
+      const locationBody = document.getElementById("locationBody");
+      const editCategoryModalEl = document.getElementById("editCategoryModal");
+      const editCategoryId = document.getElementById("editCategoryId");
+      const editCategoryName = document.getElementById("editCategoryName");
+      const editCategoryMode = document.getElementById("editCategoryMode");
+      const editCategoryImage = document.getElementById("editCategoryImage");
+      const editCategoryActive = document.getElementById("editCategoryActive");
+      const saveCategoryEditBtn = document.getElementById("saveCategoryEditBtn");
+
+      /* ── State ────────────────────────────────────── */
+      let categoryCache = [];
+      let locationCache = [];
+      let levelsCache = [];
+      let shelfCache = {};
+      let pendingItemLocations = [];
+      let isAdmin = false;
+      let editCategoryModal = null;
+      let activeCategory = "all";
+      let activeLocationFilter = null;
+
+      /* ── Utility functions ────────────────────────── */
+      function resolveApiBase() {
+        const queryValue = new URLSearchParams(window.location.search).get("api");
+        const base = queryValue && queryValue.trim() ? queryValue.trim() : window.location.origin;
+        return base.replace(/\/+$/, "");
+      }
+
+      const API_BASE = resolveApiBase();
+
+      function apiUrl(path) {
+        return `${API_BASE}${path.startsWith("/") ? path : `/${path}`}`;
+      }
+
+      function setStatus(message, mode = "info") {
+        statusPill.textContent = message;
+        statusPill.classList.remove("info", "ok", "err");
+        statusPill.classList.add(mode);
+      }
+
+      async function parseApiError(response) {
+        const raw = await response.text();
+        if (!raw) return `HTTP ${response.status}`;
+        try {
+          const parsed = JSON.parse(raw);
+          if (parsed && typeof parsed === "object" && typeof parsed.detail === "string") return parsed.detail;
+        } catch (_error) {}
+        return raw;
+      }
+
+      function escapeHtml(text) {
+        const div = document.createElement("div");
+        div.textContent = text == null ? "" : String(text);
+        return div.innerHTML;
+      }
+
+      function toSafeHttpUrl(value) {
+        if (!value) return null;
+        try {
+          const parsed = new URL(String(value).trim(), window.location.origin);
+          if (parsed.protocol === "http:" || parsed.protocol === "https:") {
+            return parsed.href;
+          }
+        } catch (_error) {}
+        return null;
+      }
+
+      function formatDateTime(value) {
+        if (!value) return "";
+        try {
+          const d = new Date(value);
+          return `${d.toLocaleDateString()} ${d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`;
+        } catch (_e) {
+          return String(value);
+        }
+      }
+
+      /* ── Stats rendering ──────────────────────────── */
+      function renderStats() {
+        statTotalItems.textContent = String(levelsCache.length);
+
+        const shelfLetters = new Set();
+        levelsCache.forEach(function (row) {
+          const locationSummary = row.location_summary || "";
+          const locations = Array.isArray(row.item_locations) ? row.item_locations : [];
+          locations.forEach(function (loc) {
+            const name = loc.location_name || "";
+            const letter = name.replace(/[^A-Za-z]/g, "");
+            if (letter) shelfLetters.add(letter.charAt(0).toUpperCase());
+          });
+          if (!locations.length && locationSummary) {
+            const match = locationSummary.match(/[A-Za-z]/);
+            if (match) shelfLetters.add(match[0].toUpperCase());
+          }
+        });
+        /* Also count shelf letters from the by-shelf data if available */
+        Object.keys(shelfCache).forEach(function (letter) {
+          shelfLetters.add(letter.toUpperCase());
+        });
+        statShelvesInUse.textContent = String(shelfLetters.size);
+
+        const lowCount = levelsCache.filter(function (row) { return Boolean(row.is_low_stock); }).length;
+        statLowStock.textContent = String(lowCount);
+      }
+
+      /* ── Category filter pills ────────────────────── */
+      function renderCategoryFilterPills() {
+        categoryFilters.innerHTML = "";
+
+        const label = document.createElement("span");
+        label.className = "small text-uppercase fw-semibold text-muted me-1";
+        label.textContent = "Filter:";
+        categoryFilters.appendChild(label);
+
+        const allPill = document.createElement("button");
+        allPill.type = "button";
+        allPill.className = "filter-pill" + (activeCategory === "all" ? " active" : "");
+        allPill.dataset.category = "all";
+        allPill.textContent = "All";
+        categoryFilters.appendChild(allPill);
+
+        const activeCategories = categoryCache.filter(function (cat) { return Boolean(cat.active); });
+        activeCategories.forEach(function (cat) {
+          const pill = document.createElement("button");
+          pill.type = "button";
+          pill.className = "filter-pill" + (activeCategory === String(cat.id) ? " active" : "");
+          pill.dataset.category = String(cat.id);
+          pill.textContent = cat.name;
+          categoryFilters.appendChild(pill);
+        });
+      }
+
+      /* ── Shelf grid rendering ─────────────────────── */
+      function renderShelfGrid(data) {
+        shelfGrid.innerHTML = "";
+        if (!data || typeof data !== "object" || Object.keys(data).length === 0) {
+          shelfGrid.innerHTML = '<div class="text-muted small">No shelf data available.</div>';
+          return;
+        }
+
+        const letters = Object.keys(data).sort();
+        letters.forEach(function (letter) {
+          const locations = Array.isArray(data[letter]) ? data[letter] : [];
+
+          const card = document.createElement("div");
+          card.className = "shelf-card";
+
+          const letterEl = document.createElement("div");
+          letterEl.className = "shelf-letter mb-2";
+          letterEl.textContent = letter;
+          card.appendChild(letterEl);
+
+          const chipWrap = document.createElement("div");
+          chipWrap.className = "d-flex flex-wrap gap-2";
+
+          locations.forEach(function (loc) {
+            const chip = document.createElement("button");
+            chip.type = "button";
+            chip.className = "location-chip";
+            chip.dataset.locationName = loc.name || loc.location_name || "";
+            chip.innerHTML =
+              escapeHtml(loc.name || loc.location_name || "?") +
+              ' <span class="chip-count">' + String(Number(loc.item_count || loc.count || 0)) + "</span>";
+            chipWrap.appendChild(chip);
+          });
+
+          card.appendChild(chipWrap);
+          shelfGrid.appendChild(card);
+        });
+      }
+
+      /* ── Levels table rendering ───────────────────── */
+      function getFilteredLevels() {
+        var searchTerm = searchInput.value.trim().toLowerCase();
+        return levelsCache.filter(function (row) {
+          /* Category filter */
+          if (activeCategory !== "all") {
+            if (String(row.category_id) !== activeCategory && String(row.category_name || "").toLowerCase() !== activeCategory.toLowerCase()) {
+              /* Try matching by category name from cache */
+              var matchCat = categoryCache.find(function (c) { return String(c.id) === activeCategory; });
+              if (matchCat && String(row.category_name || "").toLowerCase() !== matchCat.name.toLowerCase()) {
+                return false;
+              }
+              if (!matchCat) return false;
+            }
+          }
+
+          /* Location filter from shelf grid chip click */
+          if (activeLocationFilter) {
+            var locationSummary = row.location_summary || "";
+            var itemLocations = Array.isArray(row.item_locations) ? row.item_locations : [];
+            var locationNames = itemLocations.map(function (loc) { return (loc.location_name || "").toLowerCase(); });
+            var shelfLocation = (row.item_shelf_location || "").toLowerCase();
+            var matchesLocation = locationNames.indexOf(activeLocationFilter.toLowerCase()) >= 0 ||
+              locationSummary.toLowerCase().indexOf(activeLocationFilter.toLowerCase()) >= 0 ||
+              shelfLocation.indexOf(activeLocationFilter.toLowerCase()) >= 0;
+            if (!matchesLocation) return false;
+          }
+
+          /* Text search */
+          if (searchTerm) {
+            var entity = row.entity_type === "ITEM" ? (row.item_name || "") : (row.category_name || "");
+            var barcode = row.item_barcode || "";
+            if (entity.toLowerCase().indexOf(searchTerm) < 0 && barcode.toLowerCase().indexOf(searchTerm) < 0) {
+              return false;
+            }
+          }
+          return true;
+        });
+      }
+
+      function renderLevels() {
+        levelsBody.innerHTML = "";
+        var rows = getFilteredLevels();
+        if (!rows.length) {
+          levelsBody.innerHTML = '<tr><td colspan="7" class="text-muted small">No inventory levels match your filters.</td></tr>';
+          return;
+        }
+        rows.forEach(function (row) {
+          var entity = row.entity_type === "ITEM" ? (row.item_name || "Unknown item") : (row.category_name || "Unknown category");
+          var categoryName = row.category_name || "-";
+          var quantity = Number(row.quantity || 0);
+          var unit = row.item_unit || "-";
+          var threshold = Number(row.min_threshold || 0);
+          var locationSummary = row.location_summary ||
+            (Array.isArray(row.item_locations) && row.item_locations.length
+              ? row.item_locations.map(function (loc) { return loc.location_name + " (" + Number(loc.quantity || 0) + ")"; }).join(", ")
+              : (row.item_shelf_location || "-"));
+          var status = row.is_low_stock
+            ? '<span class="low-pill">Low Stock</span>'
+            : '<span class="text-success small fw-semibold">OK</span>';
+
+          var tr = document.createElement("tr");
+          tr.innerHTML =
+            "<td>" +
+              '<div class="fw-semibold">' + escapeHtml(entity) + "</div>" +
+              (row.item_barcode ? '<div class="text-muted small">' + escapeHtml(row.item_barcode) + "</div>" : "") +
+            "</td>" +
+            "<td>" + escapeHtml(categoryName) + "</td>" +
+            '<td class="fw-semibold">' + String(quantity) + "</td>" +
+            "<td>" + escapeHtml(unit) + "</td>" +
+            "<td>" + String(threshold) + "</td>" +
+            "<td>" + '<div class="small">' + escapeHtml(locationSummary) + "</div></td>" +
+            "<td>" + status + "</td>";
+          levelsBody.appendChild(tr);
+        });
+      }
+
+      /* ── Transactions table rendering ─────────────── */
+      function renderTransactions(rows) {
+        txBody.innerHTML = "";
+        if (!rows.length) {
+          txBody.innerHTML = '<tr><td colspan="5" class="text-muted small">No transactions yet.</td></tr>';
+          return;
+        }
+        rows.forEach(function (row) {
+          var isIn = row.transaction_type === "IN";
+          var typeColor = isIn ? "color: var(--ui-success-700);" : "color: var(--ui-danger-700);";
+          var typeBg = isIn ? "background: var(--ui-success-100); border: 1px solid var(--ui-success-300); border-radius: 999px; padding: 0.1rem 0.5rem; font-size: 0.72rem;" : "background: var(--ui-danger-100); border: 1px solid var(--ui-danger-300); border-radius: 999px; padding: 0.1rem 0.5rem; font-size: 0.72rem;";
+
+          var tr = document.createElement("tr");
+          tr.innerHTML =
+            '<td class="small">' + escapeHtml(formatDateTime(row.created_at)) + "</td>" +
+            "<td>" + '<span class="fw-bold" style="' + typeColor + typeBg + '">' + escapeHtml(row.transaction_type) + "</span></td>" +
+            "<td>" +
+              '<div class="small fw-semibold">' + escapeHtml(row.entity_name || "-") + "</div>" +
+            "</td>" +
+            "<td>" +
+              '<div class="text-muted small">' + escapeHtml(row.user_name || "-") + "</div>" +
+            "</td>" +
+            '<td class="fw-semibold">' + String(Number(row.quantity || 0)) + "</td>";
+          txBody.appendChild(tr);
+        });
+      }
+
+      /* ── Admin: Category management ───────────────── */
+      function renderCategoryOptions() {
+        itemCategory.innerHTML = "";
+        var activeCategories = categoryCache.filter(function (cat) { return Boolean(cat.active); });
+        if (!activeCategories.length) {
+          var option = document.createElement("option");
+          option.value = "";
+          option.textContent = "No active categories";
+          itemCategory.appendChild(option);
+          return;
+        }
+        activeCategories.forEach(function (cat) {
+          var option = document.createElement("option");
+          option.value = String(cat.id);
+          option.textContent = cat.name + " (" + cat.tracking_mode + ")";
+          itemCategory.appendChild(option);
+        });
+      }
+
+      function renderCategoryAdminTable() {
+        if (!isAdmin) return;
+        categoryBody.innerHTML = "";
+        if (!categoryCache.length) {
+          categoryBody.innerHTML = '<tr><td colspan="6" class="text-muted small">No categories yet.</td></tr>';
+          return;
+        }
+        var rows = [].concat(categoryCache).sort(function (a, b) { return String(a.name || "").localeCompare(String(b.name || "")); });
+        rows.forEach(function (cat) {
+          var status = cat.active
+            ? '<span class="badge text-bg-success">Active</span>'
+            : '<span class="badge text-bg-secondary">Inactive</span>';
+          var imageCell = cat.image_url
+            ? '<a href="' + escapeHtml(cat.image_url) + '" target="_blank" rel="noopener noreferrer" class="small">Open</a>'
+            : '<span class="text-muted small">-</span>';
+          var tr = document.createElement("tr");
+          tr.innerHTML =
+            '<td class="fw-semibold">' + escapeHtml(cat.name) + "</td>" +
+            "<td><span class='small'>" + escapeHtml(cat.tracking_mode) + "</span></td>" +
+            "<td>" + status + "</td>" +
+            "<td>" + imageCell + "</td>" +
+            '<td class="small">' + escapeHtml(formatDateTime(cat.updated_at)) + "</td>" +
+            "<td>" +
+              '<div class="d-flex gap-1 justify-content-end">' +
+                '<button type="button" class="btn btn-sm btn-outline-secondary category-edit-btn" data-category-id="' + String(cat.id) + '">Edit</button>' +
+                '<button type="button" class="btn btn-sm ' + (cat.active ? "btn-outline-warning" : "btn-outline-success") + ' category-toggle-btn" data-category-id="' + String(cat.id) + '" data-next-active="' + (cat.active ? "0" : "1") + '">' +
+                  (cat.active ? "Deactivate" : "Activate") +
+                "</button>" +
+              "</div>" +
+            "</td>";
+          categoryBody.appendChild(tr);
+        });
+      }
+
+      function findCategory(categoryId) {
+        return categoryCache.find(function (cat) { return Number(cat.id) === Number(categoryId); }) || null;
+      }
+
+      function openCategoryEditor(categoryId) {
+        var cat = findCategory(categoryId);
+        if (!cat) {
+          setStatus("Category not found.", "err");
+          return;
+        }
+        editCategoryId.value = String(cat.id);
+        editCategoryName.value = String(cat.name || "");
+        editCategoryMode.value = String(cat.tracking_mode || "ITEM");
+        editCategoryImage.value = String(cat.image_url || "");
+        editCategoryActive.checked = Boolean(cat.active);
+        if (editCategoryModal) {
+          editCategoryModal.show();
+        }
+      }
+
+      async function saveCategoryEdits() {
+        var categoryId = Number.parseInt(editCategoryId.value, 10);
+        var name = editCategoryName.value.trim();
+        if (!Number.isFinite(categoryId) || !name) {
+          setStatus("Category name is required.", "err");
+          return;
+        }
+        var response = await fetch(apiUrl("/api/retreat-inventory/categories/" + categoryId), {
+          method: "PATCH",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            name: name,
+            trackingMode: editCategoryMode.value,
+            imageUrl: editCategoryImage.value.trim() || null,
+            active: Boolean(editCategoryActive.checked),
+          }),
+        });
+        if (!response.ok) {
+          throw new Error(await parseApiError(response));
+        }
+        if (editCategoryModal) {
+          editCategoryModal.hide();
+        }
+        setStatus("Updated category " + name + ".", "ok");
+        await fetchCategories();
+      }
+
+      async function toggleCategoryActive(categoryId, nextActive) {
+        var cat = findCategory(categoryId);
+        if (!cat) {
+          setStatus("Category not found.", "err");
+          return;
+        }
+        var response = await fetch(apiUrl("/api/retreat-inventory/categories/" + categoryId), {
+          method: "PATCH",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ active: Boolean(nextActive) }),
+        });
+        if (!response.ok) {
+          throw new Error(await parseApiError(response));
+        }
+        setStatus((nextActive ? "Activated" : "Deactivated") + " category " + cat.name + ".", "ok");
+        await fetchCategories();
+      }
+
+      async function createCategory() {
+        var name = catName.value.trim();
+        if (!name) {
+          setStatus("Category name is required.", "err");
+          return;
+        }
+        var response = await fetch(apiUrl("/api/retreat-inventory/categories"), {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            name: name,
+            trackingMode: catMode.value,
+            imageUrl: catImage.value.trim() || null,
+          }),
+        });
+        if (!response.ok) {
+          throw new Error(await parseApiError(response));
+        }
+        catName.value = "";
+        catImage.value = "";
+        setStatus("Created category " + name + ".", "ok");
+        await fetchCategories();
+      }
+
+      /* ── Admin: Location management ───────────────── */
+      function findLocation(locationId) {
+        return locationCache.find(function (loc) { return Number(loc.id) === Number(locationId); }) || null;
+      }
+
+      function renderLocationOptions() {
+        itemLocationSelect.innerHTML = "";
+        var itemDefault = document.createElement("option");
+        itemDefault.value = "";
+        itemDefault.textContent = "Select location";
+        itemLocationSelect.appendChild(itemDefault);
+
+        var activeLocations = locationCache.filter(function (loc) { return Boolean(loc.active); });
+        activeLocations.forEach(function (loc) {
+          var option = document.createElement("option");
+          option.value = String(loc.id);
+          option.textContent = loc.name;
+          itemLocationSelect.appendChild(option);
+        });
+      }
+
+      function renderLocationAdminTable() {
+        if (!isAdmin) return;
+        locationBody.innerHTML = "";
+        if (!locationCache.length) {
+          locationBody.innerHTML = '<tr><td colspan="5" class="text-muted small">No locations yet.</td></tr>';
+          return;
+        }
+        var rows = [].concat(locationCache).sort(function (a, b) { return String(a.name || "").localeCompare(String(b.name || "")); });
+        rows.forEach(function (loc) {
+          var status = loc.active
+            ? '<span class="badge text-bg-success">Active</span>'
+            : '<span class="badge text-bg-secondary">Inactive</span>';
+          var tr = document.createElement("tr");
+          tr.innerHTML =
+            '<td class="fw-semibold">' + escapeHtml(loc.name) + "</td>" +
+            '<td class="small">' + escapeHtml(loc.description || "-") + "</td>" +
+            "<td>" + status + "</td>" +
+            '<td class="small">' + escapeHtml(formatDateTime(loc.updated_at)) + "</td>" +
+            "<td>" +
+              '<div class="d-flex justify-content-end">' +
+                '<button type="button" class="btn btn-sm ' + (loc.active ? "btn-outline-warning" : "btn-outline-success") + ' location-toggle-btn" data-location-id="' + String(loc.id) + '" data-next-active="' + (loc.active ? "0" : "1") + '">' +
+                  (loc.active ? "Deactivate" : "Activate") +
+                "</button>" +
+              "</div>" +
+            "</td>";
+          locationBody.appendChild(tr);
+        });
+      }
+
+      async function createLocation() {
+        var name = locationName.value.trim();
+        if (!name) {
+          setStatus("Location name is required.", "err");
+          return;
+        }
+        var response = await fetch(apiUrl("/api/retreat-inventory/locations"), {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            name: name,
+            description: locationDescription.value.trim() || null,
+          }),
+        });
+        if (!response.ok) {
+          throw new Error(await parseApiError(response));
+        }
+        locationName.value = "";
+        locationDescription.value = "";
+        setStatus("Created location " + name + ".", "ok");
+        await fetchLocations();
+      }
+
+      async function toggleLocationActive(locationId, nextActive) {
+        var loc = findLocation(locationId);
+        if (!loc) {
+          setStatus("Location not found.", "err");
+          return;
+        }
+        var response = await fetch(apiUrl("/api/retreat-inventory/locations/" + locationId), {
+          method: "PATCH",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ active: Boolean(nextActive) }),
+        });
+        if (!response.ok) {
+          throw new Error(await parseApiError(response));
+        }
+        setStatus((nextActive ? "Activated" : "Deactivated") + " location " + loc.name + ".", "ok");
+        await fetchLocations();
+      }
+
+      /* ── Admin: Item management ───────────────────── */
+      function renderPendingItemLocations() {
+        if (!pendingItemLocations.length) {
+          itemLocationsList.textContent = "No locations assigned.";
+          return;
+        }
+        itemLocationsList.innerHTML = pendingItemLocations.map(function (entry, index) {
+          return '<div class="d-flex align-items-center justify-content-between gap-2 py-1">' +
+            "<span>" + escapeHtml(entry.locationName) + " \u2022 Qty " + String(Number(entry.quantity || 0)) + "</span>" +
+            '<button type="button" class="btn btn-sm btn-outline-danger item-location-remove-btn" data-index="' + String(index) + '">Remove</button>' +
+          "</div>";
+        }).join("");
+      }
+
+      function addPendingItemLocation() {
+        var locationId = Number.parseInt(itemLocationSelect.value, 10);
+        if (!Number.isFinite(locationId)) {
+          setStatus("Select a location to assign.", "err");
+          return;
+        }
+        var loc = findLocation(locationId);
+        if (!loc || !loc.active) {
+          setStatus("Select an active location.", "err");
+          return;
+        }
+        var quantityRaw = Number.parseInt(itemLocationQty.value, 10);
+        var quantity = Number.isFinite(quantityRaw) && quantityRaw >= 0 ? quantityRaw : 0;
+        var existing = pendingItemLocations.find(function (entry) { return Number(entry.locationId) === locationId; });
+        if (existing) {
+          existing.quantity = quantity;
+          existing.locationName = loc.name;
+        } else {
+          pendingItemLocations.push({
+            locationId: locationId,
+            locationName: loc.name,
+            quantity: quantity,
+          });
+        }
+        renderPendingItemLocations();
+        itemLocationQty.value = "0";
+      }
+
+      async function createItem() {
+        var name = itemName.value.trim();
+        var barcode = itemBarcode.value.trim();
+        var categoryId = Number.parseInt(itemCategory.value, 10);
+        if (!name || !barcode || !Number.isFinite(categoryId)) {
+          setStatus("Item name, barcode, and category are required.", "err");
+          return;
+        }
+        var selectedCategory = findCategory(categoryId);
+        if (!selectedCategory || !selectedCategory.active) {
+          setStatus("Select an active category.", "err");
+          return;
+        }
+        var response = await fetch(apiUrl("/api/retreat-inventory/items"), {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            name: name,
+            barcode: barcode,
+            categoryId: categoryId,
+            unit: itemUnit.value.trim() || "each",
+            purchaseUrl: itemPurchaseUrl.value.trim() || null,
+            brand: itemBrand.value.trim() || null,
+            locations: pendingItemLocations.map(function (entry) {
+              return {
+                locationId: Number(entry.locationId),
+                quantity: Number(entry.quantity || 0),
+              };
+            }),
+          }),
+        });
+        if (!response.ok) {
+          throw new Error(await parseApiError(response));
+        }
+        itemName.value = "";
+        itemBarcode.value = "";
+        itemUnit.value = "each";
+        itemPurchaseUrl.value = "";
+        itemBrand.value = "";
+        pendingItemLocations = [];
+        renderPendingItemLocations();
+        setStatus("Created item " + name + ".", "ok");
+      }
+
+      /* ── API fetch functions ──────────────────────── */
+      async function fetchCategories() {
+        var path = isAdmin
+          ? "/api/retreat-inventory/categories?include_inactive=true"
+          : "/api/retreat-inventory/categories";
+        var response = await fetch(apiUrl(path), { credentials: "include" });
+        if (!response.ok) {
+          throw new Error(await parseApiError(response));
+        }
+        var payload = await response.json();
+        categoryCache = Array.isArray(payload) ? payload : [];
+        renderCategoryFilterPills();
+        if (isAdmin) {
+          renderCategoryOptions();
+          renderCategoryAdminTable();
+        }
+      }
+
+      async function fetchLocations() {
+        var path = isAdmin
+          ? "/api/retreat-inventory/locations?include_inactive=true"
+          : "/api/retreat-inventory/locations";
+        var response = await fetch(apiUrl(path), { credentials: "include" });
+        if (!response.ok) {
+          throw new Error(await parseApiError(response));
+        }
+        var payload = await response.json();
+        locationCache = Array.isArray(payload) ? payload : [];
+        if (isAdmin) {
+          renderLocationOptions();
+          renderLocationAdminTable();
+        }
+      }
+
+      async function fetchShelfData() {
+        var response = await fetch(apiUrl("/api/retreat-inventory/locations/by-shelf"), { credentials: "include" });
+        if (!response.ok) {
+          throw new Error(await parseApiError(response));
+        }
+        var payload = await response.json();
+        shelfCache = payload && typeof payload === "object" ? payload : {};
+        renderShelfGrid(shelfCache);
+      }
+
+      async function fetchLevels() {
+        var response = await fetch(apiUrl("/api/retreat-inventory/levels"), { credentials: "include" });
+        if (!response.ok) {
+          throw new Error(await parseApiError(response));
+        }
+        var payload = await response.json();
+        levelsCache = Array.isArray(payload) ? payload : [];
+        renderLevels();
+        renderStats();
+      }
+
+      async function fetchTransactions() {
+        var response = await fetch(apiUrl("/api/retreat-inventory/transactions?limit=100"), { credentials: "include" });
+        if (!response.ok) {
+          throw new Error(await parseApiError(response));
+        }
+        var payload = await response.json();
+        renderTransactions(Array.isArray(payload) ? payload : []);
+      }
+
+      /* ── User role check ──────────────────────────── */
+      async function initUserRole() {
+        var user = window.retreatAuthUser || null;
+        if (!user || !user.role) {
+          try {
+            var response = await fetch(apiUrl("/api/auth/me"), { credentials: "include" });
+            if (response.ok) user = await response.json();
+          } catch (_error) {
+            user = null;
+          }
+        }
+        isAdmin = Boolean(user && user.role === "admin");
+        if (isAdmin) {
+          catalogAdmin.style.display = "block";
+        }
+      }
+
+      /* ── Event listeners ──────────────────────────── */
+      searchInput.addEventListener("input", function () {
+        renderLevels();
+      });
+
+      categoryFilters.addEventListener("click", function (event) {
+        var target = event.target;
+        if (!(target instanceof HTMLElement)) return;
+        var pill = target.closest(".filter-pill");
+        if (!(pill instanceof HTMLElement)) return;
+        activeCategory = pill.dataset.category || "all";
+        activeLocationFilter = null;
+        /* Update active states */
+        var allPills = categoryFilters.querySelectorAll(".filter-pill");
+        allPills.forEach(function (p) { p.classList.remove("active"); });
+        pill.classList.add("active");
+        renderLevels();
+      });
+
+      shelfGrid.addEventListener("click", function (event) {
+        var target = event.target;
+        if (!(target instanceof HTMLElement)) return;
+        var chip = target.closest(".location-chip");
+        if (!(chip instanceof HTMLElement)) return;
+        var locationNameValue = chip.dataset.locationName || "";
+        if (!locationNameValue) return;
+
+        /* Toggle location filter */
+        if (activeLocationFilter === locationNameValue) {
+          activeLocationFilter = null;
+        } else {
+          activeLocationFilter = locationNameValue;
+        }
+        renderLevels();
+
+        /* Scroll to levels table */
+        var levelsSection = levelsBody.closest("section");
+        if (levelsSection) {
+          levelsSection.scrollIntoView({ behavior: "smooth", block: "start" });
+        }
+      });
+
+      refreshLevelsBtn.addEventListener("click", function () {
+        void fetchLevels().catch(function (error) {
+          setStatus(error instanceof Error ? error.message : "Could not refresh levels.", "err");
+        });
+      });
+
+      refreshTxBtn.addEventListener("click", function () {
+        void fetchTransactions().catch(function (error) {
+          setStatus(error instanceof Error ? error.message : "Could not refresh transactions.", "err");
+        });
+      });
+
+      /* Admin event listeners */
+      addCategoryBtn.addEventListener("click", function () {
+        void createCategory().catch(function (error) {
+          setStatus(error instanceof Error ? error.message : "Could not create category.", "err");
+        });
+      });
+
+      refreshCategoriesBtn.addEventListener("click", function () {
+        void fetchCategories().catch(function (error) {
+          setStatus(error instanceof Error ? error.message : "Could not refresh categories.", "err");
+        });
+      });
+
+      addLocationBtn.addEventListener("click", function () {
+        void createLocation().catch(function (error) {
+          setStatus(error instanceof Error ? error.message : "Could not create location.", "err");
+        });
+      });
+
+      refreshLocationsBtn.addEventListener("click", function () {
+        void fetchLocations().catch(function (error) {
+          setStatus(error instanceof Error ? error.message : "Could not refresh locations.", "err");
+        });
+      });
+
+      addItemLocationBtn.addEventListener("click", function () {
+        addPendingItemLocation();
+      });
+
+      itemLocationsList.addEventListener("click", function (event) {
+        var target = event.target;
+        if (!(target instanceof HTMLElement)) return;
+        var removeButton = target.closest(".item-location-remove-btn");
+        if (!(removeButton instanceof HTMLElement)) return;
+        var index = Number.parseInt(removeButton.dataset.index || "", 10);
+        if (!Number.isFinite(index)) return;
+        pendingItemLocations = pendingItemLocations.filter(function (_entry, itemIndex) { return itemIndex !== index; });
+        renderPendingItemLocations();
+      });
+
+      addItemBtn.addEventListener("click", function () {
+        void createItem().catch(function (error) {
+          setStatus(error instanceof Error ? error.message : "Could not create item.", "err");
+        });
+      });
+
+      categoryBody.addEventListener("click", function (event) {
+        var target = event.target;
+        if (!(target instanceof HTMLElement)) return;
+        var editButton = target.closest(".category-edit-btn");
+        if (editButton instanceof HTMLElement) {
+          var categoryId = Number.parseInt(editButton.dataset.categoryId || "", 10);
+          if (Number.isFinite(categoryId)) {
+            openCategoryEditor(categoryId);
+          }
+          return;
+        }
+        var toggleButton = target.closest(".category-toggle-btn");
+        if (toggleButton instanceof HTMLElement) {
+          var catId = Number.parseInt(toggleButton.dataset.categoryId || "", 10);
+          var nextActive = toggleButton.dataset.nextActive === "1";
+          if (Number.isFinite(catId)) {
+            void toggleCategoryActive(catId, nextActive).catch(function (error) {
+              setStatus(error instanceof Error ? error.message : "Could not update category status.", "err");
+            });
+          }
+        }
+      });
+
+      locationBody.addEventListener("click", function (event) {
+        var target = event.target;
+        if (!(target instanceof HTMLElement)) return;
+        var toggleButton = target.closest(".location-toggle-btn");
+        if (toggleButton instanceof HTMLElement) {
+          var locationId = Number.parseInt(toggleButton.dataset.locationId || "", 10);
+          var nextActive = toggleButton.dataset.nextActive === "1";
+          if (Number.isFinite(locationId)) {
+            void toggleLocationActive(locationId, nextActive).catch(function (error) {
+              setStatus(error instanceof Error ? error.message : "Could not update location status.", "err");
+            });
+          }
+        }
+      });
+
+      saveCategoryEditBtn.addEventListener("click", function () {
+        void saveCategoryEdits().catch(function (error) {
+          setStatus(error instanceof Error ? error.message : "Could not save category.", "err");
+        });
+      });
+
+      /* ── Init ─────────────────────────────────────── */
+      async function init() {
+        setStatus("Loading current inventory...", "info");
+        try {
+          editCategoryModal = editCategoryModalEl ? new bootstrap.Modal(editCategoryModalEl) : null;
+          renderPendingItemLocations();
+          await initUserRole();
+          await Promise.all([fetchCategories(), fetchLocations(), fetchShelfData(), fetchLevels(), fetchTransactions()]);
+          setStatus("Inventory loaded.", "ok");
+        } catch (error) {
+          setStatus(error instanceof Error ? error.message : "Could not load inventory.", "err");
+        }
+      }
+
+      void init();
+    </script>
+  </body>
+</html>

@@ -1,0 +1,774 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Order List - Blossom Foundation</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+    <link rel="stylesheet" href="assets/header-theme.css" />
+    <style>
+      body { font-family: "Plus Jakarta Sans", sans-serif; }
+      h1, h2, h3, .navbar-brand { font-family: "Instrument Serif", serif; }
+      .inventory-shell { max-width: 1120px; margin: 0 auto; padding: 1.4rem 1rem 2rem; }
+      .soft-card { border: 1px solid var(--ui-border); border-radius: var(--ui-radius-md); background: rgba(255,255,255,0.88); box-shadow: var(--ui-shadow-sm); backdrop-filter: blur(2px); }
+      .table-wrap { max-height: 500px; overflow: auto; }
+      .sticky-head thead th { position: sticky; top: 0; z-index: 2; background: #fff; }
+      .stat-value { font-size: 1.8rem; font-weight: 800; font-variant-numeric: tabular-nums; color: var(--ui-ink-strong); }
+      .status-select { font-size: 0.78rem; font-weight: 600; padding: 0.2rem 0.5rem; border-radius: 0.5rem; }
+      .needed-input { width: 80px; font-size: 0.85rem; padding: 0.25rem 0.4rem; text-align: center; }
+      .to-order-cell { font-weight: 700; color: var(--ui-primary-700); }
+      .to-order-zero { color: var(--ui-muted); font-weight: 400; }
+      .purchase-link { font-size: 0.78rem; max-width: 200px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: inline-block; }
+      .filter-pill { display: inline-flex; align-items: center; padding: 0.3rem 0.7rem; border-radius: 999px; font-size: 0.75rem; font-weight: 600; border: 1px solid var(--ui-border); background: #fff; cursor: pointer; transition: all 0.14s ease; }
+      .filter-pill:hover, .filter-pill.active { border-color: var(--ui-primary-300); background: var(--ui-primary-100); color: var(--ui-primary-700); }
+    </style>
+    <link rel="stylesheet" href="assets/ui-theme.css" />
+  </head>
+  <body>
+    <nav class="navbar navbar-expand-lg navbar-light fixed-top">
+      <div class="container">
+        <a class="navbar-brand" href="index.html">
+          <img class="brand-logo" src="assets/blossom-mark.png" alt="Blossom logo" />
+          <span>Blossom Foundation</span>
+        </a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarContent">
+          <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarContent">
+          <ul class="navbar-nav ms-auto mb-2 mb-lg-0 fw-semibold small text-uppercase">
+            <li class="nav-item">
+              <a class="nav-link" href="index.html"><i class="fa-solid fa-house me-1"></i> Home</a>
+            </li>
+            <li class="nav-item dropdown">
+              <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false"><i class="fa-solid fa-utensils me-1"></i> Kitchen</a>
+              <ul class="dropdown-menu">
+                <li><a class="dropdown-item" href="retreat-planner-sample.html"><i class="fa-solid fa-calendar-days me-2"></i> Planner</a></li>
+                <li><a class="dropdown-item" href="shopping-list.html"><i class="fa-solid fa-cart-shopping me-2"></i> Shopping</a></li>
+                <li><a class="dropdown-item" href="kitchen-service-view.html"><i class="fa-solid fa-fire-burner me-2"></i> Retreat View</a></li>
+                <li><a class="dropdown-item" href="kitchen-test-view.html"><i class="fa-solid fa-vial me-2"></i> Testing View</a></li>
+                <li><a class="dropdown-item" href="recipe-admin.html"><i class="fa-solid fa-book me-2"></i> Recipes</a></li>
+                <li><a class="dropdown-item" href="ingredient-admin.html"><i class="fa-solid fa-carrot me-2"></i> Ingredients</a></li>
+              </ul>
+            </li>
+            <li class="nav-item dropdown">
+              <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false"><i class="fa-solid fa-boxes-stacked me-1"></i> Inventory</a>
+              <ul class="dropdown-menu">
+                <li><a class="dropdown-item" href="inventory-add.html"><i class="fa-solid fa-plus me-2"></i> Add Inventory</a></li>
+                <li><a class="dropdown-item" href="inventory-remove.html"><i class="fa-solid fa-minus me-2"></i> Remove Inventory</a></li>
+                <li><a class="dropdown-item" href="inventory-current.html"><i class="fa-solid fa-box-open me-2"></i> Current Inventory</a></li>
+                <li><a class="dropdown-item" href="inventory-orders.html"><i class="fa-solid fa-list-check me-2"></i> Order List</a></li>
+              </ul>
+            </li>
+            <li class="nav-item dropdown">
+              <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false"><i class="fa-solid fa-seedling me-1"></i> About</a>
+              <ul class="dropdown-menu">
+                <li><a class="dropdown-item" href="about.html"><i class="fa-solid fa-heart me-2"></i> About &amp; Mission</a></li>
+                <li><a class="dropdown-item" href="about-sri-m.html"><i class="fa-solid fa-user me-2"></i> About Sri M</a></li>
+                <li><a class="dropdown-item" href="sacred-grove.html"><i class="fa-solid fa-tree me-2"></i> Sacred Grove</a></li>
+                <li><a class="dropdown-item" href="faq.html"><i class="fa-solid fa-circle-question me-2"></i> FAQ</a></li>
+              </ul>
+            </li>
+            <li class="nav-item dropdown">
+              <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false"><i class="fa-solid fa-hand-holding-heart me-1"></i> Volunteer</a>
+              <ul class="dropdown-menu">
+                <li><a class="dropdown-item" href="volunteer.html"><i class="fa-solid fa-hands-helping me-2"></i> How to Volunteer</a></li>
+                <li><a class="dropdown-item" href="volunteer-contact.html"><i class="fa-solid fa-envelope me-2"></i> Contact Us</a></li>
+              </ul>
+            </li>
+            <li class="nav-item dropdown">
+              <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false"><i class="fa-solid fa-gear me-1"></i> Admin</a>
+              <ul class="dropdown-menu">
+                <li><a class="dropdown-item" href="user-admin.html"><i class="fa-solid fa-users-gear me-2"></i> Users</a></li>
+              </ul>
+            </li>
+            <li class="nav-item d-flex align-items-center">
+              <span class="nav-link text-muted d-none" id="authUserLabel"></span>
+            </li>
+            <li class="nav-item d-flex align-items-center ms-lg-2">
+              <button class="btn btn-sm btn-outline-secondary d-none" id="logoutBtn" type="button">Logout</button>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </nav>
+
+    <main class="inventory-shell">
+      <!-- Hero header -->
+      <div class="d-flex flex-wrap align-items-center gap-3 mb-4">
+        <div class="flex-grow-1">
+          <h1 class="fw-bold mb-2"><i class="fa-solid fa-list-check me-2" style="color: var(--ui-primary-700);"></i>Order List</h1>
+          <p class="text-muted mb-0">Track procurement orders for retreat supplies. Set needed quantities, mark order status, and manage purchase links.</p>
+        </div>
+        <span id="statusPill" class="status-pill info">Ready.</span>
+      </div>
+
+      <!-- Stats row -->
+      <section class="row g-3 mb-4">
+        <div class="col-md-4">
+          <div class="soft-card p-3 text-center">
+            <div class="small text-uppercase fw-semibold text-muted mb-1"><i class="fa-solid fa-cart-plus me-1"></i> Items To Order</div>
+            <div class="stat-value" id="statToOrder">--</div>
+          </div>
+        </div>
+        <div class="col-md-4">
+          <div class="soft-card p-3 text-center">
+            <div class="small text-uppercase fw-semibold text-muted mb-1"><i class="fa-solid fa-truck me-1"></i> Ordered</div>
+            <div class="stat-value" id="statOrdered">--</div>
+          </div>
+        </div>
+        <div class="col-md-4">
+          <div class="soft-card p-3 text-center">
+            <div class="small text-uppercase fw-semibold text-muted mb-1"><i class="fa-solid fa-circle-check me-1"></i> Received</div>
+            <div class="stat-value" id="statReceived">--</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Filters -->
+      <section class="soft-card p-3 mb-4">
+        <div class="row g-2 align-items-center">
+          <div class="col-lg-6">
+            <div class="d-flex flex-wrap gap-2 align-items-center" id="categoryFilters">
+              <span class="small text-uppercase fw-semibold text-muted me-1">Category:</span>
+              <button type="button" class="filter-pill active" data-category="all">All</button>
+            </div>
+          </div>
+          <div class="col-lg-6">
+            <div class="d-flex flex-wrap gap-2 align-items-center" id="statusFilters">
+              <span class="small text-uppercase fw-semibold text-muted me-1">Status:</span>
+              <button type="button" class="filter-pill active" data-status="all">All</button>
+              <button type="button" class="filter-pill" data-status="NOT_ORDERED">Not Ordered</button>
+              <button type="button" class="filter-pill" data-status="ORDERED">Ordered</button>
+              <button type="button" class="filter-pill" data-status="RECEIVED">Received</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Order Items Table -->
+      <section class="soft-card p-4 mb-4">
+        <div class="d-flex align-items-center justify-content-between mb-3">
+          <h2 class="h5 mb-0"><i class="fa-solid fa-clipboard-list me-2 text-muted"></i>Retreat Supply Orders</h2>
+          <div class="d-flex gap-2">
+            <button id="refreshBtn" type="button" class="btn btn-sm btn-outline-secondary"><i class="fa-solid fa-arrows-rotate me-1"></i>Refresh</button>
+            <button id="saveBtn" type="button" class="btn btn-sm btn-primary"><i class="fa-solid fa-floppy-disk me-1"></i>Save Changes</button>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table class="table table-sm align-middle sticky-head">
+            <thead>
+              <tr class="small text-uppercase text-muted">
+                <th>Item</th>
+                <th>Category</th>
+                <th>Current Stock</th>
+                <th>Unit</th>
+                <th>Needed</th>
+                <th>To Order</th>
+                <th>Purchase URL</th>
+                <th>Status</th>
+                <th>Notes</th>
+              </tr>
+            </thead>
+            <tbody id="orderBody"></tbody>
+          </table>
+        </div>
+        <!-- Summary row -->
+        <div class="d-flex flex-wrap gap-4 mt-3 pt-3 border-top small fw-semibold text-muted">
+          <span><i class="fa-solid fa-cart-plus me-1"></i> To Order: <strong id="summaryToOrder" class="text-dark">0</strong></span>
+          <span><i class="fa-solid fa-truck me-1"></i> Ordered: <strong id="summaryOrdered" class="text-dark">0</strong></span>
+          <span><i class="fa-solid fa-circle-check me-1"></i> Received: <strong id="summaryReceived" class="text-dark">0</strong></span>
+          <span><i class="fa-solid fa-cubes me-1"></i> Total Items: <strong id="summaryTotal" class="text-dark">0</strong></span>
+        </div>
+      </section>
+    </main>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="assets/auth.js?v=20260218f"></script>
+    <script>
+      /* ── DOM refs ─────────────────────────────────── */
+      var statusPill = document.getElementById("statusPill");
+      var categoryFilters = document.getElementById("categoryFilters");
+      var statusFilters = document.getElementById("statusFilters");
+      var orderBody = document.getElementById("orderBody");
+      var refreshBtn = document.getElementById("refreshBtn");
+      var saveBtn = document.getElementById("saveBtn");
+      var statToOrder = document.getElementById("statToOrder");
+      var statOrdered = document.getElementById("statOrdered");
+      var statReceived = document.getElementById("statReceived");
+      var summaryToOrder = document.getElementById("summaryToOrder");
+      var summaryOrdered = document.getElementById("summaryOrdered");
+      var summaryReceived = document.getElementById("summaryReceived");
+      var summaryTotal = document.getElementById("summaryTotal");
+
+      /* ── State ────────────────────────────────────── */
+      var itemsCache = [];
+      var levelsCache = [];
+      var categoryCache = [];
+      var currentOrder = null;
+      var orderRows = [];
+      var activeCategory = "all";
+      var activeStatus = "all";
+
+      /* ── Utility functions ────────────────────────── */
+      function resolveApiBase() {
+        var queryValue = new URLSearchParams(window.location.search).get("api");
+        var base = queryValue && queryValue.trim() ? queryValue.trim() : window.location.origin;
+        return base.replace(/\/+$/, "");
+      }
+
+      var API_BASE = resolveApiBase();
+
+      function apiUrl(path) {
+        return API_BASE + (path.charAt(0) === "/" ? path : "/" + path);
+      }
+
+      function setStatus(message, mode) {
+        if (!mode) mode = "info";
+        statusPill.textContent = message;
+        statusPill.classList.remove("info", "ok", "err");
+        statusPill.classList.add(mode);
+      }
+
+      async function parseApiError(response) {
+        var raw = await response.text();
+        if (!raw) return "HTTP " + response.status;
+        try {
+          var parsed = JSON.parse(raw);
+          if (parsed && typeof parsed === "object" && typeof parsed.detail === "string") return parsed.detail;
+        } catch (_error) {}
+        return raw;
+      }
+
+      function escapeHtml(text) {
+        var div = document.createElement("div");
+        div.textContent = text == null ? "" : String(text);
+        return div.innerHTML;
+      }
+
+      function toSafeHttpUrl(value) {
+        if (!value) return null;
+        try {
+          var parsed = new URL(String(value).trim(), window.location.origin);
+          if (parsed.protocol === "http:" || parsed.protocol === "https:") {
+            return parsed.href;
+          }
+        } catch (_error) {}
+        return null;
+      }
+
+      function formatDateTime(value) {
+        if (!value) return "";
+        try {
+          var d = new Date(value);
+          return d.toLocaleDateString() + " " + d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+        } catch (_e) {
+          return String(value);
+        }
+      }
+
+      /* ── Determine item-level order status ─────── */
+      function getItemStatus(row) {
+        if (row.receivedQuantity > 0 && row.receivedQuantity >= row.needed) return "RECEIVED";
+        if (row.status === "RECEIVED") return "RECEIVED";
+        if (row.status === "ORDERED") return "ORDERED";
+        if (row.needed > 0 && row.toOrder > 0) return "NOT_ORDERED";
+        return "NOT_ORDERED";
+      }
+
+      /* ── Stats rendering ──────────────────────────── */
+      function renderStats() {
+        var toOrderCount = 0;
+        var orderedCount = 0;
+        var receivedCount = 0;
+
+        orderRows.forEach(function (row) {
+          var s = getItemStatus(row);
+          if (s === "NOT_ORDERED" && row.toOrder > 0) toOrderCount++;
+          if (s === "ORDERED") orderedCount++;
+          if (s === "RECEIVED") receivedCount++;
+        });
+
+        statToOrder.textContent = String(toOrderCount);
+        statOrdered.textContent = String(orderedCount);
+        statReceived.textContent = String(receivedCount);
+        summaryToOrder.textContent = String(toOrderCount);
+        summaryOrdered.textContent = String(orderedCount);
+        summaryReceived.textContent = String(receivedCount);
+        summaryTotal.textContent = String(orderRows.length);
+      }
+
+      /* ── Category filter pills ────────────────────── */
+      function renderCategoryFilterPills() {
+        categoryFilters.innerHTML = "";
+
+        var label = document.createElement("span");
+        label.className = "small text-uppercase fw-semibold text-muted me-1";
+        label.textContent = "Category:";
+        categoryFilters.appendChild(label);
+
+        var allPill = document.createElement("button");
+        allPill.type = "button";
+        allPill.className = "filter-pill" + (activeCategory === "all" ? " active" : "");
+        allPill.dataset.category = "all";
+        allPill.textContent = "All";
+        categoryFilters.appendChild(allPill);
+
+        var activeCategories = categoryCache.filter(function (cat) { return Boolean(cat.active); });
+        activeCategories.forEach(function (cat) {
+          var pill = document.createElement("button");
+          pill.type = "button";
+          pill.className = "filter-pill" + (activeCategory === String(cat.id) ? " active" : "");
+          pill.dataset.category = String(cat.id);
+          pill.textContent = cat.name;
+          categoryFilters.appendChild(pill);
+        });
+      }
+
+      /* ── Build merged order rows ────────────────── */
+      function buildOrderRows() {
+        var levelsByItem = {};
+        levelsCache.forEach(function (lev) {
+          if (lev.entity_type === "ITEM" && lev.item_id) {
+            levelsByItem[Number(lev.item_id)] = lev;
+          }
+        });
+
+        var poItemsByEntity = {};
+        if (currentOrder && Array.isArray(currentOrder.items)) {
+          currentOrder.items.forEach(function (poi) {
+            if (poi.entity_type === "ITEM") {
+              poItemsByEntity[Number(poi.entity_id)] = poi;
+            }
+          });
+        }
+
+        orderRows = itemsCache.map(function (item) {
+          var itemId = Number(item.id);
+          var level = levelsByItem[itemId] || null;
+          var currentStock = level ? Number(level.quantity || 0) : 0;
+          var poItem = poItemsByEntity[itemId] || null;
+
+          var needed = poItem ? Number(poItem.ordered_quantity || 0) : 0;
+          var receivedQuantity = poItem ? Number(poItem.received_quantity || 0) : 0;
+          var toOrder = Math.max(0, needed - currentStock);
+
+          var status = "NOT_ORDERED";
+          if (receivedQuantity > 0 && receivedQuantity >= needed) {
+            status = "RECEIVED";
+          } else if (poItem && needed > 0 && receivedQuantity < needed && poItem.ordered_quantity > 0) {
+            /* Check if it was previously marked as ordered based on received > 0 or PO status */
+            if (receivedQuantity > 0) {
+              status = "ORDERED";
+            }
+          }
+
+          /* Preserve local status overrides from existing row state */
+          var existingRow = null;
+          if (orderRows.length > 0) {
+            existingRow = orderRows.find(function (r) { return r.itemId === itemId; });
+          }
+
+          return {
+            itemId: itemId,
+            name: item.name || "Unknown",
+            barcode: item.barcode || "",
+            categoryId: Number(item.category_id || 0),
+            categoryName: item.category_name || "-",
+            currentStock: currentStock,
+            unit: item.unit || level && level.item_unit || "-",
+            needed: needed,
+            toOrder: toOrder,
+            purchaseUrl: item.purchase_url || "",
+            status: existingRow ? existingRow.status : status,
+            notes: existingRow ? existingRow.notes : "",
+            receivedQuantity: receivedQuantity,
+            poItemId: poItem ? Number(poItem.id) : null,
+          };
+        });
+
+        orderRows.sort(function (a, b) {
+          return String(a.name).localeCompare(String(b.name));
+        });
+      }
+
+      /* ── Get filtered rows ──────────────────────── */
+      function getFilteredRows() {
+        return orderRows.filter(function (row) {
+          /* Category filter */
+          if (activeCategory !== "all") {
+            if (String(row.categoryId) !== activeCategory) {
+              return false;
+            }
+          }
+
+          /* Status filter */
+          if (activeStatus !== "all") {
+            var s = getItemStatus(row);
+            if (s !== activeStatus) return false;
+          }
+
+          return true;
+        });
+      }
+
+      /* ── Render table ──────────────────────────── */
+      function renderTable() {
+        orderBody.innerHTML = "";
+        var rows = getFilteredRows();
+
+        if (!rows.length) {
+          orderBody.innerHTML = '<tr><td colspan="9" class="text-muted small">No items match your filters.</td></tr>';
+          renderStats();
+          return;
+        }
+
+        rows.forEach(function (row) {
+          var tr = document.createElement("tr");
+          tr.dataset.itemId = String(row.itemId);
+
+          /* Item name */
+          var tdItem = document.createElement("td");
+          tdItem.innerHTML =
+            '<div class="fw-semibold">' + escapeHtml(row.name) + "</div>" +
+            (row.barcode ? '<div class="text-muted small">' + escapeHtml(row.barcode) + "</div>" : "");
+          tr.appendChild(tdItem);
+
+          /* Category */
+          var tdCat = document.createElement("td");
+          tdCat.textContent = row.categoryName;
+          tr.appendChild(tdCat);
+
+          /* Current Stock */
+          var tdStock = document.createElement("td");
+          tdStock.className = "fw-semibold";
+          tdStock.textContent = String(row.currentStock);
+          tr.appendChild(tdStock);
+
+          /* Unit */
+          var tdUnit = document.createElement("td");
+          tdUnit.textContent = row.unit;
+          tr.appendChild(tdUnit);
+
+          /* Needed (editable) */
+          var tdNeeded = document.createElement("td");
+          var neededInput = document.createElement("input");
+          neededInput.type = "number";
+          neededInput.min = "0";
+          neededInput.step = "1";
+          neededInput.value = String(row.needed);
+          neededInput.className = "form-control form-control-sm needed-input";
+          neededInput.dataset.itemId = String(row.itemId);
+          tdNeeded.appendChild(neededInput);
+          tr.appendChild(tdNeeded);
+
+          /* To Order (calculated) */
+          var tdToOrder = document.createElement("td");
+          tdToOrder.className = row.toOrder > 0 ? "to-order-cell" : "to-order-zero";
+          tdToOrder.dataset.toOrderFor = String(row.itemId);
+          tdToOrder.textContent = String(row.toOrder);
+          tr.appendChild(tdToOrder);
+
+          /* Purchase URL */
+          var tdPurchase = document.createElement("td");
+          var safeUrl = toSafeHttpUrl(row.purchaseUrl);
+          if (safeUrl) {
+            var link = document.createElement("a");
+            link.href = safeUrl;
+            link.target = "_blank";
+            link.rel = "noopener noreferrer";
+            link.className = "purchase-link";
+            link.title = safeUrl;
+            link.textContent = safeUrl;
+            tdPurchase.appendChild(link);
+          } else {
+            tdPurchase.innerHTML = '<span class="text-muted small">-</span>';
+          }
+          tr.appendChild(tdPurchase);
+
+          /* Status (dropdown) */
+          var tdStatus = document.createElement("td");
+          var statusSelect = document.createElement("select");
+          statusSelect.className = "form-select form-select-sm status-select";
+          statusSelect.dataset.itemId = String(row.itemId);
+          var statusOptions = [
+            { value: "NOT_ORDERED", label: "Not Ordered" },
+            { value: "ORDERED", label: "Ordered" },
+            { value: "RECEIVED", label: "Received" },
+          ];
+          statusOptions.forEach(function (opt) {
+            var option = document.createElement("option");
+            option.value = opt.value;
+            option.textContent = opt.label;
+            if (opt.value === row.status) option.selected = true;
+            statusSelect.appendChild(option);
+          });
+          tdStatus.appendChild(statusSelect);
+          tr.appendChild(tdStatus);
+
+          /* Notes (editable) */
+          var tdNotes = document.createElement("td");
+          var notesInput = document.createElement("input");
+          notesInput.type = "text";
+          notesInput.value = row.notes;
+          notesInput.className = "form-control form-control-sm";
+          notesInput.placeholder = "Notes...";
+          notesInput.style.fontSize = "0.78rem";
+          notesInput.style.minWidth = "100px";
+          notesInput.dataset.itemId = String(row.itemId);
+          notesInput.dataset.field = "notes";
+          tdNotes.appendChild(notesInput);
+          tr.appendChild(tdNotes);
+
+          orderBody.appendChild(tr);
+        });
+
+        renderStats();
+      }
+
+      /* ── Handle needed input changes ───────────── */
+      orderBody.addEventListener("input", function (event) {
+        var target = event.target;
+        if (!(target instanceof HTMLInputElement)) return;
+        var itemId = Number(target.dataset.itemId);
+        if (!itemId) return;
+
+        if (target.classList.contains("needed-input")) {
+          var newNeeded = Math.max(0, Number.parseInt(target.value, 10) || 0);
+          var row = orderRows.find(function (r) { return r.itemId === itemId; });
+          if (row) {
+            row.needed = newNeeded;
+            row.toOrder = Math.max(0, newNeeded - row.currentStock);
+
+            /* Update the to-order cell */
+            var toOrderCell = orderBody.querySelector('[data-to-order-for="' + itemId + '"]');
+            if (toOrderCell) {
+              toOrderCell.textContent = String(row.toOrder);
+              toOrderCell.className = row.toOrder > 0 ? "to-order-cell" : "to-order-zero";
+            }
+            renderStats();
+          }
+        }
+
+        if (target.dataset.field === "notes") {
+          var noteRow = orderRows.find(function (r) { return r.itemId === itemId; });
+          if (noteRow) {
+            noteRow.notes = target.value;
+          }
+        }
+      });
+
+      /* ── Handle status select changes ──────────── */
+      orderBody.addEventListener("change", function (event) {
+        var target = event.target;
+        if (!(target instanceof HTMLSelectElement)) return;
+        if (!target.classList.contains("status-select")) return;
+        var itemId = Number(target.dataset.itemId);
+        if (!itemId) return;
+
+        var row = orderRows.find(function (r) { return r.itemId === itemId; });
+        if (row) {
+          row.status = target.value;
+          if (row.status === "RECEIVED") {
+            row.receivedQuantity = row.needed;
+          } else if (row.status === "NOT_ORDERED") {
+            row.receivedQuantity = 0;
+          }
+          renderStats();
+        }
+      });
+
+      /* ── Category filter click ─────────────────── */
+      categoryFilters.addEventListener("click", function (event) {
+        var target = event.target;
+        if (!(target instanceof HTMLElement)) return;
+        var pill = target.closest(".filter-pill");
+        if (!(pill instanceof HTMLElement)) return;
+        activeCategory = pill.dataset.category || "all";
+        var allPills = categoryFilters.querySelectorAll(".filter-pill");
+        allPills.forEach(function (p) { p.classList.remove("active"); });
+        pill.classList.add("active");
+        renderTable();
+      });
+
+      /* ── Status filter click ───────────────────── */
+      statusFilters.addEventListener("click", function (event) {
+        var target = event.target;
+        if (!(target instanceof HTMLElement)) return;
+        var pill = target.closest(".filter-pill");
+        if (!(pill instanceof HTMLElement)) return;
+        activeStatus = pill.dataset.status || "all";
+        var allPills = statusFilters.querySelectorAll(".filter-pill");
+        allPills.forEach(function (p) { p.classList.remove("active"); });
+        pill.classList.add("active");
+        renderTable();
+      });
+
+      /* ── API fetch functions ──────────────────────── */
+      async function fetchItems() {
+        var response = await fetch(apiUrl("/api/retreat-inventory/items"), { credentials: "include" });
+        if (!response.ok) {
+          throw new Error(await parseApiError(response));
+        }
+        var payload = await response.json();
+        itemsCache = Array.isArray(payload) ? payload : [];
+      }
+
+      async function fetchLevels() {
+        var response = await fetch(apiUrl("/api/retreat-inventory/levels"), { credentials: "include" });
+        if (!response.ok) {
+          throw new Error(await parseApiError(response));
+        }
+        var payload = await response.json();
+        levelsCache = Array.isArray(payload) ? payload : [];
+      }
+
+      async function fetchCategories() {
+        var response = await fetch(apiUrl("/api/retreat-inventory/categories"), { credentials: "include" });
+        if (!response.ok) {
+          throw new Error(await parseApiError(response));
+        }
+        var payload = await response.json();
+        categoryCache = Array.isArray(payload) ? payload : [];
+        renderCategoryFilterPills();
+      }
+
+      async function fetchPurchaseOrders() {
+        var response = await fetch(apiUrl("/api/retreat-inventory/purchase-orders?status=DRAFT"), { credentials: "include" });
+        if (!response.ok) {
+          throw new Error(await parseApiError(response));
+        }
+        var payload = await response.json();
+        var orders = Array.isArray(payload) ? payload : [];
+
+        if (orders.length > 0) {
+          /* Use the most recent DRAFT order */
+          currentOrder = orders[0];
+        } else {
+          /* Create a new DRAFT order */
+          var createResponse = await fetch(apiUrl("/api/retreat-inventory/purchase-orders"), {
+            method: "POST",
+            credentials: "include",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              supplierName: null,
+              status: "DRAFT",
+              expectedDate: null,
+              notes: null,
+              items: [],
+            }),
+          });
+          if (!createResponse.ok) {
+            throw new Error(await parseApiError(createResponse));
+          }
+          currentOrder = await createResponse.json();
+        }
+      }
+
+      /* ── Save changes ──────────────────────────── */
+      async function saveChanges() {
+        if (!currentOrder || !currentOrder.id) {
+          setStatus("No active order to save to.", "err");
+          return;
+        }
+
+        setStatus("Saving changes...", "info");
+
+        /* Collect items that have needed > 0 or a status change or notes */
+        var poItems = [];
+        orderRows.forEach(function (row) {
+          if (row.needed > 0 || row.status !== "NOT_ORDERED" || row.notes) {
+            var receivedQty = 0;
+            if (row.status === "RECEIVED") {
+              receivedQty = row.needed;
+            } else if (row.status === "ORDERED") {
+              receivedQty = row.receivedQuantity || 0;
+            }
+            poItems.push({
+              entityType: "ITEM",
+              entityId: row.itemId,
+              orderedQuantity: row.needed,
+              receivedQuantity: receivedQty,
+            });
+          }
+        });
+
+        /* Determine overall PO status based on item statuses */
+        var poStatus = "DRAFT";
+        var hasOrdered = orderRows.some(function (r) { return r.status === "ORDERED"; });
+        var hasReceived = orderRows.some(function (r) { return r.status === "RECEIVED"; });
+        var allReceived = orderRows.filter(function (r) { return r.needed > 0; }).every(function (r) { return r.status === "RECEIVED"; });
+
+        if (allReceived && orderRows.some(function (r) { return r.needed > 0; })) {
+          poStatus = "RECEIVED";
+        } else if (hasReceived && (hasOrdered || orderRows.some(function (r) { return r.status === "NOT_ORDERED" && r.needed > 0; }))) {
+          poStatus = "PARTIAL";
+        } else if (hasOrdered) {
+          poStatus = "ORDERED";
+        }
+
+        var response = await fetch(apiUrl("/api/retreat-inventory/purchase-orders/" + currentOrder.id), {
+          method: "PATCH",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            status: poStatus,
+            items: poItems,
+          }),
+        });
+
+        if (!response.ok) {
+          throw new Error(await parseApiError(response));
+        }
+
+        currentOrder = await response.json();
+        setStatus("Changes saved.", "ok");
+      }
+
+      /* ── Refresh all data ──────────────────────── */
+      async function refreshAll() {
+        setStatus("Loading order data...", "info");
+        try {
+          await Promise.all([fetchItems(), fetchLevels(), fetchCategories(), fetchPurchaseOrders()]);
+          buildOrderRows();
+          renderTable();
+          setStatus("Order list loaded.", "ok");
+        } catch (error) {
+          setStatus(error instanceof Error ? error.message : "Could not load order data.", "err");
+        }
+      }
+
+      /* ── Event listeners ──────────────────────────── */
+      refreshBtn.addEventListener("click", function () {
+        void refreshAll();
+      });
+
+      saveBtn.addEventListener("click", function () {
+        void saveChanges().catch(function (error) {
+          setStatus(error instanceof Error ? error.message : "Could not save changes.", "err");
+        });
+      });
+
+      /* ── Init ─────────────────────────────────────── */
+      async function init() {
+        setStatus("Loading order data...", "info");
+        try {
+          await Promise.all([fetchItems(), fetchLevels(), fetchCategories(), fetchPurchaseOrders()]);
+          buildOrderRows();
+          renderTable();
+          setStatus("Order list loaded.", "ok");
+        } catch (error) {
+          setStatus(error instanceof Error ? error.message : "Could not load order data.", "err");
+        }
+      }
+
+      void init();
+    </script>
+  </body>
+</html>

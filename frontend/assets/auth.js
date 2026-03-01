@@ -27,7 +27,6 @@
     "/recipe-scaling.html": ["viewer", "planner", "admin"],
     "/inventory-home.html": ["viewer", "planner", "admin"],
     "/inventory-baseline.html": ["viewer", "planner", "admin"],
-    "/inventory-current.html": ["viewer", "planner", "admin"],
     "/inventory-orders.html": ["viewer", "planner", "admin"],
     "/inventory-receiving.html": ["viewer", "planner", "admin"],
     "/inventory-add.html": ["viewer", "planner", "admin"],

@@ -4300,6 +4300,7 @@ def lookup_product_inventory_catalog(barcode: str) -> dict[str, Any] | None:
     if not normalized_barcode:
         return None
 
+    used_ikea_prefix_fallback = False
     with get_connection() as conn:
         if not table_exists(conn, "inventory_product_catalog"):
             return None
@@ -4326,6 +4327,37 @@ def lookup_product_inventory_catalog(barcode: str) -> dict[str, Any] | None:
             """,
             (normalized_barcode,),
         ).fetchall()
+        if not rows and len(normalized_barcode) == 14:
+            ikea_prefix = normalized_barcode[:8]
+            rows = conn.execute(
+                """
+                SELECT
+                    source,
+                    barcode,
+                    product_name,
+                    brand,
+                    category,
+                    unit,
+                    image_url,
+                    product_url,
+                    source_sku,
+                    notes
+                FROM inventory_product_catalog
+                WHERE lower(source) = 'ikea'
+                  AND (
+                    barcode = ?
+                    OR replace(replace(replace(COALESCE(source_sku, ''), '.', ''), '-', ''), ' ', '') = ?
+                    OR lower(COALESCE(product_url, '')) LIKE ?
+                  )
+                ORDER BY
+                    CASE WHEN barcode = ? THEN 0 ELSE 1 END,
+                    updated_at DESC,
+                    id DESC
+                LIMIT 10
+                """,
+                (ikea_prefix, ikea_prefix, f"%-{ikea_prefix}/%", ikea_prefix),
+            ).fetchall()
+            used_ikea_prefix_fallback = bool(rows)
 
     hits: list[dict[str, Any]] = []
     for row in rows:
@@ -4342,6 +4374,8 @@ def lookup_product_inventory_catalog(barcode: str) -> dict[str, Any] | None:
         for key in ("name", "category", "unit", "image_url"):
             if not merged.get(key) and hit.get(key):
                 merged[key] = hit[key]
+    if used_ikea_prefix_fallback:
+        merged["source"] = merge_lookup_source_names(merged.get("source"), "ikea-sku-prefix")
     if not any(merged.get(key) for key in ("name", "category", "unit", "image_url")):
         return None
     return merged
@@ -4692,7 +4726,11 @@ def search_inventory_product_metadata(query: str, *, limit: int = 12) -> list[di
     merged_hits: list[dict[str, Any]] = []
     index_by_key: dict[tuple[str, str], int] = {}
     for provider in providers:
-        for hit in provider(search_query):
+        try:
+            provider_hits = provider(search_query)
+        except Exception:
+            continue
+        for hit in provider_hits:
             barcode_key = str(hit.get("barcode") or "")
             name_key = str(hit.get("name") or "").strip().lower()
             if not barcode_key and not name_key:
@@ -7471,7 +7509,11 @@ def search_inventory_equivalents(
         hit["match_type"] = "barcode_lookup"
         raw_industry_hits.append(hit)
     if normalized_query:
-        for hit in search_inventory_product_metadata(normalized_query, limit=bounded_limit):
+        try:
+            industry_hits = search_inventory_product_metadata(normalized_query, limit=bounded_limit)
+        except Exception:
+            industry_hits = []
+        for hit in industry_hits:
             payload = dict(hit)
             payload["match_type"] = "text_search"
             raw_industry_hits.append(payload)

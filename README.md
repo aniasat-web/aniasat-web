@@ -164,7 +164,7 @@ Volunteer-focused storage inventory for campus supplies:
 - `order_url` is tracked separately from notes for replenishment links.
 - Import/source markers are removed from visible notes and stored in `import_source`.
 - Uses shelf-grid locations in the format `A1` through `Z99` (`A1`-`A20` preferred for new shelf mapping).
-- Lookup providers: local `inventory_product_catalog` (for example Webstaurant UPC imports), Open Products Facts, Open Beauty Facts, Open Food Facts, plus UPCItemDB (optional auth via `UPCITEMDB_API_KEY`).
+- Lookup providers: local `inventory_product_catalog` (for example Webstaurant/IKEA imports), Open Products Facts, Open Beauty Facts, Open Food Facts, plus UPCItemDB (optional auth via `UPCITEMDB_API_KEY`).
 - `inventory.html` now routes to Inventory Home by default; use `inventory.html?full=1` for the full table view.
 
 ### Inventory Background (Shared Project Context)
@@ -173,6 +173,21 @@ Canonical project background is maintained in `AGENTS.md` at the repo root.
 Keep that file updated so new sessions start with the same Inventory context.
 
 ### Inventory Change Log
+
+#### 2026-03-01
+
+- Removed `frontend/inventory-current.html` and all navigation links/cards that pointed to the old Current Inventory page.
+- Baseline equivalent search was hardened:
+  - `inventory-baseline.html` now falls back to `GET /api/inventory?search=...` if `GET /api/inventory/equivalent-search` is unavailable.
+  - `GET /api/inventory/equivalent-search` now tolerates provider failures so one bad industry provider does not fail the full response.
+- Webstaurant catalog import/lookup robustness updates:
+  - `build_webstaurant_catalog_from_inventory.py` now uses stronger title/SKU extraction fallbacks for page variants.
+  - `import_inventory_product_catalog.py --replace-source` now deletes with exact `source = ?` matching (stable in SQLite write contexts).
+- Added IKEA catalog support:
+  - New builder script: `backend/scripts/build_ikea_catalog_from_inventory.py`.
+  - Reads IKEA URLs from `standalone_inventory.order_url` (plus optional `--url`) and builds import-ready catalog CSV rows.
+  - Lookup now supports IKEA 14-digit scan fallback by matching the first 8 digits against IKEA article number (`source_sku`/catalog barcode).
+- Lookup provider description now explicitly documents local catalog imports from both Webstaurant and IKEA.
 
 #### 2026-02-28
 
@@ -774,6 +789,35 @@ CSV tips:
   `image_url`, `product_url`, `source_sku`, `notes`.
 - Example UPC row:
   - `barcode=400015839112`, `product_name=Dish Sponges`, `source=webstaurantstore`
+
+### Build/import IKEA catalog for barcode lookup
+
+Use this helper to scrape IKEA product URLs and generate a CSV that imports into
+`inventory_product_catalog` with `source=ikea`.
+
+```bash
+# Build from standalone_inventory.order_url IKEA links
+python scripts/build_ikea_catalog_from_inventory.py \
+  --output-csv /tmp/ikea_catalog_from_inventory.csv
+
+# Optional: include one-off URL directly
+python scripts/build_ikea_catalog_from_inventory.py \
+  --url "https://www.ikea.com/us/en/p/vildkorn-pillow-side-back-sleeper-80460583/" \
+  --output-csv /tmp/ikea_catalog_from_inventory.csv
+
+# Import generated IKEA catalog
+python scripts/import_inventory_product_catalog.py \
+  --csv /tmp/ikea_catalog_from_inventory.csv \
+  --source ikea \
+  --apply \
+  --replace-source
+```
+
+Notes:
+- When IKEA pages do not expose UPC/GTIN directly, the builder falls back to
+  IKEA article number (`source_sku`, 8 digits) as catalog barcode.
+- Barcode lookup includes an IKEA prefix fallback: for a 14-digit scanned code,
+  first 8 digits are matched against IKEA `source_sku`/fallback barcode.
 
 ### Startup auto-seeding
 

@@ -225,7 +225,9 @@ def apply_rows(
 ) -> tuple[int, int]:
     removed = 0
     if replace_source:
-        removed = cur.execute("DELETE FROM inventory_product_catalog WHERE lower(source) = lower(?)", (source,)).rowcount
+        # Keep this case-sensitive to avoid SQLite write-time issues seen with
+        # expression predicates (e.g. lower()/LIKE) on some local builds.
+        removed = cur.execute("DELETE FROM inventory_product_catalog WHERE source = ?", (source,)).rowcount
 
     upserts = 0
     for row in rows:

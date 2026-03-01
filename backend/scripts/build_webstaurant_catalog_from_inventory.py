@@ -25,6 +25,11 @@ DEFAULT_OUTPUT_CSV = Path("/tmp/webstaurant_upcs_from_inventory.csv")
 
 UPC_RE = re.compile(r'"upc"\s*:\s*"(\d{8,14})"', re.IGNORECASE)
 TITLE_RE = re.compile(r'"title"\s*:\s*"([^"]{3,400})"')
+META_TITLE_RE = re.compile(r'"metaTitle"\s*:\s*"([^"]{3,400})"', re.IGNORECASE)
+OG_META_TITLE_RE = re.compile(
+    r'"openGraphMeta"\s*:\s*\{.*?"title"\s*:\s*"([^"]{3,400})"',
+    re.IGNORECASE | re.DOTALL,
+)
 VENDOR_RE = re.compile(r'"sourceVendor"\s*:\s*\{\s*"name"\s*:\s*"([^"]+)"', re.IGNORECASE)
 IMAGE_RE = re.compile(
     r'"openGraphMeta"\s*:\s*\{.*?"image"\s*:\s*"([^"]+)"',
@@ -120,15 +125,25 @@ def fetch_page(url: str, timeout_seconds: float) -> tuple[str, str]:
 
 def extract_page_metadata(page_html: str) -> dict[str, str | None]:
     upc_match = UPC_RE.search(page_html)
+    meta_title_match = META_TITLE_RE.search(page_html)
+    og_meta_title_match = OG_META_TITLE_RE.search(page_html)
     title_match = TITLE_RE.search(page_html)
     vendor_match = VENDOR_RE.search(page_html)
     image_match = IMAGE_RE.search(page_html)
     item_number_match = ITEM_NUMBER_RE.search(page_html)
     og_title_match = OG_TITLE_RE.search(page_html)
 
-    title = decode_web_text(title_match.group(1)) if title_match else None
-    if not title and og_title_match:
-        title = decode_web_text(og_title_match.group(1))
+    # Prefer canonical page metadata over generic JSON "title" keys that may
+    # refer to linked resources instead of the current product.
+    title = (
+        decode_web_text(og_title_match.group(1)) if og_title_match else None
+    ) or (
+        decode_web_text(meta_title_match.group(1)) if meta_title_match else None
+    ) or (
+        decode_web_text(og_meta_title_match.group(1)) if og_meta_title_match else None
+    ) or (
+        decode_web_text(title_match.group(1)) if title_match else None
+    )
 
     metadata = {
         "upc": upc_match.group(1) if upc_match else None,
@@ -208,7 +223,8 @@ def main() -> None:
                     "unit": local_unit or "",
                     "image_url": metadata.get("image_url") or "",
                     "product_url": final_url,
-                    "source_sku": metadata.get("source_sku") or extract_source_sku_from_url(final_url) or "",
+                    # URL tail is the most stable SKU identifier for Webstaurant pages.
+                    "source_sku": extract_source_sku_from_url(final_url) or metadata.get("source_sku") or "",
                     "notes": f"scraped_from=standalone_inventory; source_row_ids={source_row_ids}",
                 }
                 existing = catalog_by_upc.get(upc)

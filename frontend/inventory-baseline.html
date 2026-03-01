@@ -152,7 +152,6 @@
               <ul class="dropdown-menu">
                 <li><a class="dropdown-item" href="inventory-home.html"><i class="fa-solid fa-warehouse me-2"></i> Inventory Home</a></li>
                 <li><a class="dropdown-item" href="inventory-baseline.html"><i class="fa-solid fa-barcode me-2"></i> Baseline Scan</a></li>
-                <li><a class="dropdown-item" href="inventory-current.html"><i class="fa-solid fa-box-open me-2"></i> Current Inventory</a></li>
                 <li><a class="dropdown-item" href="inventory.html?full=1"><i class="fa-solid fa-clipboard-list me-2"></i> Full Inventory</a></li>
                 <li><a class="dropdown-item" href="inventory-orders.html"><i class="fa-solid fa-list-check me-2"></i> Orders Planning</a></li>
                 <li><a class="dropdown-item" href="inventory-receiving.html"><i class="fa-solid fa-truck-ramp-box me-2"></i> Receiving</a></li>
@@ -1045,6 +1044,29 @@
           renderSearchResults(rows);
           if (!suppressStatus) setStatus(`Found ${rows.length} candidate(s) from current + industry sources.`, "ok");
         } catch (error) {
+          // Fallback for older backends or transient provider failures:
+          // still show current-inventory candidates so volunteers can continue.
+          try {
+            if (query) {
+              const fallbackResponse = await fetch(
+                apiUrl(`/api/inventory?search=${encodeURIComponent(query)}`),
+                { credentials: "include" },
+              );
+              if (fallbackResponse.ok) {
+                const fallbackPayload = await fallbackResponse.json();
+                const fallbackInventoryRows = Array.isArray(fallbackPayload) ? fallbackPayload : [];
+                const fallbackRows = buildCombinedCandidateRows(fallbackInventoryRows, []);
+                renderSearchResults(fallbackRows);
+                if (!suppressStatus) {
+                  setStatus(
+                    `Equivalent search fallback: ${fallbackRows.length} current inventory candidate(s).`,
+                    "ok",
+                  );
+                }
+                return;
+              }
+            }
+          } catch (_fallbackError) {}
           setStatus(error instanceof Error ? error.message : "Search failed.", "err");
         }
       }

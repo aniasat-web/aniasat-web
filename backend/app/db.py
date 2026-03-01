@@ -5,6 +5,7 @@ import logging
 import os
 import re
 import sqlite3
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -47,6 +48,11 @@ DEFAULT_VENDOR_NAMES = [
     "Walmart",
     "American grocery store",
 ]
+
+SQLITE_MALFORMED_ERROR_PHRASES = (
+    "database disk image is malformed",
+    "malformed database schema",
+)
 
 
 def _normalize_database_url(raw_url: str) -> str:
@@ -267,8 +273,7 @@ def get_connection() -> CompatConnection:
         raw = psycopg.connect(database_url, row_factory=dict_row)
         return CompatConnection(raw, backend="postgres")
 
-    sqlite_path_raw = str(os.getenv(SQLITE_DB_PATH_ENV, "") or "").strip()
-    sqlite_path = Path(sqlite_path_raw) if sqlite_path_raw else DB_PATH
+    sqlite_path = resolve_sqlite_db_path()
     sqlite_path.parent.mkdir(parents=True, exist_ok=True)
     raw = sqlite3.connect(sqlite_path)
     raw.row_factory = sqlite3.Row
@@ -276,6 +281,129 @@ def get_connection() -> CompatConnection:
     raw.execute("PRAGMA journal_mode = WAL")
     raw.execute(f"PRAGMA busy_timeout = {SQLITE_BUSY_TIMEOUT_MS}")
     return CompatConnection(raw, backend="sqlite")
+
+
+def resolve_sqlite_db_path() -> Path:
+    sqlite_path_raw = str(os.getenv(SQLITE_DB_PATH_ENV, "") or "").strip()
+    return Path(sqlite_path_raw) if sqlite_path_raw else DB_PATH
+
+
+def is_sqlite_malformed_error(exc: BaseException) -> bool:
+    message = str(exc).strip().lower()
+    return any(phrase in message for phrase in SQLITE_MALFORMED_ERROR_PHRASES)
+
+
+def sqlite_integrity_ok(db_path: Path) -> bool:
+    if not db_path.is_file():
+        return False
+    try:
+        conn = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
+    except sqlite3.DatabaseError:
+        return False
+    try:
+        row = conn.execute("PRAGMA integrity_check").fetchone()
+        return bool(row) and str(row[0]).strip().lower() == "ok"
+    except sqlite3.DatabaseError:
+        return False
+    finally:
+        conn.close()
+
+
+def find_latest_sqlite_backup(db_path: Path) -> Path | None:
+    parent = db_path.parent
+    if not parent.exists():
+        return None
+    candidates: list[Path] = []
+    patterns = (
+        f"{db_path.name}.pre-sync-*",
+        f"{db_path.name}.bak-*",
+    )
+    for pattern in patterns:
+        candidates.extend(parent.glob(pattern))
+
+    for candidate in sorted(candidates, key=lambda p: p.stat().st_mtime, reverse=True):
+        if not candidate.is_file():
+            continue
+        if sqlite_integrity_ok(candidate):
+            return candidate
+    return None
+
+
+def restore_sqlite_from_backup(db_path: Path, backup_path: Path) -> bool:
+    if not backup_path.is_file():
+        return False
+
+    timestamp = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
+    restored_tmp = db_path.with_name(f"{db_path.name}.restore-{timestamp}.tmp")
+    restored_tmp_wal = restored_tmp.with_name(f"{restored_tmp.name}-wal")
+    restored_tmp_shm = restored_tmp.with_name(f"{restored_tmp.name}-shm")
+    corrupted_copy = db_path.with_name(f"{db_path.name}.corrupt-{timestamp}")
+
+    for temp_path in (restored_tmp, restored_tmp_wal, restored_tmp_shm):
+        if temp_path.exists():
+            temp_path.unlink()
+
+    src_conn: sqlite3.Connection | None = None
+    dst_conn: sqlite3.Connection | None = None
+    try:
+        src_conn = sqlite3.connect(f"file:{backup_path}?mode=ro", uri=True)
+        dst_conn = sqlite3.connect(restored_tmp)
+        src_conn.backup(dst_conn)
+    except sqlite3.DatabaseError:
+        return False
+    finally:
+        if dst_conn is not None:
+            dst_conn.close()
+        if src_conn is not None:
+            src_conn.close()
+
+    if not sqlite_integrity_ok(restored_tmp):
+        restored_tmp.unlink(missing_ok=True)
+        restored_tmp_wal.unlink(missing_ok=True)
+        restored_tmp_shm.unlink(missing_ok=True)
+        return False
+
+    if db_path.exists():
+        db_path.replace(corrupted_copy)
+
+    restored_tmp.replace(db_path)
+    restored_tmp_wal.unlink(missing_ok=True)
+    restored_tmp_shm.unlink(missing_ok=True)
+    db_path.with_name(f"{db_path.name}-wal").unlink(missing_ok=True)
+    db_path.with_name(f"{db_path.name}-shm").unlink(missing_ok=True)
+    return True
+
+
+def maybe_recover_sqlite_malformed_db(exc: BaseException) -> bool:
+    if _normalize_database_url(os.getenv(DATABASE_URL_ENV, "")):
+        return False
+    if not is_sqlite_malformed_error(exc):
+        return False
+
+    sqlite_path = resolve_sqlite_db_path()
+    backup_path = find_latest_sqlite_backup(sqlite_path)
+    if backup_path is None:
+        LOGGER.error(
+            "SQLite DB appears malformed at %s and no valid backup was found in %s.",
+            sqlite_path,
+            sqlite_path.parent,
+        )
+        return False
+
+    if not restore_sqlite_from_backup(sqlite_path, backup_path):
+        LOGGER.error(
+            "SQLite DB appears malformed at %s and restore from backup %s failed.",
+            sqlite_path,
+            backup_path,
+        )
+        return False
+
+    LOGGER.warning(
+        "Recovered malformed SQLite DB at %s using backup %s.",
+        sqlite_path,
+        backup_path,
+    )
+    return True
 
 
 def table_exists(conn: CompatConnection, table_name: str) -> bool:
@@ -544,200 +672,207 @@ def migrate_retreat_inventory_shelf_locations(conn: CompatConnection) -> None:
         )
 
 
-def init_db() -> None:
-    with get_connection() as conn:
-        schema_path = SCHEMA_POSTGRES_PATH if conn.backend == "postgres" else SCHEMA_SQLITE_PATH
-        schema = schema_path.read_text(encoding="utf-8")
-        conn.executescript(schema)
+def init_db(_allow_malformed_recovery: bool = True) -> None:
+    try:
+        with get_connection() as conn:
+            schema_path = SCHEMA_POSTGRES_PATH if conn.backend == "postgres" else SCHEMA_SQLITE_PATH
+            schema = schema_path.read_text(encoding="utf-8")
+            conn.executescript(schema)
 
-        ingredient_columns = table_columns(conn, "ingredients")
-        if "category" not in ingredient_columns:
-            conn.execute("ALTER TABLE ingredients ADD COLUMN category TEXT")
+            ingredient_columns = table_columns(conn, "ingredients")
+            if "category" not in ingredient_columns:
+                conn.execute("ALTER TABLE ingredients ADD COLUMN category TEXT")
 
-        if "purchase_tier" not in ingredient_columns:
-            conn.execute("ALTER TABLE ingredients ADD COLUMN purchase_tier TEXT")
-            conn.execute(
-                """
-                UPDATE ingredients SET purchase_tier = 'bulk'
-                WHERE category IN (
-                    'Grains & Flours', 'Pulses & Legumes', 'Spices & Seasonings',
-                    'Nuts & Seeds', 'Oils & Fats', 'Pantry Staples',
-                    'Sweeteners', 'Condiments & Sauces', 'Beverages'
-                ) AND purchase_tier IS NULL
-                """
-            )
-            conn.execute(
-                """
-                UPDATE ingredients SET purchase_tier = 'fresh'
-                WHERE category IN ('Produce', 'Fruits', 'Herbs', 'Dairy & Refrigerated')
-                AND purchase_tier IS NULL
-                """
-            )
-
-        recipe_columns = table_columns(conn, "recipes")
-        if "category" not in recipe_columns:
-            conn.execute("ALTER TABLE recipes ADD COLUMN category TEXT")
-
-        columns = table_columns(conn, "service_snapshots")
-        if "retreat_plan_id" not in columns:
-            conn.execute(
-                "ALTER TABLE service_snapshots ADD COLUMN retreat_plan_id INTEGER REFERENCES retreat_plans(id) ON DELETE SET NULL"
-            )
-
-        shopping_list_columns = table_columns(conn, "shopping_lists")
-        if "retreat_plan_id" not in shopping_list_columns:
-            conn.execute(
-                "ALTER TABLE shopping_lists ADD COLUMN retreat_plan_id INTEGER REFERENCES retreat_plans(id) ON DELETE SET NULL"
-            )
-        if "phase" not in shopping_list_columns:
-            conn.execute("ALTER TABLE shopping_lists ADD COLUMN phase TEXT NOT NULL DEFAULT 'bulk'")
-
-        shopping_item_columns = table_columns(conn, "shopping_list_items")
-        if "ordered" not in shopping_item_columns:
-            conn.execute("ALTER TABLE shopping_list_items ADD COLUMN ordered INTEGER NOT NULL DEFAULT 0")
-        if "ordered_at" not in shopping_item_columns:
-            conn.execute("ALTER TABLE shopping_list_items ADD COLUMN ordered_at TEXT")
-        if "received" not in shopping_item_columns:
-            conn.execute("ALTER TABLE shopping_list_items ADD COLUMN received INTEGER NOT NULL DEFAULT 0")
-        if "received_at" not in shopping_item_columns:
-            conn.execute("ALTER TABLE shopping_list_items ADD COLUMN received_at TEXT")
-
-        shopping_item_source_columns = table_columns(conn, "shopping_list_item_sources")
-        if shopping_item_source_columns and "dish_name" not in shopping_item_source_columns:
-            conn.execute("ALTER TABLE shopping_list_item_sources ADD COLUMN dish_name TEXT")
-
-        standalone_inventory_columns = table_columns(conn, "standalone_inventory")
-        if standalone_inventory_columns and "barcode" not in standalone_inventory_columns:
-            conn.execute("ALTER TABLE standalone_inventory ADD COLUMN barcode TEXT")
-        if standalone_inventory_columns and "image_url" not in standalone_inventory_columns:
-            conn.execute("ALTER TABLE standalone_inventory ADD COLUMN image_url TEXT")
-        if standalone_inventory_columns and "order_url" not in standalone_inventory_columns:
-            conn.execute("ALTER TABLE standalone_inventory ADD COLUMN order_url TEXT")
-        if standalone_inventory_columns and "import_source" not in standalone_inventory_columns:
-            conn.execute("ALTER TABLE standalone_inventory ADD COLUMN import_source TEXT")
-        standalone_inventory_columns = table_columns(conn, "standalone_inventory")
-        if standalone_inventory_columns and "barcode" in standalone_inventory_columns:
-            conn.execute("CREATE INDEX IF NOT EXISTS idx_standalone_inventory_barcode ON standalone_inventory(barcode)")
-        if standalone_inventory_columns and "order_url" in standalone_inventory_columns:
-            migrate_standalone_inventory_order_urls(conn)
-        if standalone_inventory_columns and "category" in standalone_inventory_columns:
-            conn.execute(
-                """
-                UPDATE standalone_inventory
-                SET category = 'Infra'
-                WHERE category IS NOT NULL
-                  AND trim(category) != ''
-                  AND lower(trim(category)) IN (
-                    'infra',
-                    'infrastructure',
-                    'maintenance',
-                    'facility maintenance',
-                    'facilities maintenance',
-                    'janitorial',
-                    'housekeeping'
-                  )
-                """
-            )
-
-        standalone_order_item_columns = table_columns(conn, "standalone_inventory_order_items")
-        if standalone_order_item_columns and "purchase_unit" not in standalone_order_item_columns:
-            conn.execute("ALTER TABLE standalone_inventory_order_items ADD COLUMN purchase_unit TEXT NOT NULL DEFAULT 'unit'")
-        if standalone_order_item_columns and "units_per_purchase" not in standalone_order_item_columns:
-            conn.execute("ALTER TABLE standalone_inventory_order_items ADD COLUMN units_per_purchase REAL NOT NULL DEFAULT 1")
-        if standalone_order_item_columns and "ordered_purchase_quantity" not in standalone_order_item_columns:
-            conn.execute(
-                "ALTER TABLE standalone_inventory_order_items ADD COLUMN ordered_purchase_quantity REAL NOT NULL DEFAULT 0"
-            )
-        if standalone_order_item_columns and "received_purchase_quantity" not in standalone_order_item_columns:
-            conn.execute(
-                "ALTER TABLE standalone_inventory_order_items ADD COLUMN received_purchase_quantity REAL NOT NULL DEFAULT 0"
-            )
-        standalone_order_item_columns = table_columns(conn, "standalone_inventory_order_items")
-        if standalone_order_item_columns:
-            conn.execute(
-                """
-                UPDATE standalone_inventory_order_items
-                SET purchase_unit = 'unit'
-                WHERE purchase_unit IS NULL OR trim(COALESCE(purchase_unit, '')) = ''
-                """
-            )
-            conn.execute(
-                """
-                UPDATE standalone_inventory_order_items
-                SET units_per_purchase = 1
-                WHERE units_per_purchase IS NULL OR units_per_purchase <= 0
-                """
-            )
-            conn.execute(
-                """
-                UPDATE standalone_inventory_order_items
-                SET ordered_purchase_quantity = ROUND(
-                    ordered_quantity / COALESCE(NULLIF(units_per_purchase, 0), 1),
-                    3
+            if "purchase_tier" not in ingredient_columns:
+                conn.execute("ALTER TABLE ingredients ADD COLUMN purchase_tier TEXT")
+                conn.execute(
+                    """
+                    UPDATE ingredients SET purchase_tier = 'bulk'
+                    WHERE category IN (
+                        'Grains & Flours', 'Pulses & Legumes', 'Spices & Seasonings',
+                        'Nuts & Seeds', 'Oils & Fats', 'Pantry Staples',
+                        'Sweeteners', 'Condiments & Sauces', 'Beverages'
+                    ) AND purchase_tier IS NULL
+                    """
                 )
-                WHERE ordered_quantity > 0
-                  AND ordered_purchase_quantity <= 0
-                """
-            )
-            conn.execute(
-                """
-                UPDATE standalone_inventory_order_items
-                SET received_purchase_quantity = ROUND(
-                    received_quantity / COALESCE(NULLIF(units_per_purchase, 0), 1),
-                    3
+                conn.execute(
+                    """
+                    UPDATE ingredients SET purchase_tier = 'fresh'
+                    WHERE category IN ('Produce', 'Fruits', 'Herbs', 'Dairy & Refrigerated')
+                    AND purchase_tier IS NULL
+                    """
                 )
-                WHERE received_quantity > 0
-                  AND received_purchase_quantity <= 0
+
+            recipe_columns = table_columns(conn, "recipes")
+            if "category" not in recipe_columns:
+                conn.execute("ALTER TABLE recipes ADD COLUMN category TEXT")
+
+            columns = table_columns(conn, "service_snapshots")
+            if "retreat_plan_id" not in columns:
+                conn.execute(
+                    "ALTER TABLE service_snapshots ADD COLUMN retreat_plan_id INTEGER REFERENCES retreat_plans(id) ON DELETE SET NULL"
+                )
+
+            shopping_list_columns = table_columns(conn, "shopping_lists")
+            if "retreat_plan_id" not in shopping_list_columns:
+                conn.execute(
+                    "ALTER TABLE shopping_lists ADD COLUMN retreat_plan_id INTEGER REFERENCES retreat_plans(id) ON DELETE SET NULL"
+                )
+            if "phase" not in shopping_list_columns:
+                conn.execute("ALTER TABLE shopping_lists ADD COLUMN phase TEXT NOT NULL DEFAULT 'bulk'")
+
+            shopping_item_columns = table_columns(conn, "shopping_list_items")
+            if "ordered" not in shopping_item_columns:
+                conn.execute("ALTER TABLE shopping_list_items ADD COLUMN ordered INTEGER NOT NULL DEFAULT 0")
+            if "ordered_at" not in shopping_item_columns:
+                conn.execute("ALTER TABLE shopping_list_items ADD COLUMN ordered_at TEXT")
+            if "received" not in shopping_item_columns:
+                conn.execute("ALTER TABLE shopping_list_items ADD COLUMN received INTEGER NOT NULL DEFAULT 0")
+            if "received_at" not in shopping_item_columns:
+                conn.execute("ALTER TABLE shopping_list_items ADD COLUMN received_at TEXT")
+
+            shopping_item_source_columns = table_columns(conn, "shopping_list_item_sources")
+            if shopping_item_source_columns and "dish_name" not in shopping_item_source_columns:
+                conn.execute("ALTER TABLE shopping_list_item_sources ADD COLUMN dish_name TEXT")
+
+            standalone_inventory_columns = table_columns(conn, "standalone_inventory")
+            if standalone_inventory_columns and "barcode" not in standalone_inventory_columns:
+                conn.execute("ALTER TABLE standalone_inventory ADD COLUMN barcode TEXT")
+            if standalone_inventory_columns and "image_url" not in standalone_inventory_columns:
+                conn.execute("ALTER TABLE standalone_inventory ADD COLUMN image_url TEXT")
+            if standalone_inventory_columns and "order_url" not in standalone_inventory_columns:
+                conn.execute("ALTER TABLE standalone_inventory ADD COLUMN order_url TEXT")
+            if standalone_inventory_columns and "import_source" not in standalone_inventory_columns:
+                conn.execute("ALTER TABLE standalone_inventory ADD COLUMN import_source TEXT")
+            standalone_inventory_columns = table_columns(conn, "standalone_inventory")
+            if standalone_inventory_columns and "barcode" in standalone_inventory_columns:
+                conn.execute("CREATE INDEX IF NOT EXISTS idx_standalone_inventory_barcode ON standalone_inventory(barcode)")
+            if standalone_inventory_columns and "order_url" in standalone_inventory_columns:
+                migrate_standalone_inventory_order_urls(conn)
+            if standalone_inventory_columns and "category" in standalone_inventory_columns:
+                conn.execute(
+                    """
+                    UPDATE standalone_inventory
+                    SET category = 'Infra'
+                    WHERE category IS NOT NULL
+                      AND trim(category) != ''
+                      AND lower(trim(category)) IN (
+                        'infra',
+                        'infrastructure',
+                        'maintenance',
+                        'facility maintenance',
+                        'facilities maintenance',
+                        'janitorial',
+                        'housekeeping'
+                      )
+                    """
+                )
+
+            standalone_order_item_columns = table_columns(conn, "standalone_inventory_order_items")
+            if standalone_order_item_columns and "purchase_unit" not in standalone_order_item_columns:
+                conn.execute("ALTER TABLE standalone_inventory_order_items ADD COLUMN purchase_unit TEXT NOT NULL DEFAULT 'unit'")
+            if standalone_order_item_columns and "units_per_purchase" not in standalone_order_item_columns:
+                conn.execute("ALTER TABLE standalone_inventory_order_items ADD COLUMN units_per_purchase REAL NOT NULL DEFAULT 1")
+            if standalone_order_item_columns and "ordered_purchase_quantity" not in standalone_order_item_columns:
+                conn.execute(
+                    "ALTER TABLE standalone_inventory_order_items ADD COLUMN ordered_purchase_quantity REAL NOT NULL DEFAULT 0"
+                )
+            if standalone_order_item_columns and "received_purchase_quantity" not in standalone_order_item_columns:
+                conn.execute(
+                    "ALTER TABLE standalone_inventory_order_items ADD COLUMN received_purchase_quantity REAL NOT NULL DEFAULT 0"
+                )
+            standalone_order_item_columns = table_columns(conn, "standalone_inventory_order_items")
+            if standalone_order_item_columns:
+                conn.execute(
+                    """
+                    UPDATE standalone_inventory_order_items
+                    SET purchase_unit = 'unit'
+                    WHERE purchase_unit IS NULL OR trim(COALESCE(purchase_unit, '')) = ''
+                    """
+                )
+                conn.execute(
+                    """
+                    UPDATE standalone_inventory_order_items
+                    SET units_per_purchase = 1
+                    WHERE units_per_purchase IS NULL OR units_per_purchase <= 0
+                    """
+                )
+                conn.execute(
+                    """
+                    UPDATE standalone_inventory_order_items
+                    SET ordered_purchase_quantity = ROUND(
+                        ordered_quantity / COALESCE(NULLIF(units_per_purchase, 0), 1),
+                        3
+                    )
+                    WHERE ordered_quantity > 0
+                      AND ordered_purchase_quantity <= 0
+                    """
+                )
+                conn.execute(
+                    """
+                    UPDATE standalone_inventory_order_items
+                    SET received_purchase_quantity = ROUND(
+                        received_quantity / COALESCE(NULLIF(units_per_purchase, 0), 1),
+                        3
+                    )
+                    WHERE received_quantity > 0
+                      AND received_purchase_quantity <= 0
+                    """
+                )
+                conn.execute(
+                    """
+                    UPDATE standalone_inventory_order_items
+                    SET ordered_purchase_quantity = received_purchase_quantity
+                    WHERE received_purchase_quantity > ordered_purchase_quantity
+                    """
+                )
+
+            retreat_inventory_item_columns = table_columns(conn, "retreat_inventory_items")
+            if retreat_inventory_item_columns and "shelf_location" not in retreat_inventory_item_columns:
+                conn.execute("ALTER TABLE retreat_inventory_items ADD COLUMN shelf_location TEXT")
+            if retreat_inventory_item_columns and "unit" not in retreat_inventory_item_columns:
+                conn.execute("ALTER TABLE retreat_inventory_items ADD COLUMN unit TEXT NOT NULL DEFAULT 'each'")
+            if retreat_inventory_item_columns and "purchase_url" not in retreat_inventory_item_columns:
+                conn.execute("ALTER TABLE retreat_inventory_items ADD COLUMN purchase_url TEXT")
+            migrate_retreat_inventory_shelf_locations(conn)
+
+            conn.execute(
+                """
+                UPDATE shopping_list_items
+                SET ordered = 1
+                WHERE lower(COALESCE(status, '')) IN ('ordered', 'received') AND ordered = 0
                 """
             )
             conn.execute(
                 """
-                UPDATE standalone_inventory_order_items
-                SET ordered_purchase_quantity = received_purchase_quantity
-                WHERE received_purchase_quantity > ordered_purchase_quantity
+                UPDATE shopping_list_items
+                SET received = 1, ordered = 1
+                WHERE lower(COALESCE(status, '')) = 'received' AND received = 0
+                """
+            )
+            conn.execute(
+                """
+                UPDATE shopping_list_items
+                SET status = CASE
+                    WHEN received = 1 THEN 'received'
+                    WHEN ordered = 1 THEN 'ordered'
+                    ELSE 'open'
+                END
                 """
             )
 
-        retreat_inventory_item_columns = table_columns(conn, "retreat_inventory_items")
-        if retreat_inventory_item_columns and "shelf_location" not in retreat_inventory_item_columns:
-            conn.execute("ALTER TABLE retreat_inventory_items ADD COLUMN shelf_location TEXT")
-        if retreat_inventory_item_columns and "unit" not in retreat_inventory_item_columns:
-            conn.execute("ALTER TABLE retreat_inventory_items ADD COLUMN unit TEXT NOT NULL DEFAULT 'each'")
-        if retreat_inventory_item_columns and "purchase_url" not in retreat_inventory_item_columns:
-            conn.execute("ALTER TABLE retreat_inventory_items ADD COLUMN purchase_url TEXT")
-        migrate_retreat_inventory_shelf_locations(conn)
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_shopping_lists_retreat_plan_id ON shopping_lists(retreat_plan_id)")
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_shopping_items_vendor_id ON shopping_list_items(vendor_id)")
+            seed_default_vendors(conn)
 
-        conn.execute(
-            """
-            UPDATE shopping_list_items
-            SET ordered = 1
-            WHERE lower(COALESCE(status, '')) IN ('ordered', 'received') AND ordered = 0
-            """
-        )
-        conn.execute(
-            """
-            UPDATE shopping_list_items
-            SET received = 1, ordered = 1
-            WHERE lower(COALESCE(status, '')) = 'received' AND received = 0
-            """
-        )
-        conn.execute(
-            """
-            UPDATE shopping_list_items
-            SET status = CASE
-                WHEN received = 1 THEN 'received'
-                WHEN ordered = 1 THEN 'ordered'
-                ELSE 'open'
-            END
-            """
-        )
-
-        conn.execute("CREATE INDEX IF NOT EXISTS idx_shopping_lists_retreat_plan_id ON shopping_lists(retreat_plan_id)")
-        conn.execute("CREATE INDEX IF NOT EXISTS idx_shopping_items_vendor_id ON shopping_list_items(vendor_id)")
-        seed_default_vendors(conn)
-
-        maybe_seed_master_data(conn)
-        conn.commit()
+            maybe_seed_master_data(conn)
+            conn.commit()
+    except sqlite3.DatabaseError as exc:
+        if _allow_malformed_recovery and maybe_recover_sqlite_malformed_db(exc):
+            LOGGER.warning("Retrying init_db() after SQLite backup restore.")
+            init_db(_allow_malformed_recovery=False)
+            return
+        raise
 
 
 def seed_default_vendors(conn: sqlite3.Connection) -> None:

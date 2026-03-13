@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Orders Planning - Blossom Foundation</title>
+    <title>Non-Food Order Planning - Blossom Foundation</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -14,30 +14,343 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
     <link rel="stylesheet" href="assets/header-theme.css" />
     <style>
-      body { font-family: "Plus Jakarta Sans", sans-serif; }
+      :root {
+        --orders-bg: #f8f4ed;
+        --orders-surface: #fffdf9;
+        --orders-border: #e7ddd0;
+        --orders-ink: #2b241c;
+        --orders-muted: #7c6f63;
+        --orders-primary: #9a5f22;
+        --orders-primary-hover: #7f4a18;
+        --orders-accent: #1f6b4f;
+      }
+
+      body.inventory-orders-page {
+        font-family: "Plus Jakarta Sans", sans-serif;
+        color: var(--orders-ink);
+        background:
+          radial-gradient(circle at top right, rgba(245, 158, 11, 0.1), transparent 30%),
+          linear-gradient(180deg, #faf7f1 0%, #f5efe6 100%);
+        padding-top: 70px;
+      }
+
       h1, h2, h3, .navbar-brand { font-family: "Instrument Serif", serif; }
-      .inventory-shell { max-width: 1140px; margin: 0 auto; padding: 1.4rem 1rem 2rem; }
-      .soft-card { border: 1px solid var(--ui-border); border-radius: var(--ui-radius-md); background: rgba(255, 255, 255, 0.9); box-shadow: var(--ui-shadow-sm); }
-      .table-wrap { max-height: 520px; overflow: auto; }
-      .sticky-head thead th { position: sticky; top: 0; z-index: 2; background: #fff; }
-      .stat-value { font-size: 1.8rem; font-weight: 800; font-variant-numeric: tabular-nums; color: var(--ui-ink-strong); }
-      .qty-input { width: 96px; font-size: 0.82rem; padding: 0.25rem 0.4rem; text-align: center; }
-      .purchase-unit-select { width: 88px; font-size: 0.78rem; padding: 0.2rem 0.35rem; }
-      .qty-helper { font-size: 0.68rem; color: var(--ui-muted); line-height: 1.1; margin-top: 0.15rem; }
-      .to-order-cell { font-weight: 700; color: var(--ui-primary-700); }
-      .to-order-zero { color: var(--ui-muted); font-weight: 400; }
-      .url-input { min-width: 220px; font-size: 0.78rem; }
-      .order-meta-label { font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--ui-muted); font-weight: 700; }
-      .status-chip { font-size: 0.66rem; font-weight: 700; border-radius: 999px; padding: 0.15rem 0.5rem; border: 1px solid var(--ui-border); display: inline-flex; }
+
+      .navbar {
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(10px);
+        border-bottom: 1px solid var(--orders-border);
+        box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+      }
+
+      .navbar-brand {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-size: 1.35rem;
+        font-weight: 600 !important;
+        color: var(--orders-primary) !important;
+      }
+
+      .navbar .nav-link {
+        color: var(--orders-muted);
+        letter-spacing: 0.02em;
+      }
+
+      .navbar .nav-link:hover {
+        color: var(--orders-primary);
+      }
+
+      .inventory-shell {
+        max-width: 1320px;
+        margin: 0 auto;
+        padding: 1.4rem 1rem 2rem;
+        display: grid;
+        gap: 1rem;
+      }
+
+      .soft-card {
+        border: 1px solid var(--orders-border);
+        border-radius: 1rem;
+        background: rgba(255, 253, 249, 0.92);
+        box-shadow: 0 12px 28px rgba(15, 23, 42, 0.06);
+      }
+
+      .hero-card {
+        position: relative;
+        overflow: hidden;
+        background: linear-gradient(135deg, #fffdf8 0%, #fdf0d4 54%, #edf6f0 100%);
+      }
+
+      .hero-card::after {
+        content: "";
+        position: absolute;
+        top: -64px;
+        right: -70px;
+        width: 250px;
+        height: 250px;
+        border-radius: 999px;
+        background: radial-gradient(circle, rgba(31, 107, 79, 0.18), rgba(31, 107, 79, 0));
+        pointer-events: none;
+      }
+
+      .hero-card h1 {
+        font-size: clamp(1.62rem, 1.18rem + 1.1vw, 2.18rem);
+        letter-spacing: -0.02em;
+      }
+
+      .hero-note {
+        max-width: 70ch;
+        color: var(--orders-muted);
+        line-height: 1.55;
+      }
+
+      .metrics-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(160px, 1fr));
+        gap: 0.75rem;
+      }
+
+      .metric-card {
+        border: 1px solid #ecd9bf;
+        border-radius: 0.9rem;
+        padding: 0.85rem 0.95rem;
+        background: #ffffff;
+      }
+
+      .metric-card .label {
+        color: var(--orders-muted);
+        font-size: 0.72rem;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        font-weight: 800;
+      }
+
+      .metric-card .value {
+        font-size: 1.45rem;
+        font-weight: 800;
+        color: var(--orders-ink);
+        font-variant-numeric: tabular-nums;
+      }
+
+      .section-note {
+        color: var(--orders-muted);
+        font-size: 0.9rem;
+      }
+
+      .orders-meta {
+        border: 1px solid #ece5db;
+        border-radius: 0.95rem;
+        padding: 0.95rem;
+        background: rgba(255, 255, 255, 0.84);
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7);
+      }
+
+      .table-wrap {
+        max-height: 70vh;
+        overflow: auto;
+        border-radius: 1rem;
+        border: 1px solid #e2e8f0;
+        background: linear-gradient(180deg, rgba(255, 255, 255, 0.94), rgba(248, 250, 252, 0.96));
+      }
+
+      .orders-table {
+        min-width: 1160px;
+        margin-bottom: 0;
+      }
+
+      .sticky-head thead th {
+        position: sticky;
+        top: 0;
+        z-index: 3;
+        background: rgba(248, 250, 252, 0.93);
+        backdrop-filter: blur(6px);
+        border-bottom: 2px solid #dbe2ea;
+      }
+
+      .orders-table td, .orders-table th {
+        vertical-align: middle;
+      }
+
+      .category-row td {
+        background: linear-gradient(90deg, #e8eef4 0%, #f3f6fa 100%);
+        color: #0f172a;
+        border-top: 3px solid #b8c7d8;
+        border-bottom: 1px solid #d7e0ea;
+        padding-top: 0.6rem;
+        padding-bottom: 0.6rem;
+        font-weight: 900;
+      }
+
+      .category-heading {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.45rem;
+        font-size: 0.78rem;
+        font-weight: 900;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+      }
+
+      .category-count {
+        display: inline-flex;
+        align-items: center;
+        border-radius: 999px;
+        border: 1px solid #cbd5e1;
+        background: #ffffff;
+        color: #334155;
+        font-size: 0.68rem;
+        font-weight: 700;
+        letter-spacing: 0.01em;
+        padding: 0.08rem 0.45rem;
+      }
+
+      .item-row td {
+        padding-top: 0.64rem;
+        padding-bottom: 0.64rem;
+      }
+
+      .item-row:nth-of-type(even) td {
+        background: rgba(248, 250, 252, 0.56);
+      }
+
+      .item-row:hover td {
+        background: linear-gradient(180deg, #fff9ef, #fff4e7);
+      }
+
+      .item-name {
+        font-weight: 700;
+        color: #1f2937;
+      }
+
+      .item-meta {
+        margin-top: 0.28rem;
+        display: inline-flex;
+        flex-wrap: wrap;
+        gap: 0.4rem;
+        align-items: center;
+      }
+
+      .qty-input {
+        width: 100%;
+        max-width: 110px;
+        font-size: 0.82rem;
+        padding: 0.3rem 0.45rem;
+        text-align: right;
+        background: #fffefc !important;
+      }
+
+      .purchase-unit-select {
+        width: 100%;
+        font-size: 0.75rem;
+        padding: 0.22rem 0.35rem;
+        background: #fffefc !important;
+      }
+
+      .ordered-qty-stack {
+        display: grid;
+        gap: 0.32rem;
+      }
+
+      .order-unit-inline {
+        display: grid;
+        grid-template-columns: 94px 108px;
+        gap: 0.38rem;
+        align-items: center;
+      }
+
+      .qty-helper {
+        font-size: 0.68rem;
+        color: var(--orders-muted);
+        line-height: 1.25;
+        margin-top: 0.02rem;
+      }
+
+      .to-order-cell { font-weight: 800; color: #9a3412; }
+      .to-order-zero { color: var(--orders-muted); font-weight: 500; }
+      .url-input { min-width: 240px; font-size: 0.78rem; background: #fffefc !important; }
+      .order-meta-label { font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--orders-muted); font-weight: 800; }
+      .status-chip { font-size: 0.66rem; font-weight: 700; border-radius: 999px; padding: 0.15rem 0.5rem; border: 1px solid var(--orders-border); display: inline-flex; }
       .status-chip.not-ordered { background: #fff7ed; color: #9a3412; border-color: #fdba74; }
       .status-chip.ordered { background: #eff6ff; color: #1d4ed8; border-color: #93c5fd; }
       .status-chip.sufficient { background: #f5f5f4; color: #57534e; border-color: #d6d3d1; }
-      .filter-pill { display: inline-flex; align-items: center; padding: 0.3rem 0.7rem; border-radius: 999px; font-size: 0.75rem; font-weight: 600; border: 1px solid var(--ui-border); background: #fff; cursor: pointer; transition: all 0.14s ease; }
-      .filter-pill:hover, .filter-pill.active { border-color: var(--ui-primary-300); background: var(--ui-primary-100); color: var(--ui-primary-700); }
+      .status-pill {
+        border-radius: 999px;
+        padding: 0.34rem 0.75rem;
+        font-size: 0.8rem;
+        font-weight: 700;
+        border: 1px solid transparent;
+      }
+      .status-pill.info { color: #1e3a8a; background: #dbeafe; border-color: #bfdbfe; }
+      .status-pill.ok { color: #166534; background: #dcfce7; border-color: #86efac; }
+      .status-pill.err { color: #991b1b; background: #fee2e2; border-color: #fecaca; }
+      .filter-pill { display: inline-flex; align-items: center; padding: 0.3rem 0.7rem; border-radius: 999px; font-size: 0.75rem; font-weight: 700; border: 1px solid var(--orders-border); background: #fff; color: var(--orders-muted); cursor: pointer; transition: all 0.14s ease; }
+      .filter-pill:hover { border-color: #f59e0b; color: var(--orders-ink); }
+      .filter-pill.active { border-color: var(--orders-primary); background: var(--orders-primary); color: #fff; }
+
+      .btn-primary {
+        background: var(--orders-accent);
+        border-color: var(--orders-accent);
+      }
+
+      .btn-primary:hover,
+      .btn-primary:focus {
+        background: #18563f;
+        border-color: #18563f;
+      }
+
+      .btn-outline-primary {
+        color: var(--orders-primary);
+        border-color: #d8c3a8;
+      }
+
+      .btn-outline-primary:hover,
+      .btn-outline-primary:focus {
+        color: #fff;
+        background: var(--orders-primary);
+        border-color: var(--orders-primary);
+      }
+
+      .btn-outline-success {
+        color: var(--orders-accent);
+        border-color: #9bc8b5;
+      }
+
+      .btn-outline-success:hover,
+      .btn-outline-success:focus {
+        color: #fff;
+        background: var(--orders-accent);
+        border-color: var(--orders-accent);
+      }
+
+      .btn-outline-dark:hover,
+      .btn-outline-secondary:hover {
+        color: #fff;
+      }
+
+      @media (max-width: 991.98px) {
+        .metrics-grid {
+          grid-template-columns: repeat(2, minmax(140px, 1fr));
+        }
+
+        .table-wrap {
+          max-height: none;
+        }
+      }
+
+      @media (max-width: 575.98px) {
+        .metrics-grid {
+          grid-template-columns: 1fr;
+        }
+
+        .order-unit-inline {
+          grid-template-columns: 1fr 1fr;
+        }
+      }
     </style>
     <link rel="stylesheet" href="assets/ui-theme.css" />
   </head>
-  <body>
+  <body class="inventory-orders-page">
     <nav class="navbar navbar-expand-lg navbar-light fixed-top">
       <div class="container">
         <a class="navbar-brand" href="index.html">
@@ -109,44 +422,40 @@
     </nav>
 
     <main class="inventory-shell">
-      <div class="d-flex flex-wrap align-items-center gap-3 mb-4">
-        <div class="flex-grow-1">
-          <h1 class="fw-bold mb-2"><i class="fa-solid fa-list-check me-2" style="color: var(--ui-primary-700);"></i>Orders Planning</h1>
-          <p class="text-muted mb-0">Set required quantities for retreats, calculate what to order based on current stock, mark ordered amounts, and override purchase URLs.</p>
-        </div>
-        <span id="statusPill" class="status-pill info">Ready.</span>
-      </div>
-
-      <section class="row g-3 mb-4">
-        <div class="col-md-4">
-          <div class="soft-card p-3 text-center">
-            <div class="small text-uppercase fw-semibold text-muted mb-1"><i class="fa-solid fa-cart-plus me-1"></i> Needs Order</div>
-            <div class="stat-value" id="statToOrder">--</div>
+      <section class="soft-card hero-card p-4">
+        <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
+          <div class="flex-grow-1">
+            <h1 class="fw-bold mb-2"><i class="fa-solid fa-list-check me-2" style="color: var(--orders-primary);"></i>Non-Food Order Planning</h1>
+            <p class="hero-note mb-0">Set total required quantities for retreat supplies, compare against current stock, and plan what still needs to be ordered without losing the category structure.</p>
           </div>
-        </div>
-        <div class="col-md-4">
-          <div class="soft-card p-3 text-center">
-            <div class="small text-uppercase fw-semibold text-muted mb-1"><i class="fa-solid fa-truck me-1"></i> Ordered</div>
-            <div class="stat-value" id="statOrdered">--</div>
-          </div>
-        </div>
-        <div class="col-md-4">
-          <div class="soft-card p-3 text-center">
-            <div class="small text-uppercase fw-semibold text-muted mb-1"><i class="fa-solid fa-cubes me-1"></i> Rows</div>
-            <div class="stat-value" id="statTotal">--</div>
-          </div>
+          <span id="statusPill" class="status-pill info">Ready.</span>
         </div>
       </section>
 
-      <section class="soft-card p-3 mb-4">
-        <div class="row g-2 align-items-center">
-          <div class="col-lg-6">
+      <section class="metrics-grid">
+        <div class="metric-card">
+          <div class="label"><i class="fa-solid fa-cart-plus me-1"></i>Needs Order</div>
+          <div class="value" id="statToOrder">--</div>
+        </div>
+        <div class="metric-card">
+          <div class="label"><i class="fa-solid fa-truck me-1"></i>Ordered</div>
+          <div class="value" id="statOrdered">--</div>
+        </div>
+        <div class="metric-card">
+          <div class="label"><i class="fa-solid fa-cubes me-1"></i>Rows</div>
+          <div class="value" id="statTotal">--</div>
+        </div>
+      </section>
+
+      <section class="soft-card p-3">
+        <div class="row g-3 align-items-center">
+          <div class="col-xl-6">
             <div class="d-flex flex-wrap gap-2 align-items-center" id="categoryFilters">
               <span class="small text-uppercase fw-semibold text-muted me-1">Category:</span>
               <button type="button" class="filter-pill active" data-category="all">All</button>
             </div>
           </div>
-          <div class="col-lg-6">
+          <div class="col-xl-6">
             <div class="d-flex flex-wrap gap-2 align-items-center" id="statusFilters">
               <span class="small text-uppercase fw-semibold text-muted me-1">Status:</span>
               <button type="button" class="filter-pill active" data-status="all">All</button>
@@ -158,12 +467,19 @@
         </div>
       </section>
 
-      <section class="soft-card p-4 mb-4">
-        <div class="d-flex align-items-center justify-content-between mb-3">
-          <h2 class="h5 mb-0"><i class="fa-solid fa-clipboard-list me-2 text-muted"></i>Order Lines</h2>
+      <section class="soft-card p-4">
+        <div class="d-flex flex-wrap align-items-start justify-content-between gap-3 mb-3">
+          <div>
+            <h2 class="h4 mb-1"><i class="fa-solid fa-clipboard-list me-2 text-muted"></i>Order Lines</h2>
+            <p class="section-note mb-0">Categories stay visible, while the table focuses on stock, required quantity, and what still needs to be ordered. Finalize a shorter purchasing copy when the planner is done.</p>
+          </div>
           <div class="d-flex flex-wrap gap-2">
             <button id="newOrderBtn" type="button" class="btn btn-sm btn-outline-primary"><i class="fa-solid fa-plus me-1"></i>New Order</button>
+            <button id="renameOrderBtn" type="button" class="btn btn-sm btn-outline-primary"><i class="fa-solid fa-pen-to-square me-1"></i>Rename Order</button>
+            <button id="deleteOrderBtn" type="button" class="btn btn-sm btn-outline-danger"><i class="fa-solid fa-trash me-1"></i>Delete Order</button>
             <button id="newOrderFromFiltersBtn" type="button" class="btn btn-sm btn-outline-primary"><i class="fa-solid fa-filter me-1"></i>New From Filters</button>
+            <button id="finalizeForPurchasingBtn" type="button" class="btn btn-sm btn-outline-warning"><i class="fa-solid fa-cart-shopping me-1"></i>Finalize for Purchasing</button>
+            <button id="openPurchasingViewBtn" type="button" class="btn btn-sm btn-outline-warning"><i class="fa-solid fa-arrow-up-right-from-square me-1"></i>Purchaser View</button>
             <button id="addNewItemBtn" type="button" class="btn btn-sm btn-outline-success"><i class="fa-solid fa-circle-plus me-1"></i>Add New Item</button>
             <button id="exportCsvBtn" type="button" class="btn btn-sm btn-outline-dark"><i class="fa-solid fa-file-csv me-1"></i>Export CSV</button>
             <button id="refreshBtn" type="button" class="btn btn-sm btn-outline-secondary"><i class="fa-solid fa-arrows-rotate me-1"></i>Refresh</button>
@@ -171,7 +487,7 @@
           </div>
         </div>
 
-        <div class="row g-3 mb-3">
+        <div class="row g-3 mb-3 orders-meta">
           <div class="col-lg-4">
             <label class="order-meta-label mb-1" for="orderSelect">Active Order</label>
             <select id="orderSelect" class="form-select form-select-sm"></select>
@@ -187,18 +503,16 @@
         </div>
 
         <div class="table-wrap">
-          <table class="table table-sm align-middle sticky-head">
+          <table class="orders-table table table-sm align-middle sticky-head">
             <thead>
               <tr class="small text-uppercase text-muted">
                 <th>Item</th>
                 <th>Category</th>
                 <th>Current Stock</th>
                 <th>Unit</th>
-                <th>Order In</th>
-                <th>Units/Order</th>
-                <th>Required</th>
-                <th>To Order</th>
-                <th>Ordered (Order Unit)</th>
+                <th>Total Required Quantity</th>
+                <th>Need to Order</th>
+                <th>Ordered Quantity</th>
                 <th>Purchase URL</th>
                 <th>Ordered?</th>
                 <th>Notes</th>
@@ -250,7 +564,7 @@
             </div>
             <div class="row g-3 mt-0">
               <div class="col-md-6">
-                <label class="form-label fw-semibold" for="newItemRequiredQty">Required Qty</label>
+                <label class="form-label fw-semibold" for="newItemRequiredQty">Total Required Quantity</label>
                 <input id="newItemRequiredQty" type="number" min="0" step="0.01" value="0" class="form-control" />
               </div>
               <div class="col-md-6">
@@ -283,7 +597,11 @@
       var refreshBtn = document.getElementById("refreshBtn");
       var saveBtn = document.getElementById("saveBtn");
       var newOrderBtn = document.getElementById("newOrderBtn");
+      var renameOrderBtn = document.getElementById("renameOrderBtn");
+      var deleteOrderBtn = document.getElementById("deleteOrderBtn");
       var newOrderFromFiltersBtn = document.getElementById("newOrderFromFiltersBtn");
+      var finalizeForPurchasingBtn = document.getElementById("finalizeForPurchasingBtn");
+      var openPurchasingViewBtn = document.getElementById("openPurchasingViewBtn");
       var addNewItemBtn = document.getElementById("addNewItemBtn");
       var exportCsvBtn = document.getElementById("exportCsvBtn");
       var orderSelect = document.getElementById("orderSelect");
@@ -312,7 +630,7 @@
       var orderList = [];
       var activeOrder = null;
       var orderRows = [];
-      var activeCategory = "all";
+      var activeCategories = new Set();
       var activeStatus = "all";
 
       function resolveApiBase() {
@@ -325,6 +643,36 @@
 
       function apiUrl(path) {
         return API_BASE + (path.charAt(0) === "/" ? path : "/" + path);
+      }
+
+      function getRequestedOrderId() {
+        var raw = new URLSearchParams(window.location.search).get("order");
+        var parsed = Number(raw);
+        if (!Number.isFinite(parsed) || parsed <= 0) return null;
+        return parsed;
+      }
+
+      function syncOrderQueryParam(orderId) {
+        try {
+          var url = new URL(window.location.href);
+          if (orderId) {
+            url.searchParams.set("order", String(orderId));
+          } else {
+            url.searchParams.delete("order");
+          }
+          window.history.replaceState({}, "", url.pathname + url.search);
+        } catch (_error) {}
+      }
+
+      function buildPageUrl(path, options) {
+        var url = new URL(path, window.location.href);
+        if (API_BASE !== window.location.origin) {
+          url.searchParams.set("api", API_BASE);
+        }
+        if (options && options.orderId) {
+          url.searchParams.set("order", String(options.orderId));
+        }
+        return url.toString();
       }
 
       function setStatus(message, mode) {
@@ -400,6 +748,35 @@
         return "sufficient";
       }
 
+      function hasCategoryFilter() {
+        return activeCategories.size > 0;
+      }
+
+      function activeCategorySummary() {
+        if (!hasCategoryFilter()) return "all";
+        return Array.from(activeCategories).sort(function (a, b) { return a.localeCompare(b); }).join("|");
+      }
+
+      function pruneActiveCategories() {
+        if (!hasCategoryFilter()) return;
+        var available = {};
+        inventoryRows.forEach(function (row) {
+          var category = String(row.category || "").trim();
+          if (!category) return;
+          available[category] = true;
+        });
+        Array.from(activeCategories).forEach(function (category) {
+          if (!available[category]) activeCategories.delete(category);
+        });
+      }
+
+      function updateOrderActionButtons() {
+        var hasActiveOrder = Boolean(activeOrder && activeOrder.id);
+        if (renameOrderBtn) renameOrderBtn.disabled = !hasActiveOrder;
+        if (deleteOrderBtn) deleteOrderBtn.disabled = !hasActiveOrder;
+        if (openPurchasingViewBtn) openPurchasingViewBtn.disabled = !hasActiveOrder;
+      }
+
       function normalizePurchaseUnit(value) {
         var raw = String(value || "").trim().toLowerCase();
         if (!raw || raw === "unit" || raw === "units" || raw === "each" || raw === "ea") return "unit";
@@ -417,6 +794,10 @@
           String(row.orderUrlOverride || "").trim() ||
           String(row.notes || "").trim()
         );
+      }
+
+      function isPurchasingActionRow(row) {
+        return row.toOrderQty > 0 || row.orderedQty > 0 || row.receivedQty > 0;
       }
 
       function toCsvCell(value) {
@@ -544,6 +925,7 @@
       }
 
       function renderCategoryFilterPills() {
+        pruneActiveCategories();
         categoryFilters.innerHTML = "";
         var label = document.createElement("span");
         label.className = "small text-uppercase fw-semibold text-muted me-1";
@@ -552,7 +934,7 @@
 
         var allPill = document.createElement("button");
         allPill.type = "button";
-        allPill.className = "filter-pill" + (activeCategory === "all" ? " active" : "");
+        allPill.className = "filter-pill" + (!hasCategoryFilter() ? " active" : "");
         allPill.dataset.category = "all";
         allPill.textContent = "All";
         categoryFilters.appendChild(allPill);
@@ -571,7 +953,7 @@
         categories.forEach(function (category) {
           var pill = document.createElement("button");
           pill.type = "button";
-          pill.className = "filter-pill" + (activeCategory === category ? " active" : "");
+          pill.className = "filter-pill" + (activeCategories.has(category) ? " active" : "");
           pill.dataset.category = category;
           pill.textContent = category;
           categoryFilters.appendChild(pill);
@@ -596,7 +978,7 @@
 
       function getFilteredRows() {
         return orderRows.filter(function (row) {
-          if (activeCategory !== "all" && row.categoryName !== activeCategory) return false;
+          if (hasCategoryFilter() && !activeCategories.has(row.categoryName)) return false;
           if (activeStatus !== "all" && row.status !== activeStatus) return false;
           return true;
         });
@@ -621,105 +1003,162 @@
         });
       }
 
+      function sortedCategoryEntries(rows) {
+        var grouped = {};
+        rows.forEach(function (row) {
+          var category = String(row.categoryName || "").trim() || "Uncategorized";
+          if (!grouped[category]) grouped[category] = [];
+          grouped[category].push(row);
+        });
+
+        return Object.keys(grouped)
+          .sort(function (a, b) {
+            if (a === "Uncategorized") return 1;
+            if (b === "Uncategorized") return -1;
+            return a.localeCompare(b);
+          })
+          .map(function (category) {
+            return [category, grouped[category]];
+          });
+      }
+
+      function renderCategoryHeaderRow(category, itemCount) {
+        var headerTr = document.createElement("tr");
+        headerTr.className = "category-row";
+
+        var headerTd = document.createElement("td");
+        headerTd.colSpan = 10;
+
+        var heading = document.createElement("div");
+        heading.className = "category-heading";
+
+        var name = document.createElement("span");
+        name.textContent = String(category);
+
+        var count = document.createElement("span");
+        count.className = "category-count";
+        count.textContent = String(Number(itemCount || 0)) + " items";
+
+        heading.appendChild(name);
+        heading.appendChild(count);
+        headerTd.appendChild(heading);
+        headerTr.appendChild(headerTd);
+        return headerTr;
+      }
+
+      function buildOrderedQtyHelper(row) {
+        var unit = String(row.purchaseUnit || "unit");
+        var orderedUnitLabel = unit === "unit" ? "unit" : unit;
+        var helper = "Order as " + orderedUnitLabel;
+        if (unit !== "unit") {
+          helper += " • " + formatQty(row.unitsPerPurchase) + " " + (row.unit || "units") + "/" + orderedUnitLabel;
+        }
+        helper += " • = " + formatQty(row.orderedQty) + " " + (row.unit || "units");
+        return helper;
+      }
+
       function renderTable() {
         orderBody.innerHTML = "";
         var rows = getFilteredRows();
 
         if (!rows.length) {
-          orderBody.innerHTML = '<tr><td colspan="12" class="text-muted small">No items match your filters.</td></tr>';
+          orderBody.innerHTML = '<tr><td colspan="10" class="text-muted small py-3">No items match your filters.</td></tr>';
           renderStats();
           return;
         }
 
-        rows.forEach(function (row) {
-          var tr = document.createElement("tr");
-          tr.dataset.itemId = String(row.itemId);
+        sortedCategoryEntries(rows).forEach(function (entry) {
+          var category = entry[0];
+          var categoryRows = entry[1];
+          orderBody.appendChild(renderCategoryHeaderRow(category, categoryRows.length));
 
-          var tdItem = document.createElement("td");
-          tdItem.innerHTML =
-            '<div class="fw-semibold">' + escapeHtml(row.name) + '</div>' +
-            '<div class="d-flex flex-wrap gap-2 align-items-center">' +
-              (row.barcode ? '<div class="text-muted small">' + escapeHtml(row.barcode) + '</div>' : '') +
-              '<span class="status-chip ' + statusClass(row.status) + '">' + statusLabel(row.status) + '</span>' +
-            '</div>';
-          tr.appendChild(tdItem);
+          categoryRows.forEach(function (row) {
+            var tr = document.createElement("tr");
+            tr.className = "item-row";
+            tr.dataset.itemId = String(row.itemId);
 
-          var tdCategory = document.createElement("td");
-          tdCategory.textContent = row.categoryName || "-";
-          tr.appendChild(tdCategory);
+            var tdItem = document.createElement("td");
+            tdItem.innerHTML =
+              '<div class="item-name">' + escapeHtml(row.name) + '</div>' +
+              '<div class="item-meta">' +
+                (row.barcode ? '<div class="text-muted small">' + escapeHtml(row.barcode) + '</div>' : '') +
+                '<span class="status-chip ' + statusClass(row.status) + '">' + statusLabel(row.status) + '</span>' +
+              '</div>';
+            tr.appendChild(tdItem);
 
-          var tdCurrent = document.createElement("td");
-          tdCurrent.innerHTML =
-            '<div class="fw-semibold">' + escapeHtml(formatQty(row.currentStock)) + '</div>' +
-            (Math.abs(row.currentStock - row.liveStock) > 0.0001
-              ? '<div class="text-muted small">Live: ' + escapeHtml(formatQty(row.liveStock)) + '</div>'
-              : '');
-          tr.appendChild(tdCurrent);
+            var tdCategory = document.createElement("td");
+            tdCategory.textContent = row.categoryName || "Uncategorized";
+            tr.appendChild(tdCategory);
 
-          var tdUnit = document.createElement("td");
-          tdUnit.textContent = row.unit || "each";
-          tr.appendChild(tdUnit);
+            var tdCurrent = document.createElement("td");
+            tdCurrent.innerHTML =
+              '<div class="fw-semibold">' + escapeHtml(formatQty(row.currentStock)) + '</div>' +
+              (Math.abs(row.currentStock - row.liveStock) > 0.0001
+                ? '<div class="text-muted small">Live: ' + escapeHtml(formatQty(row.liveStock)) + '</div>'
+                : '');
+            tr.appendChild(tdCurrent);
 
-          var tdPurchaseUnit = document.createElement("td");
-          tdPurchaseUnit.innerHTML =
-            '<select class="form-select form-select-sm purchase-unit-select" data-item-id="' + row.itemId + '" data-field="purchase-unit">' +
-              '<option value="unit"' + (row.purchaseUnit === "unit" ? " selected" : "") + '>unit</option>' +
-              '<option value="case"' + (row.purchaseUnit === "case" ? " selected" : "") + '>case</option>' +
-              '<option value="pack"' + (row.purchaseUnit === "pack" ? " selected" : "") + '>pack</option>' +
-            '</select>';
-          tr.appendChild(tdPurchaseUnit);
+            var tdUnit = document.createElement("td");
+            tdUnit.textContent = row.unit || "each";
+            tr.appendChild(tdUnit);
 
-          var tdUnitsPerPurchase = document.createElement("td");
-          tdUnitsPerPurchase.innerHTML =
-            '<input type="number" min="0.001" step="0.01" class="form-control form-control-sm qty-input" ' +
-            'data-item-id="' + row.itemId + '" data-field="units-per-purchase" value="' + escapeHtml(formatQty(row.unitsPerPurchase)) + '"' +
-            (row.purchaseUnit === "unit" ? " disabled" : "") + '>';
-          tr.appendChild(tdUnitsPerPurchase);
+            var tdRequired = document.createElement("td");
+            tdRequired.innerHTML =
+              '<input type="number" min="0" step="0.01" class="form-control form-control-sm qty-input" ' +
+              'data-item-id="' + row.itemId + '" data-field="required" value="' + escapeHtml(formatQty(row.requiredQty)) + '">';
+            tr.appendChild(tdRequired);
 
-          var tdRequired = document.createElement("td");
-          tdRequired.innerHTML =
-            '<input type="number" min="0" step="0.01" class="form-control form-control-sm qty-input" ' +
-            'data-item-id="' + row.itemId + '" data-field="required" value="' + escapeHtml(formatQty(row.requiredQty)) + '">';
-          tr.appendChild(tdRequired);
+            var tdToOrder = document.createElement("td");
+            tdToOrder.className = row.toOrderQty > 0 ? "to-order-cell" : "to-order-zero";
+            tdToOrder.textContent = formatQty(row.toOrderQty);
+            tr.appendChild(tdToOrder);
 
-          var tdToOrder = document.createElement("td");
-          tdToOrder.className = row.toOrderQty > 0 ? "to-order-cell" : "to-order-zero";
-          tdToOrder.textContent = formatQty(row.toOrderQty);
-          tr.appendChild(tdToOrder);
+            var tdOrderedQty = document.createElement("td");
+            tdOrderedQty.innerHTML =
+              '<div class="ordered-qty-stack">' +
+                '<input type="number" min="0" step="0.01" class="form-control form-control-sm qty-input" ' +
+                'data-item-id="' + row.itemId + '" data-field="ordered-purchase" value="' + escapeHtml(formatQty(row.orderedPurchaseQty)) + '">' +
+                '<div class="order-unit-inline">' +
+                  '<select class="form-select form-select-sm purchase-unit-select" data-item-id="' + row.itemId + '" data-field="purchase-unit" title="Order unit">' +
+                    '<option value="unit"' + (row.purchaseUnit === "unit" ? " selected" : "") + '>unit</option>' +
+                    '<option value="case"' + (row.purchaseUnit === "case" ? " selected" : "") + '>case</option>' +
+                    '<option value="pack"' + (row.purchaseUnit === "pack" ? " selected" : "") + '>pack</option>' +
+                  '</select>' +
+                  '<input type="number" min="0.001" step="0.01" class="form-control form-control-sm qty-input" ' +
+                  'data-item-id="' + row.itemId + '" data-field="units-per-purchase" value="' + escapeHtml(formatQty(row.unitsPerPurchase)) + '" title="Units per order"' +
+                  (row.purchaseUnit === "unit" ? " disabled" : "") + '>' +
+                '</div>' +
+                '<div class="qty-helper">' + escapeHtml(buildOrderedQtyHelper(row)) + '</div>' +
+              '</div>';
+            tr.appendChild(tdOrderedQty);
 
-          var tdOrderedQty = document.createElement("td");
-          tdOrderedQty.innerHTML =
-            '<input type="number" min="0" step="0.01" class="form-control form-control-sm qty-input" ' +
-            'data-item-id="' + row.itemId + '" data-field="ordered-purchase" value="' + escapeHtml(formatQty(row.orderedPurchaseQty)) + '">' +
-            '<div class="qty-helper">= ' + escapeHtml(formatQty(row.orderedQty)) + ' ' + escapeHtml(row.unit || "units") + '</div>';
-          tr.appendChild(tdOrderedQty);
+            var tdUrl = document.createElement("td");
+            var safeUrl = toSafeHttpUrl(row.effectiveUrl);
+            tdUrl.innerHTML =
+              '<div class="input-group input-group-sm">' +
+                '<input type="text" class="form-control url-input" data-item-id="' + row.itemId + '" data-field="url" ' +
+                'value="' + escapeHtml(row.orderUrlOverride || '') + '" placeholder="' + escapeHtml(row.defaultOrderUrl || 'No default URL') + '">' +
+                '<button type="button" class="btn btn-outline-secondary" data-item-id="' + row.itemId + '" data-action="open-url" ' + (safeUrl ? "" : "disabled") + '>' +
+                  '<i class="fa-solid fa-up-right-from-square"></i>' +
+                '</button>' +
+              '</div>';
+            tr.appendChild(tdUrl);
 
-          var tdUrl = document.createElement("td");
-          var safeUrl = toSafeHttpUrl(row.effectiveUrl);
-          tdUrl.innerHTML =
-            '<div class="input-group input-group-sm">' +
-              '<input type="text" class="form-control url-input" data-item-id="' + row.itemId + '" data-field="url" ' +
-              'value="' + escapeHtml(row.orderUrlOverride || '') + '" placeholder="' + escapeHtml(row.defaultOrderUrl || 'No default URL') + '">' +
-              '<button type="button" class="btn btn-outline-secondary" data-item-id="' + row.itemId + '" data-action="open-url" ' + (safeUrl ? "" : "disabled") + '>' +
-                '<i class="fa-solid fa-up-right-from-square"></i>' +
-              '</button>' +
-            '</div>';
-          tr.appendChild(tdUrl);
+            var tdOrderedFlag = document.createElement("td");
+            tdOrderedFlag.className = "text-center";
+            tdOrderedFlag.innerHTML =
+              '<input type="checkbox" class="form-check-input" data-item-id="' + row.itemId + '" data-field="ordered-flag" ' +
+              (row.orderedQty > 0 ? "checked" : "") + '>';
+            tr.appendChild(tdOrderedFlag);
 
-          var tdOrderedFlag = document.createElement("td");
-          tdOrderedFlag.className = "text-center";
-          tdOrderedFlag.innerHTML =
-            '<input type="checkbox" class="form-check-input" data-item-id="' + row.itemId + '" data-field="ordered-flag" ' +
-            (row.orderedQty > 0 ? "checked" : "") + '>';
-          tr.appendChild(tdOrderedFlag);
+            var tdNotes = document.createElement("td");
+            tdNotes.innerHTML =
+              '<input type="text" class="form-control form-control-sm" data-item-id="' + row.itemId + '" data-field="notes" ' +
+              'value="' + escapeHtml(row.notes || '') + '" placeholder="Optional notes">';
+            tr.appendChild(tdNotes);
 
-          var tdNotes = document.createElement("td");
-          tdNotes.innerHTML =
-            '<input type="text" class="form-control form-control-sm" data-item-id="' + row.itemId + '" data-field="notes" ' +
-            'value="' + escapeHtml(row.notes || '') + '" placeholder="Optional notes">';
-          tr.appendChild(tdNotes);
-
-          orderBody.appendChild(tr);
+            orderBody.appendChild(tr);
+          });
         });
 
         renderStats();
@@ -774,9 +1213,11 @@
       async function loadOrderById(orderId) {
         if (!orderId) return;
         activeOrder = await fetchOrderDetail(orderId);
+        syncOrderQueryParam(activeOrder && activeOrder.id ? Number(activeOrder.id) : null);
         renderOrderSelect();
         orderNameInput.value = activeOrder.name || "";
         orderNotesInput.value = activeOrder.notes || "";
+        updateOrderActionButtons();
         buildOrderRows();
         renderTable();
       }
@@ -784,6 +1225,7 @@
       async function refreshAll(options) {
         var preserveOrder = !options || options.preserveOrder !== false;
         var previousId = preserveOrder && activeOrder ? Number(activeOrder.id) : null;
+        var requestedId = getRequestedOrderId();
         setStatus("Loading orders and inventory...", "info");
         await fetchInventory();
         await fetchOrderList();
@@ -796,7 +1238,9 @@
         renderNewItemCategoryOptions();
 
         var targetId = null;
-        if (previousId && orderList.some(function (order) { return Number(order.id) === previousId; })) {
+        if (requestedId && orderList.some(function (order) { return Number(order.id) === requestedId; })) {
+          targetId = requestedId;
+        } else if (previousId && orderList.some(function (order) { return Number(order.id) === previousId; })) {
           targetId = previousId;
         } else {
           targetId = Number(orderList[0].id);
@@ -805,42 +1249,148 @@
         setStatus("Order planning is ready.", "ok");
       }
 
+      function toOrderItemPayload(row) {
+        return {
+          inventoryItemId: row.itemId,
+          requiredQuantity: row.requiredQty,
+          orderedQuantity: row.orderedQty,
+          receivedQuantity: row.receivedQty,
+          purchaseUnit: row.purchaseUnit || "unit",
+          unitsPerPurchase: row.unitsPerPurchase > 0 ? row.unitsPerPurchase : 1,
+          orderedPurchaseQuantity: row.orderedPurchaseQty,
+          receivedPurchaseQuantity: row.receivedPurchaseQty,
+          orderUrlOverride: String(row.orderUrlOverride || "").trim() || null,
+          notes: String(row.notes || "").trim() || null,
+        };
+      }
+
       function collectPayloadItems() {
         return orderRows
           .filter(isNonEmptyOrderRow)
-          .map(function (row) {
-            return {
-              inventoryItemId: row.itemId,
-              requiredQuantity: row.requiredQty,
-              orderedQuantity: row.orderedQty,
-              receivedQuantity: row.receivedQty,
-              purchaseUnit: row.purchaseUnit || "unit",
-              unitsPerPurchase: row.unitsPerPurchase > 0 ? row.unitsPerPurchase : 1,
-              orderedPurchaseQuantity: row.orderedPurchaseQty,
-              receivedPurchaseQuantity: row.receivedPurchaseQty,
-              orderUrlOverride: String(row.orderUrlOverride || "").trim() || null,
-              notes: String(row.notes || "").trim() || null,
-            };
-          });
+          .map(toOrderItemPayload);
       }
 
       function collectFilteredPayloadItems() {
         return getFilteredRows()
           .filter(isNonEmptyOrderRow)
-          .map(function (row) {
-            return {
-              inventoryItemId: row.itemId,
-              requiredQuantity: row.requiredQty,
-              orderedQuantity: row.orderedQty,
-              receivedQuantity: row.receivedQty,
-              purchaseUnit: row.purchaseUnit || "unit",
-              unitsPerPurchase: row.unitsPerPurchase > 0 ? row.unitsPerPurchase : 1,
-              orderedPurchaseQuantity: row.orderedPurchaseQty,
-              receivedPurchaseQuantity: row.receivedPurchaseQty,
-              orderUrlOverride: String(row.orderUrlOverride || "").trim() || null,
-              notes: String(row.notes || "").trim() || null,
-            };
-          });
+          .map(toOrderItemPayload);
+      }
+
+      function collectPurchasingPayloadItems() {
+        return orderRows
+          .filter(isPurchasingActionRow)
+          .map(toOrderItemPayload);
+      }
+
+      function buildPurchasingOrderName() {
+        var baseName = String((activeOrder && activeOrder.name) || "Inventory Order").trim() || "Inventory Order";
+        if (/\(purchasing\)/i.test(baseName)) return baseName + " Copy";
+        return baseName + " (Purchasing)";
+      }
+
+      async function renameActiveOrder() {
+        if (!activeOrder || !activeOrder.id) throw new Error("No active order selected.");
+        var nextName = String(orderNameInput.value || "").trim();
+        if (!nextName) throw new Error("Order name cannot be blank.");
+        if (nextName === String(activeOrder.name || "").trim()) {
+          setStatus("Order name is unchanged.", "info");
+          return;
+        }
+
+        setStatus("Renaming order...", "info");
+        var response = await fetch(apiUrl("/api/inventory/orders/" + activeOrder.id), {
+          method: "PATCH",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name: nextName }),
+        });
+        if (!response.ok) throw new Error(await parseApiError(response));
+        activeOrder = await response.json();
+        await fetchOrderList();
+        renderOrderSelect();
+        orderNameInput.value = activeOrder.name || "";
+        updateOrderActionButtons();
+        setStatus('Renamed order to "' + activeOrder.name + '".', "ok");
+      }
+
+      async function deleteActiveOrder() {
+        if (!activeOrder || !activeOrder.id) throw new Error("No active order selected.");
+        var orderId = Number(activeOrder.id);
+        var orderName = String(activeOrder.name || "").trim() || ("Order #" + orderId);
+        var confirmed = window.confirm('Delete "' + orderName + '"? This hides the order from the app.');
+        if (!confirmed) return;
+
+        setStatus("Deleting order...", "info");
+        var response = await fetch(apiUrl("/api/inventory/orders/" + orderId), {
+          method: "DELETE",
+          credentials: "include",
+        });
+        if (!response.ok) throw new Error(await parseApiError(response));
+        var deleted = await response.json();
+
+        activeOrder = null;
+        orderRows = [];
+        orderBody.innerHTML = "";
+        syncOrderQueryParam(null);
+        updateOrderActionButtons();
+        await refreshAll({ preserveOrder: false });
+        setStatus('Deleted "' + (deleted.name || orderName) + '".', "ok");
+      }
+
+      async function finalizeForPurchasing() {
+        if (!activeOrder || !activeOrder.id) throw new Error("No active order selected.");
+
+        setStatus("Finalizing purchasing copy...", "info");
+        await saveChanges({ silent: true });
+
+        var items = collectPurchasingPayloadItems();
+        if (!items.length) {
+          throw new Error("No actionable lines to include. Add rows with Need to Order greater than 0 first.");
+        }
+
+        var suggestedName = buildPurchasingOrderName();
+        var rawName = window.prompt("Name for the purchasing copy:", suggestedName);
+        if (rawName == null) {
+          setStatus("Purchasing finalization cancelled.", "info");
+          return;
+        }
+
+        var nextName = String(rawName || "").trim();
+        if (!nextName) {
+          throw new Error("Purchasing copy name cannot be blank.");
+        }
+
+        var sourceName = String(activeOrder.name || "").trim() || ("Order #" + activeOrder.id);
+        var sourceId = Number(activeOrder.id);
+        var purchasingNotes =
+          "Finalized for purchasing from order #" + sourceId + " (" + sourceName + "). " +
+          "Includes only lines with Need to Order > 0 or existing ordered/received activity.";
+
+        var response = await fetch(apiUrl("/api/inventory/orders"), {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            name: nextName,
+            notes: purchasingNotes,
+            items: items,
+          }),
+        });
+        if (!response.ok) throw new Error(await parseApiError(response));
+
+        var created = await response.json();
+        await fetchOrderList();
+        activeOrder = created;
+        activeCategories.clear();
+        activeStatus = "all";
+        renderCategoryFilterPills();
+        Array.from(statusFilters.querySelectorAll(".filter-pill")).forEach(function (node) {
+          node.classList.remove("active");
+          if (node.getAttribute("data-status") === "all") node.classList.add("active");
+        });
+        renderOrderSelect();
+        await loadOrderById(created.id);
+        setStatus("Purchasing copy created with " + items.length + " actionable item(s).", "ok");
       }
 
       async function createOrderFromCurrentFilters() {
@@ -852,7 +1402,7 @@
         var now = new Date();
         var suggestedName = "Inventory Order " + now.toISOString().slice(0, 10) + " (Filtered)";
         if (activeOrder && activeOrder.name) suggestedName = activeOrder.name + " (Filtered Copy)";
-        var filterNotes = "Created from filters: category=" + activeCategory + ", status=" + activeStatus + ".";
+        var filterNotes = "Created from filters: category=" + activeCategorySummary() + ", status=" + activeStatus + ".";
 
         setStatus("Creating new filtered order...", "info");
         var response = await fetch(apiUrl("/api/inventory/orders"), {
@@ -887,8 +1437,8 @@
           "Units per Purchase",
           "Current Stock Snapshot",
           "Current Stock Live",
-          "Required Qty",
-          "To Order Qty",
+          "Total Required Quantity",
+          "Need to Order Qty",
           "Ordered Purchase Qty",
           "Ordered Qty (Units)",
           "Purchase URL",
@@ -1009,11 +1559,15 @@
         if (!(target instanceof HTMLElement)) return;
         var pill = target.closest(".filter-pill");
         if (!(pill instanceof HTMLElement)) return;
-        activeCategory = pill.dataset.category || "all";
-        Array.from(categoryFilters.querySelectorAll(".filter-pill")).forEach(function (node) {
-          node.classList.remove("active");
-        });
-        pill.classList.add("active");
+        var category = pill.dataset.category || "all";
+        if (category === "all") {
+          activeCategories.clear();
+        } else if (activeCategories.has(category)) {
+          activeCategories.delete(category);
+        } else {
+          activeCategories.add(category);
+        }
+        renderCategoryFilterPills();
         renderTable();
       });
 
@@ -1130,6 +1684,18 @@
         });
       });
 
+      renameOrderBtn.addEventListener("click", function () {
+        void renameActiveOrder().catch(function (error) {
+          setStatus(error instanceof Error ? error.message : "Could not rename order.", "err");
+        });
+      });
+
+      deleteOrderBtn.addEventListener("click", function () {
+        void deleteActiveOrder().catch(function (error) {
+          setStatus(error instanceof Error ? error.message : "Could not delete order.", "err");
+        });
+      });
+
       newOrderBtn.addEventListener("click", function () {
         void (async function () {
           setStatus("Creating a new order...", "info");
@@ -1148,6 +1714,20 @@
         void createOrderFromCurrentFilters().catch(function (error) {
           setStatus(error instanceof Error ? error.message : "Could not create filtered order.", "err");
         });
+      });
+
+      finalizeForPurchasingBtn.addEventListener("click", function () {
+        void finalizeForPurchasing().catch(function (error) {
+          setStatus(error instanceof Error ? error.message : "Could not finalize purchasing copy.", "err");
+        });
+      });
+
+      openPurchasingViewBtn.addEventListener("click", function () {
+        if (!activeOrder || !activeOrder.id) {
+          setStatus("Select an order first.", "err");
+          return;
+        }
+        window.location.href = buildPageUrl("inventory-purchasing.html", { orderId: Number(activeOrder.id) });
       });
 
       addNewItemBtn.addEventListener("click", function () {

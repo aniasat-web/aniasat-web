@@ -7163,6 +7163,37 @@ def update_standalone_inventory_order(
     return detail
 
 
+@app.delete("/api/inventory/orders/{order_id}")
+def delete_standalone_inventory_order(
+    order_id: int,
+    _user: Annotated[AuthUser, Depends(require_roles(ROLE_PLANNER, ROLE_ADMIN))],
+) -> dict[str, Any]:
+    with get_connection() as conn:
+        existing = conn.execute(
+            """
+            SELECT id, name
+            FROM standalone_inventory_orders
+            WHERE id = ? AND deleted_at IS NULL
+            """,
+            (order_id,),
+        ).fetchone()
+        if not existing:
+            raise HTTPException(status_code=404, detail="Inventory order not found")
+
+        conn.execute(
+            """
+            UPDATE standalone_inventory_orders
+            SET deleted_at = CURRENT_TIMESTAMP,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+            """,
+            (order_id,),
+        )
+        conn.commit()
+
+    return {"id": int(existing["id"]), "name": existing["name"], "status": "deleted"}
+
+
 @app.post("/api/inventory/orders/{order_id}/apply-received")
 def apply_standalone_inventory_order_receipts(
     order_id: int,

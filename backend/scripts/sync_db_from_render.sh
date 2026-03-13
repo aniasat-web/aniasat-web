@@ -59,6 +59,22 @@ resolve_python_bin() {
   return 1
 }
 
+cleanup_local_sqlite_sidecars() {
+  local db_path="$1"
+  local wal_path="${db_path}-wal"
+  local shm_path="${db_path}-shm"
+  local removed=0
+
+  if [[ -f "${wal_path}" || -f "${shm_path}" ]]; then
+    rm -f "${wal_path}" "${shm_path}"
+    removed=1
+  fi
+
+  if [[ "${removed}" -eq 1 ]]; then
+    echo "Removed local SQLite sidecars for ${db_path}"
+  fi
+}
+
 if [[ -z "${RENDER_SSH_KEY}" && -f "${DEFAULT_RENDER_SSH_KEY}" ]]; then
   RENDER_SSH_KEY="${DEFAULT_RENDER_SSH_KEY}"
 fi
@@ -167,6 +183,7 @@ scp "${SCP_OPTS[@]}" "${TARGET}:${REMOTE_EXPORT_PATH}" "${TMP_LOCAL_PATH}"
 
 if [[ "${SYNC_SCOPE}" == "full" ]]; then
   mv "${TMP_LOCAL_PATH}" "${LOCAL_DB_PATH}"
+  cleanup_local_sqlite_sidecars "${LOCAL_DB_PATH}"
   echo "Enforcing SQLite pragmas on local DB ..."
   "${PY_BIN}" -c "import sqlite3; conn=sqlite3.connect(r'''${LOCAL_DB_PATH}'''); conn.execute('PRAGMA journal_mode = WAL'); conn.execute('PRAGMA busy_timeout = 5000'); jm=conn.execute('PRAGMA journal_mode').fetchone()[0]; bt=conn.execute('PRAGMA busy_timeout').fetchone()[0]; conn.close(); print(f'Local DB pragmas: journal_mode={jm}, busy_timeout={bt}')"
 else

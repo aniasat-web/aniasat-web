@@ -66,6 +66,9 @@ MASS_TO_G = {
 VOLUME_TO_ML = {
     "ml": 1.0,
     "l": 1000.0,
+    "fl oz": 29.5735295625,
+    "qt": 946.352946,
+    "gal": 3785.411784,
     "cup": 240.0,
     "cups": 240.0,
     "tbsp": 14.7868,
@@ -73,8 +76,11 @@ VOLUME_TO_ML = {
 }
 
 COUNT_UNITS = {
+    "each",
     "piece",
     "pieces",
+    "pack",
+    "packs",
     "packet",
     "packets",
     "can",
@@ -91,6 +97,22 @@ COUNT_UNITS = {
     "pinches",
     "bag",
     "bags",
+    "box",
+    "boxes",
+    "case",
+    "cases",
+    "bottle",
+    "bottles",
+    "jug",
+    "jugs",
+    "jar",
+    "jars",
+    "carton",
+    "cartons",
+    "tub",
+    "tubs",
+    "package",
+    "packages",
 }
 
 DAL_RICE_TOKEN_RE = re.compile(r"\b(rice|dal|moong|mung|toor|urad|masoor)\b")
@@ -492,6 +514,8 @@ class ShoppingListGeneratePayload(BaseModel):
 class ShoppingListItemUpdatePayload(BaseModel):
     vendorId: int | None = Field(default=None, ge=1)
     inStockQty: float | None = Field(default=None, ge=0)
+    orderedQty: float | None = Field(default=None, ge=0)
+    orderedUnit: str | None = None
     ordered: bool | None = None
     received: bool | None = None
     notes: str | None = None
@@ -1343,284 +1367,46 @@ def generate_shopping_list(
     payload: ShoppingListGeneratePayload,
     _user: Annotated[AuthUser, Depends(require_roles(ROLE_PLANNER, ROLE_ADMIN))],
 ) -> dict[str, Any]:
-    purchase_tiers = resolve_purchase_tiers_for_shopping(payload.phase, payload.purchaseTiers)
     with get_connection() as conn:
-        aggregate: dict[tuple[int, str], dict[str, Any]] = {}
-        missing_recipes: set[str] = set()
-        included_plan_ids: list[int] = []
-        plan_dish_breakdown_by_plan_id: dict[int, dict[tuple[int, str], dict[str, float]]] = {}
-        plan_name_by_id: dict[int, str] = {}
-        retreat_plan_id_for_list: int | None = None
-
-        if payload.allRetreats:
-            plan_rows = conn.execute(
-                """
-                SELECT id, name, plan_json
-                FROM retreat_plans
-                ORDER BY id
-                """
-            ).fetchall()
-            if not plan_rows:
-                raise HTTPException(status_code=404, detail="No retreat plans found")
-
-            for plan_row in plan_rows:
-                try:
-                    plan_payload = json.loads(plan_row["plan_json"]) if plan_row["plan_json"] else {}
-                except json.JSONDecodeError as exc:
-                    raise HTTPException(
-                        status_code=400,
-                        detail=f"Retreat plan #{int(plan_row['id'])} payload is not valid JSON",
-                    ) from exc
-                if not isinstance(plan_payload, dict):
-                    raise HTTPException(
-                        status_code=400,
-                        detail=f"Retreat plan #{int(plan_row['id'])} payload is malformed",
-                    )
-
-                plan_aggregate, plan_missing, plan_dish_breakdown = build_required_ingredients_from_plan(
-                    conn,
-                    plan_payload=plan_payload,
-                    profile=payload.profile,
-                    purchase_tiers=purchase_tiers,
-                )
-                if plan_aggregate:
-                    plan_id = int(plan_row["id"])
-                    merge_required_ingredient_aggregate(aggregate, plan_aggregate)
-                    included_plan_ids.append(plan_id)
-                    plan_dish_breakdown_by_plan_id[plan_id] = plan_dish_breakdown
-                    plan_name_by_id[plan_id] = str(plan_row["name"] or f"Retreat #{plan_id}").strip() or f"Retreat #{plan_id}"
-                missing_recipes.update(plan_missing)
-        else:
-            requested_plan_ids: list[int] = []
-            if payload.retreatPlanIds:
-                for raw_id in payload.retreatPlanIds:
-                    plan_id = int(raw_id)
-                    if plan_id <= 0:
-                        raise HTTPException(status_code=400, detail="retreatPlanIds must contain positive integers")
-                    requested_plan_ids.append(plan_id)
-
-            if payload.retreatPlanId is not None:
-                requested_plan_ids.append(int(payload.retreatPlanId))
-
-            requested_plan_ids = sorted(set(requested_plan_ids))
-            if not requested_plan_ids:
-                raise HTTPException(
-                    status_code=400,
-                    detail="Select at least one retreat plan unless allRetreats=true",
-                )
-
-            placeholders = ",".join("?" for _ in requested_plan_ids)
-            plan_rows = conn.execute(
-                f"""
-                SELECT id, name, plan_json
-                FROM retreat_plans
-                WHERE id IN ({placeholders})
-                ORDER BY id
-                """,
-                tuple(requested_plan_ids),
-            ).fetchall()
-            found_ids = sorted(int(row["id"]) for row in plan_rows)
-            if found_ids != requested_plan_ids:
-                missing_ids = sorted(set(requested_plan_ids) - set(found_ids))
-                raise HTTPException(
-                    status_code=404,
-                    detail=f"Retreat plan(s) not found: {', '.join(str(x) for x in missing_ids)}",
-                )
-
-            for plan_row in plan_rows:
-                try:
-                    plan_payload = json.loads(plan_row["plan_json"]) if plan_row["plan_json"] else {}
-                except json.JSONDecodeError as exc:
-                    raise HTTPException(
-                        status_code=400,
-                        detail=f"Retreat plan #{int(plan_row['id'])} payload is not valid JSON",
-                    ) from exc
-                if not isinstance(plan_payload, dict):
-                    raise HTTPException(
-                        status_code=400,
-                        detail=f"Retreat plan #{int(plan_row['id'])} payload is malformed",
-                    )
-
-                plan_aggregate, plan_missing, plan_dish_breakdown = build_required_ingredients_from_plan(
-                    conn,
-                    plan_payload=plan_payload,
-                    profile=payload.profile,
-                    purchase_tiers=purchase_tiers,
-                )
-                if plan_aggregate:
-                    plan_id = int(plan_row["id"])
-                    merge_required_ingredient_aggregate(aggregate, plan_aggregate)
-                    included_plan_ids.append(plan_id)
-                    plan_dish_breakdown_by_plan_id[plan_id] = plan_dish_breakdown
-                    plan_name_by_id[plan_id] = str(plan_row["name"] or f"Retreat #{plan_id}").strip() or f"Retreat #{plan_id}"
-                missing_recipes.update(plan_missing)
-
-            if len(requested_plan_ids) == 1:
-                retreat_plan_id_for_list = requested_plan_ids[0]
-
-        if not aggregate:
-            raise HTTPException(
-                status_code=400,
-                detail="No ingredients found for this profile and tier filter.",
-            )
-
-        inventory_by_key = (
-            load_inventory_canonical_by_key(conn)
-            if payload.subtractInventory
-            else {}
+        detail = materialize_shopping_list(
+            conn,
+            payload,
+            fixed_name=payload.name,
+            allow_empty_result=False,
         )
+        conn.commit()
+    return detail
 
-        label = payload.name.strip() if payload.name and payload.name.strip() else None
-        if not label:
-            if payload.allRetreats:
-                label = f"All Retreats - {payload.phase.title()} Order"
-            else:
-                if len(included_plan_ids) == 1:
-                    plan_id_for_label = included_plan_ids[0]
-                    plan_name_row = conn.execute(
-                        "SELECT name FROM retreat_plans WHERE id = ?",
-                        (plan_id_for_label,),
-                    ).fetchone()
-                    plan_name = plan_name_row["name"] if plan_name_row else "Retreat"
-                    label = f"{plan_name} - {payload.phase.title()} Order"
-                else:
-                    label = f"Selected Retreats - {payload.phase.title()} Order"
-        label = unique_shopping_list_name(conn, label)
 
-        created = conn.execute(
+@app.post("/api/shopping-lists/{shopping_list_id}/refresh")
+def refresh_shopping_list(
+    shopping_list_id: int,
+    _user: Annotated[AuthUser, Depends(require_roles(ROLE_PLANNER, ROLE_ADMIN))],
+) -> dict[str, Any]:
+    with get_connection() as conn:
+        list_row = conn.execute(
             """
-            INSERT INTO shopping_lists(retreat_plan_id, name, phase, status)
-            VALUES (?, ?, ?, 'draft')
-            RETURNING id
+            SELECT id, name
+            FROM shopping_lists
+            WHERE id = ?
             """,
-            (retreat_plan_id_for_list, label, payload.phase),
+            (shopping_list_id,),
         ).fetchone()
-        shopping_list_id = int(created["id"])
+        if not list_row:
+            raise HTTPException(status_code=404, detail="Shopping list not found")
 
-        inserted_items = 0
-        ingredient_category_by_id: dict[int, str | None] = {}
-        ingredient_ids = sorted({int(entry["ingredient_id"]) for entry in aggregate.values()})
-        if ingredient_ids:
-            placeholders = ",".join("?" for _ in ingredient_ids)
-            category_rows = conn.execute(
-                f"SELECT id, category FROM ingredients WHERE id IN ({placeholders})",
-                tuple(ingredient_ids),
-            ).fetchall()
-            ingredient_category_by_id = {
-                int(row["id"]): (str(row["category"] or "").strip() or None)
-                for row in category_rows
-            }
-
-        for key, entry in sorted(
-            aggregate.items(),
-            key=lambda item: item[1]["ingredient_name"].lower(),
-        ):
-            ingredient_id, canonical_unit = key
-            required_canonical = float(entry["required_qty"])
-            in_stock_canonical = float(inventory_by_key.get(key, 0.0))
-            to_buy_canonical = max(required_canonical - in_stock_canonical, 0.0)
-            if not payload.includeZeroToBuy and to_buy_canonical <= 0:
-                continue
-
-            ingredient_category = ingredient_category_by_id.get(int(ingredient_id))
-            if canonical_unit == "g" and is_spice_or_seasoning_category(ingredient_category):
-                row_unit = "g"
-            elif canonical_unit == "g" and is_produce_category(ingredient_category):
-                # Keep produce in kilograms in shopping lists for consistency.
-                row_unit = "kg"
-            else:
-                row_unit = preferred_metric_unit(required_canonical, canonical_unit)
-            required_qty = canonical_qty_to_unit(required_canonical, canonical_unit, row_unit)
-            in_stock_qty = canonical_qty_to_unit(in_stock_canonical, canonical_unit, row_unit)
-            to_buy_qty = canonical_qty_to_unit(to_buy_canonical, canonical_unit, row_unit)
-            required_unit = row_unit
-            in_stock_unit = row_unit
-            to_buy_unit = row_unit
-
-            created_item = conn.execute(
-                """
-                INSERT INTO shopping_list_items(
-                    shopping_list_id,
-                    ingredient_id,
-                    required_qty,
-                    required_unit,
-                    in_stock_qty,
-                    in_stock_unit,
-                    to_buy_qty,
-                    to_buy_unit,
-                    status,
-                    ordered,
-                    received
-                )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'open', 0, 0)
-                RETURNING id
-                """,
-                (
-                    shopping_list_id,
-                    ingredient_id,
-                    round(required_qty, 4),
-                    required_unit,
-                    round(in_stock_qty, 4),
-                    in_stock_unit,
-                    round(to_buy_qty, 4),
-                    to_buy_unit,
-                ),
-            ).fetchone()
-            shopping_list_item_id = int(created_item["id"])
-
-            for plan_id, plan_dish_breakdown in plan_dish_breakdown_by_plan_id.items():
-                dish_required_by_name = plan_dish_breakdown.get(key) or {}
-                if not dish_required_by_name:
-                    continue
-
-                for dish_name, dish_required_canonical in sorted(
-                    dish_required_by_name.items(),
-                    key=lambda item: item[0].lower(),
-                ):
-                    if dish_required_canonical <= 0:
-                        continue
-                    dish_required_qty = canonical_qty_to_unit(
-                        float(dish_required_canonical),
-                        canonical_unit,
-                        row_unit,
-                    )
-                    conn.execute(
-                        """
-                        INSERT INTO shopping_list_item_sources(
-                            shopping_list_item_id,
-                            retreat_plan_id,
-                            retreat_plan_name,
-                            dish_name,
-                            required_qty,
-                            required_unit
-                        )
-                        VALUES (?, ?, ?, ?, ?, ?)
-                        """,
-                        (
-                            shopping_list_item_id,
-                            plan_id,
-                            plan_name_by_id.get(plan_id) or f"Retreat #{plan_id}",
-                            dish_name,
-                            round(dish_required_qty, 4),
-                            row_unit,
-                        ),
-                    )
-            inserted_items += 1
-
-        if inserted_items <= 0:
-            conn.execute("DELETE FROM shopping_lists WHERE id = ?", (shopping_list_id,))
-            raise HTTPException(
-                status_code=400,
-                detail="All filtered ingredients are already fully covered by inventory.",
-            )
-
-        refresh_shopping_list_status(conn, shopping_list_id)
-        detail = load_shopping_list_detail(conn, shopping_list_id)
+        payload = infer_shopping_list_generation_payload(conn, shopping_list_id)
+        detail = materialize_shopping_list(
+            conn,
+            payload,
+            shopping_list_id=shopping_list_id,
+            fixed_name=str(list_row["name"] or "").strip() or None,
+            preserve_existing_metadata=True,
+            allow_empty_result=True,
+        )
         conn.commit()
 
-    detail["missing_recipes"] = sorted(missing_recipes)
-    detail["source_retreat_plan_ids"] = sorted(included_plan_ids)
-    detail["source_retreat_plan_count"] = len(included_plan_ids)
+    detail["refreshed"] = True
     return detail
 
 
@@ -1759,6 +1545,8 @@ def update_shopping_list_item(
                 sli.required_unit,
                 sli.in_stock_qty,
                 sli.in_stock_unit,
+                sli.ordered_qty,
+                sli.ordered_unit,
                 sli.to_buy_unit,
                 sli.vendor_id,
                 sli.ordered,
@@ -1779,8 +1567,17 @@ def update_shopping_list_item(
         required_qty = float(item_row["required_qty"] or 0.0)
         required_unit = normalize_unit(str(item_row["required_unit"] or "").strip())
         in_stock_unit = normalize_unit(str(item_row["in_stock_unit"] or required_unit).strip() or required_unit)
+        ordered_unit = normalize_unit(str(item_row["ordered_unit"] or "").strip()) or None
+        if (
+            ordered_unit in {"g", "kg", "ml", "l"}
+            and item_row["ordered_qty"] is None
+            and not bool(item_row["ordered"])
+            and not bool(item_row["received"])
+        ):
+            ordered_unit = None
         to_buy_unit = normalize_unit(str(item_row["to_buy_unit"] or required_unit).strip() or required_unit)
         in_stock_qty = float(item_row["in_stock_qty"] or 0.0)
+        ordered_qty = float(item_row["ordered_qty"]) if item_row["ordered_qty"] is not None else None
         if "inStockQty" in fields:
             list_phase = str(item_row["phase"] or "").strip().lower()
             if list_phase not in {"fresh", "daily"}:
@@ -1814,6 +1611,20 @@ def update_shopping_list_item(
         ordered = bool(item_row["ordered"])
         received = bool(item_row["received"])
 
+        if "orderedQty" in fields:
+            if payload.orderedQty is None:
+                ordered_qty = None
+            else:
+                ordered_qty = float(payload.orderedQty)
+                if ordered_qty < 0:
+                    raise HTTPException(status_code=400, detail="Amount ordered must be non-negative.")
+                ordered_qty = round(ordered_qty, 4)
+            if ordered_qty is not None and ordered_qty > 0 and not received:
+                ordered = True
+
+        if "orderedUnit" in fields:
+            ordered_unit = normalize_unit(str(payload.orderedUnit or "").strip()) or None
+
         if "ordered" in fields:
             ordered = bool(payload.ordered)
             if not ordered:
@@ -1838,6 +1649,23 @@ def update_shopping_list_item(
         if not received:
             received_at = None
 
+        default_ordered_qty, default_ordered_unit = preferred_ordered_quantity_and_unit(
+            to_buy_qty or required_qty or 0.0,
+            to_buy_unit or required_unit,
+            preferred_unit=ordered_unit,
+        )
+
+        if not ordered and not received:
+            ordered_qty = None
+        if ordered and (ordered_qty is None or ordered_qty <= 0):
+            ordered_qty = default_ordered_qty
+        if ordered_qty is not None and ordered_qty <= 0:
+            ordered_qty = None
+        if received and (ordered_qty is None or ordered_qty <= 0):
+            ordered_qty = default_ordered_qty
+        if ordered_qty is not None and ordered_qty > 0 and not ordered_unit:
+            ordered_unit = default_ordered_unit or to_buy_unit or required_unit
+
         notes = item_row["notes"]
         if "notes" in fields:
             notes = payload.notes.strip() if payload.notes and payload.notes.strip() else None
@@ -1851,6 +1679,8 @@ def update_shopping_list_item(
                 in_stock_unit = ?,
                 to_buy_qty = ?,
                 to_buy_unit = ?,
+                ordered_qty = ?,
+                ordered_unit = ?,
                 ordered = ?,
                 ordered_at = ?,
                 received = ?,
@@ -1865,6 +1695,8 @@ def update_shopping_list_item(
                 in_stock_unit,
                 round(to_buy_qty, 4),
                 to_buy_unit,
+                ordered_qty,
+                ordered_unit,
                 1 if ordered else 0,
                 ordered_at,
                 1 if received else 0,
@@ -1972,6 +1804,8 @@ def split_shopping_list_item_partial_buy(
                 in_stock_unit,
                 to_buy_qty,
                 to_buy_unit,
+                ordered_qty,
+                ordered_unit,
                 vendor_id,
                 owner,
                 pickup_date,
@@ -1982,7 +1816,7 @@ def split_shopping_list_item_partial_buy(
                 status,
                 notes
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, NULL, 0, NULL, 'open', ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, NULL, NULL, ?, ?, ?, 0, NULL, 0, NULL, 'open', ?)
             RETURNING id
             """,
             (
@@ -2011,6 +1845,8 @@ def split_shopping_list_item_partial_buy(
                 in_stock_unit = ?,
                 to_buy_qty = ?,
                 to_buy_unit = ?,
+                ordered_qty = NULL,
+                ordered_unit = NULL,
                 ordered = 0,
                 ordered_at = NULL,
                 received = 0,
@@ -2816,6 +2652,161 @@ def resolve_purchase_tiers_for_shopping(phase: str, purchase_tiers: list[str] | 
     return set()
 
 
+def resolve_requested_shopping_plan_ids(payload: ShoppingListGeneratePayload) -> list[int]:
+    requested_plan_ids: list[int] = []
+    if payload.retreatPlanIds:
+        for raw_id in payload.retreatPlanIds:
+            plan_id = int(raw_id)
+            if plan_id <= 0:
+                raise HTTPException(status_code=400, detail="retreatPlanIds must contain positive integers")
+            requested_plan_ids.append(plan_id)
+
+    if payload.retreatPlanId is not None:
+        plan_id = int(payload.retreatPlanId)
+        if plan_id <= 0:
+            raise HTTPException(status_code=400, detail="retreatPlanId must be a positive integer")
+        requested_plan_ids.append(plan_id)
+
+    return sorted(set(requested_plan_ids))
+
+
+def normalize_shopping_list_generation_config(payload: ShoppingListGeneratePayload) -> dict[str, Any]:
+    requested_plan_ids = resolve_requested_shopping_plan_ids(payload)
+    purchase_tiers = (
+        sorted(
+            {
+                str(tier).strip().lower()
+                for tier in (payload.purchaseTiers or [])
+                if str(tier).strip().lower() in PURCHASE_TIERS
+            }
+        )
+        or None
+    )
+    return {
+        "retreatPlanIds": requested_plan_ids,
+        "allRetreats": bool(payload.allRetreats),
+        "phase": str(payload.phase or "bulk").strip().lower() or "bulk",
+        "purchaseTiers": purchase_tiers,
+        "profile": str(payload.profile or DEFAULT_SHOPPING_PROFILE).strip().lower() or DEFAULT_SHOPPING_PROFILE,
+        "subtractInventory": bool(payload.subtractInventory),
+        "includeZeroToBuy": bool(payload.includeZeroToBuy),
+    }
+
+
+def shopping_list_name_implies_all_retreats(name: Any) -> bool:
+    return str(name or "").strip().lower().startswith("all retreats")
+
+
+def load_shopping_list_source_plan_ids(conn: Any, shopping_list_id: int) -> list[int]:
+    rows = conn.execute(
+        """
+        SELECT DISTINCT slis.retreat_plan_id
+        FROM shopping_list_item_sources slis
+        JOIN shopping_list_items sli ON sli.id = slis.shopping_list_item_id
+        WHERE sli.shopping_list_id = ?
+          AND slis.retreat_plan_id IS NOT NULL
+        ORDER BY slis.retreat_plan_id
+        """,
+        (shopping_list_id,),
+    ).fetchall()
+    return [int(row["retreat_plan_id"]) for row in rows if row["retreat_plan_id"] is not None]
+
+
+def infer_shopping_list_generation_payload(conn: Any, shopping_list_id: int) -> ShoppingListGeneratePayload:
+    list_row = conn.execute(
+        """
+        SELECT
+            id,
+            name,
+            phase,
+            retreat_plan_id,
+            generation_config_json
+        FROM shopping_lists
+        WHERE id = ?
+        """,
+        (shopping_list_id,),
+    ).fetchone()
+    if not list_row:
+        raise HTTPException(status_code=404, detail="Shopping list not found")
+
+    def build_payload_from_config(config: dict[str, Any]) -> ShoppingListGeneratePayload:
+        retreat_plan_ids = []
+        for raw_id in config.get("retreatPlanIds") or []:
+            try:
+                plan_id = int(raw_id)
+            except (TypeError, ValueError):
+                continue
+            if plan_id > 0 and plan_id not in retreat_plan_ids:
+                retreat_plan_ids.append(plan_id)
+        retreat_plan_ids.sort()
+        if not retreat_plan_ids and list_row["retreat_plan_id"] is not None:
+            retreat_plan_ids = [int(list_row["retreat_plan_id"])]
+
+        raw_purchase_tiers = config.get("purchaseTiers")
+        purchase_tiers = None
+        if isinstance(raw_purchase_tiers, list):
+            purchase_tiers = [
+                str(tier).strip().lower()
+                for tier in raw_purchase_tiers
+                if str(tier).strip().lower() in PURCHASE_TIERS
+            ] or None
+
+        phase = str(config.get("phase") or list_row["phase"] or "bulk").strip().lower() or "bulk"
+        profile = str(config.get("profile") or DEFAULT_SHOPPING_PROFILE).strip().lower() or DEFAULT_SHOPPING_PROFILE
+        if profile not in HEADCOUNT_PROFILES:
+            profile = DEFAULT_SHOPPING_PROFILE
+
+        all_retreats = bool(config.get("allRetreats"))
+        return ShoppingListGeneratePayload(
+            retreatPlanId=retreat_plan_ids[0] if len(retreat_plan_ids) == 1 else None,
+            retreatPlanIds=retreat_plan_ids,
+            allRetreats=all_retreats,
+            phase=phase,
+            purchaseTiers=purchase_tiers,
+            profile=profile,
+            subtractInventory=bool(config.get("subtractInventory", True)),
+            includeZeroToBuy=bool(config.get("includeZeroToBuy", False)),
+        )
+
+    raw_config = str(list_row["generation_config_json"] or "").strip()
+    if raw_config:
+        try:
+            parsed_config = json.loads(raw_config)
+        except json.JSONDecodeError:
+            parsed_config = None
+        if isinstance(parsed_config, dict):
+            return build_payload_from_config(parsed_config)
+
+    source_plan_ids = load_shopping_list_source_plan_ids(conn, shopping_list_id)
+    if not source_plan_ids and list_row["retreat_plan_id"] is not None:
+        source_plan_ids = [int(list_row["retreat_plan_id"])]
+
+    current_plan_ids = [
+        int(row["id"])
+        for row in conn.execute("SELECT id FROM retreat_plans ORDER BY id").fetchall()
+    ]
+    all_retreats = shopping_list_name_implies_all_retreats(list_row["name"])
+    if not all_retreats and source_plan_ids and current_plan_ids and source_plan_ids == current_plan_ids:
+        all_retreats = True
+
+    if not all_retreats and not source_plan_ids:
+        raise HTTPException(
+            status_code=400,
+            detail="This shopping list does not have enough source metadata to refresh.",
+        )
+
+    phase = str(list_row["phase"] or "bulk").strip().lower() or "bulk"
+    return ShoppingListGeneratePayload(
+        retreatPlanId=source_plan_ids[0] if len(source_plan_ids) == 1 and not all_retreats else None,
+        retreatPlanIds=[] if all_retreats else source_plan_ids,
+        allRetreats=all_retreats,
+        phase=phase,
+        profile=DEFAULT_SHOPPING_PROFILE,
+        subtractInventory=True,
+        includeZeroToBuy=False,
+    )
+
+
 def meals_for_profile(plan_payload: dict[str, Any], profile: str) -> list[dict[str, Any]]:
     if profile == "test":
         test_meals = plan_payload.get("testMeals")
@@ -3073,6 +3064,110 @@ def quantity_to_canonical(quantity: float, unit: str) -> tuple[float | None, str
     return None, None
 
 
+def normalize_count_style_purchase_unit(unit: str | None) -> str | None:
+    normalized = normalize_unit(str(unit or "").strip())
+    if not normalized:
+        return None
+    if normalized in {"piece", "sprig", "leaf", "pinch"}:
+        return "each"
+    if normalized in {
+        "each",
+        "bag",
+        "box",
+        "case",
+        "can",
+        "packet",
+        "pack",
+        "bottle",
+        "jug",
+        "jar",
+        "carton",
+        "tub",
+        "package",
+        "bunch",
+        "loaf",
+    }:
+        return normalized
+    return None
+
+
+def convert_quantity_between_units(
+    quantity: float | None,
+    from_unit: str | None,
+    to_unit: str | None,
+) -> float | None:
+    try:
+        numeric_quantity = float(quantity)
+    except (TypeError, ValueError):
+        return None
+
+    normalized_from = normalize_unit(str(from_unit or "").strip())
+    normalized_to = normalize_unit(str(to_unit or "").strip())
+    if not normalized_from or not normalized_to:
+        return None
+    if normalized_from == normalized_to:
+        return numeric_quantity
+
+    canonical_qty, canonical_unit = quantity_to_canonical(numeric_quantity, normalized_from)
+    if canonical_qty is None or not canonical_unit:
+        return None
+    return canonical_qty_to_unit_or_none(canonical_qty, canonical_unit, normalized_to)
+
+
+def preferred_ordered_quantity_and_unit(
+    quantity: float | None,
+    unit: str | None,
+    preferred_unit: str | None = None,
+) -> tuple[float | None, str | None]:
+    try:
+        numeric_quantity = float(quantity)
+    except (TypeError, ValueError):
+        numeric_quantity = 0.0
+    normalized_unit = normalize_unit(str(unit or "").strip())
+    normalized_preferred_unit = normalize_unit(str(preferred_unit or "").strip()) or None
+
+    if normalized_preferred_unit:
+        if numeric_quantity > 0:
+            converted = convert_quantity_between_units(
+                numeric_quantity,
+                normalized_unit,
+                normalized_preferred_unit,
+            )
+            if converted is not None:
+                return round(converted, 4), normalized_preferred_unit
+            if normalize_count_style_purchase_unit(normalized_preferred_unit):
+                fallback_qty = (
+                    1.0
+                    if normalized_unit in MASS_TO_G or normalized_unit in VOLUME_TO_ML
+                    else numeric_quantity
+                )
+                return round(fallback_qty, 4), normalized_preferred_unit
+            return round(numeric_quantity, 4), normalized_preferred_unit
+        return None, normalized_preferred_unit
+
+    canonical_qty, canonical_unit = quantity_to_canonical(numeric_quantity, normalized_unit)
+    if numeric_quantity > 0 and canonical_qty is not None and canonical_unit == "g":
+        target_unit = "lb" if canonical_qty >= MASS_TO_G["lb"] else "oz"
+        converted = canonical_qty_to_unit_or_none(canonical_qty, canonical_unit, target_unit)
+        if converted is not None:
+            return round(converted, 4), target_unit
+    if numeric_quantity > 0 and canonical_qty is not None and canonical_unit == "ml":
+        if canonical_qty >= VOLUME_TO_ML["gal"]:
+            target_unit = "gal"
+        elif canonical_qty >= VOLUME_TO_ML["qt"]:
+            target_unit = "qt"
+        else:
+            target_unit = "fl oz"
+        converted = canonical_qty_to_unit_or_none(canonical_qty, canonical_unit, target_unit)
+        if converted is not None:
+            return round(converted, 4), target_unit
+
+    return (
+        round(numeric_quantity, 4) if numeric_quantity > 0 else None,
+        normalize_count_style_purchase_unit(normalized_unit) or "each",
+    )
+
+
 def derive_shopping_item_status(ordered: bool, received: bool) -> str:
     if received:
         return "received"
@@ -3087,6 +3182,414 @@ def partial_buy_note(stage: str, percent: float, existing_notes: str | None = No
     if not extra:
         return base
     return f"{base} {extra}"
+
+
+def load_existing_shopping_list_item_metadata(
+    conn: Any,
+    shopping_list_id: int,
+) -> dict[tuple[int, str], dict[str, Any]]:
+    rows = conn.execute(
+        """
+        SELECT
+            ingredient_id,
+            required_qty,
+            required_unit,
+            vendor_id,
+            ordered_qty,
+            ordered_unit,
+            owner,
+            pickup_date,
+            ordered,
+            ordered_at,
+            received,
+            received_at,
+            notes
+        FROM shopping_list_items
+        WHERE shopping_list_id = ?
+        ORDER BY id
+        """,
+        (shopping_list_id,),
+    ).fetchall()
+
+    preserved: dict[tuple[int, str], dict[str, Any]] = {}
+    duplicate_keys: set[tuple[int, str]] = set()
+    for row in rows:
+        required_qty = float(row["required_qty"] or 0.0)
+        required_unit = str(row["required_unit"] or "").strip()
+        _canonical_qty, canonical_unit = quantity_to_canonical(required_qty, required_unit)
+        if not canonical_unit:
+            continue
+        key = (int(row["ingredient_id"]), canonical_unit)
+        if key in preserved:
+            duplicate_keys.add(key)
+            continue
+        ordered = bool(row["ordered"])
+        received = bool(row["received"])
+        ordered_unit = normalize_unit(str(row["ordered_unit"] or "").strip()) or None
+        if ordered_unit in {"g", "kg", "ml", "l"} and row["ordered_qty"] is None and not ordered and not received:
+            ordered_unit = None
+        preserved[key] = {
+            "vendor_id": int(row["vendor_id"]) if row["vendor_id"] is not None else None,
+            "ordered_qty": float(row["ordered_qty"]) if row["ordered_qty"] is not None else None,
+            "ordered_unit": ordered_unit,
+            "owner": str(row["owner"] or "").strip() or None,
+            "pickup_date": str(row["pickup_date"] or "").strip() or None,
+            "ordered": ordered,
+            "ordered_at": row["ordered_at"] if ordered else None,
+            "received": received,
+            "received_at": row["received_at"] if received else None,
+            "notes": str(row["notes"] or "").strip() or None,
+        }
+
+    for key in duplicate_keys:
+        preserved.pop(key, None)
+    return preserved
+
+
+def materialize_shopping_list(
+    conn: Any,
+    payload: ShoppingListGeneratePayload,
+    *,
+    shopping_list_id: int | None = None,
+    fixed_name: str | None = None,
+    preserve_existing_metadata: bool = False,
+    allow_empty_result: bool = False,
+) -> dict[str, Any]:
+    purchase_tiers = resolve_purchase_tiers_for_shopping(payload.phase, payload.purchaseTiers)
+    aggregate: dict[tuple[int, str], dict[str, Any]] = {}
+    missing_recipes: set[str] = set()
+    included_plan_ids: list[int] = []
+    plan_dish_breakdown_by_plan_id: dict[int, dict[tuple[int, str], dict[str, float]]] = {}
+    plan_name_by_id: dict[int, str] = {}
+    retreat_plan_id_for_list: int | None = None
+
+    if payload.allRetreats:
+        plan_rows = conn.execute(
+            """
+            SELECT id, name, plan_json
+            FROM retreat_plans
+            ORDER BY id
+            """
+        ).fetchall()
+        if not plan_rows:
+            raise HTTPException(status_code=404, detail="No retreat plans found")
+
+        for plan_row in plan_rows:
+            try:
+                plan_payload = json.loads(plan_row["plan_json"]) if plan_row["plan_json"] else {}
+            except json.JSONDecodeError as exc:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Retreat plan #{int(plan_row['id'])} payload is not valid JSON",
+                ) from exc
+            if not isinstance(plan_payload, dict):
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Retreat plan #{int(plan_row['id'])} payload is malformed",
+                )
+
+            plan_aggregate, plan_missing, plan_dish_breakdown = build_required_ingredients_from_plan(
+                conn,
+                plan_payload=plan_payload,
+                profile=payload.profile,
+                purchase_tiers=purchase_tiers,
+            )
+            if plan_aggregate:
+                plan_id = int(plan_row["id"])
+                merge_required_ingredient_aggregate(aggregate, plan_aggregate)
+                included_plan_ids.append(plan_id)
+                plan_dish_breakdown_by_plan_id[plan_id] = plan_dish_breakdown
+                plan_name_by_id[plan_id] = (
+                    str(plan_row["name"] or f"Retreat #{plan_id}").strip() or f"Retreat #{plan_id}"
+                )
+            missing_recipes.update(plan_missing)
+    else:
+        requested_plan_ids = resolve_requested_shopping_plan_ids(payload)
+        if not requested_plan_ids:
+            raise HTTPException(
+                status_code=400,
+                detail="Select at least one retreat plan unless allRetreats=true",
+            )
+
+        placeholders = ",".join("?" for _ in requested_plan_ids)
+        plan_rows = conn.execute(
+            f"""
+            SELECT id, name, plan_json
+            FROM retreat_plans
+            WHERE id IN ({placeholders})
+            ORDER BY id
+            """,
+            tuple(requested_plan_ids),
+        ).fetchall()
+        found_ids = sorted(int(row["id"]) for row in plan_rows)
+        if found_ids != requested_plan_ids:
+            missing_ids = sorted(set(requested_plan_ids) - set(found_ids))
+            raise HTTPException(
+                status_code=404,
+                detail=f"Retreat plan(s) not found: {', '.join(str(x) for x in missing_ids)}",
+            )
+
+        for plan_row in plan_rows:
+            try:
+                plan_payload = json.loads(plan_row["plan_json"]) if plan_row["plan_json"] else {}
+            except json.JSONDecodeError as exc:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Retreat plan #{int(plan_row['id'])} payload is not valid JSON",
+                ) from exc
+            if not isinstance(plan_payload, dict):
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Retreat plan #{int(plan_row['id'])} payload is malformed",
+                )
+
+            plan_aggregate, plan_missing, plan_dish_breakdown = build_required_ingredients_from_plan(
+                conn,
+                plan_payload=plan_payload,
+                profile=payload.profile,
+                purchase_tiers=purchase_tiers,
+            )
+            if plan_aggregate:
+                plan_id = int(plan_row["id"])
+                merge_required_ingredient_aggregate(aggregate, plan_aggregate)
+                included_plan_ids.append(plan_id)
+                plan_dish_breakdown_by_plan_id[plan_id] = plan_dish_breakdown
+                plan_name_by_id[plan_id] = (
+                    str(plan_row["name"] or f"Retreat #{plan_id}").strip() or f"Retreat #{plan_id}"
+                )
+            missing_recipes.update(plan_missing)
+
+        if len(requested_plan_ids) == 1:
+            retreat_plan_id_for_list = requested_plan_ids[0]
+
+    if not aggregate and shopping_list_id is None:
+        raise HTTPException(
+            status_code=400,
+            detail="No ingredients found for this profile and tier filter.",
+        )
+
+    inventory_by_key = load_inventory_canonical_by_key(conn) if payload.subtractInventory else {}
+    config_json = json.dumps(
+        normalize_shopping_list_generation_config(payload),
+        ensure_ascii=True,
+        separators=(",", ":"),
+    )
+
+    existing_metadata_by_key: dict[tuple[int, str], dict[str, Any]] = {}
+    if shopping_list_id is None:
+        label = fixed_name.strip() if fixed_name and fixed_name.strip() else None
+        if not label:
+            if payload.allRetreats:
+                label = f"All Retreats - {payload.phase.title()} Order"
+            else:
+                if len(included_plan_ids) == 1:
+                    plan_id_for_label = included_plan_ids[0]
+                    plan_name_row = conn.execute(
+                        "SELECT name FROM retreat_plans WHERE id = ?",
+                        (plan_id_for_label,),
+                    ).fetchone()
+                    plan_name = plan_name_row["name"] if plan_name_row else "Retreat"
+                    label = f"{plan_name} - {payload.phase.title()} Order"
+                else:
+                    label = f"Selected Retreats - {payload.phase.title()} Order"
+        label = unique_shopping_list_name(conn, label)
+
+        created = conn.execute(
+            """
+            INSERT INTO shopping_lists(retreat_plan_id, name, phase, generation_config_json, status)
+            VALUES (?, ?, ?, ?, 'draft')
+            RETURNING id
+            """,
+            (retreat_plan_id_for_list, label, payload.phase, config_json),
+        ).fetchone()
+        shopping_list_id = int(created["id"])
+    else:
+        existing_list = conn.execute(
+            """
+            SELECT id, name
+            FROM shopping_lists
+            WHERE id = ?
+            """,
+            (shopping_list_id,),
+        ).fetchone()
+        if not existing_list:
+            raise HTTPException(status_code=404, detail="Shopping list not found")
+
+        if preserve_existing_metadata:
+            existing_metadata_by_key = load_existing_shopping_list_item_metadata(conn, shopping_list_id)
+
+        label = fixed_name.strip() if fixed_name and fixed_name.strip() else str(existing_list["name"] or "").strip()
+        if not label:
+            label = f"Shopping List #{shopping_list_id}"
+
+        conn.execute("DELETE FROM shopping_list_items WHERE shopping_list_id = ?", (shopping_list_id,))
+        conn.execute(
+            """
+            UPDATE shopping_lists
+            SET retreat_plan_id = ?,
+                name = ?,
+                phase = ?,
+                generation_config_json = ?,
+                status = 'draft'
+            WHERE id = ?
+            """,
+            (retreat_plan_id_for_list, label, payload.phase, config_json, shopping_list_id),
+        )
+
+    inserted_items = 0
+    ingredient_category_by_id: dict[int, str | None] = {}
+    ingredient_ids = sorted({int(entry["ingredient_id"]) for entry in aggregate.values()})
+    if ingredient_ids:
+        placeholders = ",".join("?" for _ in ingredient_ids)
+        category_rows = conn.execute(
+            f"SELECT id, category FROM ingredients WHERE id IN ({placeholders})",
+            tuple(ingredient_ids),
+        ).fetchall()
+        ingredient_category_by_id = {
+            int(row["id"]): (str(row["category"] or "").strip() or None)
+            for row in category_rows
+        }
+
+    for key, entry in sorted(
+        aggregate.items(),
+        key=lambda item: item[1]["ingredient_name"].lower(),
+    ):
+        ingredient_id, canonical_unit = key
+        required_canonical = float(entry["required_qty"])
+        in_stock_canonical = float(inventory_by_key.get(key, 0.0))
+        to_buy_canonical = max(required_canonical - in_stock_canonical, 0.0)
+        if not payload.includeZeroToBuy and to_buy_canonical <= 0:
+            continue
+
+        ingredient_category = ingredient_category_by_id.get(int(ingredient_id))
+        if canonical_unit == "g" and is_spice_or_seasoning_category(ingredient_category):
+            row_unit = "g"
+        elif canonical_unit == "g" and is_produce_category(ingredient_category):
+            row_unit = "kg"
+        else:
+            row_unit = preferred_metric_unit(required_canonical, canonical_unit)
+        required_qty = canonical_qty_to_unit(required_canonical, canonical_unit, row_unit)
+        in_stock_qty = canonical_qty_to_unit(in_stock_canonical, canonical_unit, row_unit)
+        to_buy_qty = canonical_qty_to_unit(to_buy_canonical, canonical_unit, row_unit)
+        preserved = existing_metadata_by_key.get((int(ingredient_id), canonical_unit))
+        ordered = bool(preserved["ordered"]) if preserved else False
+        received = bool(preserved["received"]) if preserved else False
+
+        created_item = conn.execute(
+            """
+            INSERT INTO shopping_list_items(
+                shopping_list_id,
+                ingredient_id,
+                required_qty,
+                required_unit,
+                in_stock_qty,
+                in_stock_unit,
+                to_buy_qty,
+                to_buy_unit,
+                ordered_qty,
+                ordered_unit,
+                vendor_id,
+                owner,
+                pickup_date,
+                ordered,
+                ordered_at,
+                received,
+                received_at,
+                status,
+                notes
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            RETURNING id
+            """,
+            (
+                shopping_list_id,
+                ingredient_id,
+                round(required_qty, 4),
+                row_unit,
+                round(in_stock_qty, 4),
+                row_unit,
+                round(to_buy_qty, 4),
+                row_unit,
+                (
+                    round(float(preserved["ordered_qty"]), 4)
+                    if preserved and preserved["ordered_qty"] is not None
+                    else None
+                ),
+                (
+                    preserved["ordered_unit"]
+                    if preserved and preserved["ordered_unit"]
+                    else None
+                ),
+                preserved["vendor_id"] if preserved else None,
+                preserved["owner"] if preserved else None,
+                preserved["pickup_date"] if preserved else None,
+                1 if ordered else 0,
+                preserved["ordered_at"] if preserved and ordered else None,
+                1 if received else 0,
+                preserved["received_at"] if preserved and received else None,
+                derive_shopping_item_status(ordered=ordered, received=received),
+                preserved["notes"] if preserved else None,
+            ),
+        ).fetchone()
+        shopping_list_item_id = int(created_item["id"])
+
+        for plan_id, plan_dish_breakdown in plan_dish_breakdown_by_plan_id.items():
+            dish_required_by_name = plan_dish_breakdown.get(key) or {}
+            if not dish_required_by_name:
+                continue
+
+            for dish_name, dish_required_canonical in sorted(
+                dish_required_by_name.items(),
+                key=lambda item: item[0].lower(),
+            ):
+                if dish_required_canonical <= 0:
+                    continue
+                dish_required_qty = canonical_qty_to_unit(
+                    float(dish_required_canonical),
+                    canonical_unit,
+                    row_unit,
+                )
+                conn.execute(
+                    """
+                    INSERT INTO shopping_list_item_sources(
+                        shopping_list_item_id,
+                        retreat_plan_id,
+                        retreat_plan_name,
+                        dish_name,
+                        required_qty,
+                        required_unit
+                    )
+                    VALUES (?, ?, ?, ?, ?, ?)
+                    """,
+                    (
+                        shopping_list_item_id,
+                        plan_id,
+                        plan_name_by_id.get(plan_id) or f"Retreat #{plan_id}",
+                        dish_name,
+                        round(dish_required_qty, 4),
+                        row_unit,
+                    ),
+                )
+        inserted_items += 1
+
+    if inserted_items <= 0 and shopping_list_id is not None and not allow_empty_result:
+        raise HTTPException(
+            status_code=400,
+            detail="All filtered ingredients are already fully covered by inventory.",
+        )
+    if inserted_items <= 0 and shopping_list_id is None:
+        conn.execute("DELETE FROM shopping_lists WHERE id = ?", (shopping_list_id,))
+        raise HTTPException(
+            status_code=400,
+            detail="All filtered ingredients are already fully covered by inventory.",
+        )
+
+    refresh_shopping_list_status(conn, shopping_list_id)
+    detail = load_shopping_list_detail(conn, shopping_list_id)
+    detail["missing_recipes"] = sorted(missing_recipes)
+    detail["source_retreat_plan_ids"] = sorted(included_plan_ids)
+    detail["source_retreat_plan_count"] = len(included_plan_ids)
+    return detail
 
 
 def refresh_shopping_list_status(conn: Any, shopping_list_id: int) -> None:
@@ -3153,6 +3656,8 @@ def load_shopping_list_detail(conn: Any, shopping_list_id: int) -> dict[str, Any
             sli.in_stock_unit,
             sli.to_buy_qty,
             sli.to_buy_unit,
+            sli.ordered_qty,
+            sli.ordered_unit,
             sli.vendor_id,
             v.name AS vendor_name,
             sli.ordered,
@@ -3327,6 +3832,8 @@ def load_shopping_list_detail(conn: Any, shopping_list_id: int) -> dict[str, Any
                 "in_stock_unit": row["in_stock_unit"],
                 "to_buy_qty": float(row["to_buy_qty"]) if row["to_buy_qty"] is not None else None,
                 "to_buy_unit": row["to_buy_unit"],
+                "ordered_qty": float(row["ordered_qty"]) if row["ordered_qty"] is not None else None,
+                "ordered_unit": normalize_unit(str(row["ordered_unit"] or "").strip()) or None,
                 "vendor_id": int(row["vendor_id"]) if row["vendor_id"] is not None else None,
                 "vendor_name": row["vendor_name"],
                 "ordered": ordered,
@@ -3456,13 +3963,15 @@ def create_carry_forward_shopping_list(
                 in_stock_unit,
                 to_buy_qty,
                 to_buy_unit,
+                ordered_qty,
+                ordered_unit,
                 vendor_id,
                 status,
                 ordered,
                 received,
                 notes
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'open', 0, 0, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, NULL, NULL, ?, 'open', 0, 0, ?)
             """,
             (
                 new_list_id,
@@ -3518,6 +4027,8 @@ def split_selected_shopping_list_items(
             in_stock_unit,
             to_buy_qty,
             to_buy_unit,
+            ordered_qty,
+            ordered_unit,
             vendor_id,
             owner,
             pickup_date,
@@ -3575,6 +4086,8 @@ def split_selected_shopping_list_items(
                 in_stock_unit,
                 to_buy_qty,
                 to_buy_unit,
+                ordered_qty,
+                ordered_unit,
                 vendor_id,
                 owner,
                 pickup_date,
@@ -3585,7 +4098,7 @@ def split_selected_shopping_list_items(
                 status,
                 notes
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             RETURNING id
             """,
             (
@@ -3597,6 +4110,8 @@ def split_selected_shopping_list_items(
                 str(item["in_stock_unit"] or item["required_unit"] or ""),
                 float(item["to_buy_qty"] or 0.0),
                 str(item["to_buy_unit"] or item["required_unit"] or ""),
+                float(item["ordered_qty"]) if item["ordered_qty"] is not None else None,
+                normalize_unit(str(item["ordered_unit"] or "").strip()) or None,
                 int(item["vendor_id"]) if item["vendor_id"] is not None else None,
                 str(item["owner"] or "").strip() or None,
                 str(item["pickup_date"] or "").strip() or None,
@@ -3748,8 +4263,24 @@ def normalize_unit(unit: str) -> str:
         "tsb": "tsp",
         "pound": "lb",
         "pounds": "lb",
+        "lbs": "lb",
+        "ounce": "oz",
+        "ounces": "oz",
+        "fluid ounce": "fl oz",
+        "fluid ounces": "fl oz",
+        "floz": "fl oz",
+        "fl. oz.": "fl oz",
+        "quart": "qt",
+        "quarts": "qt",
+        "gallon": "gal",
+        "gallons": "gal",
+        "eaches": "each",
+        "ea": "each",
         "pieces": "piece",
         "packets": "packet",
+        "packs": "pack",
+        "pk": "pack",
+        "pks": "pack",
         "cans": "can",
         "bunches": "bunch",
         "loaves": "loaf",
@@ -3757,6 +4288,14 @@ def normalize_unit(unit: str) -> str:
         "springs": "sprig",
         "leaves": "leaf",
         "bags": "bag",
+        "boxes": "box",
+        "cases": "case",
+        "bottles": "bottle",
+        "jugs": "jug",
+        "jars": "jar",
+        "cartons": "carton",
+        "tubs": "tub",
+        "packages": "package",
         "pinches": "pinch",
         "pod": "piece",
         "pods": "piece",

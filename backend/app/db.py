@@ -720,6 +720,8 @@ def init_db(_allow_malformed_recovery: bool = True) -> None:
                 )
             if "phase" not in shopping_list_columns:
                 conn.execute("ALTER TABLE shopping_lists ADD COLUMN phase TEXT NOT NULL DEFAULT 'bulk'")
+            if "generation_config_json" not in shopping_list_columns:
+                conn.execute("ALTER TABLE shopping_lists ADD COLUMN generation_config_json TEXT")
 
             shopping_item_columns = table_columns(conn, "shopping_list_items")
             if "ordered" not in shopping_item_columns:
@@ -730,6 +732,28 @@ def init_db(_allow_malformed_recovery: bool = True) -> None:
                 conn.execute("ALTER TABLE shopping_list_items ADD COLUMN received INTEGER NOT NULL DEFAULT 0")
             if "received_at" not in shopping_item_columns:
                 conn.execute("ALTER TABLE shopping_list_items ADD COLUMN received_at TEXT")
+            if "ordered_qty" not in shopping_item_columns:
+                conn.execute("ALTER TABLE shopping_list_items ADD COLUMN ordered_qty REAL")
+            if "ordered_unit" not in shopping_item_columns:
+                conn.execute("ALTER TABLE shopping_list_items ADD COLUMN ordered_unit TEXT")
+            shopping_item_columns = table_columns(conn, "shopping_list_items")
+            if "ordered_qty" in shopping_item_columns and "ordered_unit" in shopping_item_columns:
+                conn.execute(
+                    """
+                    UPDATE shopping_list_items
+                    SET ordered_qty = COALESCE(to_buy_qty, required_qty)
+                    WHERE COALESCE(ordered, 0) = 1
+                      AND ordered_qty IS NULL
+                    """
+                )
+                conn.execute(
+                    """
+                    UPDATE shopping_list_items
+                    SET ordered_unit = COALESCE(to_buy_unit, required_unit)
+                    WHERE COALESCE(ordered, 0) = 1
+                      AND (ordered_unit IS NULL OR trim(COALESCE(ordered_unit, '')) = '')
+                    """
+                )
 
             shopping_item_source_columns = table_columns(conn, "shopping_list_item_sources")
             if shopping_item_source_columns and "dish_name" not in shopping_item_source_columns:
@@ -1360,11 +1384,12 @@ def seed_shopping_lists(conn: sqlite3.Connection, lists: list[Any]) -> tuple[int
                 INSERT INTO shopping_list_items(
                     shopping_list_id, ingredient_id, required_qty, required_unit,
                     in_stock_qty, in_stock_unit, to_buy_qty, to_buy_unit,
+                    ordered_qty, ordered_unit,
                     vendor_id, owner, pickup_date,
                     ordered, ordered_at, received, received_at,
                     status, notes
                 )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     list_id,
@@ -1375,6 +1400,8 @@ def seed_shopping_lists(conn: sqlite3.Connection, lists: list[Any]) -> tuple[int
                     clean_text(sli.get("in_stock_unit")),
                     float(sli["to_buy_qty"]) if sli.get("to_buy_qty") is not None else None,
                     clean_text(sli.get("to_buy_unit")),
+                    float(sli["ordered_qty"]) if sli.get("ordered_qty") is not None else None,
+                    clean_text(sli.get("ordered_unit")),
                     vendor_id,
                     clean_text(sli.get("owner")),
                     clean_text(sli.get("pickup_date")),

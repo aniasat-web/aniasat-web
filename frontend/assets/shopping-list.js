@@ -54,7 +54,14 @@
       const VOLUME_UNITS_TO_ML = {
         ml: 1,
         l: 1000,
+        "fl oz": 29.5735295625,
+        qt: 946.352946,
+        gal: 3785.411784,
       };
+      const METRIC_ORDERED_UNITS = new Set(["g", "kg", "ml", "l"]);
+      const MASS_ORDERED_UNIT_OPTIONS = ["lb", "oz", "bag", "box", "case", "each"];
+      const VOLUME_ORDERED_UNIT_OPTIONS = ["gal", "qt", "fl oz", "jug", "bottle", "case", "each"];
+      const COUNT_ORDERED_UNIT_OPTIONS = ["each", "bag", "box", "case", "can", "packet", "bottle", "jug"];
 
       function resolveApiBase() {
         const queryValue = new URLSearchParams(window.location.search).get("api");
@@ -64,6 +71,78 @@
 
       function apiUrl(path) {
         return `${API_BASE}${path.startsWith("/") ? path : `/${path}`}`;
+      }
+
+      function normalizeUnit(unit) {
+        const value = String(unit || "").trim().toLowerCase();
+        if (!value) {
+          return "";
+        }
+        const aliases = {
+          cups: "cup",
+          gms: "g",
+          kilogram: "kg",
+          kilograms: "kg",
+          kilo: "kg",
+          kilos: "kg",
+          gram: "g",
+          grams: "g",
+          liter: "l",
+          liters: "l",
+          litre: "l",
+          litres: "l",
+          milliliter: "ml",
+          milliliters: "ml",
+          millilitre: "ml",
+          millilitres: "ml",
+          tablespoon: "tbsp",
+          tablespoons: "tbsp",
+          tbs: "tbsp",
+          teaspoon: "tsp",
+          teaspoons: "tsp",
+          tsb: "tsp",
+          pound: "lb",
+          pounds: "lb",
+          lbs: "lb",
+          ounce: "oz",
+          ounces: "oz",
+          "fluid ounce": "fl oz",
+          "fluid ounces": "fl oz",
+          floz: "fl oz",
+          "fl. oz.": "fl oz",
+          quart: "qt",
+          quarts: "qt",
+          gallon: "gal",
+          gallons: "gal",
+          eaches: "each",
+          ea: "each",
+          pieces: "piece",
+          packets: "packet",
+          packs: "pack",
+          pk: "pack",
+          pks: "pack",
+          cans: "can",
+          bunches: "bunch",
+          loaves: "loaf",
+          sprigs: "sprig",
+          springs: "sprig",
+          leaves: "leaf",
+          bags: "bag",
+          boxes: "box",
+          cases: "case",
+          bottles: "bottle",
+          jugs: "jug",
+          jars: "jar",
+          cartons: "carton",
+          tubs: "tub",
+          packages: "package",
+          pinches: "pinch",
+          pod: "piece",
+          pods: "piece",
+          clove: "piece",
+          cloves: "piece",
+        };
+        return aliases[value] || value;
       }
 
       function usingApiOverride() {
@@ -140,11 +219,11 @@
           const tr = document.createElement("tr");
           tr.className = "shopping-skeleton-row";
 
-          for (let j = 0; j < 10; j += 1) {
+          for (let j = 0; j < 9; j += 1) {
             const td = document.createElement("td");
             const line = document.createElement("div");
             line.className = "ui-skeleton-line skeleton-cell";
-            if (j === 0 || j === 1 || j === 9) {
+            if (j === 0 || j === 1 || j === 8) {
               line.classList.add("long");
             } else if (j === 7 || j === 8) {
               line.classList.add("short");
@@ -174,7 +253,7 @@
         if (qty == null || !unit) return "—";
         const numeric = Number(qty);
         if (!Number.isFinite(numeric)) return "—";
-        const normalizedUnit = String(unit).trim().toLowerCase();
+        const normalizedUnit = normalizeUnit(unit);
         if (normalizedUnit === "tsp" || normalizedUnit === "tbsp" || normalizedUnit === "cup") {
           return `${numeric.toFixed(1)} ${unit}`;
         }
@@ -191,7 +270,7 @@
         if (qty == null || !unit) return "—";
         const numeric = Number(qty);
         if (!Number.isFinite(numeric)) return "—";
-        const normalizedUnit = String(unit).trim().toLowerCase();
+        const normalizedUnit = normalizeUnit(unit);
         if (normalizedUnit === "tsp" || normalizedUnit === "tbsp" || normalizedUnit === "cup") {
           return `${numeric.toFixed(1)} ${unit}`;
         }
@@ -203,7 +282,7 @@
         if (!Number.isFinite(numeric)) {
           return null;
         }
-        const normalizedUnit = String(unit || "").trim().toLowerCase();
+        const normalizedUnit = normalizeUnit(unit);
         const gPerUnit = MASS_UNITS_TO_G[normalizedUnit];
         if (!gPerUnit) {
           return null;
@@ -661,6 +740,199 @@
         return "1";
       }
 
+      function orderedInputStep(unit) {
+        const normalized = normalizeUnit(unit);
+        if (normalized === "kg" || normalized === "l" || normalized === "lb" || normalized === "oz" || normalized === "fl oz" || normalized === "qt" || normalized === "gal") {
+          return "0.1";
+        }
+        return "1";
+      }
+
+      function formatEditableQuantityValue(value) {
+        const numeric = Number(value);
+        if (!Number.isFinite(numeric)) {
+          return "";
+        }
+        if (Math.abs(numeric - Math.round(numeric)) < 1e-9) {
+          return String(Math.round(numeric));
+        }
+        return String(Math.round(numeric * 100) / 100);
+      }
+
+      function roundEditableQuantity(value) {
+        const numeric = Number(value);
+        if (!Number.isFinite(numeric)) {
+          return null;
+        }
+        return Math.round(numeric * 10000) / 10000;
+      }
+
+      function normalizeCountStylePurchaseUnit(unit) {
+        const normalized = normalizeUnit(unit);
+        if (!normalized) {
+          return "";
+        }
+        if (normalized === "piece" || normalized === "sprig" || normalized === "leaf" || normalized === "pinch") {
+          return "each";
+        }
+        if (
+          normalized === "each"
+          || normalized === "bag"
+          || normalized === "box"
+          || normalized === "case"
+          || normalized === "can"
+          || normalized === "packet"
+          || normalized === "pack"
+          || normalized === "bottle"
+          || normalized === "jug"
+          || normalized === "jar"
+          || normalized === "carton"
+          || normalized === "tub"
+          || normalized === "package"
+          || normalized === "bunch"
+          || normalized === "loaf"
+        ) {
+          return normalized;
+        }
+        return "";
+      }
+
+      function convertQuantityBetweenUnits(quantity, fromUnit, toUnit) {
+        const numeric = Number(quantity);
+        if (!Number.isFinite(numeric)) {
+          return null;
+        }
+        const normalizedFrom = normalizeUnit(fromUnit);
+        const normalizedTo = normalizeUnit(toUnit);
+        if (!normalizedFrom || !normalizedTo) {
+          return null;
+        }
+        if (normalizedFrom === normalizedTo) {
+          return numeric;
+        }
+        if (
+          Object.prototype.hasOwnProperty.call(MASS_UNITS_TO_G, normalizedFrom)
+          && Object.prototype.hasOwnProperty.call(MASS_UNITS_TO_G, normalizedTo)
+        ) {
+          return (numeric * MASS_UNITS_TO_G[normalizedFrom]) / MASS_UNITS_TO_G[normalizedTo];
+        }
+        if (
+          Object.prototype.hasOwnProperty.call(VOLUME_UNITS_TO_ML, normalizedFrom)
+          && Object.prototype.hasOwnProperty.call(VOLUME_UNITS_TO_ML, normalizedTo)
+        ) {
+          return (numeric * VOLUME_UNITS_TO_ML[normalizedFrom]) / VOLUME_UNITS_TO_ML[normalizedTo];
+        }
+        return null;
+      }
+
+      function suggestOrderedPurchaseAmount(quantity, unit, preferredUnit = null) {
+        const numeric = Number(quantity);
+        const normalizedUnit = normalizeUnit(unit);
+        const normalizedPreferredUnit = normalizeUnit(preferredUnit);
+
+        if (normalizedPreferredUnit) {
+          if (Number.isFinite(numeric) && numeric > 0) {
+            const converted = convertQuantityBetweenUnits(numeric, normalizedUnit, normalizedPreferredUnit);
+            if (converted != null) {
+              return {
+                qty: roundEditableQuantity(converted),
+                unit: normalizedPreferredUnit,
+              };
+            }
+            if (normalizeCountStylePurchaseUnit(normalizedPreferredUnit)) {
+              const fallbackQty = (
+                Object.prototype.hasOwnProperty.call(MASS_UNITS_TO_G, normalizedUnit)
+                || Object.prototype.hasOwnProperty.call(VOLUME_UNITS_TO_ML, normalizedUnit)
+              )
+                ? 1
+                : numeric;
+              return {
+                qty: roundEditableQuantity(fallbackQty),
+                unit: normalizedPreferredUnit,
+              };
+            }
+            return {
+              qty: roundEditableQuantity(numeric),
+              unit: normalizedPreferredUnit,
+            };
+          }
+          return { qty: null, unit: normalizedPreferredUnit };
+        }
+
+        if (Number.isFinite(numeric) && numeric > 0 && Object.prototype.hasOwnProperty.call(MASS_UNITS_TO_G, normalizedUnit)) {
+          const grams = numeric * MASS_UNITS_TO_G[normalizedUnit];
+          const targetUnit = grams >= MASS_UNITS_TO_G.lb ? "lb" : "oz";
+          return {
+            qty: roundEditableQuantity(grams / MASS_UNITS_TO_G[targetUnit]),
+            unit: targetUnit,
+          };
+        }
+        if (Number.isFinite(numeric) && numeric > 0 && Object.prototype.hasOwnProperty.call(VOLUME_UNITS_TO_ML, normalizedUnit)) {
+          const ml = numeric * VOLUME_UNITS_TO_ML[normalizedUnit];
+          const targetUnit = ml >= VOLUME_UNITS_TO_ML.gal
+            ? "gal"
+            : (ml >= VOLUME_UNITS_TO_ML.qt ? "qt" : "fl oz");
+          return {
+            qty: roundEditableQuantity(ml / VOLUME_UNITS_TO_ML[targetUnit]),
+            unit: targetUnit,
+          };
+        }
+        return {
+          qty: Number.isFinite(numeric) && numeric > 0 ? roundEditableQuantity(numeric) : null,
+          unit: normalizeCountStylePurchaseUnit(normalizedUnit) || "each",
+        };
+      }
+
+      function orderedUnitOptionsForItem(item, selectedUnit) {
+        const normalizedSelectedUnit = normalizeUnit(selectedUnit);
+        const normalizedBaseUnit = normalizeUnit(item?.to_buy_unit || item?.required_unit || normalizedSelectedUnit);
+        let options = COUNT_ORDERED_UNIT_OPTIONS;
+        if (Object.prototype.hasOwnProperty.call(MASS_UNITS_TO_G, normalizedBaseUnit)) {
+          options = MASS_ORDERED_UNIT_OPTIONS;
+        } else if (Object.prototype.hasOwnProperty.call(VOLUME_UNITS_TO_ML, normalizedBaseUnit)) {
+          options = VOLUME_ORDERED_UNIT_OPTIONS;
+        }
+        const merged = [...options];
+        if (normalizedSelectedUnit && !merged.includes(normalizedSelectedUnit)) {
+          merged.unshift(normalizedSelectedUnit);
+        }
+        return Array.from(new Set(merged.filter(Boolean)));
+      }
+
+      function resolveOrderedEditorState(item) {
+        const hasStoredQty = item?.ordered_qty != null && Number.isFinite(Number(item.ordered_qty));
+        const storedUnit = normalizeUnit(item?.ordered_unit || "");
+        const planningQty = Number(item?.to_buy_qty ?? item?.required_qty);
+        const planningUnit = normalizeUnit(item?.to_buy_unit || item?.required_unit || "");
+
+        let displayUnit = storedUnit;
+        if (!hasStoredQty && METRIC_ORDERED_UNITS.has(storedUnit)) {
+          displayUnit = "";
+        }
+
+        if (hasStoredQty) {
+          const preferredStoredUnit = storedUnit && !METRIC_ORDERED_UNITS.has(storedUnit) ? storedUnit : null;
+          const storedDisplay = suggestOrderedPurchaseAmount(Number(item.ordered_qty), storedUnit || planningUnit, preferredStoredUnit);
+          return {
+            qty: storedDisplay.qty,
+            unit: storedDisplay.unit || displayUnit || "each",
+          };
+        }
+
+        if (!displayUnit) {
+          const defaultDisplay = suggestOrderedPurchaseAmount(
+            Number.isFinite(planningQty) ? planningQty : 0,
+            planningUnit,
+          );
+          displayUnit = defaultDisplay.unit || "each";
+        }
+
+        return {
+          qty: null,
+          unit: displayUnit || "each",
+        };
+      }
+
       function createInventoryEditor(item) {
         const wrapper = document.createElement("div");
         wrapper.className = "inventory-editor";
@@ -697,6 +969,96 @@
         return wrapper;
       }
 
+      function createOrderedAmountEditor(item) {
+        const wrapper = document.createElement("div");
+        wrapper.className = "inventory-editor";
+
+        const editorState = resolveOrderedEditorState(item);
+        const input = document.createElement("input");
+        input.type = "number";
+        input.className = "form-control form-control-sm";
+        input.min = "0";
+        input.step = orderedInputStep(editorState.unit);
+        input.placeholder = "0";
+        input.value = formatEditableQuantityValue(editorState.qty);
+
+        let lastGoodValue = input.value;
+        const select = document.createElement("select");
+        select.className = "form-select form-select-sm";
+        const unitOptions = orderedUnitOptionsForItem(item, editorState.unit);
+        unitOptions.forEach((unitOption) => {
+          const option = document.createElement("option");
+          option.value = unitOption;
+          option.textContent = unitOption;
+          if (unitOption === editorState.unit) {
+            option.selected = true;
+          }
+          select.appendChild(option);
+        });
+        select.dataset.previousUnit = editorState.unit;
+
+        input.addEventListener("change", () => {
+          const raw = String(input.value || "").trim();
+          const selectedUnit = normalizeUnit(select.value);
+          if (!raw) {
+            lastGoodValue = "";
+            void updateShoppingItem(item.id, { orderedQty: null, orderedUnit: selectedUnit || null });
+            return;
+          }
+          const value = Number(raw);
+          if (!Number.isFinite(value) || value < 0) {
+            input.value = lastGoodValue;
+            setStatus("Amount ordered must be a non-negative number.", "err");
+            return;
+          }
+          const rounded = roundEditableQuantity(value);
+          input.value = formatEditableQuantityValue(rounded);
+          lastGoodValue = input.value;
+          void updateShoppingItem(item.id, { orderedQty: rounded, orderedUnit: selectedUnit || null });
+        });
+
+        select.addEventListener("change", () => {
+          const previousUnit = normalizeUnit(select.dataset.previousUnit || "");
+          const selectedUnit = normalizeUnit(select.value);
+          const raw = String(input.value || "").trim();
+
+          if (raw) {
+            const value = Number(raw);
+            if (!Number.isFinite(value) || value < 0) {
+              input.value = lastGoodValue;
+              if (previousUnit) {
+                select.value = previousUnit;
+              }
+              setStatus("Amount ordered must be a non-negative number.", "err");
+              return;
+            }
+
+            let nextValue = roundEditableQuantity(value);
+            const converted = convertQuantityBetweenUnits(value, previousUnit, selectedUnit);
+            if (converted != null) {
+              nextValue = roundEditableQuantity(converted);
+            } else if (normalizeCountStylePurchaseUnit(selectedUnit) && previousUnit !== selectedUnit) {
+              nextValue = 1;
+            }
+
+            input.value = formatEditableQuantityValue(nextValue);
+            lastGoodValue = input.value;
+            input.step = orderedInputStep(selectedUnit);
+            select.dataset.previousUnit = selectedUnit;
+            void updateShoppingItem(item.id, { orderedQty: nextValue, orderedUnit: selectedUnit || null });
+            return;
+          }
+
+          input.step = orderedInputStep(selectedUnit);
+          select.dataset.previousUnit = selectedUnit;
+          void updateShoppingItem(item.id, { orderedUnit: selectedUnit || null });
+        });
+
+        wrapper.appendChild(input);
+        wrapper.appendChild(select);
+        return wrapper;
+      }
+
       function sortItemsByIngredientNameAsc(items) {
         return [...items].sort((a, b) => {
           const aName = String(a.ingredient_name || "").trim();
@@ -717,7 +1079,7 @@
         if (!Number.isFinite(numericQty) || numericQty <= 0) {
           return false;
         }
-        const normalizedUnit = String(unit || "").trim().toLowerCase();
+        const normalizedUnit = normalizeUnit(unit);
         if (Object.prototype.hasOwnProperty.call(MASS_UNITS_TO_G, normalizedUnit)) {
           return (numericQty * MASS_UNITS_TO_G[normalizedUnit]) >= 2000;
         }
@@ -885,6 +1247,39 @@
         }
         const ingredientActions = document.createElement("div");
         ingredientActions.className = "ingredient-actions";
+
+        const ingredientMetrics = document.createElement("div");
+        ingredientMetrics.className = "ingredient-metrics";
+
+        const needMetric = document.createElement("div");
+        needMetric.className = "ingredient-metric";
+        const needLabel = document.createElement("span");
+        needLabel.className = "ingredient-metric-label";
+        needLabel.textContent = "Need";
+        const needChip = document.createElement("span");
+        needChip.className = "qty-chip";
+        needChip.textContent = formatNeededQty(item.required_qty, item.required_unit);
+        needMetric.appendChild(needLabel);
+        needMetric.appendChild(needChip);
+        ingredientMetrics.appendChild(needMetric);
+
+        const stockMetric = document.createElement("div");
+        stockMetric.className = "ingredient-metric";
+        const stockLabel = document.createElement("span");
+        stockLabel.className = "ingredient-metric-label";
+        stockLabel.textContent = "Stock";
+        stockMetric.appendChild(stockLabel);
+        if (inventoryEditable) {
+          stockMetric.appendChild(createInventoryEditor(item));
+        } else {
+          const stockChip = document.createElement("span");
+          stockChip.className = "qty-chip";
+          stockChip.textContent = formatNeededQty(item.in_stock_qty, item.in_stock_unit);
+          stockMetric.appendChild(stockChip);
+        }
+        ingredientMetrics.appendChild(stockMetric);
+        ingredientTd.appendChild(ingredientMetrics);
+
         const partialBadge = partialBuyBadgeData(item?.notes);
         if (partialBadge && Number.isFinite(partialBadge.percent)) {
           const badge = document.createElement("span");
@@ -895,18 +1290,6 @@
         ingredientActions.appendChild(createPartialSplitButton(item));
         ingredientTd.appendChild(ingredientActions);
         tr.appendChild(ingredientTd);
-
-        const requiredTd = document.createElement("td");
-        requiredTd.innerHTML = `<span class="qty-chip">${formatNeededQty(item.required_qty, item.required_unit)}</span>`;
-        tr.appendChild(requiredTd);
-
-        const stockTd = document.createElement("td");
-        if (inventoryEditable) {
-          stockTd.appendChild(createInventoryEditor(item));
-        } else {
-          stockTd.innerHTML = `<span class="qty-chip">${formatNeededQty(item.in_stock_qty, item.in_stock_unit)}</span>`;
-        }
-        tr.appendChild(stockTd);
 
         const buyMetricTd = document.createElement("td");
         buyMetricTd.innerHTML = `<span class="qty-chip buy">${formatNeededQty(item.to_buy_qty, item.to_buy_unit)}</span>`;
@@ -919,6 +1302,10 @@
         const sourceTd = document.createElement("td");
         sourceTd.appendChild(createVendorSelect(item));
         tr.appendChild(sourceTd);
+
+        const orderedAmountTd = document.createElement("td");
+        orderedAmountTd.appendChild(createOrderedAmountEditor(item));
+        tr.appendChild(orderedAmountTd);
 
         const orderedTd = document.createElement("td");
         orderedTd.className = "text-center";
@@ -953,7 +1340,7 @@
         const headerTr = document.createElement("tr");
         headerTr.className = "category-row";
         const headerTd = document.createElement("td");
-        headerTd.colSpan = 10;
+        headerTd.colSpan = 9;
 
         const heading = document.createElement("div");
         heading.className = "category-heading";
@@ -1022,7 +1409,7 @@
         if (!allItems.length) {
           const tr = document.createElement("tr");
           const td = document.createElement("td");
-          td.colSpan = 10;
+          td.colSpan = 9;
           td.className = "text-muted small py-3";
           td.textContent = "No items found for this shopping list.";
           tr.appendChild(td);
@@ -1034,7 +1421,7 @@
         if (showLaterOnly && !laterFilteredItems.length) {
           const tr = document.createElement("tr");
           const td = document.createElement("td");
-          td.colSpan = 10;
+          td.colSpan = 9;
           td.className = "text-muted small py-3";
           td.textContent = "No items marked for later purchase.";
           tr.appendChild(td);
@@ -1046,7 +1433,7 @@
         if (!visibleItems.length) {
           const tr = document.createElement("tr");
           const td = document.createElement("td");
-          td.colSpan = 10;
+          td.colSpan = 9;
           td.className = "text-muted small py-3";
           td.textContent = `No items in ${selectedIngredientCategory}.`;
           tr.appendChild(td);
@@ -1060,7 +1447,7 @@
             const sourceTr = document.createElement("tr");
             sourceTr.className = "source-row";
             const sourceTd = document.createElement("td");
-            sourceTd.colSpan = 10;
+            sourceTd.colSpan = 9;
             sourceTd.textContent = `Source: ${sourceEntry.source} (${sourceEntry.totalItems} items)`;
             sourceTr.appendChild(sourceTd);
             shoppingBody.appendChild(sourceTr);
@@ -1112,6 +1499,54 @@
             shoppingTableWrap.classList.remove("is-loading");
           }
           throw error;
+        }
+      }
+
+      async function refreshSelectedShoppingList() {
+        const targetListId = Number(selectedListIdForActions() || 0);
+        if (!Number.isFinite(targetListId) || targetListId <= 0) {
+          const count = await loadShoppingLists({ showBusy: true });
+          setStatus(`Lists refreshed. ${count} available.`, "ok");
+          return;
+        }
+
+        try {
+          setButtonBusy(refreshListsBtn, true, "Refreshing");
+          setStatus("Refreshing shopping list from current retreat menu...", "info", { busy: true });
+          renderShoppingSkeletonRows(10);
+          const response = await fetch(apiUrl(`/api/shopping-lists/${targetListId}/refresh`), {
+            method: "POST",
+            credentials: "include",
+          });
+          if (!response.ok) {
+            throw new Error(await parseApiError(response));
+          }
+
+          const detail = await response.json();
+          selectedShoppingItemIds = new Set();
+          visibleShoppingItemIds = new Set();
+          activeShoppingDetail = detail;
+          activeListId = detail.id;
+          dropdownSelectedListId = Number(detail.id);
+          activeListPhase = String(detail.phase || "").trim().toLowerCase() || null;
+          updateListActionStates();
+          setSummary(detail);
+          renderShoppingRows(detail);
+          await loadShoppingLists();
+
+          const missing = Array.isArray(detail.missing_recipes) ? detail.missing_recipes : [];
+          if (missing.length) {
+            setStatus(`Shopping list refreshed with ${missing.length} missing recipes.`, "err");
+          } else {
+            setStatus(`Shopping list refreshed. ${Number(detail.item_count || 0)} items.`, "ok");
+          }
+        } catch (error) {
+          if (shoppingTableWrap) {
+            shoppingTableWrap.classList.remove("is-loading");
+          }
+          setStatus(error instanceof Error ? error.message : String(error), "err");
+        } finally {
+          setButtonBusy(refreshListsBtn, false, "Refreshing");
         }
       }
 
@@ -1726,9 +2161,7 @@
       }
 
       refreshListsBtn.addEventListener("click", () => {
-        void loadShoppingLists({ showBusy: true })
-          .then(() => setStatus("Lists refreshed.", "ok"))
-          .catch((error) => setStatus(error instanceof Error ? error.message : String(error), "err"));
+        void refreshSelectedShoppingList();
       });
 
       void bootstrap();

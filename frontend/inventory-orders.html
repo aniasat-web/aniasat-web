@@ -240,32 +240,6 @@
         background: #fffefc !important;
       }
 
-      .purchase-unit-select {
-        width: 100%;
-        font-size: 0.75rem;
-        padding: 0.22rem 0.35rem;
-        background: #fffefc !important;
-      }
-
-      .ordered-qty-stack {
-        display: grid;
-        gap: 0.32rem;
-      }
-
-      .order-unit-inline {
-        display: grid;
-        grid-template-columns: 94px 108px;
-        gap: 0.38rem;
-        align-items: center;
-      }
-
-      .qty-helper {
-        font-size: 0.68rem;
-        color: var(--orders-muted);
-        line-height: 1.25;
-        margin-top: 0.02rem;
-      }
-
       .to-order-cell { font-weight: 800; color: #9a3412; }
       .to-order-zero { color: var(--orders-muted); font-weight: 500; }
       .url-input { min-width: 240px; font-size: 0.78rem; background: #fffefc !important; }
@@ -343,9 +317,6 @@
           grid-template-columns: 1fr;
         }
 
-        .order-unit-inline {
-          grid-template-columns: 1fr 1fr;
-        }
       }
     </style>
     <link rel="stylesheet" href="assets/ui-theme.css" />
@@ -815,31 +786,20 @@
         row.purchaseUnit = normalizePurchaseUnit(row.purchaseUnit);
         row.unitsPerPurchase = asNonNegativeNumber(row.unitsPerPurchase);
         if (row.unitsPerPurchase <= 0) row.unitsPerPurchase = 1;
+        if (row.purchaseUnit === "unit") row.unitsPerPurchase = 1;
         row.orderedQty = asNonNegativeNumber(row.orderedQty);
         row.receivedQty = asNonNegativeNumber(row.receivedQty);
-        row.orderedPurchaseQty = asNonNegativeNumber(row.orderedPurchaseQty);
-        row.receivedPurchaseQty = asNonNegativeNumber(row.receivedPurchaseQty);
-
-        if (row.purchaseUnit === "unit") {
-          row.unitsPerPurchase = 1;
-          if (row.orderedPurchaseQty <= 0 && row.orderedQty > 0) row.orderedPurchaseQty = row.orderedQty;
-          row.orderedQty = asNonNegativeNumber(row.orderedPurchaseQty);
-          if (row.receivedPurchaseQty <= 0 && row.receivedQty > 0) row.receivedPurchaseQty = row.receivedQty;
-          row.receivedQty = asNonNegativeNumber(row.receivedPurchaseQty);
-        } else {
-          if (row.orderedPurchaseQty <= 0 && row.orderedQty > 0) row.orderedPurchaseQty = row.orderedQty / row.unitsPerPurchase;
-          if (row.receivedPurchaseQty <= 0 && row.receivedQty > 0) row.receivedPurchaseQty = row.receivedQty / row.unitsPerPurchase;
-          row.orderedQty = asNonNegativeNumber(row.orderedPurchaseQty * row.unitsPerPurchase);
-          row.receivedQty = asNonNegativeNumber(row.receivedPurchaseQty * row.unitsPerPurchase);
-        }
 
         if (row.receivedQty > row.orderedQty) {
           row.orderedQty = row.receivedQty;
-          if (row.purchaseUnit === "unit") {
-            row.orderedPurchaseQty = row.receivedQty;
-          } else {
-            row.orderedPurchaseQty = row.unitsPerPurchase > 0 ? row.receivedQty / row.unitsPerPurchase : row.receivedQty;
-          }
+        }
+
+        if (row.purchaseUnit === "unit") {
+          row.orderedPurchaseQty = row.orderedQty;
+          row.receivedPurchaseQty = row.receivedQty;
+        } else {
+          row.orderedPurchaseQty = row.unitsPerPurchase > 0 ? asNonNegativeNumber(row.orderedQty / row.unitsPerPurchase) : row.orderedQty;
+          row.receivedPurchaseQty = row.unitsPerPurchase > 0 ? asNonNegativeNumber(row.receivedQty / row.unitsPerPurchase) : row.receivedQty;
         }
 
         row.toOrderQty = Math.max(0, Math.round((row.requiredQty - row.currentStock) * 1000) / 1000);
@@ -1046,17 +1006,6 @@
         return headerTr;
       }
 
-      function buildOrderedQtyHelper(row) {
-        var unit = String(row.purchaseUnit || "unit");
-        var orderedUnitLabel = unit === "unit" ? "unit" : unit;
-        var helper = "Order as " + orderedUnitLabel;
-        if (unit !== "unit") {
-          helper += " • " + formatQty(row.unitsPerPurchase) + " " + (row.unit || "units") + "/" + orderedUnitLabel;
-        }
-        helper += " • = " + formatQty(row.orderedQty) + " " + (row.unit || "units");
-        return helper;
-      }
-
       function renderTable() {
         orderBody.innerHTML = "";
         var rows = getFilteredRows();
@@ -1115,21 +1064,8 @@
 
             var tdOrderedQty = document.createElement("td");
             tdOrderedQty.innerHTML =
-              '<div class="ordered-qty-stack">' +
-                '<input type="number" min="0" step="0.01" class="form-control form-control-sm qty-input" ' +
-                'data-item-id="' + row.itemId + '" data-field="ordered-purchase" value="' + escapeHtml(formatQty(row.orderedPurchaseQty)) + '">' +
-                '<div class="order-unit-inline">' +
-                  '<select class="form-select form-select-sm purchase-unit-select" data-item-id="' + row.itemId + '" data-field="purchase-unit" title="Order unit">' +
-                    '<option value="unit"' + (row.purchaseUnit === "unit" ? " selected" : "") + '>unit</option>' +
-                    '<option value="case"' + (row.purchaseUnit === "case" ? " selected" : "") + '>case</option>' +
-                    '<option value="pack"' + (row.purchaseUnit === "pack" ? " selected" : "") + '>pack</option>' +
-                  '</select>' +
-                  '<input type="number" min="0.001" step="0.01" class="form-control form-control-sm qty-input" ' +
-                  'data-item-id="' + row.itemId + '" data-field="units-per-purchase" value="' + escapeHtml(formatQty(row.unitsPerPurchase)) + '" title="Units per order"' +
-                  (row.purchaseUnit === "unit" ? " disabled" : "") + '>' +
-                '</div>' +
-                '<div class="qty-helper">' + escapeHtml(buildOrderedQtyHelper(row)) + '</div>' +
-              '</div>';
+              '<input type="number" min="0" step="0.01" class="form-control form-control-sm qty-input" ' +
+              'data-item-id="' + row.itemId + '" data-field="ordered" value="' + escapeHtml(formatQty(row.orderedQty)) + '" title="Ordered quantity in the unit shown in the Units column">';
             tr.appendChild(tdOrderedQty);
 
             var tdUrl = document.createElement("td");
@@ -1257,8 +1193,8 @@
           receivedQuantity: row.receivedQty,
           purchaseUnit: row.purchaseUnit || "unit",
           unitsPerPurchase: row.unitsPerPurchase > 0 ? row.unitsPerPurchase : 1,
-          orderedPurchaseQuantity: row.orderedPurchaseQty,
-          receivedPurchaseQuantity: row.receivedPurchaseQty,
+          orderedPurchaseQuantity: row.purchaseUnit === "unit" ? row.orderedQty : row.orderedPurchaseQty,
+          receivedPurchaseQuantity: row.purchaseUnit === "unit" ? row.receivedQty : row.receivedPurchaseQty,
           orderUrlOverride: String(row.orderUrlOverride || "").trim() || null,
           notes: String(row.notes || "").trim() || null,
         };
@@ -1433,14 +1369,11 @@
           "Category",
           "Barcode",
           "Unit",
-          "Purchase Unit",
-          "Units per Purchase",
           "Current Stock Snapshot",
           "Current Stock Live",
           "Total Required Quantity",
           "Need to Order Qty",
-          "Ordered Purchase Qty",
-          "Ordered Qty (Units)",
+          "Ordered Qty",
           "Purchase URL",
           "Item Status",
           "Notes",
@@ -1456,13 +1389,10 @@
             row.categoryName || "",
             row.barcode || "",
             row.unit || "",
-            row.purchaseUnit || "unit",
-            formatQty(row.unitsPerPurchase),
             formatQty(row.currentStock),
             formatQty(row.liveStock),
             formatQty(row.requiredQty),
             formatQty(row.toOrderQty),
-            formatQty(row.orderedPurchaseQty),
             formatQty(row.orderedQty),
             row.effectiveUrl || "",
             row.status || "",
@@ -1621,20 +1551,8 @@
           renderTable();
           return;
         }
-        if (field === "purchase-unit" && target instanceof HTMLSelectElement) {
-          row.purchaseUnit = normalizePurchaseUnit(target.value);
-          recomputeRow(row);
-          renderTable();
-          return;
-        }
-        if (field === "units-per-purchase" && target instanceof HTMLInputElement) {
-          row.unitsPerPurchase = asNonNegativeNumber(target.value);
-          recomputeRow(row);
-          renderTable();
-          return;
-        }
-        if (field === "ordered-purchase" && target instanceof HTMLInputElement) {
-          row.orderedPurchaseQty = asNonNegativeNumber(target.value);
+        if (field === "ordered" && target instanceof HTMLInputElement) {
+          row.orderedQty = asNonNegativeNumber(target.value);
           recomputeRow(row);
           renderTable();
           return;
@@ -1657,15 +1575,10 @@
           }
           if (target.checked) {
             if (row.orderedQty <= 0) {
-              var targetUnits = row.toOrderQty > 0 ? row.toOrderQty : row.requiredQty;
-              if (row.purchaseUnit === "unit") {
-                row.orderedPurchaseQty = targetUnits;
-              } else {
-                row.orderedPurchaseQty = targetUnits / (row.unitsPerPurchase > 0 ? row.unitsPerPurchase : 1);
-              }
+              row.orderedQty = row.toOrderQty > 0 ? row.toOrderQty : row.requiredQty;
             }
           } else {
-            row.orderedPurchaseQty = 0;
+            row.orderedQty = 0;
           }
           recomputeRow(row);
           renderTable();

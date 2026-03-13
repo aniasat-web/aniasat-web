@@ -133,6 +133,7 @@ CREATE TABLE IF NOT EXISTS shopping_lists (
     retreat_plan_id INTEGER REFERENCES retreat_plans(id) ON DELETE SET NULL,
     name TEXT NOT NULL,
     phase TEXT NOT NULL DEFAULT 'bulk',
+    generation_config_json TEXT,
     status TEXT NOT NULL DEFAULT 'draft',
     created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (retreat_id) REFERENCES retreats(id) ON DELETE SET NULL
@@ -148,6 +149,8 @@ CREATE TABLE IF NOT EXISTS shopping_list_items (
     in_stock_unit TEXT,
     to_buy_qty REAL,
     to_buy_unit TEXT,
+    ordered_qty REAL,
+    ordered_unit TEXT,
     vendor_id INTEGER,
     owner TEXT,
     pickup_date TEXT,

@@ -675,6 +675,7 @@
             <p class="section-note mb-0">Select an order, keep the table on actionable rows by default, and save purchasing progress back to the same order record.</p>
           </div>
           <div class="toolbar-actions">
+            <button id="deleteOrderBtn" type="button" class="btn btn-sm btn-outline-danger"><i class="fa-solid fa-trash me-1"></i>Delete Order</button>
             <button id="openPlanningBtn" type="button" class="btn btn-sm btn-outline-primary"><i class="fa-solid fa-list-check me-1"></i>Open Planning View</button>
             <button id="exportCsvBtn" type="button" class="btn btn-sm btn-outline-primary"><i class="fa-solid fa-file-csv me-1"></i>Export CSV</button>
             <button id="refreshBtn" type="button" class="btn btn-sm btn-outline-secondary"><i class="fa-solid fa-arrows-rotate me-1"></i>Refresh</button>
@@ -744,6 +745,7 @@
       var statusFilters = document.getElementById("statusFilters");
       var categoryFilters = document.getElementById("categoryFilters");
       var purchasingBody = document.getElementById("purchasingBody");
+      var deleteOrderBtn = document.getElementById("deleteOrderBtn");
       var openPlanningBtn = document.getElementById("openPlanningBtn");
       var exportCsvBtn = document.getElementById("exportCsvBtn");
       var refreshBtn = document.getElementById("refreshBtn");
@@ -1130,12 +1132,21 @@
         return asNonNegativeNumber(Math.ceil(targetUnits / unitsPerPurchase));
       }
 
+      function updateActionButtons() {
+        var hasActiveOrder = Boolean(activeOrder && activeOrder.id);
+        if (deleteOrderBtn) deleteOrderBtn.disabled = !hasActiveOrder;
+        if (openPlanningBtn) openPlanningBtn.disabled = !hasActiveOrder;
+        if (exportCsvBtn) exportCsvBtn.disabled = !hasActiveOrder;
+        if (saveBtn) saveBtn.disabled = !hasActiveOrder;
+      }
+
       function renderHeaderDetails() {
         if (!activeOrder) {
           currentOrderName.innerHTML = '<i class="fa-solid fa-list-check"></i><span>No order selected</span>';
           currentOrderStatus.innerHTML = '<i class="fa-solid fa-signal"></i><span>Status: --</span>';
           currentOrderUpdated.innerHTML = '<i class="fa-solid fa-clock"></i><span>Updated: --</span>';
           orderNotesText.textContent = "Order notes will appear here.";
+          updateActionButtons();
           return;
         }
 
@@ -1143,6 +1154,7 @@
         currentOrderStatus.innerHTML = '<i class="fa-solid fa-signal"></i><span>Status: ' + escapeHtml(activeOrder.status || "--") + '</span>';
         currentOrderUpdated.innerHTML = '<i class="fa-solid fa-clock"></i><span>Updated: ' + escapeHtml(formatDateTime(activeOrder.updated_at)) + '</span>';
         orderNotesText.textContent = activeOrder.notes || "No order-level notes.";
+        updateActionButtons();
       }
 
       function renderTable() {
@@ -1347,6 +1359,32 @@
         setStatus("Purchasing progress saved.", "ok");
       }
 
+      async function deleteActiveOrder() {
+        if (!activeOrder || !activeOrder.id) throw new Error("No active order selected.");
+        var orderId = Number(activeOrder.id);
+        var orderName = String(activeOrder.name || "").trim() || ("Order #" + orderId);
+        var confirmed = window.confirm('Delete "' + orderName + '"? This hides the order from the app.');
+        if (!confirmed) return;
+
+        setStatus("Deleting order...", "info");
+        var response = await fetch(apiUrl("/api/inventory/orders/" + orderId), {
+          method: "DELETE",
+          credentials: "include",
+        });
+        if (!response.ok) throw new Error(await parseApiError(response));
+        var deleted = await response.json();
+
+        activeOrder = null;
+        orderRows = [];
+        purchasingBody.innerHTML = "";
+        updatePageUrl(null);
+        renderHeaderDetails();
+        renderCategoryFilters();
+        renderTable();
+        await refreshAll({ preserveOrder: false });
+        setStatus('Deleted "' + (deleted.name || orderName) + '".', "ok");
+      }
+
       function exportVisibleRowsToCsv() {
         if (!activeOrder || !activeOrder.id) throw new Error("No active order selected.");
         var rows = getFilteredRows();
@@ -1544,6 +1582,12 @@
       saveBtn.addEventListener("click", function () {
         void saveProgress().catch(function (error) {
           setStatus(error instanceof Error ? error.message : "Could not save purchaser updates.", "err");
+        });
+      });
+
+      deleteOrderBtn.addEventListener("click", function () {
+        void deleteActiveOrder().catch(function (error) {
+          setStatus(error instanceof Error ? error.message : "Could not delete order.", "err");
         });
       });
 

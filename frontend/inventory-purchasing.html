@@ -217,6 +217,48 @@
         color: #fff;
       }
 
+      .table-lane-guide {
+        display: grid;
+        grid-template-columns: 390px minmax(850px, 1fr);
+        border: 1px solid #dfe7e1;
+        border-radius: 0.95rem;
+        overflow: hidden;
+        margin-bottom: 0.7rem;
+      }
+
+      .lane-guide-block {
+        display: flex;
+        align-items: center;
+        gap: 0.55rem;
+        padding: 0.6rem 0.85rem;
+        font-size: 0.72rem;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+      }
+
+      .lane-guide-planner {
+        background: linear-gradient(90deg, rgba(245, 241, 233, 0.98), rgba(252, 249, 243, 0.98));
+        color: #6b5a3a;
+      }
+
+      .lane-guide-purchaser {
+        background: linear-gradient(90deg, rgba(222, 241, 228, 0.98), rgba(239, 248, 241, 0.98));
+        color: #1e5139;
+        border-left: 3px solid #aec7b5;
+      }
+
+      .lane-guide-icon {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 1.45rem;
+        height: 1.45rem;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.72);
+        font-size: 0.72rem;
+      }
+
       .table-wrap {
         max-height: 70vh;
         overflow: auto;
@@ -423,12 +465,17 @@
       }
 
       .context-end {
-        border-right: 3px solid #d6e1d9;
+        border-right: 4px solid #d8d0bf;
+      }
+
+      .planner-context-head {
+        background: linear-gradient(180deg, rgba(244, 239, 229, 0.98), rgba(250, 247, 240, 0.98)) !important;
+        box-shadow: inset 0 -1px 0 #ddd5c8;
       }
 
       .purchase-action-head {
-        background: linear-gradient(180deg, rgba(222, 241, 228, 0.98), rgba(235, 247, 239, 0.98)) !important;
-        box-shadow: inset 0 -1px 0 #c6ddce;
+        background: linear-gradient(180deg, rgba(214, 238, 221, 0.99), rgba(231, 246, 236, 0.99)) !important;
+        box-shadow: inset 0 -1px 0 #bfd7c7;
       }
 
       .order-qty-col {
@@ -470,28 +517,42 @@
         border-left: 3px solid #b7ccbd !important;
       }
 
+      .planner-context-cell {
+        background-image: linear-gradient(180deg, rgba(249, 246, 240, 0.92), rgba(255, 255, 255, 0.96));
+      }
+
+      .item-row:nth-of-type(even) td.planner-context-cell {
+        background-image: linear-gradient(180deg, rgba(243, 238, 229, 0.96), rgba(252, 250, 245, 0.98));
+      }
+
+      .item-row:hover td.planner-context-cell {
+        background: linear-gradient(180deg, #fff7eb, #fffdf8);
+      }
+
       .purchase-action-cell {
-        background-image: linear-gradient(180deg, rgba(220, 240, 226, 0.74), rgba(233, 246, 237, 0.3));
+        background-image: linear-gradient(180deg, rgba(212, 236, 219, 0.82), rgba(232, 246, 236, 0.56));
       }
 
       .item-row:nth-of-type(even) td.purchase-action-cell {
-        background-image: linear-gradient(180deg, rgba(214, 236, 221, 0.82), rgba(228, 243, 233, 0.34));
+        background-image: linear-gradient(180deg, rgba(206, 231, 214, 0.86), rgba(226, 242, 231, 0.58));
       }
 
       .item-row:hover td.purchase-action-cell {
-        background: linear-gradient(180deg, #eaf8ed, #def1e4);
+        background: linear-gradient(180deg, #e7f7eb, #d7ecde);
       }
 
       .purchase-action-cell .qty-input,
       .purchase-action-cell .purchase-unit-select,
-      .purchase-action-cell .url-input {
+      .purchase-action-cell .url-input,
+      .purchase-action-cell .notes-input {
         background: #f4fbf5 !important;
         border-color: #bad4c0;
       }
 
       .purchase-action-cell .qty-input:focus,
       .purchase-action-cell .purchase-unit-select:focus,
-      .purchase-action-cell .url-input:focus {
+      .purchase-action-cell .url-input:focus,
+      .purchase-action-cell .notes-input:focus {
         border-color: #7eb18c;
         box-shadow: 0 0 0 0.18rem rgba(38, 96, 75, 0.12);
       }
@@ -538,6 +599,15 @@
         background: #fffefc !important;
       }
 
+      .notes-input {
+        min-width: 180px;
+        font-size: 0.78rem;
+      }
+
+      .purchase-action-check {
+        accent-color: var(--purchasing-primary);
+      }
+
       .btn-primary {
         background: var(--purchasing-primary);
         border-color: var(--purchasing-primary);
@@ -568,6 +638,15 @@
 
         .toolbar-grid {
           grid-template-columns: 1fr;
+        }
+
+        .table-lane-guide {
+          grid-template-columns: 1fr;
+        }
+
+        .lane-guide-purchaser {
+          border-left: 0;
+          border-top: 3px solid #aec7b5;
         }
 
         .table-wrap {
@@ -733,20 +812,30 @@
       </section>
 
       <section class="surface-card p-4">
+        <div class="table-lane-guide" aria-hidden="true">
+          <div class="lane-guide-block lane-guide-planner">
+            <span class="lane-guide-icon"><i class="fa-solid fa-clipboard-list"></i></span>
+            <span>Planner Inputs</span>
+          </div>
+          <div class="lane-guide-block lane-guide-purchaser">
+            <span class="lane-guide-icon"><i class="fa-solid fa-cart-shopping"></i></span>
+            <span>Purchaser Updates</span>
+          </div>
+        </div>
         <div class="table-wrap">
           <table class="purchasing-table table table-sm align-middle sticky-head">
             <thead>
               <tr>
-                <th class="item-col"><span class="table-head-label single-line"><span class="table-head-line">Item</span></span></th>
-                <th class="need-col"><span class="table-head-label"><span class="table-head-line">Need to</span><span class="table-head-line">Order</span></span></th>
-                <th class="unit-col context-end"><span class="table-head-label single-line"><span class="table-head-line">Unit</span></span></th>
+                <th class="item-col planner-context-head"><span class="table-head-label single-line"><span class="table-head-line">Item</span></span></th>
+                <th class="need-col planner-context-head"><span class="table-head-label"><span class="table-head-line">Need to</span><span class="table-head-line">Order</span></span></th>
+                <th class="unit-col context-end planner-context-head"><span class="table-head-label single-line"><span class="table-head-line">Unit</span></span></th>
                 <th class="purchase-action-head purchase-action-start units-ordered-col"><span class="table-head-label"><span class="table-head-line">Order</span><span class="table-head-line">Unit</span></span></th>
                 <th class="purchase-action-head order-unit-size-col"><span class="table-head-label"><span class="table-head-line">Order Unit</span><span class="table-head-line">Size</span></span></th>
                 <th class="purchase-action-head order-qty-col"><span class="table-head-label"><span class="table-head-line">Order</span><span class="table-head-line">Quantity</span></span></th>
                 <th class="purchase-action-head total-ordered-col"><span class="table-head-label"><span class="table-head-line">Total</span><span class="table-head-line">Units</span><span class="table-head-line">Ordered</span></span></th>
                 <th class="purchase-action-head"><span class="table-head-label"><span class="table-head-line">Purchase</span><span class="table-head-line">URL</span></span></th>
-                <th><span class="table-head-label single-line"><span class="table-head-line">Ordered?</span></span></th>
-                <th><span class="table-head-label single-line"><span class="table-head-line">Notes</span></span></th>
+                <th class="purchase-action-head"><span class="table-head-label single-line"><span class="table-head-line">Ordered?</span></span></th>
+                <th class="purchase-action-head"><span class="table-head-label single-line"><span class="table-head-line">Notes</span></span></th>
               </tr>
             </thead>
             <tbody id="purchasingBody"></tbody>
@@ -1200,7 +1289,7 @@
             tr.dataset.itemId = String(row.itemId);
 
             var tdItem = document.createElement("td");
-            tdItem.className = "item-col";
+            tdItem.className = "item-col planner-context-cell";
             tdItem.title = [
               row.name || "",
               row.barcode ? "Barcode: " + row.barcode : "",
@@ -1210,7 +1299,7 @@
             tr.appendChild(tdItem);
 
             var tdToOrder = document.createElement("td");
-            tdToOrder.className = "need-col";
+            tdToOrder.className = "need-col planner-context-cell";
             tdToOrder.innerHTML =
               '<span class="to-order-chip' + (row.toOrderQty > 0 ? "" : " done") + '">' +
               escapeHtml(formatQty(row.toOrderQty)) +
@@ -1218,7 +1307,7 @@
             tr.appendChild(tdToOrder);
 
             var tdUnit = document.createElement("td");
-            tdUnit.className = "unit-col context-end";
+            tdUnit.className = "unit-col context-end planner-context-cell";
             tdUnit.innerHTML = '<span class="unit-chip">' + escapeHtml(row.unit || "units") + '</span>';
             tr.appendChild(tdUnit);
 
@@ -1270,15 +1359,16 @@
             tr.appendChild(tdUrl);
 
             var tdOrderedFlag = document.createElement("td");
-            tdOrderedFlag.className = "text-center";
+            tdOrderedFlag.className = "purchase-action-cell text-center";
             tdOrderedFlag.innerHTML =
-              '<input type="checkbox" class="form-check-input" data-item-id="' + row.itemId + '" data-field="ordered-flag" ' +
+              '<input type="checkbox" class="form-check-input purchase-action-check" data-item-id="' + row.itemId + '" data-field="ordered-flag" ' +
               (row.orderedQty > 0 ? "checked" : "") + '>';
             tr.appendChild(tdOrderedFlag);
 
             var tdNotes = document.createElement("td");
+            tdNotes.className = "purchase-action-cell";
             tdNotes.innerHTML =
-              '<input type="text" class="form-control form-control-sm" data-item-id="' + row.itemId + '" data-field="notes" ' +
+              '<input type="text" class="form-control form-control-sm notes-input" data-item-id="' + row.itemId + '" data-field="notes" ' +
               'value="' + escapeHtml(row.notes || "") + '" placeholder="Vendor / purchaser notes">';
             tr.appendChild(tdNotes);
 

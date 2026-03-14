@@ -9267,4 +9267,5 @@ def delete_inventory_item(
 
 
 if FRONTEND_DIR.exists():
+    # Static inventory pages are served from the repo-level frontend directory.
     app.mount("/", StaticFiles(directory=str(FRONTEND_DIR), html=True), name="frontend")

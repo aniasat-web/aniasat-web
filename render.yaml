@@ -3,6 +3,10 @@ services:
     name: blossom-foundation
     runtime: python
     rootDir: backend
+    buildFilter:
+      paths:
+        - backend/**
+        - frontend/**
     buildCommand: pip install -r requirements.txt
     startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
     envVars:

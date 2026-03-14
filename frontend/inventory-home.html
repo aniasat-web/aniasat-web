@@ -236,8 +236,7 @@
                 <li><a class="dropdown-item" href="inventory.html?full=1"><i class="fa-solid fa-clipboard-list me-2"></i> Full Inventory</a></li>
                 <li><a class="dropdown-item" href="inventory-orders.html"><i class="fa-solid fa-list-check me-2"></i> Orders Planning</a></li>
                 <li><a class="dropdown-item" href="inventory-purchasing.html"><i class="fa-solid fa-cart-shopping me-2"></i> Purchasing</a></li>
-                <li><a class="dropdown-item" href="inventory-receiving.html"><i class="fa-solid fa-truck-ramp-box me-2"></i> Receiving</a></li>
-                <li><a class="dropdown-item" href="inventory-add.html"><i class="fa-solid fa-plus me-2"></i> Putaway / Add</a></li>
+                <li><a class="dropdown-item" href="inventory-receiving.html"><i class="fa-solid fa-truck-ramp-box me-2"></i> Receive / Put Away</a></li>
                 <li><a class="dropdown-item" href="inventory-remove.html"><i class="fa-solid fa-minus me-2"></i> Remove Inventory</a></li>
                 <li><a class="dropdown-item" href="inventory-baseline.html"><i class="fa-solid fa-barcode me-2"></i> Baseline Scan</a></li>
               </ul>
@@ -346,27 +345,17 @@
           button: "Open Purchasing",
         },
         {
-          title: "4. Receiving",
-          description: "Record what actually arrived for each order line, including partial deliveries.",
+          title: "4. Receive / Put Away",
+          description: "Record what actually arrived, then move shelved items into inventory from the same workspace.",
           path: "inventory-receiving.html",
           icon: "fa-truck-ramp-box",
           badge: "Ops",
           color: "#0d9488",
           bg: "#ccfbf1",
-          button: "Open Receiving",
+          button: "Open Intake",
         },
         {
-          title: "5. Putaway / Add",
-          description: "Take received items to shelf locations and apply quantities into current inventory.",
-          path: "inventory-add.html",
-          icon: "fa-boxes-packing",
-          badge: "Planner",
-          color: "#15803d",
-          bg: "#dcfce7",
-          button: "Open Putaway",
-        },
-        {
-          title: "6. Remove Inventory",
+          title: "5. Remove Inventory",
           description: "Use during retreat operations to reduce inventory when supplies are consumed.",
           path: "inventory-remove.html",
           icon: "fa-minus",
@@ -376,7 +365,7 @@
           button: "Open Remove Inventory",
         },
         {
-          title: "7. Baseline Scan",
+          title: "6. Baseline Scan",
           description: "Volunteer audit workflow for periodic barcode cleanup, verification, and catch-up corrections.",
           path: "inventory-baseline.html",
           icon: "fa-barcode",

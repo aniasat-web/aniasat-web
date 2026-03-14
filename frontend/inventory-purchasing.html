@@ -695,8 +695,7 @@
                 <li><a class="dropdown-item" href="inventory.html?full=1"><i class="fa-solid fa-clipboard-list me-2"></i> Full Inventory</a></li>
                 <li><a class="dropdown-item" href="inventory-orders.html"><i class="fa-solid fa-list-check me-2"></i> Orders Planning</a></li>
                 <li><a class="dropdown-item" href="inventory-purchasing.html"><i class="fa-solid fa-cart-shopping me-2"></i> Purchasing</a></li>
-                <li><a class="dropdown-item" href="inventory-receiving.html"><i class="fa-solid fa-truck-ramp-box me-2"></i> Receiving</a></li>
-                <li><a class="dropdown-item" href="inventory-add.html"><i class="fa-solid fa-plus me-2"></i> Putaway / Add</a></li>
+                <li><a class="dropdown-item" href="inventory-receiving.html"><i class="fa-solid fa-truck-ramp-box me-2"></i> Receive / Put Away</a></li>
                 <li><a class="dropdown-item" href="inventory-remove.html"><i class="fa-solid fa-minus me-2"></i> Remove Inventory</a></li>
                 <li><a class="dropdown-item" href="inventory-baseline.html"><i class="fa-solid fa-barcode me-2"></i> Baseline Scan</a></li>
               </ul>
@@ -1385,10 +1384,13 @@
 
       function toOrderItemPayload(row) {
         return {
-          inventoryItemId: row.itemId,
+          itemType: "STANDALONE_INVENTORY",
+          itemId: row.itemId,
           requiredQuantity: row.requiredQty,
           orderedQuantity: row.orderedQty,
           receivedQuantity: row.receivedQty,
+          appliedQuantity: 0,
+          unit: row.unit || null,
           purchaseUnit: row.purchaseUnit || "unit",
           unitsPerPurchase: row.unitsPerPurchase > 0 ? row.unitsPerPurchase : 1,
           orderedPurchaseQuantity: row.orderedPurchaseQty,
@@ -1413,14 +1415,14 @@
       }
 
       async function fetchOrderList() {
-        var response = await fetch(apiUrl("/api/inventory/orders"), { credentials: "include" });
+        var response = await fetch(apiUrl("/api/orders?domain=NON_FOOD"), { credentials: "include" });
         if (!response.ok) throw new Error(await parseApiError(response));
         var payload = await response.json();
         orderList = Array.isArray(payload) ? payload : [];
       }
 
       async function fetchOrderDetail(orderId) {
-        var response = await fetch(apiUrl("/api/inventory/orders/" + orderId), { credentials: "include" });
+        var response = await fetch(apiUrl("/api/orders/" + orderId), { credentials: "include" });
         if (!response.ok) throw new Error(await parseApiError(response));
         return response.json();
       }
@@ -1448,7 +1450,7 @@
         if (!activeOrder || !activeOrder.id) throw new Error("No active order selected.");
         setStatus("Saving purchaser updates...", "info");
 
-        var response = await fetch(apiUrl("/api/inventory/orders/" + activeOrder.id), {
+        var response = await fetch(apiUrl("/api/orders/" + activeOrder.id), {
           method: "PATCH",
           credentials: "include",
           headers: { "Content-Type": "application/json" },
@@ -1479,7 +1481,7 @@
         if (!confirmed) return;
 
         setStatus("Deleting order...", "info");
-        var response = await fetch(apiUrl("/api/inventory/orders/" + orderId), {
+        var response = await fetch(apiUrl("/api/orders/" + orderId), {
           method: "DELETE",
           credentials: "include",
         });
@@ -1574,11 +1576,19 @@
         }
 
         var targetId = null;
-        if (requestedId && orderList.some(function (order) { return Number(order.id) === requestedId; })) {
-          targetId = requestedId;
-        } else if (previousId && orderList.some(function (order) { return Number(order.id) === previousId; })) {
-          targetId = previousId;
-        } else {
+        if (requestedId) {
+          var requestedOrder = orderList.find(function (order) {
+            return Number(order.id) === requestedId || Number(order.source_id) === requestedId;
+          }) || null;
+          if (requestedOrder) targetId = Number(requestedOrder.id);
+        }
+        if (!targetId && previousId) {
+          var previousOrder = orderList.find(function (order) {
+            return Number(order.id) === previousId || Number(order.source_id) === previousId;
+          }) || null;
+          if (previousOrder) targetId = Number(previousOrder.id);
+        }
+        if (!targetId) {
           targetId = Number(orderList[0].id);
         }
 
@@ -1670,7 +1680,7 @@
         if (field === "ordered-flag" && target instanceof HTMLInputElement) {
           if (!target.checked && row.receivedQty > 0) {
             target.checked = true;
-            setStatus("This line already has received quantity. Clear it from Receiving if you need to undo ordering.", "err");
+            setStatus("This line already has received quantity. Clear it from Receive / Put Away if you need to undo ordering.", "err");
             return;
           }
           if (target.checked) {

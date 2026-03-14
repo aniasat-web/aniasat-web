@@ -140,19 +140,18 @@ Volunteer-first baseline counting workflow:
 - Override purchase URL per order line.
 - Create ad-hoc new items directly from Orders when they do not yet exist in inventory.
 
-### Inventory Receiving (`inventory-receiving.html`)
+### Inventory Receive / Put Away (`inventory-receiving.html`)
 
-- Purpose: record what arrived for each order line (including partial receipts).
+- Purpose: handle intake after purchase from one workspace.
 - Dedicated receipt inputs for ordered vs received quantities in purchase units.
-- Keeps receiving state separate from physical stocking.
-- Includes direct handoff link to Putaway page.
+- Inline putaway section for lines where `received_quantity > applied_received_quantity`.
+- Supports `Save Receipts` or `Save + Put Away` in one flow.
+- Writes putaway transactions and increments live inventory when stock is shelved.
 
-### Inventory Putaway / Add (`inventory-add.html`)
+### Inventory Putaway Redirect (`inventory-add.html`)
 
-- Purpose: move already-received quantities into live on-hand inventory.
-- Pulls a queue of lines where `received_quantity > applied_received_quantity`.
-- Lets users set putaway quantity and shelf grid location (`A1`, `B3`, etc.) before applying.
-- Writes inventory transactions and increments `standalone_inventory.quantity`.
+- Legacy compatibility page that redirects to `inventory-receiving.html`.
+- Kept so existing bookmarks and older navigation links do not break.
 
 ### Full Inventory (`inventory.html?full=1`)
 
@@ -193,9 +192,8 @@ Keep that file updated so new sessions start with the same Inventory context.
   - `Full Inventory` is now the primary top-level inventory workspace.
   - `Baseline Scan` is still available, but is treated more like periodic audit / cleanup rather than the default entry point.
 - Render inventory sync follow-up:
-  - The inventory-only sync script originally missed `standalone_inventory_barcodes`, `standalone_inventory_orders`, `standalone_inventory_order_items`, and `standalone_inventory_transactions`.
-  - `backend/scripts/sync_db_to_render.sh --scope inventory` now includes those standalone inventory tables.
-  - Verified on the Render host that standalone orders such as `Order 1:  Dining Dishes PPE (Purchasing)` were present after the corrected sync.
+  - The inventory-only sync script includes the shared post-purchase order lifecycle tables: `inventory_orders`, `inventory_order_items`, `inventory_order_item_events`, and `inventory_movements`.
+  - Legacy standalone non-food order tables are migrated into the shared order model during app startup and then dropped.
 
 #### 2026-03-01
 
@@ -222,16 +220,15 @@ Keep that file updated so new sessions start with the same Inventory context.
 - Inventory-only Render sync now includes `inventory_product_catalog`.
 - Added Inventory workflow split pages:
   - `inventory-orders.html` now focuses on planning and ordering only.
-  - `inventory-receiving.html` (new) handles receipt entry only.
-  - `inventory-add.html` now handles putaway/add-to-stock from received lines.
+  - `inventory-receiving.html` now serves as the combined receive / put away intake page.
+  - `inventory-add.html` is retained as a redirect for older links.
 - Added backend endpoints for new flow:
   - `POST /api/inventory/order-draft-item` to create new orderable items not yet in cataloged inventory.
-  - `GET /api/inventory/orders/putaway-queue` for pending putaway lines.
-  - `POST /api/inventory/orders/{order_id}/putaway` to apply putaway quantity + location to inventory.
+  - `GET /api/orders?domain=NON_FOOD` and `GET /api/orders?domain=FOOD` for the shared post-purchase order lifecycle.
+  - `POST /api/orders/{order_id}/putaway` to apply putaway quantity + location to inventory.
 - Inventory navigation and Inventory Home cards were updated to show:
   - Orders Planning
-  - Receiving
-  - Putaway / Add
+  - Receive / Put Away
 
 #### 2026-02-27
 
@@ -552,12 +549,12 @@ Base URL: `http://localhost:8000`
 | PATCH | `/api/inventory/{item_id}/category` | Update only the category for one inventory item |
 | PATCH | `/api/inventory/{item_id}/notes` | Update only notes for one inventory item |
 | DELETE | `/api/inventory/{item_id}` | Delete general inventory record |
-| GET | `/api/inventory/orders` | List inventory orders (planning/receiving flow) |
-| POST | `/api/inventory/orders` | Create a new inventory order |
-| GET | `/api/inventory/orders/{order_id}` | Get one inventory order with line detail |
-| PATCH | `/api/inventory/orders/{order_id}` | Update order metadata and line quantities |
-| GET | `/api/inventory/orders/putaway-queue` | List order lines pending putaway (`received > applied`) |
-| POST | `/api/inventory/orders/{order_id}/putaway` | Apply putaway qty/location to inventory for selected order lines |
+| GET | `/api/orders` | List shared food + non-food orders (filter with `domain`, `status`, `sourceType`) |
+| POST | `/api/orders` | Create a shared inventory order |
+| GET | `/api/orders/{order_id}` | Get one shared inventory order with line detail |
+| PATCH | `/api/orders/{order_id}` | Update shared order metadata and line quantities |
+| GET | `/api/orders/putaway-queue` | List shared order lines pending putaway (`received > applied`) |
+| POST | `/api/orders/{order_id}/putaway` | Apply putaway qty/location to inventory for selected order lines |
 | GET | `/api/shopping-lists` | List shopping lists with ordered/received rollups |
 | GET | `/api/shopping-lists/{shopping_list_id}` | Get a shopping list with item detail |
 | POST | `/api/shopping-lists/generate` | Generate a shopping list from a retreat plan |

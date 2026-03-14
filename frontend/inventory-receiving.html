@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Inventory Receiving - Blossom Foundation</title>
+    <title>Inventory Receive / Put Away - Blossom Foundation</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -32,6 +32,10 @@
       .status-chip.sufficient { background: #f5f5f4; color: #57534e; border-color: #d6d3d1; }
       .filter-pill { display: inline-flex; align-items: center; padding: 0.3rem 0.7rem; border-radius: 999px; font-size: 0.75rem; font-weight: 600; border: 1px solid var(--ui-border); background: #fff; cursor: pointer; }
       .filter-pill:hover, .filter-pill.active { border-color: var(--ui-primary-300); background: var(--ui-primary-100); color: var(--ui-primary-700); }
+      .putaway-table-wrap { max-height: 420px; overflow: auto; }
+      .putaway-qty-input { width: 104px; font-size: 0.82rem; padding: 0.25rem 0.4rem; text-align: center; }
+      .putaway-location-input { width: 96px; font-size: 0.82rem; text-transform: uppercase; }
+      .remaining-chip { display: inline-flex; align-items: center; border-radius: 999px; padding: 0.15rem 0.55rem; font-size: 0.72rem; font-weight: 700; background: #eff6ff; border: 1px solid #bfdbfe; color: #1d4ed8; }
       .scan-card { border-color: #d9e8e0; background: linear-gradient(135deg, rgba(250, 255, 253, 0.98), rgba(239, 248, 244, 0.95)); }
       .scan-shell { display: grid; gap: 0.95rem; }
       .scan-header { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 0.75rem; }
@@ -98,8 +102,7 @@
                 <li><a class="dropdown-item" href="inventory.html?full=1"><i class="fa-solid fa-clipboard-list me-2"></i> Full Inventory</a></li>
                 <li><a class="dropdown-item" href="inventory-orders.html"><i class="fa-solid fa-list-check me-2"></i> Orders Planning</a></li>
                 <li><a class="dropdown-item" href="inventory-purchasing.html"><i class="fa-solid fa-cart-shopping me-2"></i> Purchasing</a></li>
-                <li><a class="dropdown-item" href="inventory-receiving.html"><i class="fa-solid fa-truck-ramp-box me-2"></i> Receiving</a></li>
-                <li><a class="dropdown-item" href="inventory-add.html"><i class="fa-solid fa-plus me-2"></i> Putaway / Add</a></li>
+                <li><a class="dropdown-item" href="inventory-receiving.html"><i class="fa-solid fa-truck-ramp-box me-2"></i> Receive / Put Away</a></li>
                 <li><a class="dropdown-item" href="inventory-remove.html"><i class="fa-solid fa-minus me-2"></i> Remove Inventory</a></li>
                 <li><a class="dropdown-item" href="inventory-baseline.html"><i class="fa-solid fa-barcode me-2"></i> Baseline Scan</a></li>
               </ul>
@@ -140,8 +143,8 @@
     <main class="inventory-shell">
       <div class="d-flex flex-wrap align-items-center gap-3 mb-4">
         <div class="flex-grow-1">
-          <h1 class="fw-bold mb-2"><i class="fa-solid fa-truck-ramp-box me-2" style="color: #0d9488;"></i>Receiving</h1>
-          <p class="text-muted mb-0">Record what has arrived for each order line. Physical shelf putaway is handled separately on the Putaway page.</p>
+          <h1 class="fw-bold mb-2"><i class="fa-solid fa-truck-ramp-box me-2" style="color: #0d9488;"></i>Receive / Put Away</h1>
+          <p class="text-muted mb-0">Record what arrived for each order line and move it into inventory from the same workspace.</p>
         </div>
         <span id="statusPill" class="status-pill info">Ready.</span>
       </div>
@@ -195,9 +198,9 @@
         <div class="d-flex flex-wrap gap-2 mt-3">
           <button id="refreshBtn" type="button" class="btn btn-sm btn-outline-secondary"><i class="fa-solid fa-arrows-rotate me-1"></i>Refresh</button>
           <button id="saveBtn" type="button" class="btn btn-sm btn-primary"><i class="fa-solid fa-floppy-disk me-1"></i>Save Receipts</button>
-          <a class="btn btn-sm btn-outline-success" href="inventory-add.html"><i class="fa-solid fa-boxes-packing me-1"></i>Go To Putaway</a>
+          <button id="saveAndPutawayBtn" type="button" class="btn btn-sm btn-success"><i class="fa-solid fa-boxes-packing me-1"></i>Save + Put Away</button>
         </div>
-        <div class="small text-muted mt-2">Select the order that is physically arriving now. Orders can be received in any sequence.</div>
+        <div class="small text-muted mt-2">Select the order that is physically arriving now. You can save receipts only, or save and put away in one pass.</div>
       </section>
 
       <section class="soft-card scan-card p-4 mb-4">
@@ -246,7 +249,7 @@
         </div>
       </section>
 
-      <section class="soft-card p-4">
+      <section class="soft-card p-4 mb-4">
         <div class="table-wrap">
           <table class="table table-sm align-middle sticky-head">
             <thead>
@@ -266,6 +269,61 @@
           </table>
         </div>
       </section>
+
+      <section class="soft-card p-4">
+        <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-3">
+          <div>
+            <h2 class="h5 mb-1"><i class="fa-solid fa-boxes-packing me-2 text-success"></i>Put Away To Inventory</h2>
+            <p class="text-muted mb-0">Select the received lines that are actually shelved now. Leave anything else pending for later.</p>
+          </div>
+          <div class="d-flex flex-wrap align-items-end gap-2">
+            <div>
+              <label class="small text-uppercase fw-semibold text-muted mb-1" for="putawayReason">Putaway Note</label>
+              <input id="putawayReason" type="text" class="form-control form-control-sm" placeholder="Order putaway" />
+            </div>
+            <button id="applyPutawayBtn" type="button" class="btn btn-sm btn-success"><i class="fa-solid fa-check me-1"></i>Apply Put Away</button>
+          </div>
+        </div>
+
+        <section class="row g-3 mb-4">
+          <div class="col-md-4">
+            <div class="soft-card p-3 text-center">
+              <div class="small text-uppercase fw-semibold text-muted mb-1"><i class="fa-solid fa-list-check me-1"></i>Pending Lines</div>
+              <div class="stat-value" id="statPutawayLines">--</div>
+            </div>
+          </div>
+          <div class="col-md-4">
+            <div class="soft-card p-3 text-center">
+              <div class="small text-uppercase fw-semibold text-muted mb-1"><i class="fa-solid fa-cubes me-1"></i>Pending Qty</div>
+              <div class="stat-value" id="statPutawayPending">--</div>
+            </div>
+          </div>
+          <div class="col-md-4">
+            <div class="soft-card p-3 text-center">
+              <div class="small text-uppercase fw-semibold text-muted mb-1"><i class="fa-solid fa-check-double me-1"></i>Selected Qty</div>
+              <div class="stat-value" id="statPutawaySelected">--</div>
+            </div>
+          </div>
+        </section>
+
+        <div class="putaway-table-wrap">
+          <table class="table table-sm align-middle sticky-head">
+            <thead>
+              <tr class="small text-uppercase text-muted">
+                <th><input id="toggleAllPutawayRows" type="checkbox" class="form-check-input" checked /></th>
+                <th>Item</th>
+                <th>Category</th>
+                <th>Received</th>
+                <th>Already Put Away</th>
+                <th>Remaining</th>
+                <th>Put Away Qty</th>
+                <th>Location</th>
+              </tr>
+            </thead>
+            <tbody id="putawayBody"></tbody>
+          </table>
+        </div>
+      </section>
     </main>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
@@ -279,6 +337,7 @@
       var statusFilters = document.getElementById("statusFilters");
       var refreshBtn = document.getElementById("refreshBtn");
       var saveBtn = document.getElementById("saveBtn");
+      var saveAndPutawayBtn = document.getElementById("saveAndPutawayBtn");
       var scanBarcodeInput = document.getElementById("scanBarcodeInput");
       var scanFindBtn = document.getElementById("scanFindBtn");
       var scanReceivedQtyInput = document.getElementById("scanReceivedQtyInput");
@@ -296,6 +355,13 @@
       var statOrdered = document.getElementById("statOrdered");
       var statPending = document.getElementById("statPending");
       var statReceived = document.getElementById("statReceived");
+      var putawayReason = document.getElementById("putawayReason");
+      var applyPutawayBtn = document.getElementById("applyPutawayBtn");
+      var toggleAllPutawayRows = document.getElementById("toggleAllPutawayRows");
+      var putawayBody = document.getElementById("putawayBody");
+      var statPutawayLines = document.getElementById("statPutawayLines");
+      var statPutawayPending = document.getElementById("statPutawayPending");
+      var statPutawaySelected = document.getElementById("statPutawaySelected");
 
       var inventoryRows = [];
       var orderList = [];
@@ -304,6 +370,7 @@
       var activeStatus = "all";
       var highlightedItemId = null;
       var scanState = createEmptyScanState();
+      var putawayStateByKey = {};
 
       function resolveApiBase() {
         var queryValue = new URLSearchParams(window.location.search).get("api");
@@ -315,6 +382,62 @@
 
       function apiUrl(path) {
         return API_BASE + (path.charAt(0) === "/" ? path : "/" + path);
+      }
+
+      function buildOrderKey(source, orderId) {
+        return String(source || "") + ":" + String(orderId || "");
+      }
+
+      function orderDomainLabel(order) {
+        if (order && order.domain === "FOOD") return "Food";
+        return "Non-Food";
+      }
+
+      function orderSelectLabel(order) {
+        return "[" + orderDomainLabel(order) + "] " + order.name + " (" + order.status + ")";
+      }
+
+      function normalizeLocationInput(value) {
+        return String(value || "").trim().toUpperCase();
+      }
+
+      function getPutawayStateKey(row) {
+        return buildOrderKey(row.orderSource, row.orderItemId);
+      }
+
+      function getPendingPutawayQty(row) {
+        return asNonNegativeNumber(Math.round((asNonNegativeNumber(row.receivedQty) - asNonNegativeNumber(row.appliedQty)) * 1000) / 1000);
+      }
+
+      function syncPutawayState(row) {
+        putawayStateByKey[getPutawayStateKey(row)] = {
+          selected: Boolean(row.putawaySelected),
+          quantity: asNonNegativeNumber(row.putawayQty),
+          location: normalizeLocationInput(row.putawayLocation),
+          pendingQty: getPendingPutawayQty(row),
+        };
+      }
+
+      function hydratePutawayState(row) {
+        var key = getPutawayStateKey(row);
+        var pendingQty = getPendingPutawayQty(row);
+        var existing = putawayStateByKey[key] || null;
+        var canReuseSelection = existing && asNonNegativeNumber(existing.pendingQty) > 0;
+        var hasQuantity = canReuseSelection && Object.prototype.hasOwnProperty.call(existing, "quantity");
+        var hasSelected = canReuseSelection && Object.prototype.hasOwnProperty.call(existing, "selected");
+        var locationValue = existing && Object.prototype.hasOwnProperty.call(existing, "location")
+          ? existing.location
+          : (row.currentLocation || "");
+        row.putawaySelected = pendingQty > 0 ? (hasSelected ? Boolean(existing.selected) : true) : false;
+        row.putawayQty = pendingQty > 0
+          ? (hasQuantity ? Math.min(asNonNegativeNumber(existing.quantity), pendingQty) : pendingQty)
+          : 0;
+        row.putawayLocation = normalizeLocationInput(locationValue);
+        syncPutawayState(row);
+      }
+
+      function activeOrderCanScan() {
+        return !!(activeOrder && activeOrder.orderDomain === "NON_FOOD");
       }
 
       function setStatus(message, mode) {
@@ -582,6 +705,7 @@
         var badgeText = "Awaiting scan";
         var bindLabel = "Remember barcode for selected item";
         var conflictText = "";
+        var canScan = activeOrderCanScan();
 
         if (badgeClass === "searching") badgeText = "Searching";
         else if (badgeClass === "choose") badgeText = "Choose line";
@@ -590,13 +714,20 @@
 
         scanStateBadge.className = "scan-badge " + badgeClass;
         scanStateBadge.textContent = badgeText;
-        scanBarcodeInput.disabled = !activeOrder;
-        scanFindBtn.disabled = !activeOrder;
-        scanBarcodeInput.placeholder = activeOrder ? "Scan barcode..." : "Select an order first";
+        scanBarcodeInput.disabled = !activeOrder || !canScan;
+        scanFindBtn.disabled = !activeOrder || !canScan;
+        scanBarcodeInput.placeholder = !activeOrder
+          ? "Select an order first"
+          : canScan
+          ? "Scan barcode..."
+          : "Barcode scan not enabled for this order";
 
         if (!activeOrder) {
           scanSummaryMain.textContent = "Select an order before scanning.";
-          scanSummaryMeta.textContent = "Receiving is always matched against the currently selected order.";
+          scanSummaryMeta.textContent = "Receipt matching is always tied to the currently selected order.";
+        } else if (!canScan) {
+          scanSummaryMain.textContent = activeOrderName;
+          scanSummaryMeta.textContent = "Manual receipt editing is enabled for this order. Barcode scanning is available on non-food orders only.";
         } else if (selectedRow) {
           scanSummaryMain.textContent = selectedRow.name;
           scanSummaryMeta.textContent = formatOrderUnitLine(selectedRow);
@@ -610,6 +741,7 @@
 
         var lookupBits = [];
         lookupBits.push("Active order: " + activeOrderName + ".");
+        if (activeOrder && !canScan) lookupBits.push("Use the table below to record receipts manually.");
         if (scanState.normalizedBarcode) lookupBits.push("Scanned barcode: " + scanState.normalizedBarcode + ".");
         if (scanState.lookupName) lookupBits.push("Lookup: " + scanState.lookupName + (scanState.lookupSource ? " (" + scanState.lookupSource + ")." : "."));
         if (scanState.existingConflictName) lookupBits.push("Barcode is currently bound to \"" + scanState.existingConflictName + "\" outside this order.");
@@ -642,6 +774,8 @@
 
         if (!activeOrder) {
           scanCandidates.innerHTML = '<div class="scan-empty">Select the order being received before scanning.</div>';
+        } else if (!canScan) {
+          scanCandidates.innerHTML = '<div class="scan-empty">This order can be received directly in the table below. Barcode scan matching is currently available only for non-food orders.</div>';
         } else if (!scanState.normalizedBarcode) {
           scanCandidates.innerHTML = '<div class="scan-empty">Scanned items will show candidate order lines here. If the barcode is new, you will choose from names already on the active order.</div>';
         } else if (!scanState.candidates.length) {
@@ -666,7 +800,7 @@
           }).join("");
         }
 
-        scanApplyBtn.disabled = !activeOrder || !selectedRow || asNonNegativeNumber(scanReceivedQtyInput.value) <= 0;
+        scanApplyBtn.disabled = !activeOrder || !canScan || !selectedRow || asNonNegativeNumber(scanReceivedQtyInput.value) <= 0;
       }
 
       function resetScanState(options) {
@@ -701,13 +835,14 @@
         scanState.selectedItemId = itemId;
         scanState.mode = "matched";
         highlightedItemId = itemId;
-        renderTable();
+        renderWorkspaceTables();
         renderScanPanel();
         scrollToRow(itemId);
       }
 
       async function handleBarcodeScan() {
         if (!activeOrder || !activeOrder.id) throw new Error("Select the order being received first.");
+        if (!activeOrderCanScan()) throw new Error("Barcode scanning is currently available only for non-food orders.");
         var normalized = normalizeBarcodeValue(scanBarcodeInput.value);
         if (!normalized) throw new Error("Barcode must be 8-14 digits.");
 
@@ -718,7 +853,7 @@
         scanState.normalizedBarcode = normalized;
         scanState.mode = "searching";
         highlightedItemId = null;
-        renderTable();
+        renderWorkspaceTables();
         renderScanPanel();
 
         var exactRows = orderRows.filter(function (row) {
@@ -750,6 +885,7 @@
 
       async function applyScannedReceipt() {
         if (!activeOrder || !activeOrder.id) throw new Error("Select the order being received first.");
+        if (!activeOrderCanScan()) throw new Error("Barcode scanning is currently available only for non-food orders.");
         if (!scanState.selectedItemId) throw new Error("Choose the matching order line first.");
         var qty = asNonNegativeNumber(scanReceivedQtyInput.value);
         if (qty <= 0) throw new Error("Received quantity must be greater than zero.");
@@ -760,9 +896,14 @@
           : "";
         var rememberedBarcode = false;
 
-        if (scanBindCheckbox.checked && scanState.normalizedBarcode && getRowBarcodeList(row).indexOf(scanState.normalizedBarcode) === -1) {
-          var bindPayload = await bindBarcodeToInventoryItem(row.itemId, scanState.normalizedBarcode);
-          updateInventoryBarcodeCache(row.itemId, bindPayload.item || null);
+        if (
+          scanBindCheckbox.checked &&
+          scanState.normalizedBarcode &&
+          row.inventoryItemId &&
+          getRowBarcodeList(row).indexOf(scanState.normalizedBarcode) === -1
+        ) {
+          var bindPayload = await bindBarcodeToInventoryItem(row.inventoryItemId, scanState.normalizedBarcode);
+          updateInventoryBarcodeCache(row.inventoryItemId, bindPayload.item || null);
           row.barcodes = collectBarcodes(bindPayload.item && bindPayload.item.barcode, bindPayload.item && bindPayload.item.barcodes);
           row.barcode = bindPayload.item && bindPayload.item.barcode ? bindPayload.item.barcode : row.barcode;
           rememberedBarcode = true;
@@ -770,8 +911,9 @@
 
         row.receivedPurchaseQty = asNonNegativeNumber(row.receivedPurchaseQty + qty);
         recomputeRow(row);
+        hydratePutawayState(row);
         highlightedItemId = row.itemId;
-        renderTable();
+        renderWorkspaceTables();
         setStatus(
           "Applied " + formatQty(qty) + " " + describePurchaseUnit(row) + " received to \"" + row.name + "\"." +
           (rememberedBarcode && movedFromName ? " Barcode moved from \"" + movedFromName + "\"." : "") +
@@ -785,6 +927,14 @@
       }
 
       function deriveRowStatus(row) {
+        if (row.orderDomain === "FOOD") {
+          var targetQty = Math.max(row.requiredQty, row.orderedQty);
+          if (targetQty <= 0 && row.receivedQty <= 0) return "NOT_ORDERED";
+          if (targetQty > 0 && row.receivedQty >= targetQty) return "RECEIVED";
+          if (row.receivedQty > 0) return "PARTIAL";
+          if (row.orderedQty > 0) return "ORDERED";
+          return "NOT_ORDERED";
+        }
         if (row.toOrderQty <= 0) return "SUFFICIENT";
         if (row.receivedQty >= row.toOrderQty) return "RECEIVED";
         if (row.receivedQty > 0) return "PARTIAL";
@@ -810,6 +960,7 @@
 
       function recomputeRow(row) {
         row.requiredQty = asNonNegativeNumber(row.requiredQty);
+        row.currentStock = asNonNegativeNumber(row.currentStock);
         row.purchaseUnit = normalizePurchaseUnit(row.purchaseUnit);
         row.unitsPerPurchase = asNonNegativeNumber(row.unitsPerPurchase);
         if (row.unitsPerPurchase <= 0) row.unitsPerPurchase = 1;
@@ -834,41 +985,64 @@
           }
         }
 
-        row.toOrderQty = Math.max(0, Math.round((row.requiredQty - row.currentStock) * 1000) / 1000);
+        if (row.orderDomain === "FOOD") {
+          row.toOrderQty = row.requiredQty;
+        } else {
+          row.toOrderQty = Math.max(0, Math.round((row.requiredQty - row.currentStock) * 1000) / 1000);
+        }
         row.status = deriveRowStatus(row);
       }
 
       function buildOrderRows() {
-        var byInventoryId = {};
-        if (activeOrder && Array.isArray(activeOrder.items)) {
-          activeOrder.items.forEach(function (item) {
-            byInventoryId[Number(item.inventory_item_id)] = item;
-          });
+        var inventoryById = {};
+        inventoryRows.forEach(function (inventory) {
+          inventoryById[Number(inventory.id)] = inventory;
+        });
+
+        if (!activeOrder || !Array.isArray(activeOrder.items)) {
+          orderRows = [];
+          return;
         }
 
-        orderRows = inventoryRows.map(function (inventory) {
-          var itemId = Number(inventory.id);
-          var orderItem = byInventoryId[itemId] || null;
+        orderRows = activeOrder.items.map(function (item) {
+          var orderDomain = String(activeOrder.orderDomain || activeOrder.domain || "").trim().toUpperCase() || "NON_FOOD";
+          var inventoryItemId = Number(item.inventory_item_id || item.item_id || 0);
+          var inventory = inventoryById[inventoryItemId] || null;
           var row = {
-            itemId: itemId,
-            orderItemId: orderItem ? Number(orderItem.id || 0) : 0,
-            name: orderItem && orderItem.item_name_snapshot ? orderItem.item_name_snapshot : (inventory.item_name || "Unknown"),
-            barcode: inventory.barcode || "",
-            barcodes: collectBarcodes(inventory.barcode, inventory.barcodes),
-            categoryName: inventory.category || "",
-            unit: orderItem && orderItem.unit_snapshot ? orderItem.unit_snapshot : (inventory.unit || "each"),
-            requiredQty: orderItem ? asNonNegativeNumber(orderItem.required_quantity) : 0,
-            currentStock: orderItem ? asNonNegativeNumber(orderItem.current_quantity_snapshot) : asNonNegativeNumber(inventory.quantity),
-            orderedQty: orderItem ? asNonNegativeNumber(orderItem.ordered_quantity) : 0,
-            receivedQty: orderItem ? asNonNegativeNumber(orderItem.received_quantity) : 0,
-            purchaseUnit: orderItem ? normalizePurchaseUnit(orderItem.purchase_unit || "unit") : "unit",
-            unitsPerPurchase: orderItem ? asNonNegativeNumber(orderItem.units_per_purchase || 1) : 1,
-            orderedPurchaseQty: orderItem ? asNonNegativeNumber(orderItem.ordered_purchase_quantity || 0) : 0,
-            receivedPurchaseQty: orderItem ? asNonNegativeNumber(orderItem.received_purchase_quantity || 0) : 0,
-            orderUrlOverride: orderItem ? (orderItem.order_url_override || "") : "",
-            notes: orderItem ? (orderItem.notes || "") : "",
-            toOrderQty: 0,
-            status: "NOT_ORDERED",
+            itemId: Number(item.id || 0) || inventoryItemId || Number(item.source_shopping_list_item_id || 0),
+            inventoryItemId: orderDomain === "NON_FOOD" ? inventoryItemId : 0,
+            orderItemId: Number(item.id || 0),
+            orderSource: "shared",
+            orderDomain: orderDomain,
+            itemType: item.item_type || (orderDomain === "FOOD" ? "INGREDIENT" : "STANDALONE_INVENTORY"),
+            itemEntityId: Number(item.item_id || inventoryItemId || 0),
+            sourceShoppingListItemId: Number(item.source_shopping_list_item_id || 0),
+            name: item.item_name_snapshot || (inventory && inventory.item_name) || "Unknown",
+            barcode: orderDomain === "NON_FOOD" ? (item.inventory_barcode || (inventory && inventory.barcode) || "") : "",
+            barcodes: orderDomain === "NON_FOOD"
+              ? collectBarcodes(item.inventory_barcode || (inventory && inventory.barcode), inventory && inventory.barcodes)
+              : [],
+            categoryName: item.category_snapshot || item.inventory_category || (inventory && inventory.category) || "",
+            unit: item.unit_snapshot || item.live_unit || item.inventory_unit || (inventory && inventory.unit) || "each",
+            requiredQty: asNonNegativeNumber(item.required_quantity),
+            currentStock: asNonNegativeNumber(
+              item.current_quantity_snapshot != null ? item.current_quantity_snapshot : (item.inventory_quantity != null ? item.inventory_quantity : item.live_quantity)
+            ),
+            orderedQty: asNonNegativeNumber(item.ordered_quantity),
+            receivedQty: asNonNegativeNumber(item.received_quantity),
+            appliedQty: asNonNegativeNumber(item.applied_quantity != null ? item.applied_quantity : item.applied_received_quantity),
+            purchaseUnit: normalizePurchaseUnit(item.purchase_unit || "unit"),
+            unitsPerPurchase: asNonNegativeNumber(item.units_per_purchase || 1),
+            orderedPurchaseQty: asNonNegativeNumber(item.ordered_purchase_quantity || 0),
+            receivedPurchaseQty: asNonNegativeNumber(item.received_purchase_quantity || 0),
+            currentLocation: normalizeLocationInput(item.inventory_location || item.live_location || (inventory && inventory.location) || ""),
+            putawaySelected: false,
+            putawayQty: 0,
+            putawayLocation: "",
+            orderUrlOverride: item.order_url_override || "",
+            notes: item.notes || "",
+            toOrderQty: asNonNegativeNumber(item.to_order_quantity),
+            status: String(item.status || "NOT_ORDERED").trim() || "NOT_ORDERED",
           };
           if (row.orderedPurchaseQty <= 0 && row.orderedQty > 0) {
             row.orderedPurchaseQty = row.unitsPerPurchase > 0 ? row.orderedQty / row.unitsPerPurchase : row.orderedQty;
@@ -877,9 +1051,10 @@
             row.receivedPurchaseQty = row.unitsPerPurchase > 0 ? row.receivedQty / row.unitsPerPurchase : row.receivedQty;
           }
           recomputeRow(row);
+          hydratePutawayState(row);
           return row;
         }).filter(function (row) {
-          return row.requiredQty > 0 || row.orderedQty > 0 || row.receivedQty > 0 || row.toOrderQty > 0;
+          return row.requiredQty > 0 || row.orderedQty > 0 || row.receivedQty > 0 || row.toOrderQty > 0 || String(row.notes || "").trim();
         });
 
         orderRows.sort(function (a, b) {
@@ -921,9 +1096,9 @@
         }
         orderList.forEach(function (order) {
           var option = document.createElement("option");
-          option.value = String(order.id);
-          option.textContent = order.name + " (" + order.status + ")";
-          if (activeOrder && Number(activeOrder.id) === Number(order.id)) option.selected = true;
+          option.value = String(order.key);
+          option.textContent = orderSelectLabel(order);
+          if (activeOrder && String(activeOrder.orderKey) === String(order.key)) option.selected = true;
           orderSelect.appendChild(option);
         });
       }
@@ -959,10 +1134,12 @@
 
           var tdPurchaseUnit = document.createElement("td");
           tdPurchaseUnit.innerHTML =
-            '<select class="form-select form-select-sm purchase-unit-select" data-item-id="' + row.itemId + '" data-field="purchase-unit">' +
+            '<select class="form-select form-select-sm purchase-unit-select" data-item-id="' + row.itemId + '" data-field="purchase-unit"' + (row.orderDomain === "FOOD" ? ' disabled' : '') + '>' +
               '<option value="unit"' + (row.purchaseUnit === "unit" ? " selected" : "") + '>unit</option>' +
-              '<option value="case"' + (row.purchaseUnit === "case" ? " selected" : "") + '>case</option>' +
-              '<option value="pack"' + (row.purchaseUnit === "pack" ? " selected" : "") + '>pack</option>' +
+              (row.orderDomain === "FOOD" ? '' : (
+                '<option value="case"' + (row.purchaseUnit === "case" ? " selected" : "") + '>case</option>' +
+                '<option value="pack"' + (row.purchaseUnit === "pack" ? " selected" : "") + '>pack</option>'
+              )) +
             '</select>';
           tr.appendChild(tdPurchaseUnit);
 
@@ -970,7 +1147,7 @@
           tdUnitsPerPurchase.innerHTML =
             '<input type="number" min="0.001" step="0.01" class="form-control form-control-sm qty-input" ' +
             'data-item-id="' + row.itemId + '" data-field="units-per-purchase" value="' + escapeHtml(formatQty(row.unitsPerPurchase)) + '"' +
-            (row.purchaseUnit === "unit" ? " disabled" : "") + '>';
+            (row.orderDomain === "FOOD" || row.purchaseUnit === "unit" ? " disabled" : "") + '>';
           tr.appendChild(tdUnitsPerPurchase);
 
           var tdOrderedQty = document.createElement("td");
@@ -1000,6 +1177,87 @@
         renderStats();
       }
 
+      function getPendingPutawayRows() {
+        return orderRows.filter(function (row) {
+          return getPendingPutawayQty(row) > 0;
+        });
+      }
+
+      function renderPutawayStats(rows) {
+        var pendingQty = 0;
+        var selectedQty = 0;
+        rows.forEach(function (row) {
+          var remaining = getPendingPutawayQty(row);
+          pendingQty += remaining;
+          if (row.putawaySelected) {
+            selectedQty += Math.min(asNonNegativeNumber(row.putawayQty), remaining);
+          }
+        });
+        statPutawayLines.textContent = String(rows.length);
+        statPutawayPending.textContent = formatQty(pendingQty);
+        statPutawaySelected.textContent = formatQty(selectedQty);
+      }
+
+      function renderPutawayTable() {
+        var rows = getPendingPutawayRows();
+        putawayBody.innerHTML = "";
+
+        if (!rows.length) {
+          toggleAllPutawayRows.checked = false;
+          putawayBody.innerHTML = '<tr><td colspan="8" class="text-muted small">No pending putaway lines for this order.</td></tr>';
+          renderPutawayStats([]);
+          return;
+        }
+
+        rows.forEach(function (row) {
+          var remaining = getPendingPutawayQty(row);
+          var tr = document.createElement("tr");
+          tr.dataset.itemId = String(row.itemId);
+
+          var tdSelect = document.createElement("td");
+          tdSelect.innerHTML = '<input type="checkbox" class="form-check-input" data-item-id="' + row.itemId + '" data-field="putaway-selected"' + (row.putawaySelected ? ' checked' : '') + '>';
+          tr.appendChild(tdSelect);
+
+          var tdItem = document.createElement("td");
+          tdItem.innerHTML = '<div class="fw-semibold">' + escapeHtml(row.name) + '</div>';
+          tr.appendChild(tdItem);
+
+          var tdCategory = document.createElement("td");
+          tdCategory.textContent = row.categoryName || "-";
+          tr.appendChild(tdCategory);
+
+          var tdReceived = document.createElement("td");
+          tdReceived.textContent = formatQty(row.receivedQty) + " " + (row.unit || "");
+          tr.appendChild(tdReceived);
+
+          var tdApplied = document.createElement("td");
+          tdApplied.textContent = formatQty(row.appliedQty) + " " + (row.unit || "");
+          tr.appendChild(tdApplied);
+
+          var tdRemaining = document.createElement("td");
+          tdRemaining.innerHTML = '<span class="remaining-chip">' + escapeHtml(formatQty(remaining)) + ' ' + escapeHtml(row.unit || '') + '</span>';
+          tr.appendChild(tdRemaining);
+
+          var tdQty = document.createElement("td");
+          tdQty.innerHTML = '<input type="number" min="0" step="0.01" class="form-control form-control-sm putaway-qty-input" data-item-id="' + row.itemId + '" data-field="putaway-qty" value="' + escapeHtml(formatQty(row.putawayQty)) + '">';
+          tr.appendChild(tdQty);
+
+          var tdLocation = document.createElement("td");
+          tdLocation.innerHTML = '<input type="text" class="form-control form-control-sm putaway-location-input" data-item-id="' + row.itemId + '" data-field="putaway-location" value="' + escapeHtml(row.putawayLocation || '') + '" placeholder="A1">';
+          tr.appendChild(tdLocation);
+
+          putawayBody.appendChild(tr);
+        });
+
+        toggleAllPutawayRows.checked = rows.every(function (row) { return row.putawaySelected; });
+        renderPutawayStats(rows);
+      }
+
+      function renderWorkspaceTables() {
+        renderTable();
+        renderPutawayTable();
+      }
+
       function getRowByItemId(itemId) {
         return orderRows.find(function (row) { return row.itemId === itemId; }) || null;
       }
@@ -1012,55 +1270,101 @@
       }
 
       async function fetchOrderList() {
-        var response = await fetch(apiUrl("/api/inventory/orders"), { credentials: "include" });
-        if (!response.ok) throw new Error(await parseApiError(response));
-        var payload = await response.json();
-        orderList = (Array.isArray(payload) ? payload : []).filter(function (order) {
+        var responses = await Promise.all([
+          fetch(apiUrl("/api/orders?domain=FOOD"), { credentials: "include" }),
+          fetch(apiUrl("/api/orders?domain=NON_FOOD"), { credentials: "include" }),
+        ]);
+        if (!responses[0].ok) throw new Error(await parseApiError(responses[0]));
+        if (!responses[1].ok) throw new Error(await parseApiError(responses[1]));
+
+        var sharedPayload = await responses[0].json();
+        var nonFoodPayload = await responses[1].json();
+        var sharedOrders = (Array.isArray(sharedPayload) ? sharedPayload : []).filter(function (order) {
           return order.status !== "DRAFT" || Number(order.relevant_item_count || 0) > 0;
+        }).map(function (order) {
+          return {
+            key: buildOrderKey("shared", order.id),
+            id: Number(order.id),
+            source: "shared",
+            domain: order.domain || "FOOD",
+            name: order.name || ("Order #" + order.id),
+            status: order.status || "DRAFT",
+          };
+        });
+        var nonFoodOrders = (Array.isArray(nonFoodPayload) ? nonFoodPayload : []).filter(function (order) {
+          return order.status !== "DRAFT" || Number(order.relevant_item_count || 0) > 0;
+        }).map(function (order) {
+          return {
+            key: buildOrderKey("shared", order.id),
+            id: Number(order.id),
+            source: "shared",
+            domain: "NON_FOOD",
+            name: order.name || ("Order #" + order.id),
+            status: order.status || "DRAFT",
+          };
+        });
+
+        orderList = sharedOrders.concat(nonFoodOrders).sort(function (a, b) {
+          if (a.domain !== b.domain) return String(a.domain).localeCompare(String(b.domain));
+          return String(a.name || "").localeCompare(String(b.name || ""));
         });
       }
 
-      async function fetchOrderDetail(orderId) {
-        var response = await fetch(apiUrl("/api/inventory/orders/" + orderId), { credentials: "include" });
+      async function fetchOrderDetail(orderSummary) {
+        var path = "/api/orders/" + orderSummary.id;
+        var response = await fetch(apiUrl(path), { credentials: "include" });
         if (!response.ok) throw new Error(await parseApiError(response));
-        return response.json();
+        var payload = await response.json();
+        payload.orderSource = orderSummary.source;
+        payload.orderDomain = orderSummary.domain;
+        payload.orderKey = orderSummary.key;
+        return payload;
       }
 
-      async function loadOrderById(orderId) {
-        activeOrder = await fetchOrderDetail(orderId);
+      async function loadOrderByKey(orderKey) {
+        var summary = orderList.find(function (order) { return order.key === orderKey; }) || null;
+        if (!summary) throw new Error("Order not found.");
+        activeOrder = await fetchOrderDetail(summary);
         renderOrderSelect();
         orderNameInput.value = activeOrder.name || "";
         orderNotesInput.value = activeOrder.notes || "";
         buildOrderRows();
-        renderTable();
+        renderWorkspaceTables();
         resetScanState();
       }
 
       function collectPayloadItems() {
+        if (!activeOrder) return [];
         return orderRows
           .filter(function (row) {
             return row.requiredQty > 0 || row.orderedQty > 0 || row.receivedQty > 0 || row.toOrderQty > 0 || String(row.notes || "").trim();
           })
           .map(function (row) {
             return {
-              inventoryItemId: row.itemId,
+              itemType: row.itemType || (row.orderDomain === "FOOD" ? "INGREDIENT" : "STANDALONE_INVENTORY"),
+              itemId: row.itemEntityId,
               requiredQuantity: row.requiredQty,
               orderedQuantity: row.orderedQty,
               receivedQuantity: row.receivedQty,
+              appliedQuantity: row.appliedQty || 0,
+              unit: row.unit || null,
               purchaseUnit: row.purchaseUnit || "unit",
               unitsPerPurchase: row.unitsPerPurchase > 0 ? row.unitsPerPurchase : 1,
               orderedPurchaseQuantity: row.orderedPurchaseQty,
               receivedPurchaseQuantity: row.receivedPurchaseQty,
-              orderUrlOverride: String(row.orderUrlOverride || "").trim() || null,
+              sourceShoppingListItemId: row.sourceShoppingListItemId || null,
+              orderUrlOverride: row.orderDomain === "NON_FOOD" ? (String(row.orderUrlOverride || "").trim() || null) : null,
               notes: String(row.notes || "").trim() || null,
             };
           });
       }
 
-      async function saveReceipts() {
+      async function saveReceipts(options) {
+        var opts = options || {};
         if (!activeOrder || !activeOrder.id) throw new Error("No active order selected.");
-        setStatus("Saving receipt updates...", "info");
-        var response = await fetch(apiUrl("/api/inventory/orders/" + activeOrder.id), {
+        if (!opts.quiet) setStatus("Saving receipt updates...", "info");
+        var path = "/api/orders/" + activeOrder.id;
+        var response = await fetch(apiUrl(path), {
           method: "PATCH",
           credentials: "include",
           headers: { "Content-Type": "application/json" },
@@ -1072,45 +1376,94 @@
         });
         if (!response.ok) throw new Error(await parseApiError(response));
         activeOrder = await response.json();
+        activeOrder.orderSource = "shared";
+        activeOrder.orderDomain = activeOrder.orderDomain || activeOrder.domain || "NON_FOOD";
+        activeOrder.orderKey = buildOrderKey(activeOrder.orderSource, activeOrder.id);
         await fetchOrderList();
         renderOrderSelect();
         buildOrderRows();
-        renderTable();
+        renderWorkspaceTables();
         resetScanState();
-        setStatus("Receipt updates saved.", "ok");
+        if (!opts.quiet) setStatus("Receipt updates saved.", "ok");
+        return activeOrder;
+      }
+
+      async function applyPutawaySelections(options) {
+        var opts = options || {};
+        if (!activeOrder || !activeOrder.id) throw new Error("No active order selected.");
+        if (!opts.skipSave) {
+          await saveReceipts({ quiet: true });
+        }
+
+        var selectedItems = getPendingPutawayRows().filter(function (row) {
+          return row.putawaySelected && asNonNegativeNumber(row.putawayQty) > 0;
+        }).map(function (row) {
+          return {
+            orderItemId: row.orderItemId,
+            quantity: Math.min(asNonNegativeNumber(row.putawayQty), getPendingPutawayQty(row)),
+            location: normalizeLocationInput(row.putawayLocation) || null,
+            reason: String(putawayReason.value || "").trim() || null,
+          };
+        }).filter(function (item) {
+          return item.quantity > 0;
+        });
+
+        if (!selectedItems.length) throw new Error("Select at least one pending line to put away.");
+
+        setStatus(opts.skipSave ? "Applying putaway updates..." : "Saving and applying putaway updates...", "info");
+        var path = "/api/orders/" + activeOrder.id + "/putaway";
+        var response = await fetch(apiUrl(path), {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ items: selectedItems }),
+        });
+        if (!response.ok) throw new Error(await parseApiError(response));
+        var payload = await response.json();
+        activeOrder = payload.order || activeOrder;
+        activeOrder.orderSource = "shared";
+        activeOrder.orderDomain = activeOrder.orderDomain || activeOrder.domain || "NON_FOOD";
+        activeOrder.orderKey = buildOrderKey(activeOrder.orderSource, activeOrder.id);
+        await fetchOrderList();
+        renderOrderSelect();
+        buildOrderRows();
+        renderWorkspaceTables();
+        resetScanState();
+        setStatus("Putaway applied for " + formatQty(payload.applied_quantity_total || 0) + " units across " + formatQty(payload.applied_item_count || 0) + " line(s).", "ok");
+        return payload;
       }
 
       async function refreshAll(options) {
         var preserveOrder = !options || options.preserveOrder !== false;
-        var previousId = preserveOrder && activeOrder ? Number(activeOrder.id) : null;
-        setStatus("Loading receiving workspace...", "info");
+        var previousKey = preserveOrder && activeOrder ? String(activeOrder.orderKey || buildOrderKey(activeOrder.orderSource, activeOrder.id)) : null;
+        setStatus("Loading receive / put away workspace...", "info");
         await fetchInventory();
         await fetchOrderList();
         if (!orderList.length) {
           orderSelect.innerHTML = '<option value="">No orders found</option>';
           activeOrder = null;
           orderRows = [];
-          renderTable();
+          renderWorkspaceTables();
           resetScanState();
           setStatus("No orders available yet.", "ok");
           return;
         }
 
-        var targetId = previousId && orderList.some(function (order) { return Number(order.id) === previousId; })
-          ? previousId
-          : Number(orderList[0].id);
-        await loadOrderById(targetId);
+        var targetKey = previousKey && orderList.some(function (order) { return String(order.key) === previousKey; })
+          ? previousKey
+          : String(orderList[0].key);
+        await loadOrderByKey(targetKey);
         renderScanPanel();
-        setStatus("Receiving workspace ready.", "ok");
+        setStatus("Receive / put away workspace ready.", "ok");
       }
 
       orderSelect.addEventListener("change", function () {
-        var selectedId = Number(orderSelect.value);
-        if (!selectedId) return;
-        void loadOrderById(selectedId).catch(function (error) {
+        var selectedKey = String(orderSelect.value || "");
+        if (!selectedKey) return;
+        void loadOrderByKey(selectedKey).catch(function (error) {
           setStatus(error instanceof Error ? error.message : "Could not load order.", "err");
         }).finally(function () {
-          scanBarcodeInput.focus();
+          if (activeOrderCanScan()) scanBarcodeInput.focus();
         });
       });
 
@@ -1124,7 +1477,7 @@
           node.classList.remove("active");
         });
         pill.classList.add("active");
-        renderTable();
+        renderWorkspaceTables();
       });
 
       receivingBody.addEventListener("change", function (event) {
@@ -1139,34 +1492,76 @@
         if (field === "purchase-unit" && target instanceof HTMLSelectElement) {
           row.purchaseUnit = normalizePurchaseUnit(target.value);
           recomputeRow(row);
-          renderTable();
+          hydratePutawayState(row);
+          renderWorkspaceTables();
           renderScanPanel();
           return;
         }
         if (field === "units-per-purchase" && target instanceof HTMLInputElement) {
           row.unitsPerPurchase = asNonNegativeNumber(target.value);
           recomputeRow(row);
-          renderTable();
+          hydratePutawayState(row);
+          renderWorkspaceTables();
           renderScanPanel();
           return;
         }
         if (field === "ordered-purchase" && target instanceof HTMLInputElement) {
           row.orderedPurchaseQty = asNonNegativeNumber(target.value);
           recomputeRow(row);
-          renderTable();
+          hydratePutawayState(row);
+          renderWorkspaceTables();
           renderScanPanel();
           return;
         }
         if (field === "received-purchase" && target instanceof HTMLInputElement) {
           row.receivedPurchaseQty = asNonNegativeNumber(target.value);
           recomputeRow(row);
-          renderTable();
+          hydratePutawayState(row);
+          renderWorkspaceTables();
           renderScanPanel();
           return;
         }
         if (field === "notes" && target instanceof HTMLInputElement) {
           row.notes = target.value || "";
         }
+      });
+
+      putawayBody.addEventListener("change", function (event) {
+        var target = event.target;
+        if (!(target instanceof HTMLElement)) return;
+        var itemId = Number(target.getAttribute("data-item-id"));
+        if (!itemId) return;
+        var row = getRowByItemId(itemId);
+        if (!row) return;
+
+        var field = target.getAttribute("data-field") || "";
+        if (field === "putaway-selected" && target instanceof HTMLInputElement) {
+          row.putawaySelected = Boolean(target.checked);
+          syncPutawayState(row);
+          renderPutawayTable();
+          return;
+        }
+        if (field === "putaway-qty" && target instanceof HTMLInputElement) {
+          row.putawayQty = Math.min(asNonNegativeNumber(target.value), getPendingPutawayQty(row));
+          syncPutawayState(row);
+          target.value = formatQty(row.putawayQty);
+          renderPutawayStats(getPendingPutawayRows());
+          return;
+        }
+        if (field === "putaway-location" && target instanceof HTMLInputElement) {
+          row.putawayLocation = normalizeLocationInput(target.value);
+          syncPutawayState(row);
+          target.value = row.putawayLocation;
+        }
+      });
+
+      toggleAllPutawayRows.addEventListener("change", function () {
+        var checked = Boolean(toggleAllPutawayRows.checked);
+        getPendingPutawayRows().forEach(function (row) {
+          row.putawaySelected = checked;
+          syncPutawayState(row);
+        });
+        renderPutawayTable();
       });
 
       scanFindBtn.addEventListener("click", function () {
@@ -1221,22 +1616,34 @@
 
       refreshBtn.addEventListener("click", function () {
         void refreshAll({ preserveOrder: true }).catch(function (error) {
-          setStatus(error instanceof Error ? error.message : "Could not refresh receiving data.", "err");
+          setStatus(error instanceof Error ? error.message : "Could not refresh receive / put away data.", "err");
         });
       });
 
       saveBtn.addEventListener("click", function () {
         void saveReceipts().catch(function (error) {
-          setStatus(error instanceof Error ? error.message : "Could not save receiving updates.", "err");
+          setStatus(error instanceof Error ? error.message : "Could not save receipt updates.", "err");
+        });
+      });
+
+      saveAndPutawayBtn.addEventListener("click", function () {
+        void applyPutawaySelections().catch(function (error) {
+          setStatus(error instanceof Error ? error.message : "Could not save and apply putaway.", "err");
+        });
+      });
+
+      applyPutawayBtn.addEventListener("click", function () {
+        void applyPutawaySelections().catch(function (error) {
+          setStatus(error instanceof Error ? error.message : "Could not apply putaway.", "err");
         });
       });
 
       async function init() {
         try {
           await refreshAll({ preserveOrder: false });
-          scanBarcodeInput.focus();
+          if (activeOrderCanScan()) scanBarcodeInput.focus();
         } catch (error) {
-          setStatus(error instanceof Error ? error.message : "Could not load receiving page.", "err");
+          setStatus(error instanceof Error ? error.message : "Could not load the receive / put away page.", "err");
         }
       }
 

@@ -13,7 +13,6 @@
       const loadListBtn = document.getElementById("loadListBtn");
       const deleteListBtn = document.getElementById("deleteListBtn");
       const applyInventoryBtn = document.getElementById("applyInventoryBtn");
-      const splitSelectedAsBtn = document.getElementById("splitSelectedAsBtn");
       const refreshListsBtn = document.getElementById("refreshListsBtn");
       const shoppingBody = document.getElementById("shoppingBody");
       const shoppingTableWrap = document.querySelector(".shopping-table-wrap");
@@ -23,9 +22,6 @@
       const metricReceived = document.getElementById("metricReceived");
       const metricStatus = document.getElementById("metricStatus");
       const groupModeSelect = document.getElementById("groupModeSelect");
-      const laterOnlyToggle = document.getElementById("laterOnlyToggle");
-      const laterOnlyCount = document.getElementById("laterOnlyCount");
-      const selectAllVisibleInput = document.getElementById("selectAllVisibleInput");
       const shoppingCategoryFilter = document.getElementById("shoppingCategoryFilter");
       const sourceBreakdownHint = document.getElementById("sourceBreakdownHint");
 
@@ -42,9 +38,6 @@
       let dropdownSelectedListId = null;
       let renameEditingListId = null;
       let selectedIngredientCategory = null;
-      let showLaterOnly = false;
-      let selectedShoppingItemIds = new Set();
-      let visibleShoppingItemIds = new Set();
       const MASS_UNITS_TO_G = {
         g: 1,
         kg: 1000,
@@ -219,7 +212,7 @@
           const tr = document.createElement("tr");
           tr.className = "shopping-skeleton-row";
 
-          for (let j = 0; j < 9; j += 1) {
+          for (let j = 0; j < 8; j += 1) {
             const td = document.createElement("td");
             const line = document.createElement("div");
             line.className = "ui-skeleton-line skeleton-cell";
@@ -434,8 +427,6 @@
             activeShoppingDetail = null;
             activeListId = null;
             activeListPhase = null;
-            selectedShoppingItemIds = new Set();
-            visibleShoppingItemIds = new Set();
             setSummary(null);
             renderShoppingRows({ items: [] });
           }
@@ -454,55 +445,10 @@
         return normalized === "fresh" || normalized === "daily";
       }
 
-      function updateSelectAllVisibleState() {
-        if (!(selectAllVisibleInput instanceof HTMLInputElement)) {
-          return;
-        }
-        const visibleCount = visibleShoppingItemIds.size;
-        if (!activeListId || visibleCount <= 0) {
-          selectAllVisibleInput.checked = false;
-          selectAllVisibleInput.indeterminate = false;
-          selectAllVisibleInput.disabled = true;
-          return;
-        }
-        selectAllVisibleInput.disabled = false;
-
-        let selectedVisibleCount = 0;
-        visibleShoppingItemIds.forEach((id) => {
-          if (selectedShoppingItemIds.has(id)) {
-            selectedVisibleCount += 1;
-          }
-        });
-
-        if (selectedVisibleCount <= 0) {
-          selectAllVisibleInput.checked = false;
-          selectAllVisibleInput.indeterminate = false;
-        } else if (selectedVisibleCount >= visibleCount) {
-          selectAllVisibleInput.checked = true;
-          selectAllVisibleInput.indeterminate = false;
-        } else {
-          selectAllVisibleInput.checked = false;
-          selectAllVisibleInput.indeterminate = true;
-        }
-      }
-
-      function updateSplitSelectedButtonState() {
-        const selectedCount = selectedShoppingItemIds.size;
-        if (splitSelectedAsBtn instanceof HTMLButtonElement) {
-          splitSelectedAsBtn.disabled = !activeListId || selectedCount <= 0;
-          const asIconHtml = '<i class="fa-solid fa-pen-to-square me-2"></i>';
-          splitSelectedAsBtn.innerHTML = selectedCount > 0
-            ? `${asIconHtml}Save Selected As... (${selectedCount})`
-            : `${asIconHtml}Save Selected As...`;
-        }
-        updateSelectAllVisibleState();
-      }
-
       function updateListActionStates() {
         const hasList = Boolean(activeListId);
         deleteListBtn.disabled = !hasList;
         applyInventoryBtn.disabled = !(hasList && isInventoryEditablePhase(activeListPhase));
-        updateSplitSelectedButtonState();
       }
 
       function listNameById(listId) {
@@ -661,79 +607,6 @@
         input.checked = Boolean(checked);
         input.addEventListener("change", () => onChange(Boolean(input.checked)));
         return input;
-      }
-
-      function createPartialSplitButton(item) {
-        const button = document.createElement("button");
-        button.type = "button";
-        button.className = "btn btn-outline-secondary btn-sm split-now-btn";
-        button.innerHTML = '<i class="fa-solid fa-scissors me-1"></i>Split';
-
-        const toBuyQty = Number(item?.to_buy_qty || 0);
-        const blockedByState = Boolean(item?.ordered) || Boolean(item?.received);
-        const canSplit = Number.isFinite(toBuyQty) && toBuyQty > 0 && !blockedByState;
-
-        if (!canSplit) {
-          button.disabled = true;
-          if (blockedByState) {
-            button.title = "Split is disabled after an item is marked ordered or received.";
-          } else {
-            button.title = "Split is available only when amount to order is greater than zero.";
-          }
-          return button;
-        }
-
-        button.title = "Split this item into buy-now and buy-later quantities.";
-        button.addEventListener("click", (event) => {
-          event.preventDefault();
-          event.stopPropagation();
-          void splitShoppingItemPartialBuy(item);
-        });
-        return button;
-      }
-
-      function partialBuyBadgeData(notesValue) {
-        const notes = String(notesValue || "").trim();
-        if (!notes) {
-          return null;
-        }
-        const match = notes.match(/^Partial buy:\s*(Now|Later)\s*\((\d+(?:\.\d+)?)% of original\)\./i);
-        if (!match) {
-          return null;
-        }
-        return {
-          stage: String(match[1] || "").trim(),
-          percent: Number(match[2]),
-        };
-      }
-
-      function isLaterPartialItem(item) {
-        const badge = partialBuyBadgeData(item?.notes);
-        return Boolean(badge && String(badge.stage || "").trim().toLowerCase() === "later");
-      }
-
-      function applyLaterOnlyFilter(items) {
-        const rows = Array.isArray(items) ? items : [];
-        if (!showLaterOnly) {
-          return [...rows];
-        }
-        return rows.filter((item) => isLaterPartialItem(item));
-      }
-
-      function updateLaterOnlySummary(items) {
-        const rows = Array.isArray(items) ? items : [];
-        const laterCount = rows.filter((item) => isLaterPartialItem(item)).length;
-        if (showLaterOnly && laterCount <= 0) {
-          showLaterOnly = false;
-        }
-
-        if (laterOnlyCount) {
-          laterOnlyCount.textContent = `${laterCount}/${rows.length}`;
-        }
-        if (laterOnlyToggle instanceof HTMLInputElement) {
-          laterOnlyToggle.checked = showLaterOnly;
-          laterOnlyToggle.disabled = rows.length <= 0 || laterCount <= 0;
-        }
       }
 
       function inventoryInputStep(_unit) {
@@ -1143,32 +1016,8 @@
         const tr = document.createElement("tr");
         tr.className = "item-row";
 
-        const pickTd = document.createElement("td");
-        pickTd.className = "text-center";
-        const pickInput = document.createElement("input");
-        pickInput.type = "checkbox";
-        pickInput.className = "form-check-input";
-        pickInput.dataset.role = "pick-item";
-        const itemId = Number(item?.id || 0);
-        if (itemId > 0) {
-          pickInput.dataset.itemId = String(itemId);
-        }
-        pickInput.checked = itemId > 0 && selectedShoppingItemIds.has(itemId);
-        pickInput.addEventListener("change", () => {
-          if (itemId <= 0) {
-            return;
-          }
-          if (pickInput.checked) {
-            selectedShoppingItemIds.add(itemId);
-          } else {
-            selectedShoppingItemIds.delete(itemId);
-          }
-          updateSplitSelectedButtonState();
-        });
-        pickTd.appendChild(pickInput);
-        tr.appendChild(pickTd);
-
         const ingredientTd = document.createElement("td");
+        ingredientTd.className = "shopping-need-cell";
         const ingredientName = String(item?.ingredient_name || "").trim() || "Unknown ingredient";
         const sourceBreakdown = Array.isArray(item?.source_breakdown)
           ? item.source_breakdown
@@ -1245,9 +1094,6 @@
           details.appendChild(breakdownList);
           ingredientTd.appendChild(details);
         }
-        const ingredientActions = document.createElement("div");
-        ingredientActions.className = "ingredient-actions";
-
         const ingredientMetrics = document.createElement("div");
         ingredientMetrics.className = "ingredient-metrics";
 
@@ -1279,49 +1125,44 @@
         }
         ingredientMetrics.appendChild(stockMetric);
         ingredientTd.appendChild(ingredientMetrics);
-
-        const partialBadge = partialBuyBadgeData(item?.notes);
-        if (partialBadge && Number.isFinite(partialBadge.percent)) {
-          const badge = document.createElement("span");
-          badge.className = `qty-chip partial-buy-badge ${partialBadge.stage.toLowerCase() === "later" ? "later" : "now"}`;
-          badge.textContent = `${partialBadge.stage} ${partialBadge.percent.toFixed(1)}%`;
-          ingredientActions.appendChild(badge);
-        }
-        ingredientActions.appendChild(createPartialSplitButton(item));
-        ingredientTd.appendChild(ingredientActions);
         tr.appendChild(ingredientTd);
 
         const buyMetricTd = document.createElement("td");
+        buyMetricTd.className = "shopping-need-cell";
         buyMetricTd.innerHTML = `<span class="qty-chip buy">${formatNeededQty(item.to_buy_qty, item.to_buy_unit)}</span>`;
         tr.appendChild(buyMetricTd);
 
         const buyUsTd = document.createElement("td");
+        buyUsTd.className = "shopping-need-cell shopping-need-end";
         buyUsTd.innerHTML = `<span class="qty-chip buy">${formatLbsQty(item.to_buy_qty, item.to_buy_unit)}</span>`;
         tr.appendChild(buyUsTd);
 
         const sourceTd = document.createElement("td");
+        sourceTd.className = "shopping-action-cell shopping-action-start";
         sourceTd.appendChild(createVendorSelect(item));
         tr.appendChild(sourceTd);
 
         const orderedAmountTd = document.createElement("td");
+        orderedAmountTd.className = "shopping-action-cell";
         orderedAmountTd.appendChild(createOrderedAmountEditor(item));
         tr.appendChild(orderedAmountTd);
 
         const orderedTd = document.createElement("td");
-        orderedTd.className = "text-center";
+        orderedTd.className = "shopping-action-cell text-center";
         orderedTd.appendChild(createToggle(item.ordered, (value) => {
           void updateShoppingItem(item.id, { ordered: value });
         }));
         tr.appendChild(orderedTd);
 
         const receivedTd = document.createElement("td");
-        receivedTd.className = "text-center";
+        receivedTd.className = "shopping-action-cell text-center";
         receivedTd.appendChild(createToggle(item.received, (value) => {
           void updateShoppingItem(item.id, { received: value });
         }));
         tr.appendChild(receivedTd);
 
         const notesTd = document.createElement("td");
+        notesTd.className = "shopping-action-cell";
         const notesInput = document.createElement("input");
         notesInput.type = "text";
         notesInput.className = "form-control form-control-sm";
@@ -1340,7 +1181,7 @@
         const headerTr = document.createElement("tr");
         headerTr.className = "category-row";
         const headerTd = document.createElement("td");
-        headerTd.colSpan = 9;
+        headerTd.colSpan = 8;
 
         const heading = document.createElement("div");
         heading.className = "category-heading";
@@ -1364,14 +1205,6 @@
         }
         const inventoryEditable = isInventoryEditablePhase(detail?.phase || activeListPhase);
         const allItems = Array.isArray(detail?.items) ? detail.items : [];
-        const validItemIds = new Set(
-          allItems
-            .map((item) => Number(item?.id))
-            .filter((id) => Number.isFinite(id) && id > 0)
-        );
-        selectedShoppingItemIds = new Set(
-          Array.from(selectedShoppingItemIds).filter((id) => validItemIds.has(id))
-        );
         const rawBreakdownCount = allItems.filter(
           (item) => Array.isArray(item?.source_breakdown) && item.source_breakdown.length > 0
         ).length;
@@ -1395,35 +1228,15 @@
             sourceBreakdownHint.textContent = `${withBreakdownCount} ingredients include contributor details (>= 2 kg or >= 2 l).`;
           }
         }
-        updateLaterOnlySummary(allItems);
-        const laterFilteredItems = applyLaterOnlyFilter(allItems);
-        renderShoppingCategoryFilter(laterFilteredItems);
-        const visibleItems = categoryFilteredItems(laterFilteredItems);
-        visibleShoppingItemIds = new Set(
-          visibleItems
-            .map((item) => Number(item?.id))
-            .filter((id) => Number.isFinite(id) && id > 0)
-        );
-        updateSplitSelectedButtonState();
+        renderShoppingCategoryFilter(allItems);
+        const visibleItems = categoryFilteredItems(allItems);
 
         if (!allItems.length) {
           const tr = document.createElement("tr");
           const td = document.createElement("td");
-          td.colSpan = 9;
+          td.colSpan = 8;
           td.className = "text-muted small py-3";
           td.textContent = "No items found for this shopping list.";
-          tr.appendChild(td);
-          shoppingBody.appendChild(tr);
-          triggerFadeIn(shoppingBody);
-          return;
-        }
-
-        if (showLaterOnly && !laterFilteredItems.length) {
-          const tr = document.createElement("tr");
-          const td = document.createElement("td");
-          td.colSpan = 9;
-          td.className = "text-muted small py-3";
-          td.textContent = "No items marked for later purchase.";
           tr.appendChild(td);
           shoppingBody.appendChild(tr);
           triggerFadeIn(shoppingBody);
@@ -1433,7 +1246,7 @@
         if (!visibleItems.length) {
           const tr = document.createElement("tr");
           const td = document.createElement("td");
-          td.colSpan = 9;
+          td.colSpan = 8;
           td.className = "text-muted small py-3";
           td.textContent = `No items in ${selectedIngredientCategory}.`;
           tr.appendChild(td);
@@ -1447,7 +1260,7 @@
             const sourceTr = document.createElement("tr");
             sourceTr.className = "source-row";
             const sourceTd = document.createElement("td");
-            sourceTd.colSpan = 9;
+            sourceTd.colSpan = 8;
             sourceTd.textContent = `Source: ${sourceEntry.source} (${sourceEntry.totalItems} items)`;
             sourceTr.appendChild(sourceTd);
             shoppingBody.appendChild(sourceTr);
@@ -1485,8 +1298,6 @@
             throw new Error(await parseApiError(response));
           }
           const detail = await response.json();
-          selectedShoppingItemIds = new Set();
-          visibleShoppingItemIds = new Set();
           activeShoppingDetail = detail;
           activeListId = detail.id;
           dropdownSelectedListId = Number(detail.id);
@@ -1523,8 +1334,6 @@
           }
 
           const detail = await response.json();
-          selectedShoppingItemIds = new Set();
-          visibleShoppingItemIds = new Set();
           activeShoppingDetail = detail;
           activeListId = detail.id;
           dropdownSelectedListId = Number(detail.id);
@@ -1570,71 +1379,6 @@
           renderShoppingRows(detail);
           await loadShoppingLists();
           setStatus("Saved.", "ok");
-        } catch (error) {
-          setStatus(error instanceof Error ? error.message : String(error), "err");
-        }
-      }
-
-      async function splitShoppingItemPartialBuy(item) {
-        const targetItemId = Number(item?.id || 0);
-        if (!activeListId || !Number.isFinite(targetItemId) || targetItemId <= 0) {
-          setStatus("Load a shopping list first.", "err");
-          return;
-        }
-        if (Boolean(item?.ordered) || Boolean(item?.received)) {
-          setStatus("Cannot split items that are already ordered or received.", "err");
-          return;
-        }
-
-        const ingredientName = String(item?.ingredient_name || "this item").trim() || "this item";
-        const suggestedPercent = "75";
-        const rawInput = window.prompt(
-          `Buy what percent now for ${ingredientName}? (later gets the remainder)`,
-          suggestedPercent,
-        );
-        if (rawInput == null) {
-          return;
-        }
-
-        const normalizedInput = String(rawInput).trim().replace(/%/g, "");
-        const buyNowPercent = Number(normalizedInput);
-        if (!Number.isFinite(buyNowPercent) || buyNowPercent <= 0 || buyNowPercent >= 100) {
-          setStatus("Enter a valid percentage between 0 and 100 (exclusive).", "err");
-          return;
-        }
-
-        try {
-          setStatus(`Splitting ${ingredientName}...`, "info", { busy: true });
-          const response = await fetch(apiUrl(`/api/shopping-lists/${activeListId}/items/${targetItemId}/split`), {
-            method: "POST",
-            credentials: "include",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ buyNowPercent }),
-          });
-          if (!response.ok) {
-            throw new Error(await parseApiError(response));
-          }
-
-          const detail = await response.json();
-          activeShoppingDetail = detail;
-          activeListPhase = String(detail.phase || "").trim().toLowerCase() || null;
-          setSummary(detail);
-          renderShoppingRows(detail);
-          await loadShoppingLists();
-
-          const splitResult = detail?.split_result;
-          if (
-            splitResult
-            && Number.isFinite(Number(splitResult.buy_now_percent))
-            && Number.isFinite(Number(splitResult.buy_later_percent))
-          ) {
-            setStatus(
-              `Split ${ingredientName}: ${Number(splitResult.buy_now_percent).toFixed(1)}% now, ${Number(splitResult.buy_later_percent).toFixed(1)}% later.`,
-              "ok",
-            );
-          } else {
-            setStatus(`Split ${ingredientName}.`, "ok");
-          }
         } catch (error) {
           setStatus(error instanceof Error ? error.message : String(error), "err");
         }
@@ -1793,8 +1537,6 @@
           activeShoppingDetail = null;
           activeListId = null;
           activeListPhase = null;
-          selectedShoppingItemIds = new Set();
-          visibleShoppingItemIds = new Set();
           closeInlineRenameEditor();
           updateListActionStates();
           setSummary(null);
@@ -1850,102 +1592,6 @@
         }
       }
 
-      async function splitSelectedShoppingItems(options = {}) {
-        const {
-          nameOverride = null,
-          busyButton = splitSelectedAsBtn,
-          busyLabel = "Saving",
-        } = options;
-        if (!activeListId) {
-          setStatus("Load a shopping list first.", "err");
-          return;
-        }
-        const selectedIds = Array.from(selectedShoppingItemIds)
-          .map((value) => Number(value))
-          .filter((value) => Number.isFinite(value) && value > 0);
-        if (!selectedIds.length) {
-          setStatus("Select one or more items first.", "err");
-          return;
-        }
-
-        try {
-          setButtonBusy(busyButton, true, busyLabel);
-          setStatus("Saving selected items to a new list...", "info", { busy: true });
-          const requestBody = { itemIds: selectedIds };
-          const normalizedName = typeof nameOverride === "string" ? nameOverride.trim() : "";
-          if (normalizedName) {
-            requestBody.name = normalizedName;
-          }
-          const response = await fetch(apiUrl(`/api/shopping-lists/${activeListId}/split-selected`), {
-            method: "POST",
-            credentials: "include",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(requestBody),
-          });
-          if (!response.ok) {
-            throw new Error(await parseApiError(response));
-          }
-
-          const result = await response.json();
-          const sourceDetail = result?.source_list;
-          const newListDetail = result?.new_list;
-          if (!sourceDetail || !newListDetail) {
-            throw new Error("Unexpected split-selected response.");
-          }
-
-          selectedShoppingItemIds = new Set();
-          activeShoppingDetail = sourceDetail;
-          activeListId = Number(sourceDetail.id || activeListId);
-          activeListPhase = String(sourceDetail.phase || "").trim().toLowerCase() || null;
-          setSummary(sourceDetail);
-          renderShoppingRows(sourceDetail);
-          updateListActionStates();
-
-          await loadShoppingLists();
-          dropdownSelectedListId = Number(sourceDetail.id || activeListId);
-          if (dropdownSelectedListId) {
-            shoppingListSelect.value = String(dropdownSelectedListId);
-          }
-
-          const movedCount = Number(result?.split_item_count || selectedIds.length);
-          const newListName = String(newListDetail.name || "").trim() || "new list";
-          setStatus(`Moved ${movedCount} item(s) to "${newListName}".`, "ok");
-        } catch (error) {
-          setStatus(error instanceof Error ? error.message : String(error), "err");
-        } finally {
-          setButtonBusy(busyButton, false, busyLabel);
-          updateSplitSelectedButtonState();
-        }
-      }
-
-      async function splitSelectedShoppingItemsAs() {
-        if (!activeListId) {
-          setStatus("Load a shopping list first.", "err");
-          return;
-        }
-        if (!selectedShoppingItemIds.size) {
-          setStatus("Select one or more items first.", "err");
-          return;
-        }
-
-        const sourceName = listNameById(activeListId) || `Shopping List #${activeListId}`;
-        const suggestedName = `${sourceName} - Selected`;
-        const rawName = window.prompt("Name for the new shopping list:", suggestedName);
-        if (rawName == null) {
-          return;
-        }
-        const finalName = rawName.trim();
-        if (!finalName) {
-          setStatus("List name cannot be blank.", "err");
-          return;
-        }
-        await splitSelectedShoppingItems({
-          nameOverride: finalName,
-          busyButton: splitSelectedAsBtn,
-          busyLabel: "Saving",
-        });
-      }
-
       async function bootstrap() {
         try {
           setStatus("Loading shopping workspace...", "info", { busy: true });
@@ -1996,8 +1642,6 @@
                 activeShoppingDetail = null;
                 activeListId = null;
                 activeListPhase = null;
-                selectedShoppingItemIds = new Set();
-                visibleShoppingItemIds = new Set();
                 updateListActionStates();
                 setSummary(null);
                 renderShoppingRows({ items: [] });
@@ -2010,8 +1654,6 @@
             activeShoppingDetail = null;
             activeListId = null;
             activeListPhase = null;
-            selectedShoppingItemIds = new Set();
-            visibleShoppingItemIds = new Set();
             updateListActionStates();
             setSummary(null);
             renderShoppingRows({ items: [] });
@@ -2036,12 +1678,6 @@
         setGroupMode(groupModeSelect.value);
         renderShoppingRows(activeShoppingDetail || { items: [] });
       });
-      if (laterOnlyToggle instanceof HTMLInputElement) {
-        laterOnlyToggle.addEventListener("change", () => {
-          showLaterOnly = Boolean(laterOnlyToggle.checked);
-          renderShoppingRows(activeShoppingDetail || { items: [] });
-        });
-      }
       selectAllRetreatsBtn.addEventListener("click", () => {
         Array.from(retreatPlanSelect.options).forEach((opt) => {
           opt.selected = true;
@@ -2132,33 +1768,6 @@
       applyInventoryBtn.addEventListener("click", () => {
         void applyInventoryFromList();
       });
-
-      if (splitSelectedAsBtn) {
-        splitSelectedAsBtn.addEventListener("click", () => {
-          void splitSelectedShoppingItemsAs();
-        });
-      }
-
-      if (selectAllVisibleInput) {
-        selectAllVisibleInput.addEventListener("change", () => {
-          if (!activeListId || visibleShoppingItemIds.size <= 0) {
-            updateSelectAllVisibleState();
-            return;
-          }
-          const shouldSelect = Boolean(selectAllVisibleInput.checked);
-          if (shouldSelect) {
-            visibleShoppingItemIds.forEach((id) => selectedShoppingItemIds.add(id));
-          } else {
-            visibleShoppingItemIds.forEach((id) => selectedShoppingItemIds.delete(id));
-          }
-          shoppingBody.querySelectorAll('input[data-role="pick-item"]').forEach((node) => {
-            if (node instanceof HTMLInputElement) {
-              node.checked = shouldSelect;
-            }
-          });
-          updateSplitSelectedButtonState();
-        });
-      }
 
       refreshListsBtn.addEventListener("click", () => {
         void refreshSelectedShoppingList();

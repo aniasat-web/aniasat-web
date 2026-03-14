@@ -456,6 +456,45 @@ def normalize_optional_text(value: Any) -> str | None:
     return text if text else None
 
 
+def rounded_quantity(value: Any, *, clamp_non_negative: bool = True) -> float:
+    try:
+        numeric = float(value)
+    except (TypeError, ValueError):
+        return 0.0
+    if clamp_non_negative and numeric < 0:
+        numeric = 0.0
+    if abs(numeric) < 0.0005:
+        return 0.0
+    return round(numeric, 3)
+
+
+def normalize_unit_text(value: Any, *, fallback: str | None = None) -> str | None:
+    text = normalize_optional_text(value)
+    if not text:
+        return fallback
+    return text.lower()
+
+
+def normalize_purchase_unit_text(value: Any) -> str:
+    text = normalize_optional_text(value)
+    if not text:
+        return "unit"
+    lowered = text.lower()
+    aliases = {
+        "unit": "unit",
+        "units": "unit",
+        "each": "unit",
+        "ea": "unit",
+        "eaches": "unit",
+        "case": "case",
+        "cases": "case",
+        "cs": "case",
+        "pack": "pack",
+        "packs": "pack",
+    }
+    return aliases.get(lowered, lowered)
+
+
 def extract_urls_from_text(raw_text: Any) -> list[str]:
     text = normalize_optional_text(raw_text)
     if not text:
@@ -734,6 +773,333 @@ def migrate_retreat_inventory_shelf_locations(conn: CompatConnection) -> None:
         )
 
 
+def migrate_legacy_non_food_order_tables_to_shared(conn: CompatConnection) -> None:
+    has_legacy_orders = table_exists(conn, "standalone_inventory_orders")
+    has_legacy_items = table_exists(conn, "standalone_inventory_order_items")
+    has_legacy_transactions = table_exists(conn, "standalone_inventory_transactions")
+    if not (has_legacy_orders or has_legacy_items or has_legacy_transactions):
+        return
+
+    if not all(
+        table_exists(conn, table_name)
+        for table_name in ("inventory_orders", "inventory_order_items", "inventory_movements")
+    ):
+        return
+
+    shared_order_rows = conn.execute(
+        """
+        SELECT id, source_id
+        FROM inventory_orders
+        WHERE domain = 'NON_FOOD'
+          AND source_type = 'LEGACY'
+          AND source_id IS NOT NULL
+        """
+    ).fetchall()
+    shared_order_by_source_id = {
+        int(row["source_id"]): int(row["id"])
+        for row in shared_order_rows
+        if row["source_id"] is not None
+    }
+    shared_item_by_legacy_item_id: dict[int, int] = {}
+    shared_item_unit_by_id: dict[int, str | None] = {}
+    inventory_unit_by_item_id: dict[int, str | None] = {}
+
+    if has_legacy_orders:
+        deleted_legacy_rows = conn.execute(
+            """
+            SELECT id, deleted_at, updated_at
+            FROM standalone_inventory_orders
+            WHERE deleted_at IS NOT NULL
+            """
+        ).fetchall()
+        for deleted_row in deleted_legacy_rows:
+            shared_order_id = shared_order_by_source_id.get(int(deleted_row["id"]))
+            if shared_order_id is None:
+                continue
+            deleted_at = normalize_optional_text(deleted_row["deleted_at"])
+            updated_at = normalize_optional_text(deleted_row["updated_at"]) or deleted_at
+            conn.execute(
+                """
+                UPDATE inventory_orders
+                SET deleted_at = COALESCE(deleted_at, ?),
+                    updated_at = CASE
+                        WHEN ? IS NOT NULL THEN ?
+                        ELSE updated_at
+                    END
+                WHERE id = ?
+                """,
+                (deleted_at, updated_at, updated_at, shared_order_id),
+            )
+
+    legacy_items_by_order_id: dict[int, list[Any]] = {}
+    if has_legacy_items:
+        legacy_item_rows = conn.execute(
+            """
+            SELECT
+                soi.id,
+                soi.order_id,
+                soi.inventory_item_id,
+                soi.item_name_snapshot,
+                soi.category_snapshot,
+                soi.unit_snapshot,
+                soi.current_quantity_snapshot,
+                soi.required_quantity,
+                soi.ordered_quantity,
+                soi.received_quantity,
+                soi.purchase_unit,
+                soi.units_per_purchase,
+                soi.ordered_purchase_quantity,
+                soi.received_purchase_quantity,
+                soi.applied_received_quantity,
+                soi.order_url_snapshot,
+                soi.order_url_override,
+                soi.notes,
+                soi.ordered_by_user_id,
+                soi.ordered_at,
+                soi.received_by_user_id,
+                soi.received_at,
+                soi.created_at,
+                soi.updated_at,
+                si.unit AS inventory_unit
+            FROM standalone_inventory_order_items soi
+            LEFT JOIN standalone_inventory si
+              ON si.id = soi.inventory_item_id
+            ORDER BY soi.order_id, soi.id
+            """
+        ).fetchall()
+        for item_row in legacy_item_rows:
+            order_id = int(item_row["order_id"])
+            legacy_items_by_order_id.setdefault(order_id, []).append(item_row)
+            inventory_item_id = int(item_row["inventory_item_id"])
+            inventory_unit_by_item_id.setdefault(
+                inventory_item_id,
+                normalize_unit_text(item_row["inventory_unit"], fallback="each"),
+            )
+
+    if has_legacy_orders:
+        legacy_order_rows = conn.execute(
+            """
+            SELECT
+                id,
+                name,
+                status,
+                notes,
+                created_by_user_id,
+                ordered_by_user_id,
+                ordered_at,
+                received_by_user_id,
+                received_at,
+                created_at,
+                updated_at
+            FROM standalone_inventory_orders
+            WHERE deleted_at IS NULL
+            ORDER BY id
+            """
+        ).fetchall()
+
+        for legacy_order_row in legacy_order_rows:
+            legacy_order_id = int(legacy_order_row["id"])
+            shared_order_id = shared_order_by_source_id.get(legacy_order_id)
+            if shared_order_id is None:
+                created_row = conn.execute(
+                    """
+                    INSERT INTO inventory_orders(
+                        domain,
+                        source_type,
+                        source_id,
+                        name,
+                        status,
+                        supplier_name,
+                        notes,
+                        created_by_user_id,
+                        ordered_by_user_id,
+                        ordered_at,
+                        received_by_user_id,
+                        received_at,
+                        created_at,
+                        updated_at
+                    )
+                    VALUES ('NON_FOOD', 'LEGACY', ?, ?, ?, NULL, ?, ?, ?, ?, ?, ?, ?, ?)
+                    RETURNING id
+                    """,
+                    (
+                        legacy_order_id,
+                        legacy_order_row["name"],
+                        legacy_order_row["status"],
+                        normalize_optional_text(legacy_order_row["notes"]),
+                        legacy_order_row["created_by_user_id"],
+                        legacy_order_row["ordered_by_user_id"],
+                        legacy_order_row["ordered_at"],
+                        legacy_order_row["received_by_user_id"],
+                        legacy_order_row["received_at"],
+                        legacy_order_row["created_at"],
+                        legacy_order_row["updated_at"],
+                    ),
+                ).fetchone()
+                shared_order_id = int(created_row["id"])
+                shared_order_by_source_id[legacy_order_id] = shared_order_id
+
+            existing_shared_items = conn.execute(
+                """
+                SELECT id, item_id, unit_snapshot
+                FROM inventory_order_items
+                WHERE order_id = ?
+                  AND item_type = 'STANDALONE_INVENTORY'
+                  AND source_shopping_list_item_id IS NULL
+                """,
+                (shared_order_id,),
+            ).fetchall()
+            shared_item_by_inventory_id = {
+                int(row["item_id"]): row
+                for row in existing_shared_items
+                if row["item_id"] is not None
+            }
+
+            for legacy_item_row in legacy_items_by_order_id.get(legacy_order_id, []):
+                inventory_item_id = int(legacy_item_row["inventory_item_id"])
+                existing_shared_item = shared_item_by_inventory_id.get(inventory_item_id)
+                if existing_shared_item is None:
+                    created_item_row = conn.execute(
+                        """
+                        INSERT INTO inventory_order_items(
+                            order_id,
+                            item_type,
+                            item_id,
+                            item_name_snapshot,
+                            category_snapshot,
+                            unit_snapshot,
+                            current_quantity_snapshot,
+                            required_quantity,
+                            ordered_quantity,
+                            received_quantity,
+                            applied_quantity,
+                            purchase_unit,
+                            units_per_purchase,
+                            ordered_purchase_quantity,
+                            received_purchase_quantity,
+                            source_shopping_list_item_id,
+                            order_url_snapshot,
+                            order_url_override,
+                            notes,
+                            ordered_by_user_id,
+                            ordered_at,
+                            received_by_user_id,
+                            received_at,
+                            created_at,
+                            updated_at
+                        )
+                        VALUES (?, 'STANDALONE_INVENTORY', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        RETURNING id
+                        """,
+                        (
+                            shared_order_id,
+                            inventory_item_id,
+                            legacy_item_row["item_name_snapshot"],
+                            normalize_optional_text(legacy_item_row["category_snapshot"]),
+                            normalize_unit_text(legacy_item_row["unit_snapshot"], fallback="each"),
+                            rounded_quantity(legacy_item_row["current_quantity_snapshot"]),
+                            rounded_quantity(legacy_item_row["required_quantity"]),
+                            rounded_quantity(legacy_item_row["ordered_quantity"]),
+                            rounded_quantity(legacy_item_row["received_quantity"]),
+                            rounded_quantity(legacy_item_row["applied_received_quantity"]),
+                            normalize_purchase_unit_text(legacy_item_row["purchase_unit"]),
+                            max(1.0, rounded_quantity(legacy_item_row["units_per_purchase"]) or 1.0),
+                            rounded_quantity(legacy_item_row["ordered_purchase_quantity"]),
+                            rounded_quantity(legacy_item_row["received_purchase_quantity"]),
+                            normalize_optional_text(legacy_item_row["order_url_snapshot"]),
+                            normalize_optional_text(legacy_item_row["order_url_override"]),
+                            normalize_optional_text(legacy_item_row["notes"]),
+                            legacy_item_row["ordered_by_user_id"],
+                            legacy_item_row["ordered_at"],
+                            legacy_item_row["received_by_user_id"],
+                            legacy_item_row["received_at"],
+                            legacy_item_row["created_at"],
+                            legacy_item_row["updated_at"],
+                        ),
+                    ).fetchone()
+                    shared_item_id = int(created_item_row["id"])
+                    shared_item_unit_by_id[shared_item_id] = normalize_unit_text(
+                        legacy_item_row["unit_snapshot"],
+                        fallback="each",
+                    )
+                else:
+                    shared_item_id = int(existing_shared_item["id"])
+                    shared_item_unit_by_id.setdefault(
+                        shared_item_id,
+                        normalize_unit_text(existing_shared_item["unit_snapshot"], fallback="each"),
+                    )
+                shared_item_by_legacy_item_id[int(legacy_item_row["id"])] = shared_item_id
+
+    if has_legacy_transactions:
+        legacy_tx_rows = conn.execute(
+            """
+            SELECT
+                id,
+                inventory_item_id,
+                order_id,
+                order_item_id,
+                transaction_type,
+                quantity_delta,
+                reason,
+                user_id,
+                created_at
+            FROM standalone_inventory_transactions
+            ORDER BY id
+            """
+        ).fetchall()
+        for tx_row in legacy_tx_rows:
+            inventory_item_id = int(tx_row["inventory_item_id"])
+            shared_order_id = None
+            if tx_row["order_id"] is not None:
+                shared_order_id = shared_order_by_source_id.get(int(tx_row["order_id"]))
+            shared_order_item_id = None
+            if tx_row["order_item_id"] is not None:
+                shared_order_item_id = shared_item_by_legacy_item_id.get(int(tx_row["order_item_id"]))
+
+            movement_unit = shared_item_unit_by_id.get(shared_order_item_id) if shared_order_item_id is not None else None
+            if not movement_unit:
+                movement_unit = inventory_unit_by_item_id.get(inventory_item_id) or "each"
+
+            conn.execute(
+                """
+                INSERT INTO inventory_movements(
+                    domain,
+                    item_type,
+                    item_id,
+                    order_id,
+                    order_item_id,
+                    movement_type,
+                    quantity_delta,
+                    unit,
+                    location,
+                    reason,
+                    user_id,
+                    created_at
+                )
+                VALUES ('NON_FOOD', 'STANDALONE_INVENTORY', ?, ?, ?, ?, ?, ?, NULL, ?, ?, ?)
+                """,
+                (
+                    inventory_item_id,
+                    shared_order_id,
+                    shared_order_item_id,
+                    str(tx_row["transaction_type"] or "").strip().upper(),
+                    rounded_quantity(tx_row["quantity_delta"], clamp_non_negative=False),
+                    movement_unit,
+                    normalize_optional_text(tx_row["reason"]),
+                    tx_row["user_id"],
+                    tx_row["created_at"],
+                ),
+            )
+
+    for table_name in (
+        "standalone_inventory_transactions",
+        "standalone_inventory_order_items",
+        "standalone_inventory_orders",
+    ):
+        if table_exists(conn, table_name):
+            conn.execute(f"DROP TABLE IF EXISTS {table_name}")
+
+
 def init_db(_allow_malformed_recovery: bool = True) -> None:
     try:
         with get_connection() as conn:
@@ -917,6 +1283,21 @@ def init_db(_allow_malformed_recovery: bool = True) -> None:
                     WHERE received_purchase_quantity > ordered_purchase_quantity
                     """
                 )
+
+            if table_exists(conn, "inventory_order_items"):
+                inventory_order_item_columns = table_columns(conn, "inventory_order_items")
+                if inventory_order_item_columns and "order_url_snapshot" not in inventory_order_item_columns:
+                    conn.execute("ALTER TABLE inventory_order_items ADD COLUMN order_url_snapshot TEXT")
+                if inventory_order_item_columns and "order_url_override" not in inventory_order_item_columns:
+                    conn.execute("ALTER TABLE inventory_order_items ADD COLUMN order_url_override TEXT")
+                conn.execute("DROP INDEX IF EXISTS idx_inventory_order_items_unique")
+                conn.execute(
+                    """
+                    CREATE UNIQUE INDEX IF NOT EXISTS idx_inventory_order_items_unique
+                    ON inventory_order_items(order_id, item_type, item_id, source_shopping_list_item_id)
+                    """
+                )
+                migrate_legacy_non_food_order_tables_to_shared(conn)
 
             retreat_inventory_item_columns = table_columns(conn, "retreat_inventory_items")
             if retreat_inventory_item_columns and "shelf_location" not in retreat_inventory_item_columns:

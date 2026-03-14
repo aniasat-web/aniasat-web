@@ -444,8 +444,7 @@
                 <li><a class="dropdown-item" href="inventory.html?full=1"><i class="fa-solid fa-clipboard-list me-2"></i> Full Inventory</a></li>
                 <li><a class="dropdown-item" href="inventory-orders.html"><i class="fa-solid fa-list-check me-2"></i> Orders Planning</a></li>
                 <li><a class="dropdown-item" href="inventory-purchasing.html"><i class="fa-solid fa-cart-shopping me-2"></i> Purchasing</a></li>
-                <li><a class="dropdown-item" href="inventory-receiving.html"><i class="fa-solid fa-truck-ramp-box me-2"></i> Receiving</a></li>
-                <li><a class="dropdown-item" href="inventory-add.html"><i class="fa-solid fa-plus me-2"></i> Putaway / Add</a></li>
+                <li><a class="dropdown-item" href="inventory-receiving.html"><i class="fa-solid fa-truck-ramp-box me-2"></i> Receive / Put Away</a></li>
                 <li><a class="dropdown-item" href="inventory-remove.html"><i class="fa-solid fa-minus me-2"></i> Remove Inventory</a></li>
                 <li><a class="dropdown-item" href="inventory-baseline.html"><i class="fa-solid fa-barcode me-2"></i> Baseline Scan</a></li>
               </ul>
@@ -1322,25 +1321,31 @@
       }
 
       async function fetchOrderList() {
-        var response = await fetch(apiUrl("/api/inventory/orders"), { credentials: "include" });
+        var response = await fetch(apiUrl("/api/orders?domain=NON_FOOD"), { credentials: "include" });
         if (!response.ok) throw new Error(await parseApiError(response));
         var payload = await response.json();
         orderList = Array.isArray(payload) ? payload : [];
       }
 
       async function fetchOrderDetail(orderId) {
-        var response = await fetch(apiUrl("/api/inventory/orders/" + orderId), { credentials: "include" });
+        var response = await fetch(apiUrl("/api/orders/" + orderId), { credentials: "include" });
         if (!response.ok) throw new Error(await parseApiError(response));
         return response.json();
       }
 
       async function createNewOrder(defaultName) {
         var nextName = String(defaultName || "").trim() || "Inventory Order";
-        var response = await fetch(apiUrl("/api/inventory/orders"), {
+        var response = await fetch(apiUrl("/api/orders"), {
           method: "POST",
           credentials: "include",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ name: nextName, notes: null, items: [] }),
+          body: JSON.stringify({
+            domain: "NON_FOOD",
+            sourceType: "NON_FOOD_PLAN",
+            name: nextName,
+            notes: null,
+            items: [],
+          }),
         });
         if (!response.ok) throw new Error(await parseApiError(response));
         return response.json();
@@ -1389,11 +1394,19 @@
         renderNewItemCategoryOptions();
 
         var targetId = null;
-        if (requestedId && orderList.some(function (order) { return Number(order.id) === requestedId; })) {
-          targetId = requestedId;
-        } else if (previousId && orderList.some(function (order) { return Number(order.id) === previousId; })) {
-          targetId = previousId;
-        } else {
+        if (requestedId) {
+          var requestedOrder = orderList.find(function (order) {
+            return Number(order.id) === requestedId || Number(order.source_id) === requestedId;
+          }) || null;
+          if (requestedOrder) targetId = Number(requestedOrder.id);
+        }
+        if (!targetId && previousId) {
+          var previousOrder = orderList.find(function (order) {
+            return Number(order.id) === previousId || Number(order.source_id) === previousId;
+          }) || null;
+          if (previousOrder) targetId = Number(previousOrder.id);
+        }
+        if (!targetId) {
           targetId = Number(orderList[0].id);
         }
         await loadOrderById(targetId);
@@ -1402,10 +1415,13 @@
 
       function toOrderItemPayload(row) {
         return {
-          inventoryItemId: row.itemId,
+          itemType: "STANDALONE_INVENTORY",
+          itemId: row.itemId,
           requiredQuantity: row.requiredQty,
           orderedQuantity: row.orderedQty,
           receivedQuantity: row.receivedQty,
+          appliedQuantity: 0,
+          unit: row.unit || null,
           purchaseUnit: row.purchaseUnit || "unit",
           unitsPerPurchase: row.unitsPerPurchase > 0 ? row.unitsPerPurchase : 1,
           orderedPurchaseQuantity: row.purchaseUnit === "unit" ? row.orderedQty : row.orderedPurchaseQty,
@@ -1453,7 +1469,7 @@
         }
 
         setStatus("Renaming order...", "info");
-        var response = await fetch(apiUrl("/api/inventory/orders/" + activeOrder.id), {
+        var response = await fetch(apiUrl("/api/orders/" + activeOrder.id), {
           method: "PATCH",
           credentials: "include",
           headers: { "Content-Type": "application/json" },
@@ -1477,7 +1493,7 @@
         if (!confirmed) return;
 
         setStatus("Deleting order...", "info");
-        var response = await fetch(apiUrl("/api/inventory/orders/" + orderId), {
+        var response = await fetch(apiUrl("/api/orders/" + orderId), {
           method: "DELETE",
           credentials: "include",
         });
@@ -1525,11 +1541,13 @@
           "Includes only lines with Need to Order > 0 or existing ordered/received activity.";
         var purchasingNotes = sourceOrderNotes ? (sourceOrderNotes + "\n\n" + generatedNote) : generatedNote;
 
-        var response = await fetch(apiUrl("/api/inventory/orders"), {
+        var response = await fetch(apiUrl("/api/orders"), {
           method: "POST",
           credentials: "include",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
+            domain: "NON_FOOD",
+            sourceType: "NON_FOOD_PLAN",
             name: nextName,
             notes: purchasingNotes,
             items: items,
@@ -1553,11 +1571,17 @@
         var filterNotes = "Created from filters: category=" + activeCategorySummary() + ", status=" + activeStatus + ".";
 
         setStatus("Creating new filtered order...", "info");
-        var response = await fetch(apiUrl("/api/inventory/orders"), {
+        var response = await fetch(apiUrl("/api/orders"), {
           method: "POST",
           credentials: "include",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ name: suggestedName, notes: filterNotes, items: items }),
+          body: JSON.stringify({
+            domain: "NON_FOOD",
+            sourceType: "NON_FOOD_PLAN",
+            name: suggestedName,
+            notes: filterNotes,
+            items: items,
+          }),
         });
         if (!response.ok) throw new Error(await parseApiError(response));
         var created = await response.json();
@@ -1630,7 +1654,7 @@
         var silent = Boolean(options && options.silent);
         if (!silent) setStatus("Saving order changes...", "info");
 
-        var response = await fetch(apiUrl("/api/inventory/orders/" + activeOrder.id), {
+        var response = await fetch(apiUrl("/api/orders/" + activeOrder.id), {
           method: "PATCH",
           credentials: "include",
           headers: { "Content-Type": "application/json" },

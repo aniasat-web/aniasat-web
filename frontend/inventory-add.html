@@ -3,7 +3,8 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Putaway / Add Inventory - Blossom Foundation</title>
+    <title>Redirecting To Receive / Put Away - Blossom Foundation</title>
+    <meta http-equiv="refresh" content="0; url=inventory-receiving.html" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -11,548 +12,56 @@
       rel="stylesheet"
     />
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" />
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
-    <link rel="stylesheet" href="assets/header-theme.css" />
     <style>
-      body { font-family: "Plus Jakarta Sans", sans-serif; }
-      h1, h2, h3, .navbar-brand { font-family: "Instrument Serif", serif; }
-      .inventory-shell { max-width: 1160px; margin: 0 auto; padding: 1.4rem 1rem 2rem; }
-      .soft-card { border: 1px solid var(--ui-border); border-radius: var(--ui-radius-md); background: rgba(255, 255, 255, 0.9); box-shadow: var(--ui-shadow-sm); }
-      .table-wrap { max-height: 560px; overflow: auto; }
-      .sticky-head thead th { position: sticky; top: 0; z-index: 2; background: #fff; }
-      .stat-value { font-size: 1.75rem; font-weight: 800; font-variant-numeric: tabular-nums; }
-      .qty-input { width: 100px; font-size: 0.82rem; text-align: center; }
-      .location-input { width: 92px; font-size: 0.82rem; text-transform: uppercase; }
-      .filter-pill { display: inline-flex; align-items: center; padding: 0.3rem 0.7rem; border-radius: 999px; font-size: 0.75rem; font-weight: 600; border: 1px solid var(--ui-border); background: #fff; cursor: pointer; }
-      .filter-pill:hover, .filter-pill.active { border-color: var(--ui-primary-300); background: var(--ui-primary-100); color: var(--ui-primary-700); }
-      .remaining-chip {
-        display: inline-flex;
-        align-items: center;
-        border-radius: 999px;
-        padding: 0.15rem 0.55rem;
-        font-size: 0.72rem;
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+        background: linear-gradient(160deg, #f4fbf9, #eef6ff);
+        font-family: "Plus Jakarta Sans", sans-serif;
+        color: #183153;
+      }
+      .redirect-card {
+        width: min(92vw, 560px);
+        border-radius: 1.1rem;
+        background: rgba(255, 255, 255, 0.94);
+        border: 1px solid rgba(148, 163, 184, 0.24);
+        box-shadow: 0 18px 40px rgba(15, 23, 42, 0.08);
+        padding: 2rem;
+      }
+      h1 {
+        margin: 0 0 0.75rem;
+        font-family: "Instrument Serif", serif;
+        font-size: 2rem;
+      }
+      p {
+        margin: 0 0 0.9rem;
+        line-height: 1.55;
+      }
+      a {
+        color: #0f766e;
         font-weight: 700;
-        background: #eff6ff;
-        border: 1px solid #bfdbfe;
-        color: #1d4ed8;
       }
     </style>
-    <link rel="stylesheet" href="assets/ui-theme.css" />
   </head>
   <body>
-    <nav class="navbar navbar-expand-lg navbar-light fixed-top">
-      <div class="container">
-        <a class="navbar-brand" href="index.html">
-          <img class="brand-logo" src="assets/blossom-mark.png" alt="Blossom logo" />
-          <span>Blossom Foundation</span>
-        </a>
-        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarContent">
-          <span class="navbar-toggler-icon"></span>
-        </button>
-        <div class="collapse navbar-collapse" id="navbarContent">
-          <ul class="navbar-nav ms-auto mb-2 mb-lg-0 fw-semibold small text-uppercase">
-            <li class="nav-item">
-              <a class="nav-link" href="index.html"><i class="fa-solid fa-house me-1"></i> Home</a>
-            </li>
-            <li class="nav-item dropdown">
-              <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false"><i class="fa-solid fa-utensils me-1"></i> Kitchen</a>
-              <ul class="dropdown-menu">
-                <li><a class="dropdown-item" href="retreat-planner-sample.html"><i class="fa-solid fa-calendar-days me-2"></i> Planner</a></li>
-                <li><a class="dropdown-item" href="shopping-list.html"><i class="fa-solid fa-cart-shopping me-2"></i> Shopping</a></li>
-                <li><a class="dropdown-item" href="kitchen-service-view.html"><i class="fa-solid fa-fire-burner me-2"></i> Retreat View</a></li>
-                <li><a class="dropdown-item" href="kitchen-test-view.html"><i class="fa-solid fa-vial me-2"></i> Testing View</a></li>
-                <li><a class="dropdown-item" href="recipe-admin.html"><i class="fa-solid fa-book me-2"></i> Recipes</a></li>
-                <li><a class="dropdown-item" href="ingredient-admin.html"><i class="fa-solid fa-carrot me-2"></i> Ingredients</a></li>
-              </ul>
-            </li>
-            <li class="nav-item dropdown">
-              <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false"><i class="fa-solid fa-boxes-stacked me-1"></i> Inventory</a>
-              <ul class="dropdown-menu">
-                <li><a class="dropdown-item" href="inventory-home.html"><i class="fa-solid fa-warehouse me-2"></i> Inventory Home</a></li>
-                <li><a class="dropdown-item" href="inventory.html?full=1"><i class="fa-solid fa-clipboard-list me-2"></i> Full Inventory</a></li>
-                <li><a class="dropdown-item" href="inventory-orders.html"><i class="fa-solid fa-list-check me-2"></i> Orders Planning</a></li>
-                <li><a class="dropdown-item" href="inventory-purchasing.html"><i class="fa-solid fa-cart-shopping me-2"></i> Purchasing</a></li>
-                <li><a class="dropdown-item" href="inventory-receiving.html"><i class="fa-solid fa-truck-ramp-box me-2"></i> Receiving</a></li>
-                <li><a class="dropdown-item" href="inventory-add.html"><i class="fa-solid fa-plus me-2"></i> Putaway / Add</a></li>
-                <li><a class="dropdown-item" href="inventory-remove.html"><i class="fa-solid fa-minus me-2"></i> Remove Inventory</a></li>
-                <li><a class="dropdown-item" href="inventory-baseline.html"><i class="fa-solid fa-barcode me-2"></i> Baseline Scan</a></li>
-              </ul>
-            </li>
-            <li class="nav-item dropdown">
-              <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false"><i class="fa-solid fa-seedling me-1"></i> About</a>
-              <ul class="dropdown-menu">
-                <li><a class="dropdown-item" href="about.html"><i class="fa-solid fa-heart me-2"></i> About &amp; Mission</a></li>
-                <li><a class="dropdown-item" href="about-sri-m.html"><i class="fa-solid fa-user me-2"></i> About Sri M</a></li>
-                <li><a class="dropdown-item" href="sacred-grove.html"><i class="fa-solid fa-tree me-2"></i> Sacred Grove</a></li>
-                <li><a class="dropdown-item" href="faq.html"><i class="fa-solid fa-circle-question me-2"></i> FAQ</a></li>
-              </ul>
-            </li>
-            <li class="nav-item dropdown">
-              <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false"><i class="fa-solid fa-hand-holding-heart me-1"></i> Volunteer</a>
-              <ul class="dropdown-menu">
-                <li><a class="dropdown-item" href="volunteer.html"><i class="fa-solid fa-hands-helping me-2"></i> How to Volunteer</a></li>
-                <li><a class="dropdown-item" href="volunteer-contact.html"><i class="fa-solid fa-envelope me-2"></i> Contact Us</a></li>
-              </ul>
-            </li>
-            <li class="nav-item dropdown">
-              <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false"><i class="fa-solid fa-gear me-1"></i> Admin</a>
-              <ul class="dropdown-menu">
-                <li><a class="dropdown-item" href="user-admin.html"><i class="fa-solid fa-users-gear me-2"></i> Users</a></li>
-              </ul>
-            </li>
-            <li class="nav-item d-flex align-items-center">
-              <span class="nav-link text-muted d-none" id="authUserLabel"></span>
-            </li>
-            <li class="nav-item d-flex align-items-center ms-lg-2">
-              <button class="btn btn-sm btn-outline-secondary d-none" id="logoutBtn" type="button">Logout</button>
-            </li>
-          </ul>
-        </div>
-      </div>
-    </nav>
-
-    <main class="inventory-shell">
-      <div class="d-flex flex-wrap align-items-center gap-3 mb-4">
-        <div class="flex-grow-1">
-          <h1 class="fw-bold mb-2"><i class="fa-solid fa-boxes-packing me-2" style="color: var(--ui-success-700);"></i>Putaway / Add To Inventory</h1>
-          <p class="text-muted mb-0">Move received items onto shelves. Set putaway quantity and storage location, then apply to inventory stock.</p>
-        </div>
-        <span id="statusPill" class="status-pill info">Ready.</span>
-      </div>
-
-      <section class="row g-3 mb-4">
-        <div class="col-md-4">
-          <div class="soft-card p-3 text-center">
-            <div class="small text-uppercase fw-semibold text-muted mb-1"><i class="fa-solid fa-list-check me-1"></i>Pending Lines</div>
-            <div class="stat-value" id="statLines">--</div>
-          </div>
-        </div>
-        <div class="col-md-4">
-          <div class="soft-card p-3 text-center">
-            <div class="small text-uppercase fw-semibold text-muted mb-1"><i class="fa-solid fa-cubes me-1"></i>Pending Qty</div>
-            <div class="stat-value" id="statPendingQty">--</div>
-          </div>
-        </div>
-        <div class="col-md-4">
-          <div class="soft-card p-3 text-center">
-            <div class="small text-uppercase fw-semibold text-muted mb-1"><i class="fa-solid fa-check-double me-1"></i>Selected Qty</div>
-            <div class="stat-value" id="statSelectedQty">--</div>
-          </div>
-        </div>
-      </section>
-
-      <section class="soft-card p-4 mb-4">
-        <div class="row g-3 align-items-end">
-          <div class="col-lg-4">
-            <label class="small text-uppercase fw-semibold text-muted mb-1" for="orderFilter">Order Filter</label>
-            <select id="orderFilter" class="form-select form-select-sm">
-              <option value="">All Orders</option>
-            </select>
-          </div>
-          <div class="col-lg-5">
-            <label class="small text-uppercase fw-semibold text-muted mb-1" for="putawayReason">Transaction Reason</label>
-            <input id="putawayReason" type="text" class="form-control form-control-sm" placeholder="Order putaway" />
-          </div>
-          <div class="col-lg-3 d-flex gap-2">
-            <button id="refreshBtn" type="button" class="btn btn-sm btn-outline-secondary w-100"><i class="fa-solid fa-arrows-rotate me-1"></i>Refresh</button>
-            <button id="applySelectedBtn" type="button" class="btn btn-sm btn-success w-100"><i class="fa-solid fa-check me-1"></i>Apply Selected</button>
-          </div>
-        </div>
-        <div class="d-flex flex-wrap gap-2 align-items-center mt-3" id="quickFilters">
-          <button type="button" class="filter-pill active" data-filter="all">All</button>
-          <button type="button" class="filter-pill" data-filter="selected">Selected</button>
-          <button type="button" class="filter-pill" data-filter="with-location">Has Location</button>
-          <button type="button" class="filter-pill" data-filter="no-location">No Location</button>
-        </div>
-      </section>
-
-      <section class="soft-card p-4">
-        <div class="table-wrap">
-          <table class="table table-sm align-middle sticky-head">
-            <thead>
-              <tr class="small text-uppercase text-muted">
-                <th>
-                  <input id="toggleAllRows" type="checkbox" class="form-check-input" checked />
-                </th>
-                <th>Order</th>
-                <th>Item</th>
-                <th>Category</th>
-                <th>Received</th>
-                <th>Already Put Away</th>
-                <th>Remaining</th>
-                <th>Put Away Qty</th>
-                <th>Location</th>
-                <th>Purchase URL</th>
-              </tr>
-            </thead>
-            <tbody id="putawayBody"></tbody>
-          </table>
-        </div>
-      </section>
+    <main class="redirect-card">
+      <h1>Receive / Put Away</h1>
+      <p>The separate putaway page has been merged into the shared intake workspace.</p>
+      <p><a id="redirectLink" href="inventory-receiving.html">Open the combined receive / put away page.</a></p>
     </main>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="assets/auth.js?v=20260218f"></script>
     <script>
-      var statusPill = document.getElementById("statusPill");
-      var orderFilter = document.getElementById("orderFilter");
-      var putawayReason = document.getElementById("putawayReason");
-      var refreshBtn = document.getElementById("refreshBtn");
-      var applySelectedBtn = document.getElementById("applySelectedBtn");
-      var quickFilters = document.getElementById("quickFilters");
-      var toggleAllRows = document.getElementById("toggleAllRows");
-      var putawayBody = document.getElementById("putawayBody");
-
-      var statLines = document.getElementById("statLines");
-      var statPendingQty = document.getElementById("statPendingQty");
-      var statSelectedQty = document.getElementById("statSelectedQty");
-
-      var ordersCache = [];
-      var queueRows = [];
-      var activeQuickFilter = "all";
-
-      function resolveApiBase() {
-        var queryValue = new URLSearchParams(window.location.search).get("api");
-        var base = queryValue && queryValue.trim() ? queryValue.trim() : window.location.origin;
-        return base.replace(/\/+$/, "");
-      }
-
-      var API_BASE = resolveApiBase();
-
-      function apiUrl(path) {
-        return API_BASE + (path.charAt(0) === "/" ? path : "/" + path);
-      }
-
-      function setStatus(message, mode) {
-        if (!mode) mode = "info";
-        statusPill.textContent = message;
-        statusPill.classList.remove("info", "ok", "err");
-        statusPill.classList.add(mode);
-      }
-
-      async function parseApiError(response) {
-        var raw = await response.text();
-        if (!raw) return "HTTP " + response.status;
-        try {
-          var parsed = JSON.parse(raw);
-          if (parsed && typeof parsed.detail === "string") return parsed.detail;
-        } catch (_error) {}
-        return raw;
-      }
-
-      function escapeHtml(text) {
-        var div = document.createElement("div");
-        div.textContent = text == null ? "" : String(text);
-        return div.innerHTML;
-      }
-
-      function asNonNegativeNumber(value) {
-        var num = Number(value);
-        if (!Number.isFinite(num) || num <= 0) return 0;
-        return Math.round(num * 1000) / 1000;
-      }
-
-      function formatQty(value) {
-        var num = Number(value);
-        if (!Number.isFinite(num)) return "0";
-        if (Math.abs(num - Math.round(num)) < 0.000001) return String(Math.round(num));
-        return String(Math.round(num * 100) / 100);
-      }
-
-      function toSafeHttpUrl(value) {
-        if (!value) return null;
-        try {
-          var parsed = new URL(String(value).trim(), window.location.origin);
-          if (parsed.protocol === "http:" || parsed.protocol === "https:") return parsed.href;
-        } catch (_error) {}
-        return null;
-      }
-
-      function normalizeLocationInput(value) {
-        return String(value || "").trim().toUpperCase();
-      }
-
-      function renderOrderFilterOptions() {
-        var currentValue = orderFilter.value;
-        orderFilter.innerHTML = '<option value="">All Orders</option>';
-        ordersCache.forEach(function (order) {
-          var option = document.createElement("option");
-          option.value = String(order.id);
-          option.textContent = order.name + " (" + order.status + ")";
-          orderFilter.appendChild(option);
-        });
-        if (currentValue && Array.from(orderFilter.options).some(function (option) { return option.value === currentValue; })) {
-          orderFilter.value = currentValue;
+      (function () {
+        var target = new URL("inventory-receiving.html", window.location.href);
+        if (window.location.search) {
+          target.search = window.location.search;
         }
-      }
-
-      function getFilteredRows() {
-        return queueRows.filter(function (row) {
-          if (activeQuickFilter === "selected" && !row.selected) return false;
-          if (activeQuickFilter === "with-location" && !row.location) return false;
-          if (activeQuickFilter === "no-location" && row.location) return false;
-          return true;
-        });
-      }
-
-      function renderStats() {
-        var filteredRows = getFilteredRows();
-        var pendingQty = 0;
-        var selectedQty = 0;
-
-        filteredRows.forEach(function (row) {
-          pendingQty += row.remainingQty;
-          if (row.selected) {
-            selectedQty += Math.min(row.putawayQty, row.remainingQty);
-          }
-        });
-
-        statLines.textContent = String(filteredRows.length);
-        statPendingQty.textContent = formatQty(pendingQty);
-        statSelectedQty.textContent = formatQty(selectedQty);
-      }
-
-      function renderTable() {
-        var rows = getFilteredRows();
-        putawayBody.innerHTML = "";
-
-        if (!rows.length) {
-          putawayBody.innerHTML = '<tr><td colspan="10" class="text-muted small">No pending putaway lines.</td></tr>';
-          renderStats();
-          return;
-        }
-
-        rows.forEach(function (row) {
-          var safeUrl = toSafeHttpUrl(row.orderUrl);
-          var tr = document.createElement("tr");
-          tr.dataset.orderItemId = String(row.orderItemId);
-
-          var tdSelect = document.createElement("td");
-          tdSelect.innerHTML = '<input type="checkbox" class="form-check-input" data-order-item-id="' + row.orderItemId + '" data-field="selected"' + (row.selected ? ' checked' : '') + '>';
-          tr.appendChild(tdSelect);
-
-          var tdOrder = document.createElement("td");
-          tdOrder.innerHTML = '<div class="fw-semibold">#' + escapeHtml(row.orderId) + '</div><div class="text-muted small">' + escapeHtml(row.orderName) + '</div>';
-          tr.appendChild(tdOrder);
-
-          var tdItem = document.createElement("td");
-          tdItem.innerHTML = '<div class="fw-semibold">' + escapeHtml(row.itemName) + '</div>' +
-            (row.inventoryBarcode ? '<div class="text-muted small">' + escapeHtml(row.inventoryBarcode) + '</div>' : '');
-          tr.appendChild(tdItem);
-
-          var tdCategory = document.createElement("td");
-          tdCategory.textContent = row.category || "-";
-          tr.appendChild(tdCategory);
-
-          var tdReceived = document.createElement("td");
-          tdReceived.textContent = formatQty(row.receivedQty) + " " + (row.unit || "");
-          tr.appendChild(tdReceived);
-
-          var tdApplied = document.createElement("td");
-          tdApplied.textContent = formatQty(row.appliedQty) + " " + (row.unit || "");
-          tr.appendChild(tdApplied);
-
-          var tdRemaining = document.createElement("td");
-          tdRemaining.innerHTML = '<span class="remaining-chip">' + escapeHtml(formatQty(row.remainingQty)) + ' ' + escapeHtml(row.unit || '') + '</span>';
-          tr.appendChild(tdRemaining);
-
-          var tdPutawayQty = document.createElement("td");
-          tdPutawayQty.innerHTML = '<input type="number" min="0" step="0.01" class="form-control form-control-sm qty-input" data-order-item-id="' + row.orderItemId + '" data-field="putaway-qty" value="' + escapeHtml(formatQty(row.putawayQty)) + '">';
-          tr.appendChild(tdPutawayQty);
-
-          var tdLocation = document.createElement("td");
-          tdLocation.innerHTML = '<input type="text" class="form-control form-control-sm location-input" data-order-item-id="' + row.orderItemId + '" data-field="location" value="' + escapeHtml(row.location || '') + '" placeholder="A1">';
-          tr.appendChild(tdLocation);
-
-          var tdUrl = document.createElement("td");
-          tdUrl.innerHTML = safeUrl
-            ? '<a href="' + escapeHtml(safeUrl) + '" target="_blank" rel="noopener">Open</a>'
-            : '<span class="text-muted small">-</span>';
-          tr.appendChild(tdUrl);
-
-          putawayBody.appendChild(tr);
-        });
-
-        renderStats();
-      }
-
-      function getRowByOrderItemId(orderItemId) {
-        return queueRows.find(function (row) { return row.orderItemId === orderItemId; }) || null;
-      }
-
-      async function fetchOrders() {
-        var response = await fetch(apiUrl('/api/inventory/orders'), { credentials: 'include' });
-        if (!response.ok) throw new Error(await parseApiError(response));
-        var payload = await response.json();
-        ordersCache = Array.isArray(payload) ? payload : [];
-      }
-
-      async function fetchQueue() {
-        var selectedOrderId = orderFilter.value ? Number(orderFilter.value) : null;
-        var query = selectedOrderId ? ('?order_id=' + encodeURIComponent(String(selectedOrderId))) : '';
-        var response = await fetch(apiUrl('/api/inventory/orders/putaway-queue' + query), { credentials: 'include' });
-        if (!response.ok) throw new Error(await parseApiError(response));
-        var payload = await response.json();
-        var parsed = Array.isArray(payload) ? payload : [];
-        queueRows = parsed.map(function (row) {
-          var remaining = asNonNegativeNumber(row.remaining_putaway_quantity);
-          return {
-            orderId: Number(row.order_id),
-            orderName: row.order_name || '',
-            orderItemId: Number(row.order_item_id),
-            inventoryItemId: Number(row.inventory_item_id),
-            itemName: row.item_name || 'Unknown',
-            category: row.category || '',
-            unit: row.unit || '',
-            inventoryBarcode: row.inventory_barcode || '',
-            receivedQty: asNonNegativeNumber(row.received_quantity),
-            appliedQty: asNonNegativeNumber(row.applied_received_quantity),
-            remainingQty: remaining,
-            putawayQty: remaining,
-            location: row.inventory_location || '',
-            orderUrl: row.order_url || '',
-            selected: true,
-          };
-        });
-      }
-
-      async function refreshAll() {
-        setStatus('Loading putaway queue...', 'info');
-        await fetchOrders();
-        renderOrderFilterOptions();
-        await fetchQueue();
-        renderTable();
-        setStatus('Putaway queue ready.', 'ok');
-      }
-
-      async function applySelectedPutaway() {
-        var selectedRows = queueRows.filter(function (row) {
-          return row.selected && row.putawayQty > 0 && row.remainingQty > 0;
-        });
-        if (!selectedRows.length) {
-          throw new Error('No selected rows with a putaway quantity greater than zero.');
-        }
-
-        var reason = String(putawayReason.value || '').trim() || null;
-        var grouped = {};
-        selectedRows.forEach(function (row) {
-          if (!grouped[row.orderId]) grouped[row.orderId] = [];
-          grouped[row.orderId].push({
-            orderItemId: row.orderItemId,
-            quantity: Math.min(row.putawayQty, row.remainingQty),
-            location: normalizeLocationInput(row.location) || null,
-            reason: reason,
-          });
-        });
-
-        var orderIds = Object.keys(grouped).map(function (value) { return Number(value); }).sort(function (a, b) { return a - b; });
-        setStatus('Applying putaway updates...', 'info');
-        applySelectedBtn.disabled = true;
-
-        var appliedItemCount = 0;
-        var appliedQtyTotal = 0;
-        for (var i = 0; i < orderIds.length; i++) {
-          var orderId = orderIds[i];
-          var response = await fetch(apiUrl('/api/inventory/orders/' + orderId + '/putaway'), {
-            method: 'POST',
-            credentials: 'include',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ items: grouped[orderId] }),
-          });
-          if (!response.ok) {
-            throw new Error(await parseApiError(response));
-          }
-          var payload = await response.json();
-          appliedItemCount += Number(payload.applied_item_count || 0);
-          appliedQtyTotal += Number(payload.applied_quantity_total || 0);
-        }
-
-        await refreshAll();
-        setStatus('Putaway applied for ' + appliedItemCount + ' item(s), total ' + formatQty(appliedQtyTotal) + '.', 'ok');
-      }
-
-      orderFilter.addEventListener('change', function () {
-        void fetchQueue()
-          .then(function () {
-            renderTable();
-          })
-          .catch(function (error) {
-            setStatus(error instanceof Error ? error.message : 'Could not refresh queue.', 'err');
-          });
-      });
-
-      quickFilters.addEventListener('click', function (event) {
-        var target = event.target;
-        if (!(target instanceof HTMLElement)) return;
-        var pill = target.closest('.filter-pill');
-        if (!(pill instanceof HTMLElement)) return;
-        activeQuickFilter = pill.dataset.filter || 'all';
-        Array.from(quickFilters.querySelectorAll('.filter-pill')).forEach(function (node) {
-          node.classList.remove('active');
-        });
-        pill.classList.add('active');
-        renderTable();
-      });
-
-      toggleAllRows.addEventListener('change', function () {
-        var checked = Boolean(toggleAllRows.checked);
-        getFilteredRows().forEach(function (row) {
-          row.selected = checked;
-        });
-        renderTable();
-      });
-
-      putawayBody.addEventListener('change', function (event) {
-        var target = event.target;
-        if (!(target instanceof HTMLElement)) return;
-        var orderItemId = Number(target.getAttribute('data-order-item-id'));
-        if (!orderItemId) return;
-        var row = getRowByOrderItemId(orderItemId);
-        if (!row) return;
-
-        var field = target.getAttribute('data-field') || '';
-        if (field === 'selected' && target instanceof HTMLInputElement) {
-          row.selected = Boolean(target.checked);
-          renderStats();
-          return;
-        }
-        if (field === 'putaway-qty' && target instanceof HTMLInputElement) {
-          row.putawayQty = asNonNegativeNumber(target.value);
-          if (row.putawayQty > row.remainingQty) row.putawayQty = row.remainingQty;
-          target.value = formatQty(row.putawayQty);
-          renderStats();
-          return;
-        }
-        if (field === 'location' && target instanceof HTMLInputElement) {
-          row.location = normalizeLocationInput(target.value);
-          target.value = row.location;
-          return;
-        }
-      });
-
-      refreshBtn.addEventListener('click', function () {
-        void refreshAll().catch(function (error) {
-          setStatus(error instanceof Error ? error.message : 'Could not refresh putaway queue.', 'err');
-        });
-      });
-
-      applySelectedBtn.addEventListener('click', function () {
-        void applySelectedPutaway().catch(function (error) {
-          setStatus(error instanceof Error ? error.message : 'Could not apply putaway.', 'err');
-        }).finally(function () {
-          applySelectedBtn.disabled = false;
-        });
-      });
-
-      async function init() {
-        try {
-          await refreshAll();
-        } catch (error) {
-          setStatus(error instanceof Error ? error.message : 'Could not load putaway page.', 'err');
-        }
-      }
-
-      void init();
+        var link = document.getElementById("redirectLink");
+        if (link) link.href = target.toString();
+        window.location.replace(target.toString());
+      })();
     </script>
   </body>
 </html>

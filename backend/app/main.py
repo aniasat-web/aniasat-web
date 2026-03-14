@@ -193,6 +193,7 @@ DEFAULT_TEST_HEADCOUNT = 4.0
 DEFAULT_SHOPPING_PROFILE = "retreat"
 SHOPPING_PHASES = ["bulk", "fresh", "daily", "custom"]
 MANUAL_INVENTORY_SOURCE = "Shopping Manual Override"
+ORDER_PUTAWAY_INVENTORY_SOURCE = "Inventory Order Putaway"
 OPEN_FOOD_FACTS_PRODUCT_ENDPOINT = "https://world.openfoodfacts.org/api/v2/product/{barcode}.json"
 OPEN_PRODUCTS_FACTS_PRODUCT_ENDPOINT = "https://world.openproductsfacts.org/api/v2/product/{barcode}.json"
 OPEN_BEAUTY_FACTS_PRODUCT_ENDPOINT = "https://world.openbeautyfacts.org/api/v2/product/{barcode}.json"
@@ -370,29 +371,51 @@ class StandaloneInventoryMergePayload(BaseModel):
     target_item_id: int = Field(gt=0)
 
 
-class StandaloneInventoryOrderItemInput(BaseModel):
-    inventoryItemId: int = Field(gt=0)
+class InventoryOrderItemInput(BaseModel):
+    itemType: Literal["INGREDIENT", "STANDALONE_INVENTORY"]
+    itemId: int = Field(gt=0)
     requiredQuantity: float = Field(default=0, ge=0)
     orderedQuantity: float = Field(default=0, ge=0)
     receivedQuantity: float = Field(default=0, ge=0)
+    appliedQuantity: float = Field(default=0, ge=0)
+    unit: str | None = None
     purchaseUnit: str | None = None
     unitsPerPurchase: float = Field(default=1, gt=0)
     orderedPurchaseQuantity: float | None = Field(default=None, ge=0)
     receivedPurchaseQuantity: float | None = Field(default=None, ge=0)
+    sourceShoppingListItemId: int | None = Field(default=None, gt=0)
     orderUrlOverride: str | None = None
     notes: str | None = None
 
 
-class StandaloneInventoryOrderCreate(BaseModel):
+class InventoryOrderCreate(BaseModel):
+    domain: Literal["FOOD", "NON_FOOD"]
     name: str | None = None
+    sourceType: Literal["SHOPPING_LIST", "NON_FOOD_PLAN", "MANUAL", "LEGACY"] | None = None
+    sourceId: int | None = Field(default=None, gt=0)
+    supplierName: str | None = None
     notes: str | None = None
-    items: list[StandaloneInventoryOrderItemInput] = Field(default_factory=list)
+    items: list[InventoryOrderItemInput] = Field(default_factory=list)
 
 
-class StandaloneInventoryOrderUpdate(BaseModel):
+class InventoryOrderUpdate(BaseModel):
     name: str | None = None
+    sourceType: Literal["SHOPPING_LIST", "NON_FOOD_PLAN", "MANUAL", "LEGACY"] | None = None
+    sourceId: int | None = Field(default=None, gt=0)
+    supplierName: str | None = None
     notes: str | None = None
-    items: list[StandaloneInventoryOrderItemInput] | None = None
+    items: list[InventoryOrderItemInput] | None = None
+
+
+class InventoryOrderPutawayItemInput(BaseModel):
+    orderItemId: int = Field(gt=0)
+    quantity: float | None = Field(default=None, ge=0)
+    location: str | None = None
+    reason: str | None = None
+
+
+class InventoryOrderPutawayPayload(BaseModel):
+    items: list[InventoryOrderPutawayItemInput] = Field(default_factory=list)
 
 
 class StandaloneInventoryOrderDraftItemCreate(BaseModel):
@@ -401,17 +424,6 @@ class StandaloneInventoryOrderDraftItemCreate(BaseModel):
     unit: str | None = None
     orderUrl: str | None = None
     notes: str | None = None
-
-
-class StandaloneInventoryOrderPutawayItemInput(BaseModel):
-    orderItemId: int = Field(gt=0)
-    quantity: float | None = Field(default=None, ge=0)
-    location: str | None = None
-    reason: str | None = None
-
-
-class StandaloneInventoryOrderPutawayPayload(BaseModel):
-    items: list[StandaloneInventoryOrderPutawayItemInput] = Field(default_factory=list)
 
 
 class RetreatInventoryCategoryCreate(BaseModel):
@@ -547,15 +559,6 @@ class ShoppingListUpdatePayload(BaseModel):
 class ShoppingListCarryForwardPayload(BaseModel):
     name: str | None = None
     phase: Literal["bulk", "fresh", "daily", "custom"] | None = None
-
-
-class ShoppingListSplitSelectedPayload(BaseModel):
-    itemIds: list[int] = Field(min_length=1)
-    name: str | None = None
-
-
-class ShoppingListItemSplitPayload(BaseModel):
-    buyNowPercent: float = Field(gt=0, lt=100)
 
 
 class ServiceSnapshotIngredient(BaseModel):
@@ -1324,7 +1327,7 @@ def get_shopping_list(shopping_list_id: int) -> dict[str, Any]:
 def rename_shopping_list(
     shopping_list_id: int,
     payload: ShoppingListUpdatePayload,
-    _user: Annotated[AuthUser, Depends(require_roles(ROLE_PLANNER, ROLE_ADMIN))],
+    user: Annotated[AuthUser, Depends(require_roles(ROLE_PLANNER, ROLE_ADMIN))],
 ) -> dict[str, Any]:
     requested_name = " ".join(payload.name.strip().split())
     if not requested_name:
@@ -1351,6 +1354,7 @@ def rename_shopping_list(
             "UPDATE shopping_lists SET name = ? WHERE id = ?",
             (final_name, shopping_list_id),
         )
+        sync_food_inventory_orders_for_shopping_list(conn, shopping_list_id, actor_user_id=user.id)
         detail = load_shopping_list_detail(conn, shopping_list_id)
         conn.commit()
 
@@ -1371,6 +1375,7 @@ def delete_shopping_list(
         if not existing:
             raise HTTPException(status_code=404, detail="Shopping list not found")
 
+        archive_food_inventory_orders_for_shopping_list(conn, shopping_list_id)
         conn.execute("DELETE FROM shopping_lists WHERE id = ?", (shopping_list_id,))
         conn.commit()
 
@@ -1384,7 +1389,7 @@ def delete_shopping_list(
 @app.post("/api/shopping-lists/generate")
 def generate_shopping_list(
     payload: ShoppingListGeneratePayload,
-    _user: Annotated[AuthUser, Depends(require_roles(ROLE_PLANNER, ROLE_ADMIN))],
+    user: Annotated[AuthUser, Depends(require_roles(ROLE_PLANNER, ROLE_ADMIN))],
 ) -> dict[str, Any]:
     with get_connection() as conn:
         detail = materialize_shopping_list(
@@ -1393,6 +1398,8 @@ def generate_shopping_list(
             fixed_name=payload.name,
             allow_empty_result=False,
         )
+        sync_food_inventory_orders_for_shopping_list(conn, int(detail["id"]), actor_user_id=user.id)
+        detail = load_shopping_list_detail(conn, int(detail["id"]))
         conn.commit()
     return detail
 
@@ -1400,7 +1407,7 @@ def generate_shopping_list(
 @app.post("/api/shopping-lists/{shopping_list_id}/refresh")
 def refresh_shopping_list(
     shopping_list_id: int,
-    _user: Annotated[AuthUser, Depends(require_roles(ROLE_PLANNER, ROLE_ADMIN))],
+    user: Annotated[AuthUser, Depends(require_roles(ROLE_PLANNER, ROLE_ADMIN))],
 ) -> dict[str, Any]:
     with get_connection() as conn:
         list_row = conn.execute(
@@ -1423,6 +1430,8 @@ def refresh_shopping_list(
             preserve_existing_metadata=True,
             allow_empty_result=True,
         )
+        sync_food_inventory_orders_for_shopping_list(conn, shopping_list_id, actor_user_id=user.id)
+        detail = load_shopping_list_detail(conn, shopping_list_id)
         conn.commit()
 
     detail["refreshed"] = True
@@ -1446,28 +1455,6 @@ def carry_forward_shopping_list(
         )
         conn.commit()
     return detail
-
-
-@app.post("/api/shopping-lists/{shopping_list_id}/split-selected")
-def split_selected_shopping_list(
-    shopping_list_id: int,
-    payload: ShoppingListSplitSelectedPayload,
-    _user: Annotated[AuthUser, Depends(require_roles(ROLE_PLANNER, ROLE_ADMIN))],
-) -> dict[str, Any]:
-    selected_item_ids = sorted({int(raw_id) for raw_id in payload.itemIds if int(raw_id) > 0})
-    if not selected_item_ids:
-        raise HTTPException(status_code=400, detail="itemIds must contain positive integers")
-
-    with get_connection() as conn:
-        result = split_selected_shopping_list_items(
-            conn,
-            source_list_id=shopping_list_id,
-            selected_item_ids=selected_item_ids,
-            name_override=payload.name,
-        )
-        conn.commit()
-
-    return result
 
 
 @app.post("/api/shopping-lists/{shopping_list_id}/apply-inventory")
@@ -1548,7 +1535,7 @@ def update_shopping_list_item(
     shopping_list_id: int,
     item_id: int,
     payload: ShoppingListItemUpdatePayload,
-    _user: Annotated[AuthUser, Depends(require_roles(ROLE_PLANNER, ROLE_ADMIN))],
+    user: Annotated[AuthUser, Depends(require_roles(ROLE_PLANNER, ROLE_ADMIN))],
 ) -> dict[str, Any]:
     fields = payload.model_fields_set
     if not fields:
@@ -1728,228 +1715,8 @@ def update_shopping_list_item(
         )
 
         refresh_shopping_list_status(conn, shopping_list_id)
+        sync_food_inventory_orders_for_shopping_list(conn, shopping_list_id, actor_user_id=user.id)
         detail = load_shopping_list_detail(conn, shopping_list_id)
-        conn.commit()
-    return detail
-
-
-@app.post("/api/shopping-lists/{shopping_list_id}/items/{item_id}/split")
-def split_shopping_list_item_partial_buy(
-    shopping_list_id: int,
-    item_id: int,
-    payload: ShoppingListItemSplitPayload,
-    _user: Annotated[AuthUser, Depends(require_roles(ROLE_PLANNER, ROLE_ADMIN))],
-) -> dict[str, Any]:
-    buy_now_percent = float(payload.buyNowPercent)
-    if buy_now_percent <= 0 or buy_now_percent >= 100:
-        raise HTTPException(status_code=400, detail="buyNowPercent must be between 0 and 100.")
-
-    buy_later_percent = 100.0 - buy_now_percent
-    now_ratio = buy_now_percent / 100.0
-
-    def split_amount(total: float) -> tuple[float, float]:
-        total_value = float(total or 0.0)
-        now_value = round(total_value * now_ratio, 4)
-        later_value = round(total_value - now_value, 4)
-        return now_value, later_value
-
-    with get_connection() as conn:
-        item_row = conn.execute(
-            """
-            SELECT
-                sli.id,
-                sli.shopping_list_id,
-                sli.ingredient_id,
-                sli.required_qty,
-                sli.required_unit,
-                sli.in_stock_qty,
-                sli.in_stock_unit,
-                sli.to_buy_qty,
-                sli.to_buy_unit,
-                sli.vendor_id,
-                sli.owner,
-                sli.pickup_date,
-                sli.ordered,
-                sli.received,
-                sli.notes
-            FROM shopping_list_items sli
-            WHERE sli.id = ? AND sli.shopping_list_id = ?
-            """,
-            (item_id, shopping_list_id),
-        ).fetchone()
-        if not item_row:
-            raise HTTPException(status_code=404, detail="Shopping list item not found")
-
-        if bool(item_row["ordered"]) or bool(item_row["received"]):
-            raise HTTPException(
-                status_code=400,
-                detail="Cannot split items that are already marked ordered or received.",
-            )
-
-        required_qty = float(item_row["required_qty"] or 0.0)
-        in_stock_qty = float(item_row["in_stock_qty"] or 0.0)
-        to_buy_qty = float(item_row["to_buy_qty"] or 0.0)
-        if to_buy_qty <= 0:
-            raise HTTPException(status_code=400, detail="Only items with quantity to buy can be split.")
-
-        required_now, required_later = split_amount(required_qty)
-        in_stock_now, in_stock_later = split_amount(in_stock_qty)
-        to_buy_now, to_buy_later = split_amount(to_buy_qty)
-        if to_buy_now <= 0 or to_buy_later <= 0:
-            raise HTTPException(
-                status_code=400,
-                detail="Split percentage is too extreme for this quantity. Try a value closer to 50.",
-            )
-
-        required_unit = str(item_row["required_unit"] or "").strip()
-        in_stock_unit = str(item_row["in_stock_unit"] or required_unit).strip() or required_unit
-        to_buy_unit = str(item_row["to_buy_unit"] or required_unit).strip() or required_unit
-        vendor_id = int(item_row["vendor_id"]) if item_row["vendor_id"] is not None else None
-        owner = str(item_row["owner"] or "").strip() or None
-        pickup_date = str(item_row["pickup_date"] or "").strip() or None
-        existing_notes = str(item_row["notes"] or "").strip() or None
-
-        now_note = partial_buy_note("Now", buy_now_percent, existing_notes)
-        later_note = partial_buy_note("Later", buy_later_percent, existing_notes)
-
-        created_later = conn.execute(
-            """
-            INSERT INTO shopping_list_items(
-                shopping_list_id,
-                ingredient_id,
-                required_qty,
-                required_unit,
-                in_stock_qty,
-                in_stock_unit,
-                to_buy_qty,
-                to_buy_unit,
-                ordered_qty,
-                ordered_unit,
-                vendor_id,
-                owner,
-                pickup_date,
-                ordered,
-                ordered_at,
-                received,
-                received_at,
-                status,
-                notes
-            )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, NULL, NULL, ?, ?, ?, 0, NULL, 0, NULL, 'open', ?)
-            RETURNING id
-            """,
-            (
-                shopping_list_id,
-                int(item_row["ingredient_id"]),
-                required_later,
-                required_unit,
-                in_stock_later,
-                in_stock_unit,
-                to_buy_later,
-                to_buy_unit,
-                vendor_id,
-                owner,
-                pickup_date,
-                later_note,
-            ),
-        ).fetchone()
-        later_item_id = int(created_later["id"])
-
-        conn.execute(
-            """
-            UPDATE shopping_list_items
-            SET required_qty = ?,
-                required_unit = ?,
-                in_stock_qty = ?,
-                in_stock_unit = ?,
-                to_buy_qty = ?,
-                to_buy_unit = ?,
-                ordered_qty = NULL,
-                ordered_unit = NULL,
-                ordered = 0,
-                ordered_at = NULL,
-                received = 0,
-                received_at = NULL,
-                status = 'open',
-                notes = ?
-            WHERE id = ? AND shopping_list_id = ?
-            """,
-            (
-                required_now,
-                required_unit,
-                in_stock_now,
-                in_stock_unit,
-                to_buy_now,
-                to_buy_unit,
-                now_note,
-                item_id,
-                shopping_list_id,
-            ),
-        )
-
-        source_rows = conn.execute(
-            """
-            SELECT
-                id,
-                retreat_plan_id,
-                retreat_plan_name,
-                dish_name,
-                required_qty,
-                required_unit
-            FROM shopping_list_item_sources
-            WHERE shopping_list_item_id = ?
-            ORDER BY id
-            """,
-            (item_id,),
-        ).fetchall()
-        for source_row in source_rows:
-            source_required_now, source_required_later = split_amount(float(source_row["required_qty"] or 0.0))
-            if source_required_now > 0:
-                conn.execute(
-                    """
-                    UPDATE shopping_list_item_sources
-                    SET required_qty = ?
-                    WHERE id = ?
-                    """,
-                    (source_required_now, int(source_row["id"])),
-                )
-            else:
-                conn.execute(
-                    "DELETE FROM shopping_list_item_sources WHERE id = ?",
-                    (int(source_row["id"]),),
-                )
-
-            if source_required_later > 0:
-                conn.execute(
-                    """
-                    INSERT INTO shopping_list_item_sources(
-                        shopping_list_item_id,
-                        retreat_plan_id,
-                        retreat_plan_name,
-                        dish_name,
-                        required_qty,
-                        required_unit
-                    )
-                    VALUES (?, ?, ?, ?, ?, ?)
-                    """,
-                    (
-                        later_item_id,
-                        int(source_row["retreat_plan_id"]) if source_row["retreat_plan_id"] is not None else None,
-                        str(source_row["retreat_plan_name"] or "").strip() or "Unknown retreat",
-                        str(source_row["dish_name"] or "").strip() or None,
-                        source_required_later,
-                        str(source_row["required_unit"] or "").strip(),
-                    ),
-                )
-
-        refresh_shopping_list_status(conn, shopping_list_id)
-        detail = load_shopping_list_detail(conn, shopping_list_id)
-        detail["split_result"] = {
-            "source_item_id": int(item_id),
-            "later_item_id": later_item_id,
-            "buy_now_percent": round(buy_now_percent, 2),
-            "buy_later_percent": round(buy_later_percent, 2),
-        }
         conn.commit()
     return detail
 
@@ -3195,14 +2962,6 @@ def derive_shopping_item_status(ordered: bool, received: bool) -> str:
     return "open"
 
 
-def partial_buy_note(stage: str, percent: float, existing_notes: str | None = None) -> str:
-    base = f"Partial buy: {stage} ({percent:.1f}% of original)."
-    extra = str(existing_notes or "").strip()
-    if not extra:
-        return base
-    return f"{base} {extra}"
-
-
 def load_existing_shopping_list_item_metadata(
     conn: Any,
     shopping_list_id: int,
@@ -4011,204 +3770,6 @@ def create_carry_forward_shopping_list(
     detail["carried_from_list_id"] = int(source_list["id"])
     detail["carried_item_count"] = len(pending_items)
     return detail
-
-
-def split_selected_shopping_list_items(
-    conn: Any,
-    source_list_id: int,
-    selected_item_ids: list[int],
-    name_override: str | None = None,
-) -> dict[str, Any]:
-    source_list = conn.execute(
-        """
-        SELECT id, name, phase, retreat_plan_id
-        FROM shopping_lists
-        WHERE id = ?
-        """,
-        (source_list_id,),
-    ).fetchone()
-    if not source_list:
-        raise HTTPException(status_code=404, detail="Source shopping list not found")
-
-    unique_item_ids = sorted({int(item_id) for item_id in selected_item_ids if int(item_id) > 0})
-    if not unique_item_ids:
-        raise HTTPException(status_code=400, detail="Select at least one item to split.")
-
-    placeholders = ",".join("?" for _ in unique_item_ids)
-    source_items = conn.execute(
-        f"""
-        SELECT
-            id,
-            ingredient_id,
-            required_qty,
-            required_unit,
-            in_stock_qty,
-            in_stock_unit,
-            to_buy_qty,
-            to_buy_unit,
-            ordered_qty,
-            ordered_unit,
-            vendor_id,
-            owner,
-            pickup_date,
-            ordered,
-            ordered_at,
-            received,
-            received_at,
-            status,
-            notes
-        FROM shopping_list_items
-        WHERE shopping_list_id = ?
-          AND id IN ({placeholders})
-        ORDER BY id
-        """,
-        (source_list_id, *unique_item_ids),
-    ).fetchall()
-
-    if len(source_items) != len(unique_item_ids):
-        found_ids = {int(row["id"]) for row in source_items}
-        missing_ids = [item_id for item_id in unique_item_ids if item_id not in found_ids]
-        raise HTTPException(
-            status_code=404,
-            detail=f"Shopping list item(s) not found in source list: {', '.join(str(x) for x in missing_ids)}",
-        )
-
-    new_name = name_override.strip() if name_override and name_override.strip() else None
-    if not new_name:
-        new_name = f"{source_list['name']} - Selected"
-    new_name = unique_shopping_list_name(conn, new_name)
-
-    created = conn.execute(
-        """
-        INSERT INTO shopping_lists(retreat_plan_id, name, phase, status)
-        VALUES (?, ?, ?, 'draft')
-        RETURNING id
-        """,
-        (
-            source_list["retreat_plan_id"],
-            new_name,
-            str(source_list["phase"] or "custom").strip().lower() or "custom",
-        ),
-    ).fetchone()
-    new_list_id = int(created["id"])
-
-    old_to_new_item_id: dict[int, int] = {}
-    for item in source_items:
-        created_item = conn.execute(
-            """
-            INSERT INTO shopping_list_items(
-                shopping_list_id,
-                ingredient_id,
-                required_qty,
-                required_unit,
-                in_stock_qty,
-                in_stock_unit,
-                to_buy_qty,
-                to_buy_unit,
-                ordered_qty,
-                ordered_unit,
-                vendor_id,
-                owner,
-                pickup_date,
-                ordered,
-                ordered_at,
-                received,
-                received_at,
-                status,
-                notes
-            )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            RETURNING id
-            """,
-            (
-                new_list_id,
-                int(item["ingredient_id"]),
-                float(item["required_qty"] or 0.0),
-                str(item["required_unit"] or ""),
-                float(item["in_stock_qty"] or 0.0),
-                str(item["in_stock_unit"] or item["required_unit"] or ""),
-                float(item["to_buy_qty"] or 0.0),
-                str(item["to_buy_unit"] or item["required_unit"] or ""),
-                float(item["ordered_qty"]) if item["ordered_qty"] is not None else None,
-                normalize_unit(str(item["ordered_unit"] or "").strip()) or None,
-                int(item["vendor_id"]) if item["vendor_id"] is not None else None,
-                str(item["owner"] or "").strip() or None,
-                str(item["pickup_date"] or "").strip() or None,
-                1 if bool(item["ordered"]) else 0,
-                item["ordered_at"],
-                1 if bool(item["received"]) else 0,
-                item["received_at"],
-                str(item["status"] or "").strip() or derive_shopping_item_status(
-                    ordered=bool(item["ordered"]),
-                    received=bool(item["received"]),
-                ),
-                str(item["notes"] or "").strip() or None,
-            ),
-        ).fetchone()
-        old_to_new_item_id[int(item["id"])] = int(created_item["id"])
-
-    source_rows = conn.execute(
-        f"""
-        SELECT
-            shopping_list_item_id,
-            retreat_plan_id,
-            retreat_plan_name,
-            dish_name,
-            required_qty,
-            required_unit
-        FROM shopping_list_item_sources
-        WHERE shopping_list_item_id IN ({placeholders})
-        ORDER BY id
-        """,
-        tuple(unique_item_ids),
-    ).fetchall()
-    for row in source_rows:
-        old_item_id = int(row["shopping_list_item_id"])
-        new_item_id = old_to_new_item_id.get(old_item_id)
-        if not new_item_id:
-            continue
-        conn.execute(
-            """
-            INSERT INTO shopping_list_item_sources(
-                shopping_list_item_id,
-                retreat_plan_id,
-                retreat_plan_name,
-                dish_name,
-                required_qty,
-                required_unit
-            )
-            VALUES (?, ?, ?, ?, ?, ?)
-            """,
-            (
-                new_item_id,
-                int(row["retreat_plan_id"]) if row["retreat_plan_id"] is not None else None,
-                str(row["retreat_plan_name"] or "").strip() or "Unknown retreat",
-                str(row["dish_name"] or "").strip() or None,
-                float(row["required_qty"] or 0.0),
-                str(row["required_unit"] or "").strip(),
-            ),
-        )
-
-    conn.execute(
-        f"""
-        DELETE FROM shopping_list_items
-        WHERE shopping_list_id = ?
-          AND id IN ({placeholders})
-        """,
-        (source_list_id, *unique_item_ids),
-    )
-
-    refresh_shopping_list_status(conn, source_list_id)
-    refresh_shopping_list_status(conn, new_list_id)
-
-    source_detail = load_shopping_list_detail(conn, source_list_id)
-    new_detail = load_shopping_list_detail(conn, new_list_id)
-    return {
-        "status": "ok",
-        "split_item_count": len(unique_item_ids),
-        "source_list": source_detail,
-        "new_list": new_detail,
-    }
 
 
 def unique_shopping_list_name(
@@ -7084,22 +6645,6 @@ def query_standalone_inventory_rows(
     return format_standalone_inventory_rows(conn, rows)
 
 
-def format_standalone_inventory_order_row(row: Any) -> dict[str, Any]:
-    return {
-        "id": int(row["id"]),
-        "name": row["name"],
-        "status": row["status"],
-        "notes": row["notes"],
-        "created_by_user_id": int(row["created_by_user_id"]) if row["created_by_user_id"] is not None else None,
-        "ordered_by_user_id": int(row["ordered_by_user_id"]) if row["ordered_by_user_id"] is not None else None,
-        "ordered_at": row["ordered_at"],
-        "received_by_user_id": int(row["received_by_user_id"]) if row["received_by_user_id"] is not None else None,
-        "received_at": row["received_at"],
-        "created_at": row["created_at"],
-        "updated_at": row["updated_at"],
-    }
-
-
 def as_non_negative_quantity(value: Any) -> float:
     try:
         numeric = float(value)
@@ -7140,6 +6685,1218 @@ def normalize_units_per_purchase(value: Any) -> float:
     return units
 
 
+def normalize_inventory_order_domain(value: Any) -> str | None:
+    normalized = normalize_optional_text(value)
+    if not normalized:
+        return None
+    key = normalized.upper().replace("-", "_").replace(" ", "_")
+    allowed = {"FOOD", "NON_FOOD"}
+    if key not in allowed:
+        raise HTTPException(status_code=400, detail="Invalid inventory order domain.")
+    return key
+
+
+def normalize_inventory_order_source_type(value: Any) -> str | None:
+    normalized = normalize_optional_text(value)
+    if not normalized:
+        return None
+    key = normalized.upper().replace("-", "_").replace(" ", "_")
+    allowed = {"SHOPPING_LIST", "NON_FOOD_PLAN", "MANUAL", "LEGACY"}
+    if key not in allowed:
+        raise HTTPException(status_code=400, detail="Invalid inventory order source type.")
+    return key
+
+
+def format_inventory_order_row(row: Any) -> dict[str, Any]:
+    return {
+        "id": int(row["id"]),
+        "domain": row["domain"],
+        "source_type": row["source_type"],
+        "source_id": int(row["source_id"]) if row["source_id"] is not None else None,
+        "name": row["name"],
+        "status": row["status"],
+        "supplier_name": normalize_optional_text(row["supplier_name"]),
+        "notes": normalize_optional_text(row["notes"]),
+        "created_by_user_id": int(row["created_by_user_id"]) if row["created_by_user_id"] is not None else None,
+        "ordered_by_user_id": int(row["ordered_by_user_id"]) if row["ordered_by_user_id"] is not None else None,
+        "ordered_at": row["ordered_at"],
+        "received_by_user_id": int(row["received_by_user_id"]) if row["received_by_user_id"] is not None else None,
+        "received_at": row["received_at"],
+        "created_at": row["created_at"],
+        "updated_at": row["updated_at"],
+    }
+
+
+def derive_inventory_order_item_status(
+    *,
+    required_quantity: float,
+    ordered_quantity: float,
+    received_quantity: float,
+) -> str:
+    required = max(0.0, float(required_quantity))
+    ordered = max(0.0, float(ordered_quantity))
+    received = max(0.0, float(received_quantity))
+    target = max(required, ordered)
+
+    if target <= 0 and received <= 0:
+        return "OPEN"
+    if target > 0 and received >= target:
+        return "RECEIVED"
+    if received > 0:
+        return "PARTIAL"
+    if ordered > 0:
+        return "ORDERED"
+    return "OPEN"
+
+
+def derive_inventory_order_status(items: list[dict[str, Any]]) -> str:
+    relevant = [
+        item
+        for item in items
+        if max(
+            float(item.get("required_quantity") or 0.0),
+            float(item.get("ordered_quantity") or 0.0),
+            float(item.get("received_quantity") or 0.0),
+        ) > 0
+    ]
+    if not relevant:
+        return "DRAFT"
+
+    all_received = all(item.get("status") == "RECEIVED" for item in relevant)
+    if all_received:
+        return "RECEIVED"
+
+    any_received = any(item.get("status") in {"RECEIVED", "PARTIAL"} for item in relevant)
+    if any_received:
+        return "PARTIAL"
+
+    any_ordered = any(item.get("status") == "ORDERED" for item in relevant)
+    if any_ordered:
+        return "ORDERED"
+
+    return "DRAFT"
+
+
+def inventory_order_item_is_relevant(domain: str | None, item: dict[str, Any]) -> bool:
+    normalized_domain = str(domain or "").strip().upper()
+    if normalized_domain == "NON_FOOD":
+        return max(
+            float(item.get("to_order_quantity") or 0.0),
+            float(item.get("ordered_quantity") or 0.0),
+            float(item.get("received_quantity") or 0.0),
+        ) > 0
+    return max(
+        float(item.get("required_quantity") or 0.0),
+        float(item.get("ordered_quantity") or 0.0),
+        float(item.get("received_quantity") or 0.0),
+    ) > 0
+
+
+def resolve_inventory_order_item_snapshot(
+    conn: Any,
+    *,
+    domain: str,
+    item_type: str,
+    item_id: int,
+    requested_unit: str | None,
+    ingredient_inventory_by_key: dict[tuple[int, str], float] | None = None,
+    preserve_requested_unit: bool = False,
+) -> dict[str, Any]:
+    normalized_domain = str(domain or "").strip().upper()
+    normalized_item_type = str(item_type or "").strip().upper()
+    normalized_requested_unit = normalize_unit(str(requested_unit or "").strip()) or None
+
+    if normalized_domain == "FOOD":
+        if normalized_item_type != "INGREDIENT":
+            raise HTTPException(status_code=400, detail="Food orders currently support ingredient lines only.")
+        row = conn.execute(
+            """
+            SELECT id, name, category, canonical_unit
+            FROM ingredients
+            WHERE id = ?
+            """,
+            (item_id,),
+        ).fetchone()
+        if not row:
+            raise HTTPException(status_code=400, detail=f"Ingredient {item_id} does not exist.")
+
+        canonical_unit = normalize_unit(str(row["canonical_unit"] or "").strip()) or "each"
+        unit_snapshot = normalized_requested_unit or canonical_unit
+        _sample_qty, sample_canonical_unit = quantity_to_canonical(1.0, unit_snapshot)
+        if sample_canonical_unit != canonical_unit and not preserve_requested_unit:
+            unit_snapshot = canonical_unit
+            _sample_qty, sample_canonical_unit = quantity_to_canonical(1.0, unit_snapshot)
+
+        current_quantity_snapshot = 0.0
+        if sample_canonical_unit == canonical_unit and ingredient_inventory_by_key is not None:
+            current_canonical_qty = float(ingredient_inventory_by_key.get((item_id, sample_canonical_unit), 0.0))
+            current_quantity_snapshot = round(
+                canonical_qty_to_unit(current_canonical_qty, sample_canonical_unit, unit_snapshot),
+                3,
+            )
+
+        return {
+            "item_name_snapshot": str(row["name"] or "").strip() or f"Ingredient #{item_id}",
+            "category_snapshot": normalize_inventory_category(row["category"]),
+            "unit_snapshot": unit_snapshot,
+            "current_quantity_snapshot": current_quantity_snapshot,
+            "live_quantity": current_quantity_snapshot,
+            "live_unit": unit_snapshot,
+            "live_location": None,
+        }
+
+    if normalized_domain == "NON_FOOD":
+        if normalized_item_type != "STANDALONE_INVENTORY":
+            raise HTTPException(status_code=400, detail="Non-food orders currently support standalone inventory lines only.")
+        row = conn.execute(
+            """
+            SELECT id, item_name, category, quantity, unit, location, barcode, order_url
+            FROM standalone_inventory
+            WHERE id = ?
+            """,
+            (item_id,),
+        ).fetchone()
+        if not row:
+            raise HTTPException(status_code=400, detail=f"Inventory item {item_id} does not exist.")
+
+        base_unit = normalize_unit(str(row["unit"] or "").strip()) or "each"
+        unit_snapshot = normalized_requested_unit or base_unit
+        current_quantity_snapshot = rounded_quantity(row["quantity"])
+        if unit_snapshot != base_unit:
+            converted = convert_quantity_between_units(current_quantity_snapshot, base_unit, unit_snapshot)
+            if converted is not None:
+                current_quantity_snapshot = round(converted, 3)
+            else:
+                unit_snapshot = base_unit
+
+        return {
+            "item_name_snapshot": str(row["item_name"] or "").strip() or f"Inventory Item #{item_id}",
+            "category_snapshot": normalize_inventory_category(row["category"]),
+            "unit_snapshot": unit_snapshot,
+            "current_quantity_snapshot": current_quantity_snapshot,
+            "live_quantity": rounded_quantity(row["quantity"]),
+            "live_unit": base_unit,
+            "live_location": normalize_optional_text(row["location"]),
+            "live_barcode": normalize_optional_text(row["barcode"]),
+            "live_order_url": normalize_optional_text(row["order_url"]),
+        }
+
+    raise HTTPException(status_code=400, detail="Invalid inventory order domain.")
+
+
+def load_inventory_order_items(conn: Any, order_ids: list[int]) -> dict[int, list[dict[str, Any]]]:
+    if not order_ids:
+        return {}
+
+    placeholders = ", ".join("?" for _ in order_ids)
+    rows = conn.execute(
+        f"""
+        SELECT
+            ioi.id,
+            ioi.order_id,
+            ioi.item_type,
+            ioi.item_id,
+            ioi.item_name_snapshot,
+            ioi.category_snapshot,
+            ioi.unit_snapshot,
+            ioi.current_quantity_snapshot,
+            ioi.required_quantity,
+            ioi.ordered_quantity,
+            ioi.received_quantity,
+            ioi.applied_quantity,
+            ioi.purchase_unit,
+            ioi.units_per_purchase,
+            ioi.ordered_purchase_quantity,
+            ioi.received_purchase_quantity,
+            ioi.source_shopping_list_item_id,
+            ioi.order_url_snapshot,
+            ioi.order_url_override,
+            ioi.notes,
+            ioi.ordered_by_user_id,
+            ioi.ordered_at,
+            ioi.received_by_user_id,
+            ioi.received_at,
+            ioi.created_at,
+            ioi.updated_at,
+            ing.name AS ingredient_name,
+            ing.category AS ingredient_category,
+            ing.canonical_unit AS ingredient_canonical_unit,
+            si.item_name AS standalone_item_name,
+            si.category AS standalone_category,
+            si.quantity AS standalone_quantity,
+            si.unit AS standalone_unit,
+            si.location AS standalone_location,
+            si.barcode AS standalone_barcode,
+            si.order_url AS standalone_order_url,
+            sli.shopping_list_id AS source_shopping_list_id,
+            sl.name AS source_shopping_list_name
+        FROM inventory_order_items ioi
+        LEFT JOIN ingredients ing
+          ON ioi.item_type = 'INGREDIENT'
+         AND ing.id = ioi.item_id
+        LEFT JOIN standalone_inventory si
+          ON ioi.item_type = 'STANDALONE_INVENTORY'
+         AND si.id = ioi.item_id
+        LEFT JOIN shopping_list_items sli
+          ON sli.id = ioi.source_shopping_list_item_id
+        LEFT JOIN shopping_lists sl
+          ON sl.id = sli.shopping_list_id
+        WHERE ioi.order_id IN ({placeholders})
+        ORDER BY lower(ioi.item_name_snapshot), ioi.id
+        """,
+        tuple(order_ids),
+    ).fetchall()
+
+    ingredient_inventory_by_key = load_inventory_canonical_by_key(conn)
+    grouped: dict[int, list[dict[str, Any]]] = {}
+    for row in rows:
+        item_type = str(row["item_type"] or "").strip().upper()
+        item_id = int(row["item_id"])
+        unit_snapshot = normalize_unit(str(row["unit_snapshot"] or "").strip()) or "each"
+        current_quantity_snapshot = rounded_quantity(row["current_quantity_snapshot"])
+        required_quantity = rounded_quantity(row["required_quantity"])
+        ordered_quantity = rounded_quantity(row["ordered_quantity"])
+        received_quantity = rounded_quantity(row["received_quantity"])
+        applied_quantity = rounded_quantity(row["applied_quantity"])
+        purchase_unit = normalize_purchase_unit(row["purchase_unit"])
+        units_per_purchase = normalize_units_per_purchase(row["units_per_purchase"])
+        ordered_purchase_quantity = rounded_quantity(row["ordered_purchase_quantity"])
+        received_purchase_quantity = rounded_quantity(row["received_purchase_quantity"])
+        if ordered_purchase_quantity <= 0 and ordered_quantity > 0:
+            ordered_purchase_quantity = round(ordered_quantity / units_per_purchase, 3)
+        if received_purchase_quantity <= 0 and received_quantity > 0:
+            received_purchase_quantity = round(received_quantity / units_per_purchase, 3)
+
+        live_quantity: float | None = None
+        live_unit: str | None = None
+        live_location: str | None = None
+        inventory_barcode: str | None = None
+        inventory_order_url: str | None = None
+        if item_type == "INGREDIENT":
+            canonical_unit = normalize_unit(str(row["ingredient_canonical_unit"] or "").strip()) or None
+            if canonical_unit:
+                current_canonical_qty = float(ingredient_inventory_by_key.get((item_id, canonical_unit), 0.0))
+                converted_live_quantity = canonical_qty_to_unit_or_none(current_canonical_qty, canonical_unit, unit_snapshot)
+                if converted_live_quantity is not None:
+                    live_quantity = round(converted_live_quantity, 3)
+                    live_unit = unit_snapshot
+                else:
+                    live_quantity = round(current_canonical_qty, 3)
+                    live_unit = canonical_unit
+        else:
+            live_quantity = rounded_quantity(row["standalone_quantity"])
+            live_unit = normalize_unit(str(row["standalone_unit"] or "").strip()) or unit_snapshot
+            live_location = normalize_optional_text(row["standalone_location"])
+            inventory_barcode = normalize_optional_text(row["standalone_barcode"])
+            inventory_order_url = normalize_optional_text(row["standalone_order_url"])
+
+        putaway_pending_quantity = round(max(0.0, received_quantity - applied_quantity), 3)
+        to_order_quantity = max(0.0, round(required_quantity - current_quantity_snapshot, 3))
+        if item_type == "STANDALONE_INVENTORY":
+            status = derive_standalone_inventory_item_status(
+                to_order_quantity=to_order_quantity,
+                ordered_quantity=ordered_quantity,
+                received_quantity=received_quantity,
+            )
+        else:
+            status = derive_inventory_order_item_status(
+                required_quantity=required_quantity,
+                ordered_quantity=ordered_quantity,
+                received_quantity=received_quantity,
+            )
+        order_url_snapshot = normalize_optional_text(row["order_url_snapshot"])
+        order_url_override = normalize_optional_text(row["order_url_override"])
+        effective_order_url = order_url_override or order_url_snapshot or inventory_order_url
+        payload = {
+            "id": int(row["id"]),
+            "order_id": int(row["order_id"]),
+            "item_type": item_type,
+            "item_id": item_id,
+            "item_name_snapshot": row["item_name_snapshot"],
+            "category_snapshot": normalize_inventory_category(row["category_snapshot"]),
+            "unit_snapshot": unit_snapshot,
+            "current_quantity_snapshot": current_quantity_snapshot,
+            "required_quantity": required_quantity,
+            "to_order_quantity": to_order_quantity,
+            "ordered_quantity": ordered_quantity,
+            "received_quantity": received_quantity,
+            "applied_quantity": applied_quantity,
+            "applied_received_quantity": applied_quantity,
+            "purchase_unit": purchase_unit,
+            "units_per_purchase": units_per_purchase,
+            "ordered_purchase_quantity": ordered_purchase_quantity,
+            "received_purchase_quantity": received_purchase_quantity,
+            "source_shopping_list_item_id": (
+                int(row["source_shopping_list_item_id"])
+                if row["source_shopping_list_item_id"] is not None
+                else None
+            ),
+            "source_shopping_list_id": (
+                int(row["source_shopping_list_id"])
+                if row["source_shopping_list_id"] is not None
+                else None
+            ),
+            "source_shopping_list_name": normalize_optional_text(row["source_shopping_list_name"]),
+            "order_url_snapshot": order_url_snapshot,
+            "order_url_override": order_url_override,
+            "effective_order_url": effective_order_url,
+            "notes": normalize_optional_text(row["notes"]),
+            "ordered_by_user_id": int(row["ordered_by_user_id"]) if row["ordered_by_user_id"] is not None else None,
+            "ordered_at": row["ordered_at"],
+            "received_by_user_id": int(row["received_by_user_id"]) if row["received_by_user_id"] is not None else None,
+            "received_at": row["received_at"],
+            "created_at": row["created_at"],
+            "updated_at": row["updated_at"],
+            "live_quantity": live_quantity,
+            "live_unit": live_unit,
+            "live_location": live_location,
+            "inventory_item_id": item_id if item_type == "STANDALONE_INVENTORY" else None,
+            "inventory_item_name": row["standalone_item_name"] if item_type == "STANDALONE_INVENTORY" else None,
+            "inventory_category": (
+                normalize_inventory_category(row["standalone_category"])
+                if item_type == "STANDALONE_INVENTORY"
+                else None
+            ),
+            "inventory_quantity": live_quantity if item_type == "STANDALONE_INVENTORY" else None,
+            "inventory_unit": live_unit if item_type == "STANDALONE_INVENTORY" else None,
+            "inventory_location": live_location if item_type == "STANDALONE_INVENTORY" else None,
+            "inventory_barcode": inventory_barcode if item_type == "STANDALONE_INVENTORY" else None,
+            "inventory_order_url": inventory_order_url if item_type == "STANDALONE_INVENTORY" else None,
+            "putaway_pending_quantity": putaway_pending_quantity,
+            "status": status,
+        }
+        grouped.setdefault(int(row["order_id"]), []).append(payload)
+    return grouped
+
+
+def refresh_inventory_order_status(conn: Any, order_id: int, *, actor_user_id: int | None = None) -> str:
+    items_map = load_inventory_order_items(conn, [order_id])
+    items = items_map.get(order_id, [])
+    status = derive_inventory_order_status(items)
+    now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+    existing = conn.execute(
+        """
+        SELECT ordered_at, ordered_by_user_id, received_at, received_by_user_id
+        FROM inventory_orders
+        WHERE id = ? AND deleted_at IS NULL
+        """,
+        (order_id,),
+    ).fetchone()
+    if not existing:
+        raise HTTPException(status_code=404, detail="Inventory order not found")
+
+    any_ordered = any(as_non_negative_quantity(item.get("ordered_quantity")) > 0 for item in items)
+    any_received = any(as_non_negative_quantity(item.get("received_quantity")) > 0 for item in items)
+
+    ordered_at = existing["ordered_at"]
+    ordered_by_user_id = existing["ordered_by_user_id"]
+    received_at = existing["received_at"]
+    received_by_user_id = existing["received_by_user_id"]
+
+    if any_ordered and not ordered_at:
+        ordered_at = now
+        ordered_by_user_id = actor_user_id
+
+    if any_received and not received_at:
+        received_at = now
+        received_by_user_id = actor_user_id
+
+    conn.execute(
+        """
+        UPDATE inventory_orders
+        SET status = ?,
+            ordered_at = ?,
+            ordered_by_user_id = ?,
+            received_at = ?,
+            received_by_user_id = ?,
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = ?
+        """,
+        (status, ordered_at, ordered_by_user_id, received_at, received_by_user_id, order_id),
+    )
+    return status
+
+
+def upsert_inventory_order_items(
+    conn: Any,
+    order_id: int,
+    *,
+    domain: str,
+    items: list[InventoryOrderItemInput],
+    actor_user_id: int | None,
+    preserve_requested_unit: bool = False,
+) -> None:
+    existing_rows = conn.execute(
+        """
+        SELECT *
+        FROM inventory_order_items
+        WHERE order_id = ?
+        """,
+        (order_id,),
+    ).fetchall()
+    existing_by_key = {
+        (
+            str(row["item_type"] or "").strip().upper(),
+            int(row["item_id"]),
+            int(row["source_shopping_list_item_id"]) if row["source_shopping_list_item_id"] is not None else None,
+        ): row
+        for row in existing_rows
+    }
+    keep_keys: set[tuple[str, int, int | None]] = set()
+    ingredient_inventory_by_key = load_inventory_canonical_by_key(conn) if str(domain or "").strip().upper() == "FOOD" else {}
+    now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+
+    for item in items:
+        item_type = str(item.itemType or "").strip().upper()
+        item_id = int(item.itemId)
+        snapshot = resolve_inventory_order_item_snapshot(
+            conn,
+            domain=domain,
+            item_type=item_type,
+            item_id=item_id,
+            requested_unit=item.unit,
+            ingredient_inventory_by_key=ingredient_inventory_by_key,
+            preserve_requested_unit=preserve_requested_unit,
+        )
+
+        required_quantity = rounded_quantity(item.requiredQuantity)
+        ordered_quantity = rounded_quantity(item.orderedQuantity)
+        received_quantity = rounded_quantity(item.receivedQuantity)
+        applied_quantity = rounded_quantity(item.appliedQuantity)
+        purchase_unit = normalize_purchase_unit(item.purchaseUnit)
+        units_per_purchase = normalize_units_per_purchase(item.unitsPerPurchase)
+        ordered_purchase_quantity = rounded_quantity(item.orderedPurchaseQuantity)
+        received_purchase_quantity = rounded_quantity(item.receivedPurchaseQuantity)
+
+        if ordered_purchase_quantity > 0:
+            ordered_quantity = round(ordered_purchase_quantity * units_per_purchase, 3)
+        elif ordered_quantity > 0:
+            ordered_purchase_quantity = round(ordered_quantity / units_per_purchase, 3)
+
+        if received_purchase_quantity > 0:
+            received_quantity = round(received_purchase_quantity * units_per_purchase, 3)
+        elif received_quantity > 0:
+            received_purchase_quantity = round(received_quantity / units_per_purchase, 3)
+
+        if received_quantity > ordered_quantity:
+            ordered_quantity = received_quantity
+        if received_purchase_quantity > ordered_purchase_quantity:
+            ordered_purchase_quantity = received_purchase_quantity
+        if ordered_quantity <= 0:
+            received_quantity = 0.0
+            applied_quantity = 0.0
+            ordered_purchase_quantity = 0.0
+            received_purchase_quantity = 0.0
+        if applied_quantity > received_quantity:
+            applied_quantity = received_quantity
+
+        notes = normalize_optional_text(item.notes)
+        source_shopping_list_item_id = int(item.sourceShoppingListItemId) if item.sourceShoppingListItemId is not None else None
+        order_url_override = normalize_optional_text(item.orderUrlOverride)
+        if source_shopping_list_item_id is not None:
+            if str(domain or "").strip().upper() != "FOOD" or item_type != "INGREDIENT":
+                raise HTTPException(
+                    status_code=400,
+                    detail="sourceShoppingListItemId is only valid for food ingredient lines.",
+                )
+            source_item = conn.execute(
+                """
+                SELECT ingredient_id
+                FROM shopping_list_items
+                WHERE id = ?
+                """,
+                (source_shopping_list_item_id,),
+            ).fetchone()
+            if not source_item:
+                raise HTTPException(status_code=400, detail="Source shopping list item does not exist.")
+            if int(source_item["ingredient_id"]) != item_id:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Source shopping list item does not match the ingredient on this order line.",
+                )
+        if order_url_override and (str(domain or "").strip().upper() != "NON_FOOD" or item_type != "STANDALONE_INVENTORY"):
+            raise HTTPException(
+                status_code=400,
+                detail="orderUrlOverride is only valid for non-food inventory lines.",
+            )
+
+        if (
+            required_quantity <= 0
+            and ordered_quantity <= 0
+            and received_quantity <= 0
+            and applied_quantity <= 0
+            and not order_url_override
+            and not notes
+            and source_shopping_list_item_id is None
+        ):
+            continue
+
+        key = (item_type, item_id, source_shopping_list_item_id)
+        if key in keep_keys:
+            raise HTTPException(status_code=400, detail="Duplicate order lines are not allowed.")
+
+        existing = existing_by_key.get(key)
+        old_ordered = as_non_negative_quantity(existing["ordered_quantity"]) if existing else 0.0
+        old_received = as_non_negative_quantity(existing["received_quantity"]) if existing else 0.0
+        ordered_at = existing["ordered_at"] if existing else None
+        ordered_by_user_id = existing["ordered_by_user_id"] if existing else None
+        received_at = existing["received_at"] if existing else None
+        received_by_user_id = existing["received_by_user_id"] if existing else None
+
+        if ordered_quantity > 0 and old_ordered <= 0:
+            ordered_at = now
+            ordered_by_user_id = actor_user_id
+        if ordered_quantity <= 0:
+            ordered_at = None
+            ordered_by_user_id = None
+            received_at = None
+            received_by_user_id = None
+
+        if received_quantity > 0 and old_received <= 0:
+            received_at = now
+            received_by_user_id = actor_user_id
+        if received_quantity <= 0:
+            received_at = None
+            received_by_user_id = None
+
+        if existing:
+            conn.execute(
+                """
+                UPDATE inventory_order_items
+                SET item_name_snapshot = ?,
+                    category_snapshot = ?,
+                    unit_snapshot = ?,
+                    current_quantity_snapshot = ?,
+                    required_quantity = ?,
+                    ordered_quantity = ?,
+                    received_quantity = ?,
+                    applied_quantity = ?,
+                    purchase_unit = ?,
+                    units_per_purchase = ?,
+                    ordered_purchase_quantity = ?,
+                    received_purchase_quantity = ?,
+                    source_shopping_list_item_id = ?,
+                    order_url_snapshot = ?,
+                    order_url_override = ?,
+                    notes = ?,
+                    ordered_by_user_id = ?,
+                    ordered_at = ?,
+                    received_by_user_id = ?,
+                    received_at = ?,
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE id = ?
+                """,
+                (
+                    snapshot["item_name_snapshot"],
+                    snapshot["category_snapshot"],
+                    snapshot["unit_snapshot"],
+                    snapshot["current_quantity_snapshot"],
+                    required_quantity,
+                    ordered_quantity,
+                    received_quantity,
+                    applied_quantity,
+                    purchase_unit,
+                    units_per_purchase,
+                    ordered_purchase_quantity,
+                    received_purchase_quantity,
+                    source_shopping_list_item_id,
+                    snapshot.get("live_order_url"),
+                    order_url_override,
+                    notes,
+                    ordered_by_user_id,
+                    ordered_at,
+                    received_by_user_id,
+                    received_at,
+                    int(existing["id"]),
+                ),
+            )
+        else:
+            conn.execute(
+                """
+                INSERT INTO inventory_order_items(
+                    order_id,
+                    item_type,
+                    item_id,
+                    item_name_snapshot,
+                    category_snapshot,
+                    unit_snapshot,
+                    current_quantity_snapshot,
+                    required_quantity,
+                    ordered_quantity,
+                    received_quantity,
+                    applied_quantity,
+                    purchase_unit,
+                    units_per_purchase,
+                    ordered_purchase_quantity,
+                    received_purchase_quantity,
+                    source_shopping_list_item_id,
+                    order_url_snapshot,
+                    order_url_override,
+                    notes,
+                    ordered_by_user_id,
+                    ordered_at,
+                    received_by_user_id,
+                    received_at,
+                    created_at,
+                    updated_at
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                """,
+                (
+                    order_id,
+                    item_type,
+                    item_id,
+                    snapshot["item_name_snapshot"],
+                    snapshot["category_snapshot"],
+                    snapshot["unit_snapshot"],
+                    snapshot["current_quantity_snapshot"],
+                    required_quantity,
+                    ordered_quantity,
+                    received_quantity,
+                    applied_quantity,
+                    purchase_unit,
+                    units_per_purchase,
+                    ordered_purchase_quantity,
+                    received_purchase_quantity,
+                    source_shopping_list_item_id,
+                    snapshot.get("live_order_url"),
+                    order_url_override,
+                    notes,
+                    ordered_by_user_id,
+                    ordered_at,
+                    received_by_user_id,
+                    received_at,
+                ),
+            )
+        keep_keys.add(key)
+
+    for row in existing_rows:
+        key = (
+            str(row["item_type"] or "").strip().upper(),
+            int(row["item_id"]),
+            int(row["source_shopping_list_item_id"]) if row["source_shopping_list_item_id"] is not None else None,
+        )
+        if key in keep_keys:
+            continue
+        conn.execute("DELETE FROM inventory_order_items WHERE id = ?", (int(row["id"]),))
+
+
+def load_inventory_order_detail(conn: Any, order_id: int) -> dict[str, Any]:
+    row = conn.execute(
+        """
+        SELECT
+            id,
+            domain,
+            source_type,
+            source_id,
+            name,
+            status,
+            supplier_name,
+            notes,
+            created_by_user_id,
+            ordered_by_user_id,
+            ordered_at,
+            received_by_user_id,
+            received_at,
+            created_at,
+            updated_at
+        FROM inventory_orders
+        WHERE id = ?
+          AND deleted_at IS NULL
+        """,
+        (order_id,),
+    ).fetchone()
+    if not row:
+        raise HTTPException(status_code=404, detail="Inventory order not found")
+
+    payload = format_inventory_order_row(row)
+    items_map = load_inventory_order_items(conn, [order_id])
+    items = items_map.get(order_id, [])
+    payload["items"] = items
+
+    domain = str(payload.get("domain") or "").strip().upper()
+    relevant = [item for item in items if inventory_order_item_is_relevant(domain, item)]
+    payload["item_count"] = len(items)
+    payload["relevant_item_count"] = len(relevant)
+    payload["to_order_count"] = sum(1 for item in relevant if item.get("status") == "NOT_ORDERED")
+    payload["ordered_count"] = sum(1 for item in relevant if item.get("status") in {"ORDERED", "PARTIAL"})
+    payload["received_count"] = sum(1 for item in relevant if item.get("status") == "RECEIVED")
+    payload["putaway_pending_count"] = sum(
+        1 for item in items if float(item.get("putaway_pending_quantity") or 0.0) > 0
+    )
+    payload["fully_put_away"] = all(
+        float(item.get("putaway_pending_quantity") or 0.0) <= 0
+        for item in items
+    ) if items else False
+    payload["total_required_quantity"] = round(sum(float(item.get("required_quantity") or 0.0) for item in items), 3)
+    payload["total_to_order_quantity"] = round(sum(float(item.get("to_order_quantity") or 0.0) for item in items), 3)
+    payload["total_ordered_quantity"] = round(sum(float(item.get("ordered_quantity") or 0.0) for item in items), 3)
+    payload["total_received_quantity"] = round(sum(float(item.get("received_quantity") or 0.0) for item in items), 3)
+    payload["total_applied_quantity"] = round(sum(float(item.get("applied_quantity") or 0.0) for item in items), 3)
+    return payload
+
+
+def record_inventory_order_item_event(
+    conn: Any,
+    *,
+    order_id: int,
+    order_item_id: int | None,
+    event_type: str,
+    quantity: float | None = None,
+    purchase_quantity: float | None = None,
+    location: str | None = None,
+    notes: str | None = None,
+    user_id: int | None = None,
+) -> None:
+    conn.execute(
+        """
+        INSERT INTO inventory_order_item_events(
+            order_id,
+            order_item_id,
+            event_type,
+            quantity,
+            purchase_quantity,
+            location,
+            notes,
+            user_id,
+            created_at
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+        """,
+        (
+            order_id,
+            order_item_id,
+            event_type,
+            rounded_quantity(quantity) if quantity is not None else None,
+            rounded_quantity(purchase_quantity) if purchase_quantity is not None else None,
+            normalize_optional_storage_grid_location(location),
+            normalize_optional_text(notes),
+            user_id,
+        ),
+    )
+
+
+def record_inventory_movement(
+    conn: Any,
+    *,
+    domain: str,
+    item_type: str,
+    item_id: int,
+    order_id: int | None,
+    order_item_id: int | None,
+    movement_type: str,
+    quantity_delta: float,
+    unit: str | None,
+    location: str | None = None,
+    reason: str | None = None,
+    user_id: int | None = None,
+) -> None:
+    conn.execute(
+        """
+        INSERT INTO inventory_movements(
+            domain,
+            item_type,
+            item_id,
+            order_id,
+            order_item_id,
+            movement_type,
+            quantity_delta,
+            unit,
+            location,
+            reason,
+            user_id,
+            created_at
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+        """,
+        (
+            normalize_inventory_order_domain(domain),
+            str(item_type or "").strip().upper(),
+            int(item_id),
+            order_id,
+            order_item_id,
+            str(movement_type or "").strip().upper(),
+            round(float(quantity_delta or 0.0), 3),
+            normalize_unit(str(unit or "").strip()) or None,
+            normalize_optional_storage_grid_location(location),
+            normalize_optional_text(reason),
+            user_id,
+        ),
+    )
+
+
+def list_inventory_order_putaway_queue_rows(
+    conn: Any,
+    *,
+    order_id: int | None = None,
+    domain: str | None = None,
+) -> list[dict[str, Any]]:
+    filters = [
+        "io.deleted_at IS NULL",
+        "ioi.received_quantity > ioi.applied_quantity",
+    ]
+    params: list[Any] = []
+    normalized_domain = normalize_inventory_order_domain(domain)
+    if normalized_domain:
+        filters.append("io.domain = ?")
+        params.append(normalized_domain)
+    if order_id is not None:
+        filters.append("io.id = ?")
+        params.append(int(order_id))
+
+    where_sql = f"WHERE {' AND '.join(filters)}"
+    rows = conn.execute(
+        f"""
+        SELECT
+            io.id AS order_id,
+            io.domain AS order_domain,
+            io.name AS order_name,
+            io.status AS order_status,
+            io.updated_at AS order_updated_at,
+            ioi.id AS order_item_id,
+            ioi.item_type,
+            ioi.item_id,
+            ioi.source_shopping_list_item_id,
+            ioi.item_name_snapshot,
+            ioi.category_snapshot,
+            ioi.unit_snapshot,
+            ioi.purchase_unit,
+            ioi.units_per_purchase,
+            ioi.received_quantity,
+            ioi.applied_quantity,
+            ioi.notes,
+            si.quantity AS standalone_inventory_quantity,
+            si.unit AS standalone_inventory_unit,
+            si.location AS standalone_inventory_location,
+            si.barcode AS standalone_inventory_barcode
+        FROM inventory_order_items ioi
+        JOIN inventory_orders io
+          ON io.id = ioi.order_id
+        LEFT JOIN standalone_inventory si
+          ON ioi.item_type = 'STANDALONE_INVENTORY'
+         AND si.id = ioi.item_id
+        {where_sql}
+        ORDER BY io.updated_at DESC, io.id DESC, lower(ioi.item_name_snapshot), ioi.id
+        """,
+        tuple(params),
+    ).fetchall()
+
+    queue: list[dict[str, Any]] = []
+    for row in rows:
+        received_quantity = rounded_quantity(row["received_quantity"])
+        applied_quantity = rounded_quantity(row["applied_quantity"])
+        remaining_quantity = round(max(0.0, received_quantity - applied_quantity), 3)
+        if remaining_quantity <= 0:
+            continue
+        unit = normalize_unit(str(row["unit_snapshot"] or "").strip()) or "each"
+        queue.append(
+            {
+                "order_id": int(row["order_id"]),
+                "order_domain": row["order_domain"],
+                "order_name": row["order_name"],
+                "order_status": row["order_status"],
+                "order_updated_at": row["order_updated_at"],
+                "order_item_id": int(row["order_item_id"]),
+                "item_type": str(row["item_type"] or "").strip().upper(),
+                "item_id": int(row["item_id"]),
+                "source_shopping_list_item_id": (
+                    int(row["source_shopping_list_item_id"])
+                    if row["source_shopping_list_item_id"] is not None
+                    else None
+                ),
+                "item_name": row["item_name_snapshot"],
+                "category": normalize_inventory_category(row["category_snapshot"]),
+                "unit": unit,
+                "purchase_unit": normalize_purchase_unit(row["purchase_unit"]),
+                "units_per_purchase": normalize_units_per_purchase(row["units_per_purchase"]),
+                "received_quantity": received_quantity,
+                "applied_quantity": applied_quantity,
+                "remaining_putaway_quantity": remaining_quantity,
+                "inventory_quantity": rounded_quantity(row["standalone_inventory_quantity"]),
+                "inventory_unit": normalize_unit(str(row["standalone_inventory_unit"] or "").strip()) or None,
+                "inventory_location": normalize_optional_text(row["standalone_inventory_location"]),
+                "inventory_barcode": normalize_optional_text(row["standalone_inventory_barcode"]),
+                "notes": normalize_optional_text(row["notes"]),
+            }
+        )
+    return queue
+
+
+def build_food_inventory_order_name(shopping_list_name: Any, vendor_name: Any) -> str:
+    base_name = normalize_optional_text(shopping_list_name) or "Shopping List"
+    supplier_label = normalize_optional_text(vendor_name) or "Pending Vendor"
+    return f"{base_name} - {supplier_label}"
+
+
+def build_food_inventory_order_item_input(row: Any) -> InventoryOrderItemInput | None:
+    required_qty = rounded_quantity(row["required_qty"])
+    required_unit = normalize_unit(str(row["required_unit"] or "").strip()) or None
+    to_buy_qty = rounded_quantity(row["to_buy_qty"])
+    to_buy_unit = normalize_unit(str(row["to_buy_unit"] or row["required_unit"] or "").strip()) or required_unit
+    ordered_qty = rounded_quantity(row["ordered_qty"])
+    ordered_unit = normalize_unit(str(row["ordered_unit"] or "").strip()) or None
+    ordered = bool(row["ordered"])
+    received = bool(row["received"])
+
+    target_qty = to_buy_qty if to_buy_qty > 0 else required_qty
+    target_unit = to_buy_unit or required_unit
+    order_unit = ordered_unit or target_unit or required_unit or "each"
+
+    required_quantity = 0.0
+    if target_qty > 0 and target_unit and order_unit:
+        converted_required = convert_quantity_between_units(target_qty, target_unit, order_unit)
+        if converted_required is not None:
+            required_quantity = round(converted_required, 3)
+
+    if ordered_qty <= 0 and (ordered or received):
+        fallback_ordered_qty, fallback_ordered_unit = preferred_ordered_quantity_and_unit(
+            target_qty,
+            target_unit,
+            preferred_unit=order_unit,
+        )
+        if fallback_ordered_unit:
+            order_unit = fallback_ordered_unit
+        ordered_qty = rounded_quantity(fallback_ordered_qty)
+
+    if ordered_qty <= 0 and required_quantity > 0 and (ordered or received):
+        ordered_qty = required_quantity
+
+    if ordered_qty <= 0 and not ordered and not received:
+        return None
+
+    received_qty = ordered_qty if received and ordered_qty > 0 else 0.0
+    notes = normalize_optional_text(row["notes"])
+    source_item_id = int(row["id"])
+
+    return InventoryOrderItemInput(
+        itemType="INGREDIENT",
+        itemId=int(row["ingredient_id"]),
+        requiredQuantity=required_quantity,
+        orderedQuantity=ordered_qty,
+        receivedQuantity=received_qty,
+        appliedQuantity=0,
+        unit=order_unit,
+        purchaseUnit="unit",
+        unitsPerPurchase=1,
+        orderedPurchaseQuantity=ordered_qty,
+        receivedPurchaseQuantity=received_qty,
+        sourceShoppingListItemId=source_item_id,
+        notes=notes,
+    )
+
+
+def archive_food_inventory_orders_for_shopping_list(conn: Any, shopping_list_id: int) -> int:
+    rows = conn.execute(
+        """
+        SELECT id
+        FROM inventory_orders
+        WHERE domain = 'FOOD'
+          AND source_type = 'SHOPPING_LIST'
+          AND source_id = ?
+          AND deleted_at IS NULL
+        """,
+        (shopping_list_id,),
+    ).fetchall()
+    order_ids = [int(row["id"]) for row in rows]
+    for order_id in order_ids:
+        conn.execute(
+            """
+            UPDATE inventory_orders
+            SET deleted_at = CURRENT_TIMESTAMP,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+            """,
+            (order_id,),
+        )
+    return len(order_ids)
+
+
+def sync_food_inventory_orders_for_shopping_list(
+    conn: Any,
+    shopping_list_id: int,
+    *,
+    actor_user_id: int | None = None,
+) -> list[int]:
+    shopping_list_row = conn.execute(
+        """
+        SELECT id, name
+        FROM shopping_lists
+        WHERE id = ?
+        """,
+        (shopping_list_id,),
+    ).fetchone()
+    if not shopping_list_row:
+        return []
+
+    shopping_rows = conn.execute(
+        """
+        SELECT
+            sli.id,
+            sli.ingredient_id,
+            sli.required_qty,
+            sli.required_unit,
+            sli.to_buy_qty,
+            sli.to_buy_unit,
+            sli.ordered_qty,
+            sli.ordered_unit,
+            sli.vendor_id,
+            v.name AS vendor_name,
+            sli.ordered,
+            sli.received,
+            sli.notes
+        FROM shopping_list_items sli
+        LEFT JOIN vendors v ON v.id = sli.vendor_id
+        WHERE sli.shopping_list_id = ?
+        ORDER BY sli.id
+        """,
+        (shopping_list_id,),
+    ).fetchall()
+
+    grouped_rows: dict[int | None, dict[str, Any]] = {}
+    for row in shopping_rows:
+        ordered_qty = rounded_quantity(row["ordered_qty"])
+        if not bool(row["ordered"]) and not bool(row["received"]) and ordered_qty <= 0:
+            continue
+        vendor_id = int(row["vendor_id"]) if row["vendor_id"] is not None else None
+        group = grouped_rows.setdefault(
+            vendor_id,
+            {
+                "vendor_id": vendor_id,
+                "vendor_name": normalize_optional_text(row["vendor_name"]),
+                "rows": [],
+            },
+        )
+        if not group["vendor_name"]:
+            group["vendor_name"] = normalize_optional_text(row["vendor_name"])
+        group["rows"].append(row)
+
+    existing_orders = conn.execute(
+        """
+        SELECT id, supplier_name
+        FROM inventory_orders
+        WHERE domain = 'FOOD'
+          AND source_type = 'SHOPPING_LIST'
+          AND source_id = ?
+          AND deleted_at IS NULL
+        ORDER BY id
+        """,
+        (shopping_list_id,),
+    ).fetchall()
+    existing_order_ids = [int(row["id"]) for row in existing_orders]
+    existing_source_ids_by_order: dict[int, set[int]] = {order_id: set() for order_id in existing_order_ids}
+    if existing_order_ids:
+        placeholders = ", ".join("?" for _ in existing_order_ids)
+        existing_line_rows = conn.execute(
+            f"""
+            SELECT order_id, source_shopping_list_item_id
+            FROM inventory_order_items
+            WHERE order_id IN ({placeholders})
+            """,
+            tuple(existing_order_ids),
+        ).fetchall()
+        for row in existing_line_rows:
+            if row["source_shopping_list_item_id"] is None:
+                continue
+            existing_source_ids_by_order.setdefault(int(row["order_id"]), set()).add(int(row["source_shopping_list_item_id"]))
+
+    synced_order_ids: list[int] = []
+    used_order_ids: set[int] = set()
+    for group in grouped_rows.values():
+        payload_items = [
+            payload
+            for payload in (build_food_inventory_order_item_input(row) for row in group["rows"])
+            if payload is not None
+        ]
+        if not payload_items:
+            continue
+
+        group_source_item_ids = {int(item.sourceShoppingListItemId) for item in payload_items if item.sourceShoppingListItemId}
+        chosen_order: Any | None = None
+        best_overlap = 0
+        for order_row in existing_orders:
+            order_id = int(order_row["id"])
+            if order_id in used_order_ids:
+                continue
+            overlap = len(group_source_item_ids & existing_source_ids_by_order.get(order_id, set()))
+            if overlap > best_overlap:
+                best_overlap = overlap
+                chosen_order = order_row
+
+        if chosen_order is None:
+            expected_supplier_name = normalize_optional_text(group["vendor_name"])
+            for order_row in existing_orders:
+                order_id = int(order_row["id"])
+                if order_id in used_order_ids:
+                    continue
+                if normalize_optional_text(order_row["supplier_name"]) == expected_supplier_name:
+                    chosen_order = order_row
+                    break
+
+        order_name = build_food_inventory_order_name(shopping_list_row["name"], group["vendor_name"])
+        supplier_name = normalize_optional_text(group["vendor_name"])
+        if chosen_order is None:
+            created = conn.execute(
+                """
+                INSERT INTO inventory_orders(
+                    domain,
+                    source_type,
+                    source_id,
+                    name,
+                    status,
+                    supplier_name,
+                    created_by_user_id,
+                    created_at,
+                    updated_at
+                )
+                VALUES ('FOOD', 'SHOPPING_LIST', ?, ?, 'DRAFT', ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                RETURNING id
+                """,
+                (shopping_list_id, order_name, supplier_name, actor_user_id),
+            ).fetchone()
+            order_id = int(created["id"])
+        else:
+            order_id = int(chosen_order["id"])
+            conn.execute(
+                """
+                UPDATE inventory_orders
+                SET name = ?,
+                    supplier_name = ?,
+                    deleted_at = NULL,
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE id = ?
+                """,
+                (order_name, supplier_name, order_id),
+            )
+
+        upsert_inventory_order_items(
+            conn,
+            order_id,
+            domain="FOOD",
+            items=payload_items,
+            actor_user_id=actor_user_id,
+            preserve_requested_unit=True,
+        )
+        refresh_inventory_order_status(conn, order_id, actor_user_id=actor_user_id)
+        synced_order_ids.append(order_id)
+        used_order_ids.add(order_id)
+
+    for order_row in existing_orders:
+        order_id = int(order_row["id"])
+        if order_id in used_order_ids:
+            continue
+        conn.execute(
+            """
+            UPDATE inventory_orders
+            SET deleted_at = CURRENT_TIMESTAMP,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+            """,
+            (order_id,),
+        )
+
+    return synced_order_ids
+
+
 def derive_standalone_inventory_item_status(
     *,
     to_order_quantity: float,
@@ -7159,421 +7916,6 @@ def derive_standalone_inventory_item_status(
     if ordered > 0:
         return "ORDERED"
     return "NOT_ORDERED"
-
-
-def derive_standalone_inventory_order_status(items: list[dict[str, Any]]) -> str:
-    relevant = [item for item in items if float(item.get("to_order_quantity") or 0.0) > 0]
-    if not relevant:
-        return "DRAFT"
-
-    all_received = all(item.get("status") == "RECEIVED" for item in relevant)
-    if all_received:
-        return "RECEIVED"
-
-    any_received = any(item.get("status") in {"RECEIVED", "PARTIAL"} for item in relevant)
-    if any_received:
-        return "PARTIAL"
-
-    any_ordered = any(item.get("status") == "ORDERED" for item in relevant)
-    if any_ordered:
-        return "ORDERED"
-
-    return "DRAFT"
-
-
-def load_standalone_inventory_order_items(conn: Any, order_ids: list[int]) -> dict[int, list[dict[str, Any]]]:
-    if not order_ids:
-        return {}
-    placeholders = ", ".join("?" for _ in order_ids)
-    rows = conn.execute(
-        f"""
-        SELECT
-            soi.id,
-            soi.order_id,
-            soi.inventory_item_id,
-            soi.item_name_snapshot,
-            soi.category_snapshot,
-            soi.unit_snapshot,
-            soi.current_quantity_snapshot,
-            soi.required_quantity,
-            soi.ordered_quantity,
-            soi.received_quantity,
-            soi.purchase_unit,
-            soi.units_per_purchase,
-            soi.ordered_purchase_quantity,
-            soi.received_purchase_quantity,
-            soi.applied_received_quantity,
-            soi.order_url_snapshot,
-            soi.order_url_override,
-            soi.notes,
-            soi.ordered_by_user_id,
-            soi.ordered_at,
-            soi.received_by_user_id,
-            soi.received_at,
-            soi.created_at,
-            soi.updated_at,
-            si.item_name AS inventory_item_name,
-            si.category AS inventory_category,
-            si.quantity AS inventory_quantity,
-            si.unit AS inventory_unit,
-            si.order_url AS inventory_order_url,
-            si.location AS inventory_location,
-            si.barcode AS inventory_barcode
-        FROM standalone_inventory_order_items soi
-        LEFT JOIN standalone_inventory si
-          ON si.id = soi.inventory_item_id
-        WHERE soi.order_id IN ({placeholders})
-        ORDER BY lower(soi.item_name_snapshot), soi.id
-        """,
-        tuple(order_ids),
-    ).fetchall()
-
-    grouped: dict[int, list[dict[str, Any]]] = {}
-    for row in rows:
-        required_quantity = rounded_quantity(row["required_quantity"])
-        ordered_quantity = rounded_quantity(row["ordered_quantity"])
-        received_quantity = rounded_quantity(row["received_quantity"])
-        applied_received_quantity = rounded_quantity(row["applied_received_quantity"])
-        current_snapshot = rounded_quantity(row["current_quantity_snapshot"])
-        purchase_unit = normalize_purchase_unit(row["purchase_unit"])
-        units_per_purchase = normalize_units_per_purchase(row["units_per_purchase"])
-        ordered_purchase_quantity = rounded_quantity(row["ordered_purchase_quantity"])
-        received_purchase_quantity = rounded_quantity(row["received_purchase_quantity"])
-        if ordered_purchase_quantity <= 0 and ordered_quantity > 0:
-            ordered_purchase_quantity = round(ordered_quantity / units_per_purchase, 3)
-        if received_purchase_quantity <= 0 and received_quantity > 0:
-            received_purchase_quantity = round(received_quantity / units_per_purchase, 3)
-        to_order_quantity = max(0.0, required_quantity - current_snapshot)
-        effective_url = (
-            normalize_optional_text(row["order_url_override"])
-            or normalize_optional_text(row["order_url_snapshot"])
-            or normalize_optional_text(row["inventory_order_url"])
-        )
-        status = derive_standalone_inventory_item_status(
-            to_order_quantity=to_order_quantity,
-            ordered_quantity=ordered_quantity,
-            received_quantity=received_quantity,
-        )
-        payload = {
-            "id": int(row["id"]),
-            "order_id": int(row["order_id"]),
-            "inventory_item_id": int(row["inventory_item_id"]),
-            "item_name_snapshot": row["item_name_snapshot"],
-            "category_snapshot": normalize_inventory_category(row["category_snapshot"]),
-            "unit_snapshot": row["unit_snapshot"],
-            "current_quantity_snapshot": current_snapshot,
-            "required_quantity": required_quantity,
-            "to_order_quantity": to_order_quantity,
-            "ordered_quantity": ordered_quantity,
-            "received_quantity": received_quantity,
-            "purchase_unit": purchase_unit,
-            "units_per_purchase": units_per_purchase,
-            "ordered_purchase_quantity": ordered_purchase_quantity,
-            "received_purchase_quantity": received_purchase_quantity,
-            "applied_received_quantity": applied_received_quantity,
-            "order_url_snapshot": normalize_optional_text(row["order_url_snapshot"]),
-            "order_url_override": normalize_optional_text(row["order_url_override"]),
-            "effective_order_url": effective_url,
-            "notes": normalize_optional_text(row["notes"]),
-            "ordered_by_user_id": int(row["ordered_by_user_id"]) if row["ordered_by_user_id"] is not None else None,
-            "ordered_at": row["ordered_at"],
-            "received_by_user_id": int(row["received_by_user_id"]) if row["received_by_user_id"] is not None else None,
-            "received_at": row["received_at"],
-            "created_at": row["created_at"],
-            "updated_at": row["updated_at"],
-            "inventory_item_name": row["inventory_item_name"],
-            "inventory_category": normalize_inventory_category(row["inventory_category"]),
-            "inventory_quantity": rounded_quantity(row["inventory_quantity"]),
-            "inventory_unit": row["inventory_unit"],
-            "inventory_order_url": normalize_optional_text(row["inventory_order_url"]),
-            "inventory_location": row["inventory_location"],
-            "inventory_barcode": row["inventory_barcode"],
-            "status": status,
-        }
-        order_id = int(row["order_id"])
-        grouped.setdefault(order_id, []).append(payload)
-    return grouped
-
-
-def refresh_standalone_inventory_order_status(conn: Any, order_id: int, *, actor_user_id: int | None = None) -> str:
-    items_map = load_standalone_inventory_order_items(conn, [order_id])
-    items = items_map.get(order_id, [])
-    status = derive_standalone_inventory_order_status(items)
-    now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
-    existing = conn.execute(
-        """
-        SELECT ordered_at, ordered_by_user_id, received_at, received_by_user_id
-        FROM standalone_inventory_orders
-        WHERE id = ? AND deleted_at IS NULL
-        """,
-        (order_id,),
-    ).fetchone()
-    if not existing:
-        raise HTTPException(status_code=404, detail="Inventory order not found")
-
-    any_ordered = any(as_non_negative_quantity(item.get("ordered_quantity")) > 0 for item in items)
-    any_received = any(as_non_negative_quantity(item.get("received_quantity")) > 0 for item in items)
-
-    ordered_at = existing["ordered_at"]
-    ordered_by_user_id = existing["ordered_by_user_id"]
-    received_at = existing["received_at"]
-    received_by_user_id = existing["received_by_user_id"]
-
-    if any_ordered and not ordered_at:
-        ordered_at = now
-        ordered_by_user_id = actor_user_id
-    if not any_ordered:
-        ordered_at = None
-        ordered_by_user_id = None
-
-    if any_received and not received_at:
-        received_at = now
-        received_by_user_id = actor_user_id
-    if not any_received:
-        received_at = None
-        received_by_user_id = None
-
-    conn.execute(
-        """
-        UPDATE standalone_inventory_orders
-        SET status = ?, ordered_at = ?, ordered_by_user_id = ?, received_at = ?, received_by_user_id = ?, updated_at = CURRENT_TIMESTAMP
-        WHERE id = ?
-        """,
-        (status, ordered_at, ordered_by_user_id, received_at, received_by_user_id, order_id),
-    )
-    return status
-
-
-def upsert_standalone_inventory_order_items(
-    conn: Any,
-    order_id: int,
-    *,
-    items: list[StandaloneInventoryOrderItemInput],
-    actor_user_id: int | None,
-) -> None:
-    existing_rows = conn.execute(
-        """
-        SELECT *
-        FROM standalone_inventory_order_items
-        WHERE order_id = ?
-        """,
-        (order_id,),
-    ).fetchall()
-    existing_by_inventory_id = {int(row["inventory_item_id"]): row for row in existing_rows}
-    keep_inventory_ids: set[int] = set()
-    now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
-
-    for item in items:
-        inventory_item_id = int(item.inventoryItemId)
-        inventory_row = conn.execute(
-            """
-            SELECT id, item_name, category, unit, quantity, order_url
-            FROM standalone_inventory
-            WHERE id = ?
-            """,
-            (inventory_item_id,),
-        ).fetchone()
-        if not inventory_row:
-            raise HTTPException(status_code=400, detail=f"Inventory item {inventory_item_id} does not exist.")
-
-        required_quantity = rounded_quantity(item.requiredQuantity)
-        purchase_unit = normalize_purchase_unit(item.purchaseUnit)
-        units_per_purchase = normalize_units_per_purchase(item.unitsPerPurchase)
-        ordered_purchase_quantity = rounded_quantity(item.orderedPurchaseQuantity)
-        received_purchase_quantity = rounded_quantity(item.receivedPurchaseQuantity)
-        ordered_quantity = rounded_quantity(item.orderedQuantity)
-        received_quantity = rounded_quantity(item.receivedQuantity)
-
-        if ordered_purchase_quantity > 0:
-            ordered_quantity = round(ordered_purchase_quantity * units_per_purchase, 3)
-        elif ordered_quantity > 0:
-            ordered_purchase_quantity = round(ordered_quantity / units_per_purchase, 3)
-
-        if received_purchase_quantity > 0:
-            received_quantity = round(received_purchase_quantity * units_per_purchase, 3)
-        elif received_quantity > 0:
-            received_purchase_quantity = round(received_quantity / units_per_purchase, 3)
-
-        if received_quantity > ordered_quantity:
-            ordered_quantity = received_quantity
-        if received_purchase_quantity > ordered_purchase_quantity:
-            ordered_purchase_quantity = received_purchase_quantity
-        if ordered_quantity <= 0:
-            received_quantity = 0.0
-            ordered_purchase_quantity = 0.0
-            received_purchase_quantity = 0.0
-
-        order_url_override = normalize_optional_text(item.orderUrlOverride)
-        notes = normalize_optional_text(item.notes)
-
-        # Skip empty lines and remove them from the order if currently present.
-        if (
-            required_quantity <= 0
-            and ordered_quantity <= 0
-            and received_quantity <= 0
-            and not order_url_override
-            and not notes
-        ):
-            continue
-
-        existing = existing_by_inventory_id.get(inventory_item_id)
-        old_ordered = as_non_negative_quantity(existing["ordered_quantity"]) if existing else 0.0
-        old_received = as_non_negative_quantity(existing["received_quantity"]) if existing else 0.0
-        ordered_at = existing["ordered_at"] if existing else None
-        ordered_by_user_id = existing["ordered_by_user_id"] if existing else None
-        received_at = existing["received_at"] if existing else None
-        received_by_user_id = existing["received_by_user_id"] if existing else None
-        applied_received_quantity = as_non_negative_quantity(existing["applied_received_quantity"]) if existing else 0.0
-
-        if ordered_quantity > 0 and old_ordered <= 0:
-            ordered_at = now
-            ordered_by_user_id = actor_user_id
-        if ordered_quantity <= 0:
-            ordered_at = None
-            ordered_by_user_id = None
-            received_at = None
-            received_by_user_id = None
-            applied_received_quantity = 0.0
-
-        if received_quantity > 0 and old_received <= 0:
-            received_at = now
-            received_by_user_id = actor_user_id
-        if received_quantity <= 0:
-            received_at = None
-            received_by_user_id = None
-
-        if received_quantity < applied_received_quantity:
-            applied_received_quantity = received_quantity
-
-        conn.execute(
-            """
-            INSERT INTO standalone_inventory_order_items(
-                order_id,
-                inventory_item_id,
-                item_name_snapshot,
-                category_snapshot,
-                unit_snapshot,
-                current_quantity_snapshot,
-                required_quantity,
-                ordered_quantity,
-                received_quantity,
-                purchase_unit,
-                units_per_purchase,
-                ordered_purchase_quantity,
-                received_purchase_quantity,
-                applied_received_quantity,
-                order_url_snapshot,
-                order_url_override,
-                notes,
-                ordered_by_user_id,
-                ordered_at,
-                received_by_user_id,
-                received_at,
-                created_at,
-                updated_at
-            )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-            ON CONFLICT(order_id, inventory_item_id) DO UPDATE SET
-                item_name_snapshot = excluded.item_name_snapshot,
-                category_snapshot = excluded.category_snapshot,
-                unit_snapshot = excluded.unit_snapshot,
-                current_quantity_snapshot = excluded.current_quantity_snapshot,
-                required_quantity = excluded.required_quantity,
-                ordered_quantity = excluded.ordered_quantity,
-                received_quantity = excluded.received_quantity,
-                purchase_unit = excluded.purchase_unit,
-                units_per_purchase = excluded.units_per_purchase,
-                ordered_purchase_quantity = excluded.ordered_purchase_quantity,
-                received_purchase_quantity = excluded.received_purchase_quantity,
-                applied_received_quantity = excluded.applied_received_quantity,
-                order_url_snapshot = excluded.order_url_snapshot,
-                order_url_override = excluded.order_url_override,
-                notes = excluded.notes,
-                ordered_by_user_id = excluded.ordered_by_user_id,
-                ordered_at = excluded.ordered_at,
-                received_by_user_id = excluded.received_by_user_id,
-                received_at = excluded.received_at,
-                updated_at = CURRENT_TIMESTAMP
-            """,
-            (
-                order_id,
-                inventory_item_id,
-                inventory_row["item_name"],
-                normalize_inventory_category(inventory_row["category"]),
-                normalize_optional_text(inventory_row["unit"]),
-                as_non_negative_quantity(inventory_row["quantity"]),
-                required_quantity,
-                ordered_quantity,
-                received_quantity,
-                purchase_unit,
-                units_per_purchase,
-                ordered_purchase_quantity,
-                received_purchase_quantity,
-                applied_received_quantity,
-                normalize_optional_text(inventory_row["order_url"]),
-                order_url_override,
-                notes,
-                ordered_by_user_id,
-                ordered_at,
-                received_by_user_id,
-                received_at,
-            ),
-        )
-        keep_inventory_ids.add(inventory_item_id)
-
-    if keep_inventory_ids:
-        placeholders = ", ".join("?" for _ in keep_inventory_ids)
-        conn.execute(
-            f"""
-            DELETE FROM standalone_inventory_order_items
-            WHERE order_id = ?
-              AND inventory_item_id NOT IN ({placeholders})
-            """,
-            (order_id, *tuple(sorted(keep_inventory_ids))),
-        )
-    else:
-        conn.execute("DELETE FROM standalone_inventory_order_items WHERE order_id = ?", (order_id,))
-
-
-def load_standalone_inventory_order_detail(conn: Any, order_id: int) -> dict[str, Any]:
-    row = conn.execute(
-        """
-        SELECT
-            id,
-            name,
-            status,
-            notes,
-            created_by_user_id,
-            ordered_by_user_id,
-            ordered_at,
-            received_by_user_id,
-            received_at,
-            created_at,
-            updated_at
-        FROM standalone_inventory_orders
-        WHERE id = ?
-          AND deleted_at IS NULL
-        """,
-        (order_id,),
-    ).fetchone()
-    if not row:
-        raise HTTPException(status_code=404, detail="Inventory order not found")
-    payload = format_standalone_inventory_order_row(row)
-    items_map = load_standalone_inventory_order_items(conn, [order_id])
-    items = items_map.get(order_id, [])
-    payload["items"] = items
-
-    relevant = [item for item in items if float(item.get("to_order_quantity") or 0.0) > 0]
-    payload["item_count"] = len(items)
-    payload["relevant_item_count"] = len(relevant)
-    payload["to_order_count"] = sum(1 for item in relevant if item.get("status") == "NOT_ORDERED")
-    payload["ordered_count"] = sum(1 for item in relevant if item.get("status") in {"ORDERED", "PARTIAL"})
-    payload["received_count"] = sum(1 for item in relevant if item.get("status") == "RECEIVED")
-    payload["total_required_quantity"] = round(sum(float(item.get("required_quantity") or 0.0) for item in items), 3)
-    payload["total_to_order_quantity"] = round(sum(float(item.get("to_order_quantity") or 0.0) for item in items), 3)
-    payload["total_ordered_quantity"] = round(sum(float(item.get("ordered_quantity") or 0.0) for item in items), 3)
-    payload["total_received_quantity"] = round(sum(float(item.get("received_quantity") or 0.0) for item in items), 3)
-    return payload
 
 
 def tokenize_similarity_terms(value: Any) -> list[str]:
@@ -7898,13 +8240,21 @@ def create_inventory_order_draft_item(
     return payload_row
 
 
-@app.get("/api/inventory/orders")
-def list_standalone_inventory_orders(
+@app.get("/api/orders")
+def list_inventory_orders(
     _user: Annotated[AuthUser, Depends(require_roles(ROLE_VIEWER, ROLE_PLANNER, ROLE_ADMIN))],
+    domain: str | None = Query(default=None),
     status: str | None = Query(default=None),
+    source_type: str | None = Query(default=None, alias="sourceType"),
 ) -> list[dict[str, Any]]:
     filters = ["deleted_at IS NULL"]
     params: list[Any] = []
+
+    normalized_domain = normalize_inventory_order_domain(domain)
+    if normalized_domain:
+        filters.append("domain = ?")
+        params.append(normalized_domain)
+
     normalized_status = normalize_optional_text(status)
     if normalized_status:
         upper_status = normalized_status.upper()
@@ -7913,14 +8263,23 @@ def list_standalone_inventory_orders(
         filters.append("status = ?")
         params.append(upper_status)
 
+    normalized_source_type = normalize_inventory_order_source_type(source_type)
+    if normalized_source_type:
+        filters.append("source_type = ?")
+        params.append(normalized_source_type)
+
     where_sql = f"WHERE {' AND '.join(filters)}"
     with get_connection() as conn:
         rows = conn.execute(
             f"""
             SELECT
                 id,
+                domain,
+                source_type,
+                source_id,
                 name,
                 status,
+                supplier_name,
                 notes,
                 created_by_user_id,
                 ordered_by_user_id,
@@ -7929,202 +8288,175 @@ def list_standalone_inventory_orders(
                 received_at,
                 created_at,
                 updated_at
-            FROM standalone_inventory_orders
+            FROM inventory_orders
             {where_sql}
             ORDER BY updated_at DESC, id DESC
             """,
             tuple(params),
         ).fetchall()
         order_ids = [int(row["id"]) for row in rows]
-        items_map = load_standalone_inventory_order_items(conn, order_ids)
+        items_map = load_inventory_order_items(conn, order_ids)
 
     payloads: list[dict[str, Any]] = []
     for row in rows:
         order_id = int(row["id"])
-        payload = format_standalone_inventory_order_row(row)
+        payload = format_inventory_order_row(row)
         items = items_map.get(order_id, [])
-        relevant = [item for item in items if float(item.get("to_order_quantity") or 0.0) > 0]
+        domain_name = str(payload.get("domain") or "").strip().upper()
+        relevant = [item for item in items if inventory_order_item_is_relevant(domain_name, item)]
         payload["item_count"] = len(items)
         payload["relevant_item_count"] = len(relevant)
         payload["to_order_count"] = sum(1 for item in relevant if item.get("status") == "NOT_ORDERED")
-        payload["ordered_count"] = sum(1 for item in relevant if item.get("status") in {"ORDERED", "PARTIAL"})
+        payload["ordered_count"] = sum(
+            1 for item in relevant if item.get("status") in {"ORDERED", "PARTIAL"}
+        )
         payload["received_count"] = sum(1 for item in relevant if item.get("status") == "RECEIVED")
+        payload["putaway_pending_count"] = sum(
+            1 for item in items if float(item.get("putaway_pending_quantity") or 0.0) > 0
+        )
+        payload["fully_put_away"] = all(
+            float(item.get("putaway_pending_quantity") or 0.0) <= 0
+            for item in items
+        ) if items else False
+        payload["total_required_quantity"] = round(sum(float(item.get("required_quantity") or 0.0) for item in items), 3)
         payload["total_to_order_quantity"] = round(sum(float(item.get("to_order_quantity") or 0.0) for item in items), 3)
         payload["total_ordered_quantity"] = round(sum(float(item.get("ordered_quantity") or 0.0) for item in items), 3)
         payload["total_received_quantity"] = round(sum(float(item.get("received_quantity") or 0.0) for item in items), 3)
+        payload["total_applied_quantity"] = round(sum(float(item.get("applied_quantity") or 0.0) for item in items), 3)
         payloads.append(payload)
     return payloads
 
 
-@app.get("/api/inventory/orders/putaway-queue")
-def list_standalone_inventory_putaway_queue(
-    _user: Annotated[AuthUser, Depends(require_roles(ROLE_VIEWER, ROLE_PLANNER, ROLE_ADMIN))],
-    order_id: int | None = Query(default=None, ge=1),
-) -> list[dict[str, Any]]:
-    filters = [
-        "so.deleted_at IS NULL",
-        "soi.received_quantity > soi.applied_received_quantity",
-    ]
-    params: list[Any] = []
-    if order_id is not None:
-        filters.append("so.id = ?")
-        params.append(int(order_id))
-
-    where_sql = f"WHERE {' AND '.join(filters)}"
-    with get_connection() as conn:
-        rows = conn.execute(
-            f"""
-            SELECT
-                so.id AS order_id,
-                so.name AS order_name,
-                so.status AS order_status,
-                so.updated_at AS order_updated_at,
-                soi.id AS order_item_id,
-                soi.inventory_item_id,
-                soi.item_name_snapshot,
-                soi.category_snapshot,
-                soi.unit_snapshot,
-                soi.purchase_unit,
-                soi.units_per_purchase,
-                soi.received_quantity,
-                soi.applied_received_quantity,
-                soi.order_url_snapshot,
-                soi.order_url_override,
-                soi.notes,
-                si.quantity AS inventory_quantity,
-                si.location AS inventory_location,
-                si.barcode AS inventory_barcode,
-                si.order_url AS inventory_order_url
-            FROM standalone_inventory_order_items soi
-            JOIN standalone_inventory_orders so
-              ON so.id = soi.order_id
-            LEFT JOIN standalone_inventory si
-              ON si.id = soi.inventory_item_id
-            {where_sql}
-            ORDER BY so.updated_at DESC, so.id DESC, lower(soi.item_name_snapshot), soi.id
-            """,
-            tuple(params),
-        ).fetchall()
-
-    queue: list[dict[str, Any]] = []
-    for row in rows:
-        received_quantity = rounded_quantity(row["received_quantity"])
-        applied_quantity = rounded_quantity(row["applied_received_quantity"])
-        remaining_quantity = round(max(0.0, received_quantity - applied_quantity), 3)
-        if remaining_quantity <= 0:
-            continue
-        effective_url = (
-            normalize_optional_text(row["order_url_override"])
-            or normalize_optional_text(row["order_url_snapshot"])
-            or normalize_optional_text(row["inventory_order_url"])
-        )
-        unit = normalize_optional_text(row["unit_snapshot"]) or "each"
-        queue.append(
-            {
-                "order_id": int(row["order_id"]),
-                "order_name": row["order_name"],
-                "order_status": row["order_status"],
-                "order_updated_at": row["order_updated_at"],
-                "order_item_id": int(row["order_item_id"]),
-                "inventory_item_id": int(row["inventory_item_id"]),
-                "item_name": row["item_name_snapshot"],
-                "category": normalize_inventory_category(row["category_snapshot"]),
-                "unit": unit,
-                "purchase_unit": normalize_purchase_unit(row["purchase_unit"]),
-                "units_per_purchase": normalize_units_per_purchase(row["units_per_purchase"]),
-                "received_quantity": received_quantity,
-                "applied_received_quantity": applied_quantity,
-                "remaining_putaway_quantity": remaining_quantity,
-                "inventory_quantity": rounded_quantity(row["inventory_quantity"]),
-                "inventory_location": normalize_optional_text(row["inventory_location"]),
-                "inventory_barcode": normalize_optional_text(row["inventory_barcode"]),
-                "order_url": effective_url,
-                "notes": normalize_optional_text(row["notes"]),
-            }
-        )
-    return queue
-
-
-@app.post("/api/inventory/orders", status_code=201)
-def create_standalone_inventory_order(
-    payload: StandaloneInventoryOrderCreate,
+@app.post("/api/orders", status_code=201)
+def create_inventory_order(
+    payload: InventoryOrderCreate,
     user: Annotated[AuthUser, Depends(require_roles(ROLE_PLANNER, ROLE_ADMIN))],
 ) -> dict[str, Any]:
-    name = normalize_optional_text(payload.name) or "Inventory Order"
+    domain = normalize_inventory_order_domain(payload.domain)
+    if not domain:
+        raise HTTPException(status_code=400, detail="Order domain is required.")
+
+    source_type = normalize_inventory_order_source_type(payload.sourceType)
+    source_id = int(payload.sourceId) if payload.sourceId is not None else None
+    if source_id is not None and not source_type:
+        raise HTTPException(status_code=400, detail="sourceId requires sourceType.")
+
+    name = normalize_optional_text(payload.name) or ("Food Order" if domain == "FOOD" else "Non-Food Order")
+    supplier_name = normalize_optional_text(payload.supplierName)
     notes = normalize_optional_text(payload.notes)
+
     with get_connection() as conn:
         row = conn.execute(
             """
-            INSERT INTO standalone_inventory_orders(
+            INSERT INTO inventory_orders(
+                domain,
+                source_type,
+                source_id,
                 name,
                 status,
+                supplier_name,
                 notes,
                 created_by_user_id,
                 created_at,
                 updated_at
             )
-            VALUES (?, 'DRAFT', ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+            VALUES (?, ?, ?, ?, 'DRAFT', ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
             RETURNING id
             """,
-            (name, notes, user.id),
+            (domain, source_type, source_id, name, supplier_name, notes, user.id),
         ).fetchone()
         order_id = int(row["id"])
 
         if payload.items:
-            upsert_standalone_inventory_order_items(
+            upsert_inventory_order_items(
                 conn,
                 order_id,
+                domain=domain,
                 items=payload.items,
                 actor_user_id=user.id,
             )
-        refresh_standalone_inventory_order_status(conn, order_id, actor_user_id=user.id)
-        detail = load_standalone_inventory_order_detail(conn, order_id)
+        refresh_inventory_order_status(conn, order_id, actor_user_id=user.id)
+        detail = load_inventory_order_detail(conn, order_id)
         conn.commit()
     return detail
 
 
-@app.get("/api/inventory/orders/{order_id}")
-def get_standalone_inventory_order(
+@app.get("/api/orders/{order_id}")
+def get_inventory_order(
     order_id: int,
     _user: Annotated[AuthUser, Depends(require_roles(ROLE_VIEWER, ROLE_PLANNER, ROLE_ADMIN))],
 ) -> dict[str, Any]:
     with get_connection() as conn:
-        return load_standalone_inventory_order_detail(conn, order_id)
+        return load_inventory_order_detail(conn, order_id)
 
 
-@app.patch("/api/inventory/orders/{order_id}")
-def update_standalone_inventory_order(
+@app.patch("/api/orders/{order_id}")
+def update_inventory_order(
     order_id: int,
-    payload: StandaloneInventoryOrderUpdate,
+    payload: InventoryOrderUpdate,
     user: Annotated[AuthUser, Depends(require_roles(ROLE_PLANNER, ROLE_ADMIN))],
 ) -> dict[str, Any]:
+    fields = payload.model_fields_set
+    if not fields:
+        raise HTTPException(status_code=400, detail="Provide at least one field to update.")
+
     updates: list[str] = []
     params: list[Any] = []
 
-    if payload.name is not None:
-        clean_name = normalize_optional_text(payload.name)
-        if not clean_name:
-            raise HTTPException(status_code=400, detail="Order name cannot be empty.")
-        updates.append("name = ?")
-        params.append(clean_name)
-    if payload.notes is not None:
-        updates.append("notes = ?")
-        params.append(normalize_optional_text(payload.notes))
-
     with get_connection() as conn:
         existing = conn.execute(
-            "SELECT id FROM standalone_inventory_orders WHERE id = ? AND deleted_at IS NULL",
+            """
+            SELECT id, domain, source_type, source_id
+            FROM inventory_orders
+            WHERE id = ? AND deleted_at IS NULL
+            """,
             (order_id,),
         ).fetchone()
         if not existing:
             raise HTTPException(status_code=404, detail="Inventory order not found")
+
+        if "name" in fields:
+            clean_name = normalize_optional_text(payload.name)
+            if not clean_name:
+                raise HTTPException(status_code=400, detail="Order name cannot be empty.")
+            updates.append("name = ?")
+            params.append(clean_name)
+        if "supplierName" in fields:
+            updates.append("supplier_name = ?")
+            params.append(normalize_optional_text(payload.supplierName))
+        if "notes" in fields:
+            updates.append("notes = ?")
+            params.append(normalize_optional_text(payload.notes))
+
+        if "sourceType" in fields or "sourceId" in fields:
+            next_source_type = (
+                normalize_inventory_order_source_type(payload.sourceType)
+                if "sourceType" in fields
+                else normalize_inventory_order_source_type(existing["source_type"])
+            )
+            next_source_id = (
+                int(payload.sourceId)
+                if "sourceId" in fields and payload.sourceId is not None
+                else int(existing["source_id"])
+                if existing["source_id"] is not None
+                else None
+            )
+            if next_source_type is None:
+                if "sourceId" in fields and next_source_id is not None:
+                    raise HTTPException(status_code=400, detail="sourceId requires sourceType.")
+                next_source_id = None
+
+            updates.append("source_type = ?")
+            params.append(next_source_type)
+            updates.append("source_id = ?")
+            params.append(next_source_id)
 
         if updates:
             updates.append("updated_at = CURRENT_TIMESTAMP")
             params.append(order_id)
             conn.execute(
                 f"""
-                UPDATE standalone_inventory_orders
+                UPDATE inventory_orders
                 SET {', '.join(updates)}
                 WHERE id = ?
                 """,
@@ -8132,21 +8464,22 @@ def update_standalone_inventory_order(
             )
 
         if payload.items is not None:
-            upsert_standalone_inventory_order_items(
+            upsert_inventory_order_items(
                 conn,
                 order_id,
+                domain=str(existing["domain"] or "").strip().upper(),
                 items=payload.items,
                 actor_user_id=user.id,
             )
 
-        refresh_standalone_inventory_order_status(conn, order_id, actor_user_id=user.id)
-        detail = load_standalone_inventory_order_detail(conn, order_id)
+        refresh_inventory_order_status(conn, order_id, actor_user_id=user.id)
+        detail = load_inventory_order_detail(conn, order_id)
         conn.commit()
     return detail
 
 
-@app.delete("/api/inventory/orders/{order_id}")
-def delete_standalone_inventory_order(
+@app.delete("/api/orders/{order_id}")
+def delete_inventory_order(
     order_id: int,
     _user: Annotated[AuthUser, Depends(require_roles(ROLE_PLANNER, ROLE_ADMIN))],
 ) -> dict[str, Any]:
@@ -8154,7 +8487,7 @@ def delete_standalone_inventory_order(
         existing = conn.execute(
             """
             SELECT id, name
-            FROM standalone_inventory_orders
+            FROM inventory_orders
             WHERE id = ? AND deleted_at IS NULL
             """,
             (order_id,),
@@ -8164,7 +8497,7 @@ def delete_standalone_inventory_order(
 
         conn.execute(
             """
-            UPDATE standalone_inventory_orders
+            UPDATE inventory_orders
             SET deleted_at = CURRENT_TIMESTAMP,
                 updated_at = CURRENT_TIMESTAMP
             WHERE id = ?
@@ -8176,119 +8509,26 @@ def delete_standalone_inventory_order(
     return {"id": int(existing["id"]), "name": existing["name"], "status": "deleted"}
 
 
-@app.post("/api/inventory/orders/{order_id}/apply-received")
-def apply_standalone_inventory_order_receipts(
-    order_id: int,
-    user: Annotated[AuthUser, Depends(require_roles(ROLE_PLANNER, ROLE_ADMIN))],
-) -> dict[str, Any]:
-    applied_items: list[dict[str, Any]] = []
-    applied_quantity_total = 0.0
-
+@app.get("/api/orders/putaway-queue")
+def list_inventory_order_putaway_queue(
+    _user: Annotated[AuthUser, Depends(require_roles(ROLE_VIEWER, ROLE_PLANNER, ROLE_ADMIN))],
+    order_id: int | None = Query(default=None, ge=1),
+    domain: str | None = Query(default=None),
+) -> list[dict[str, Any]]:
     with get_connection() as conn:
-        existing = conn.execute(
-            "SELECT id FROM standalone_inventory_orders WHERE id = ? AND deleted_at IS NULL",
-            (order_id,),
-        ).fetchone()
-        if not existing:
-            raise HTTPException(status_code=404, detail="Inventory order not found")
-
-        rows = conn.execute(
-            """
-            SELECT
-                soi.id,
-                soi.inventory_item_id,
-                soi.item_name_snapshot,
-                soi.received_quantity,
-                soi.applied_received_quantity
-            FROM standalone_inventory_order_items soi
-            WHERE soi.order_id = ?
-            ORDER BY soi.id
-            """,
-            (order_id,),
-        ).fetchall()
-
-        for row in rows:
-            received_quantity = as_non_negative_quantity(row["received_quantity"])
-            applied_received_quantity = as_non_negative_quantity(row["applied_received_quantity"])
-            delta = max(0.0, received_quantity - applied_received_quantity)
-            if delta <= 0:
-                continue
-
-            inventory_item_id = int(row["inventory_item_id"])
-            order_item_id = int(row["id"])
-            item_name = row["item_name_snapshot"]
-            conn.execute(
-                """
-                UPDATE standalone_inventory
-                SET quantity = COALESCE(quantity, 0) + ?, updated_at = CURRENT_TIMESTAMP
-                WHERE id = ?
-                """,
-                (delta, inventory_item_id),
-            )
-            conn.execute(
-                """
-                UPDATE standalone_inventory_order_items
-                SET applied_received_quantity = ?, updated_at = CURRENT_TIMESTAMP
-                WHERE id = ?
-                """,
-                (received_quantity, order_item_id),
-            )
-            conn.execute(
-                """
-                INSERT INTO standalone_inventory_transactions(
-                    inventory_item_id,
-                    order_id,
-                    order_item_id,
-                    transaction_type,
-                    quantity_delta,
-                    reason,
-                    user_id,
-                    created_at
-                )
-                VALUES (?, ?, ?, 'IN', ?, ?, ?, CURRENT_TIMESTAMP)
-                """,
-                (
-                    inventory_item_id,
-                    order_id,
-                    order_item_id,
-                    delta,
-                    "Order received apply",
-                    user.id,
-                ),
-            )
-            applied_quantity_total += delta
-            applied_items.append(
-                {
-                    "order_item_id": order_item_id,
-                    "inventory_item_id": inventory_item_id,
-                    "item_name": item_name,
-                    "delta_applied": round(delta, 3),
-                }
-            )
-
-        refresh_standalone_inventory_order_status(conn, order_id, actor_user_id=user.id)
-        detail = load_standalone_inventory_order_detail(conn, order_id)
-        conn.commit()
-
-    return {
-        "order_id": order_id,
-        "applied_item_count": len(applied_items),
-        "applied_quantity_total": round(applied_quantity_total, 3),
-        "items": applied_items,
-        "order": detail,
-    }
+        return list_inventory_order_putaway_queue_rows(conn, order_id=order_id, domain=domain)
 
 
-@app.post("/api/inventory/orders/{order_id}/putaway")
-def putaway_standalone_inventory_order_items(
+@app.post("/api/orders/{order_id}/putaway")
+def putaway_inventory_order_items(
     order_id: int,
-    payload: StandaloneInventoryOrderPutawayPayload,
+    payload: InventoryOrderPutawayPayload,
     user: Annotated[AuthUser, Depends(require_roles(ROLE_PLANNER, ROLE_ADMIN))],
 ) -> dict[str, Any]:
     if not payload.items:
         raise HTTPException(status_code=400, detail="Provide at least one order item to put away.")
 
-    requested_by_item_id: dict[int, StandaloneInventoryOrderPutawayItemInput] = {}
+    requested_by_item_id: dict[int, InventoryOrderPutawayItemInput] = {}
     for item in payload.items:
         order_item_id = int(item.orderItemId)
         if order_item_id in requested_by_item_id:
@@ -8301,28 +8541,43 @@ def putaway_standalone_inventory_order_items(
     applied_quantity_total = 0.0
 
     with get_connection() as conn:
-        existing = conn.execute(
-            "SELECT id FROM standalone_inventory_orders WHERE id = ? AND deleted_at IS NULL",
+        order_row = conn.execute(
+            """
+            SELECT id, domain
+            FROM inventory_orders
+            WHERE id = ? AND deleted_at IS NULL
+            """,
             (order_id,),
         ).fetchone()
-        if not existing:
+        if not order_row:
             raise HTTPException(status_code=404, detail="Inventory order not found")
 
+        domain = str(order_row["domain"] or "").strip().upper()
         rows = conn.execute(
             f"""
             SELECT
-                soi.id,
-                soi.inventory_item_id,
-                soi.item_name_snapshot,
-                soi.received_quantity,
-                soi.applied_received_quantity,
-                si.location AS inventory_location
-            FROM standalone_inventory_order_items soi
-            JOIN standalone_inventory si
-              ON si.id = soi.inventory_item_id
-            WHERE soi.order_id = ?
-              AND soi.id IN ({placeholders})
-            ORDER BY soi.id
+                ioi.id,
+                ioi.item_type,
+                ioi.item_id,
+                ioi.item_name_snapshot,
+                ioi.unit_snapshot,
+                ioi.purchase_unit,
+                ioi.units_per_purchase,
+                ioi.received_quantity,
+                ioi.applied_quantity,
+                ing.name AS ingredient_name,
+                si.unit AS standalone_unit,
+                si.location AS standalone_location
+            FROM inventory_order_items ioi
+            LEFT JOIN ingredients ing
+              ON ioi.item_type = 'INGREDIENT'
+             AND ing.id = ioi.item_id
+            LEFT JOIN standalone_inventory si
+              ON ioi.item_type = 'STANDALONE_INVENTORY'
+             AND si.id = ioi.item_id
+            WHERE ioi.order_id = ?
+              AND ioi.id IN ({placeholders})
+            ORDER BY ioi.id
             """,
             (order_id, *requested_ids),
         ).fetchall()
@@ -8336,12 +8591,16 @@ def putaway_standalone_inventory_order_items(
         for order_item_id in requested_ids:
             row = rows_by_id[order_item_id]
             request_item = requested_by_item_id[order_item_id]
-            inventory_item_id = int(row["inventory_item_id"])
-            item_name = row["item_name_snapshot"]
+
+            item_type = str(row["item_type"] or "").strip().upper()
+            item_id = int(row["item_id"])
+            item_name = str(row["item_name_snapshot"] or "").strip() or f"Item #{item_id}"
+            unit_snapshot = normalize_unit(str(row["unit_snapshot"] or "").strip()) or "each"
+            units_per_purchase = normalize_units_per_purchase(row["units_per_purchase"])
 
             received_quantity = rounded_quantity(row["received_quantity"])
-            applied_received_quantity = rounded_quantity(row["applied_received_quantity"])
-            remaining_quantity = round(max(0.0, received_quantity - applied_received_quantity), 3)
+            applied_quantity = rounded_quantity(row["applied_quantity"])
+            remaining_quantity = round(max(0.0, received_quantity - applied_quantity), 3)
             if remaining_quantity <= 0:
                 continue
 
@@ -8355,73 +8614,118 @@ def putaway_standalone_inventory_order_items(
                 continue
 
             location_override = normalize_optional_storage_grid_location(request_item.location)
-            if location_override is not None:
-                conn.execute(
-                    """
-                    UPDATE standalone_inventory
-                    SET quantity = COALESCE(quantity, 0) + ?, location = ?, updated_at = CURRENT_TIMESTAMP
-                    WHERE id = ?
-                    """,
-                    (delta, location_override, inventory_item_id),
-                )
-            else:
-                conn.execute(
-                    """
-                    UPDATE standalone_inventory
-                    SET quantity = COALESCE(quantity, 0) + ?, updated_at = CURRENT_TIMESTAMP
-                    WHERE id = ?
-                    """,
-                    (delta, inventory_item_id),
-                )
+            reason = normalize_optional_text(request_item.reason) or "Order putaway"
+            purchase_quantity = round(delta / units_per_purchase, 3) if units_per_purchase > 0 else delta
+            movement_quantity = delta
+            movement_unit = unit_snapshot
 
-            next_applied_quantity = round(min(received_quantity, applied_received_quantity + delta), 3)
+            if domain == "FOOD":
+                if item_type != "INGREDIENT":
+                    raise HTTPException(status_code=400, detail="Food putaway supports ingredient lines only.")
+                ingredient_name = str(row["ingredient_name"] or item_name).strip() or item_name
+                require_canonical_conversion(
+                    ingredient_name,
+                    delta,
+                    unit_snapshot,
+                    context=f"Food putaway conversion failed for '{ingredient_name}'",
+                )
+                conn.execute(
+                    """
+                    INSERT INTO inventory_items(ingredient_id, quantity, unit, source, updated_at)
+                    VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
+                    """,
+                    (
+                        item_id,
+                        delta,
+                        unit_snapshot,
+                        ORDER_PUTAWAY_INVENTORY_SOURCE,
+                    ),
+                )
+            elif domain == "NON_FOOD":
+                if item_type != "STANDALONE_INVENTORY":
+                    raise HTTPException(status_code=400, detail="Non-food putaway supports standalone inventory lines only.")
+                base_unit = normalize_unit(str(row["standalone_unit"] or "").strip()) or unit_snapshot
+                if base_unit != unit_snapshot:
+                    converted_delta = convert_quantity_between_units(delta, unit_snapshot, base_unit)
+                    if converted_delta is None:
+                        raise HTTPException(
+                            status_code=400,
+                            detail=f"Cannot put away '{item_name}' because {unit_snapshot} cannot be converted to {base_unit}.",
+                        )
+                    movement_quantity = round(converted_delta, 3)
+                    movement_unit = base_unit
+                if location_override is not None:
+                    conn.execute(
+                        """
+                        UPDATE standalone_inventory
+                        SET quantity = COALESCE(quantity, 0) + ?, location = ?, updated_at = CURRENT_TIMESTAMP
+                        WHERE id = ?
+                        """,
+                        (movement_quantity, location_override, item_id),
+                    )
+                else:
+                    conn.execute(
+                        """
+                        UPDATE standalone_inventory
+                        SET quantity = COALESCE(quantity, 0) + ?, updated_at = CURRENT_TIMESTAMP
+                        WHERE id = ?
+                        """,
+                        (movement_quantity, item_id),
+                    )
+            else:
+                raise HTTPException(status_code=400, detail="Invalid inventory order domain.")
+
+            next_applied_quantity = round(min(received_quantity, applied_quantity + delta), 3)
             conn.execute(
                 """
-                UPDATE standalone_inventory_order_items
-                SET applied_received_quantity = ?, updated_at = CURRENT_TIMESTAMP
+                UPDATE inventory_order_items
+                SET applied_quantity = ?, updated_at = CURRENT_TIMESTAMP
                 WHERE id = ?
                 """,
                 (next_applied_quantity, order_item_id),
             )
 
-            reason = normalize_optional_text(request_item.reason) or "Order putaway"
-            conn.execute(
-                """
-                INSERT INTO standalone_inventory_transactions(
-                    inventory_item_id,
-                    order_id,
-                    order_item_id,
-                    transaction_type,
-                    quantity_delta,
-                    reason,
-                    user_id,
-                    created_at
-                )
-                VALUES (?, ?, ?, 'IN', ?, ?, ?, CURRENT_TIMESTAMP)
-                """,
-                (
-                    inventory_item_id,
-                    order_id,
-                    order_item_id,
-                    delta,
-                    reason,
-                    user.id,
-                ),
+            record_inventory_order_item_event(
+                conn,
+                order_id=order_id,
+                order_item_id=order_item_id,
+                event_type="PUT_AWAY",
+                quantity=delta,
+                purchase_quantity=purchase_quantity,
+                location=location_override,
+                notes=reason,
+                user_id=user.id,
+            )
+            record_inventory_movement(
+                conn,
+                domain=domain,
+                item_type=item_type,
+                item_id=item_id,
+                order_id=order_id,
+                order_item_id=order_item_id,
+                movement_type="IN",
+                quantity_delta=movement_quantity,
+                unit=movement_unit,
+                location=location_override,
+                reason=reason,
+                user_id=user.id,
             )
 
             applied_quantity_total += delta
             applied_items.append(
                 {
                     "order_item_id": order_item_id,
-                    "inventory_item_id": inventory_item_id,
+                    "item_id": item_id,
+                    "item_type": item_type,
                     "item_name": item_name,
-                    "delta_put_away": delta,
-                    "location": location_override or normalize_optional_text(row["inventory_location"]),
+                    "delta_applied": delta,
+                    "movement_quantity": movement_quantity,
+                    "movement_unit": movement_unit,
                 }
             )
 
-        refresh_standalone_inventory_order_status(conn, order_id, actor_user_id=user.id)
-        detail = load_standalone_inventory_order_detail(conn, order_id)
+        refresh_inventory_order_status(conn, order_id, actor_user_id=user.id)
+        detail = load_inventory_order_detail(conn, order_id)
         conn.commit()
 
     return {
@@ -8718,10 +9022,15 @@ def merge_inventory_items(
 
         source_order_rows = conn.execute(
             """
-            SELECT *
-            FROM standalone_inventory_order_items
-            WHERE inventory_item_id = ?
-            ORDER BY order_id, id
+            SELECT ioi.*
+            FROM inventory_order_items ioi
+            JOIN inventory_orders io
+              ON io.id = ioi.order_id
+            WHERE io.domain = 'NON_FOOD'
+              AND io.deleted_at IS NULL
+              AND ioi.item_type = 'STANDALONE_INVENTORY'
+              AND ioi.item_id = ?
+            ORDER BY ioi.order_id, ioi.id
             """,
             (source_item_id,),
         ).fetchall()
@@ -8734,9 +9043,10 @@ def merge_inventory_items(
             target_order_row = conn.execute(
                 """
                 SELECT *
-                FROM standalone_inventory_order_items
+                FROM inventory_order_items
                 WHERE order_id = ?
-                  AND inventory_item_id = ?
+                  AND item_type = 'STANDALONE_INVENTORY'
+                  AND item_id = ?
                 LIMIT 1
                 """,
                 (order_id, target_item_id),
@@ -8745,8 +9055,8 @@ def merge_inventory_items(
             if not target_order_row:
                 conn.execute(
                     """
-                    UPDATE standalone_inventory_order_items
-                    SET inventory_item_id = ?, updated_at = CURRENT_TIMESTAMP
+                    UPDATE inventory_order_items
+                    SET item_id = ?, updated_at = CURRENT_TIMESTAMP
                     WHERE id = ?
                     """,
                     (target_item_id, source_order_item_id),
@@ -8789,14 +9099,14 @@ def merge_inventory_items(
                 + rounded_quantity(source_order_row["received_purchase_quantity"]),
                 3,
             )
-            merged_applied_received_quantity = round(
-                rounded_quantity(target_order_row["applied_received_quantity"])
-                + rounded_quantity(source_order_row["applied_received_quantity"]),
+            merged_applied_quantity = round(
+                rounded_quantity(target_order_row["applied_quantity"])
+                + rounded_quantity(source_order_row["applied_quantity"]),
                 3,
             )
             conn.execute(
                 """
-                UPDATE standalone_inventory_order_items
+                UPDATE inventory_order_items
                 SET item_name_snapshot = ?,
                     category_snapshot = ?,
                     unit_snapshot = ?,
@@ -8808,7 +9118,7 @@ def merge_inventory_items(
                     units_per_purchase = ?,
                     ordered_purchase_quantity = ?,
                     received_purchase_quantity = ?,
-                    applied_received_quantity = ?,
+                    applied_quantity = ?,
                     order_url_snapshot = ?,
                     order_url_override = ?,
                     notes = ?,
@@ -8841,7 +9151,7 @@ def merge_inventory_items(
                     merged_units_per_purchase,
                     merged_ordered_purchase_quantity,
                     merged_received_purchase_quantity,
-                    merged_applied_received_quantity,
+                    merged_applied_quantity,
                     normalize_optional_text(target_order_row["order_url_snapshot"])
                     or normalize_optional_text(source_order_row["order_url_snapshot"]),
                     normalize_optional_text(target_order_row["order_url_override"])
@@ -8856,22 +9166,33 @@ def merge_inventory_items(
             )
             conn.execute(
                 """
-                UPDATE standalone_inventory_transactions
+                UPDATE inventory_order_item_events
                 SET order_item_id = ?
                 WHERE order_item_id = ?
                 """,
                 (target_order_item_id, source_order_item_id),
             )
             conn.execute(
-                "DELETE FROM standalone_inventory_order_items WHERE id = ?",
+                """
+                UPDATE inventory_movements
+                SET order_item_id = ?,
+                    order_id = ?
+                WHERE order_item_id = ?
+                """,
+                (target_order_item_id, order_id, source_order_item_id),
+            )
+            conn.execute(
+                "DELETE FROM inventory_order_items WHERE id = ?",
                 (source_order_item_id,),
             )
 
         conn.execute(
             """
-            UPDATE standalone_inventory_transactions
-            SET inventory_item_id = ?
-            WHERE inventory_item_id = ?
+            UPDATE inventory_movements
+            SET item_id = ?
+            WHERE domain = 'NON_FOOD'
+              AND item_type = 'STANDALONE_INVENTORY'
+              AND item_id = ?
             """,
             (target_item_id, source_item_id),
         )
@@ -8936,7 +9257,7 @@ def merge_inventory_items(
         conn.execute("DELETE FROM standalone_inventory WHERE id = ?", (source_item_id,))
 
         for order_id in impacted_order_ids:
-            refresh_standalone_inventory_order_status(conn, order_id)
+            refresh_inventory_order_status(conn, order_id)
 
         merged_row = conn.execute("SELECT * FROM standalone_inventory WHERE id = ?", (target_item_id,)).fetchone()
         merged_item = format_standalone_inventory_rows(conn, [merged_row])[0]

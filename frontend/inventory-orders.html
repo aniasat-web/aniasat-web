@@ -844,7 +844,15 @@
       }
 
       function defaultScopeForActiveOrder() {
-        return activeOrder && Array.isArray(activeOrder.items) && activeOrder.items.length ? "order" : "all";
+        var includedRowCount = orderRows.reduce(function (count, row) {
+          return count + (row && row.includedInOrder ? 1 : 0);
+        }, 0);
+        if (includedRowCount > 0) return "order";
+        if (!activeOrder) return "all";
+        if (Array.isArray(activeOrder.items) && activeOrder.items.length) return "order";
+        if (Number(activeOrder.item_count || 0) > 0) return "order";
+        if (Number(activeOrder.relevant_item_count || 0) > 0) return "order";
+        return "all";
       }
 
       function rowIsIncludedInCurrentOrder(row) {
@@ -1352,7 +1360,6 @@
       async function loadOrderById(orderId) {
         if (!orderId) return;
         activeOrder = await fetchOrderDetail(orderId);
-        activeScope = defaultScopeForActiveOrder();
         syncOrderQueryParam(activeOrder && activeOrder.id ? Number(activeOrder.id) : null);
         renderOrderSelect();
         orderNameInput.value = activeOrder.name || "";
@@ -1360,6 +1367,9 @@
         renderHeaderDetails();
         updateOrderActionButtons();
         buildOrderRows();
+        activeScope = defaultScopeForActiveOrder();
+        renderScopeFilters();
+        renderCategoryFilterPills();
         renderTable();
       }
 

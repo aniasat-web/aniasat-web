@@ -1163,8 +1163,7 @@
         orderList.forEach(function (order) {
           var option = document.createElement("option");
           option.value = String(order.id);
-          var updatedAt = formatDateTime(order.updated_at);
-          option.textContent = order.name + " (" + order.status + ")" + (updatedAt ? " • " + updatedAt : "");
+          option.textContent = order.name + " (" + order.status + ")";
           if (activeOrder && Number(activeOrder.id) === Number(order.id)) option.selected = true;
           orderSelect.appendChild(option);
         });

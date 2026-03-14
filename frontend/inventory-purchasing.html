@@ -226,7 +226,7 @@
       }
 
       .purchasing-table {
-        min-width: 1320px;
+        min-width: 1240px;
         margin-bottom: 0;
       }
 
@@ -436,13 +436,26 @@
       }
 
       .units-ordered-col {
-        width: 112px;
-        max-width: 112px;
+        width: 104px;
+        max-width: 104px;
       }
 
       .order-unit-size-col {
-        width: 134px;
-        max-width: 134px;
+        width: 116px;
+        max-width: 116px;
+      }
+
+      .total-ordered-col {
+        width: 126px;
+        max-width: 126px;
+        white-space: nowrap;
+      }
+
+      .total-ordered-value {
+        font-size: 0.8rem;
+        font-weight: 800;
+        color: var(--purchasing-primary-strong);
+        white-space: nowrap;
       }
 
       .purchase-action-start {
@@ -704,12 +717,12 @@
                 <th class="item-col"><span class="table-head-label single-line"><span class="table-head-line">Item</span></span></th>
                 <th class="need-col"><span class="table-head-label"><span class="table-head-line">Need to</span><span class="table-head-line">Order</span></span></th>
                 <th class="unit-col context-end"><span class="table-head-label single-line"><span class="table-head-line">Unit</span></span></th>
-                <th class="purchase-action-head purchase-action-start order-qty-col"><span class="table-head-label"><span class="table-head-line">Order</span><span class="table-head-line">Quantity</span></span></th>
-                <th class="purchase-action-head units-ordered-col"><span class="table-head-label"><span class="table-head-line">Units</span><span class="table-head-line">Ordered</span></span></th>
+                <th class="purchase-action-head purchase-action-start units-ordered-col"><span class="table-head-label"><span class="table-head-line">Order</span><span class="table-head-line">Unit</span></span></th>
                 <th class="purchase-action-head order-unit-size-col"><span class="table-head-label"><span class="table-head-line">Order Unit</span><span class="table-head-line">Size</span></span></th>
+                <th class="purchase-action-head order-qty-col"><span class="table-head-label"><span class="table-head-line">Order</span><span class="table-head-line">Quantity</span></span></th>
+                <th class="purchase-action-head total-ordered-col"><span class="table-head-label"><span class="table-head-line">Total</span><span class="table-head-line">Units</span><span class="table-head-line">Ordered</span></span></th>
                 <th class="purchase-action-head"><span class="table-head-label"><span class="table-head-line">Purchase</span><span class="table-head-line">URL</span></span></th>
                 <th><span class="table-head-label single-line"><span class="table-head-line">Ordered?</span></span></th>
-                <th><span class="table-head-label single-line"><span class="table-head-line">Status</span></span></th>
                 <th><span class="table-head-label single-line"><span class="table-head-line">Notes</span></span></th>
               </tr>
             </thead>
@@ -1087,9 +1100,7 @@
         orderList.forEach(function (order) {
           var option = document.createElement("option");
           option.value = String(order.id);
-          var label = order.name + " (" + order.status + ")";
-          if (order.updated_at) label += " - " + formatDateTime(order.updated_at);
-          option.textContent = label;
+          option.textContent = order.name + " (" + order.status + ")";
           if (activeOrder && Number(activeOrder.id) === Number(order.id)) option.selected = true;
           orderSelect.appendChild(option);
         });
@@ -1099,9 +1110,24 @@
         var orderUnit = String(row.purchaseUnit || "unit");
         var unitLabel = row.unit || "units";
         if (orderUnit === "unit") {
-          return "1 unit = 1 " + unitLabel + " | Total ordered: " + formatQty(row.orderedQty) + " " + unitLabel;
+          return formatQty(row.orderedQty) + " " + unitLabel + " total";
         }
-        return "1 " + orderUnit + " = " + formatQty(row.unitsPerPurchase) + " " + unitLabel + " | Total ordered: " + formatQty(row.orderedQty) + " " + unitLabel;
+        return (
+          formatQty(row.orderedPurchaseQty) + " " + orderUnit +
+          " x " + formatQty(row.unitsPerPurchase) + " " + unitLabel +
+          " = " + formatQty(row.orderedQty) + " " + unitLabel
+        );
+      }
+
+      function getRecommendedOrderedPurchaseQty(row) {
+        var targetUnits = row.toOrderQty > 0 ? row.toOrderQty : row.requiredQty;
+        if (row.receivedQty > targetUnits) targetUnits = row.receivedQty;
+        if (targetUnits <= 0 && row.orderedQty > 0) targetUnits = row.orderedQty;
+        if (targetUnits <= 0) return 0;
+        if (row.purchaseUnit === "unit") return asNonNegativeNumber(targetUnits);
+
+        var unitsPerPurchase = row.unitsPerPurchase > 0 ? row.unitsPerPurchase : 1;
+        return asNonNegativeNumber(Math.ceil(targetUnits / unitsPerPurchase));
       }
 
       function renderHeaderDetails() {
@@ -1164,15 +1190,8 @@
 
             var conversionTitle = escapeHtml(buildOrderedQtySummary(row));
 
-            var tdOrderedPurchase = document.createElement("td");
-            tdOrderedPurchase.className = "purchase-action-cell purchase-action-start order-qty-col";
-            tdOrderedPurchase.innerHTML =
-              '<input type="number" min="0" step="0.01" class="form-control form-control-sm qty-input" ' +
-              'data-item-id="' + row.itemId + '" data-field="ordered-purchase" value="' + escapeHtml(formatQty(row.orderedPurchaseQty)) + '" title="' + conversionTitle + '">';
-            tr.appendChild(tdOrderedPurchase);
-
             var tdPurchaseUnit = document.createElement("td");
-            tdPurchaseUnit.className = "purchase-action-cell units-ordered-col";
+            tdPurchaseUnit.className = "purchase-action-cell purchase-action-start units-ordered-col";
             tdPurchaseUnit.innerHTML =
               '<select class="form-select form-select-sm purchase-unit-select" data-item-id="' + row.itemId + '" data-field="purchase-unit" title="' + conversionTitle + '">' +
                 '<option value="unit"' + (row.purchaseUnit === "unit" ? " selected" : "") + '>unit</option>' +
@@ -1192,6 +1211,18 @@
             }
             tr.appendChild(tdUnitsPerPurchase);
 
+            var tdOrderedPurchase = document.createElement("td");
+            tdOrderedPurchase.className = "purchase-action-cell order-qty-col";
+            tdOrderedPurchase.innerHTML =
+              '<input type="number" min="0" step="0.01" class="form-control form-control-sm qty-input" ' +
+              'data-item-id="' + row.itemId + '" data-field="ordered-purchase" value="' + escapeHtml(formatQty(row.orderedPurchaseQty)) + '" title="' + conversionTitle + '">';
+            tr.appendChild(tdOrderedPurchase);
+
+            var tdTotalOrdered = document.createElement("td");
+            tdTotalOrdered.className = "purchase-action-cell total-ordered-col";
+            tdTotalOrdered.innerHTML = '<span class="total-ordered-value" title="' + conversionTitle + '">' + escapeHtml(formatQty(row.orderedQty) + ' ' + (row.unit || 'units')) + '</span>';
+            tr.appendChild(tdTotalOrdered);
+
             var tdUrl = document.createElement("td");
             tdUrl.className = "purchase-action-cell";
             var safeUrl = toSafeHttpUrl(row.effectiveUrl);
@@ -1210,10 +1241,6 @@
               '<input type="checkbox" class="form-check-input" data-item-id="' + row.itemId + '" data-field="ordered-flag" ' +
               (row.orderedQty > 0 ? "checked" : "") + '>';
             tr.appendChild(tdOrderedFlag);
-
-            var tdStatus = document.createElement("td");
-            tdStatus.innerHTML = '<span class="status-chip ' + statusClass(row.status) + '">' + escapeHtml(statusLabel(row.status)) + '</span>';
-            tr.appendChild(tdStatus);
 
             var tdNotes = document.createElement("td");
             tdNotes.innerHTML =
@@ -1335,10 +1362,10 @@
           "Location",
           "Need to Order",
           "Unit",
-          "Order Quantity",
-          "Units Ordered",
+          "Order Unit",
           "Order Unit Size",
-          "Ordered Qty (Units)",
+          "Order Quantity",
+          "Total Units Ordered",
           "Purchase URL",
           "Item Status",
           "Notes",
@@ -1356,9 +1383,9 @@
             row.location || "",
             formatQty(row.toOrderQty),
             row.unit || "",
-            formatQty(row.orderedPurchaseQty),
             row.purchaseUnit || "unit",
             formatQty(row.unitsPerPurchase),
+            formatQty(row.orderedPurchaseQty),
             formatQty(row.orderedQty),
             row.effectiveUrl || "",
             row.status || "",
@@ -1468,12 +1495,14 @@
 
         if (field === "purchase-unit" && target instanceof HTMLSelectElement) {
           row.purchaseUnit = normalizePurchaseUnit(target.value);
+          row.orderedPurchaseQty = getRecommendedOrderedPurchaseQty(row);
           recomputeRow(row);
           renderTable();
           return;
         }
         if (field === "units-per-purchase" && target instanceof HTMLInputElement) {
           row.unitsPerPurchase = asNonNegativeNumber(target.value);
+          row.orderedPurchaseQty = getRecommendedOrderedPurchaseQty(row);
           recomputeRow(row);
           renderTable();
           return;
@@ -1496,12 +1525,7 @@
           }
           if (target.checked) {
             if (row.orderedQty <= 0) {
-              var targetUnits = row.toOrderQty > 0 ? row.toOrderQty : row.requiredQty;
-              if (row.purchaseUnit === "unit") {
-                row.orderedPurchaseQty = targetUnits;
-              } else {
-                row.orderedPurchaseQty = targetUnits / (row.unitsPerPurchase > 0 ? row.unitsPerPurchase : 1);
-              }
+              row.orderedPurchaseQty = getRecommendedOrderedPurchaseQty(row);
             }
           } else {
             row.orderedPurchaseQty = 0;

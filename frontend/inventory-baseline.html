@@ -151,12 +151,13 @@
               <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false"><i class="fa-solid fa-boxes-stacked me-1"></i> Inventory</a>
               <ul class="dropdown-menu">
                 <li><a class="dropdown-item" href="inventory-home.html"><i class="fa-solid fa-warehouse me-2"></i> Inventory Home</a></li>
-                <li><a class="dropdown-item" href="inventory-baseline.html"><i class="fa-solid fa-barcode me-2"></i> Baseline Scan</a></li>
                 <li><a class="dropdown-item" href="inventory.html?full=1"><i class="fa-solid fa-clipboard-list me-2"></i> Full Inventory</a></li>
                 <li><a class="dropdown-item" href="inventory-orders.html"><i class="fa-solid fa-list-check me-2"></i> Orders Planning</a></li>
+                <li><a class="dropdown-item" href="inventory-purchasing.html"><i class="fa-solid fa-cart-shopping me-2"></i> Purchasing</a></li>
                 <li><a class="dropdown-item" href="inventory-receiving.html"><i class="fa-solid fa-truck-ramp-box me-2"></i> Receiving</a></li>
                 <li><a class="dropdown-item" href="inventory-add.html"><i class="fa-solid fa-plus me-2"></i> Putaway / Add</a></li>
                 <li><a class="dropdown-item" href="inventory-remove.html"><i class="fa-solid fa-minus me-2"></i> Remove Inventory</a></li>
+                <li><a class="dropdown-item" href="inventory-baseline.html"><i class="fa-solid fa-barcode me-2"></i> Baseline Scan</a></li>
               </ul>
             </li>
 
@@ -544,6 +545,29 @@
         return BARCODE_PATTERN.test(digitsOnly) ? digitsOnly : null;
       }
 
+      function getItemBarcodes(item) {
+        const seen = new Set();
+        const values = [];
+        const rawBarcodes = Array.isArray(item && item.barcodes) ? item.barcodes : [];
+        rawBarcodes.forEach((rawValue) => {
+          const barcode = normalizeBarcode(rawValue);
+          if (!barcode || seen.has(barcode)) return;
+          seen.add(barcode);
+          values.push(barcode);
+        });
+        const primary = normalizeBarcode(item && item.barcode ? item.barcode : "");
+        if (primary && !seen.has(primary)) {
+          seen.add(primary);
+          values.unshift(primary);
+        }
+        return values;
+      }
+
+      function formatBarcodeSummary(item) {
+        const barcodes = getItemBarcodes(item);
+        return barcodes.length ? barcodes.join(", ") : "(none)";
+      }
+
       function normalizeText(rawValue) {
         const value = String(rawValue || "").trim();
         return value || null;
@@ -673,7 +697,7 @@
             img +
             '<div>' +
               `<div class="meta-row"><strong>${existing.item_name || ""}</strong></div>` +
-              `<div class="meta-row text-muted">Barcode: ${existing.barcode || "(none)"}</div>` +
+              `<div class="meta-row text-muted">Barcodes: ${formatBarcodeSummary(existing)}</div>` +
               `<div class="meta-row">Qty: ${formatQuantity(existing.quantity)} ${existing.unit || ""}</div>` +
               `<div class="meta-row">Location: ${existing.location || "(none)"}</div>` +
               `<div class="meta-row">Category: ${existing.category || "(none)"}</div>` +
@@ -1085,13 +1109,8 @@
           });
           if (!response.ok) throw new Error(await parseApiError(response));
           const payload = await response.json();
-          const barcode = normalizeBarcode(itemBarcode.value);
           const rows = Array.isArray(payload) ? payload : [];
           bindCandidates = rows
-            .filter((row) => {
-              const rowBarcode = String(row.barcode || "").trim();
-              return !rowBarcode || (barcode && rowBarcode === barcode);
-            })
             .slice(0, 40);
 
           bindSelect.innerHTML = '<option value="">Select item</option>';
@@ -1100,7 +1119,7 @@
             option.value = String(row.id);
             const qtyPart = `${formatQuantity(row.quantity)} ${row.unit || ""}`.trim();
             const locPart = row.location || "No location";
-            const barcodePart = row.barcode ? ` | ${row.barcode}` : "";
+            const barcodePart = getItemBarcodes(row).length ? ` | ${formatBarcodeSummary(row)}` : "";
             option.textContent = `${row.item_name} | ${qtyPart} | ${locPart}${barcodePart}`;
             bindSelect.appendChild(option);
           });

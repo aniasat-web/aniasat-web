@@ -105,9 +105,29 @@
         line-height: 1.55;
       }
 
+      .hero-meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.55rem;
+        margin-top: 0.8rem;
+      }
+
+      .meta-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        border-radius: 999px;
+        border: 1px solid #ecd9bf;
+        background: rgba(255, 255, 255, 0.8);
+        color: #5a4732;
+        padding: 0.28rem 0.68rem;
+        font-size: 0.74rem;
+        font-weight: 700;
+      }
+
       .metrics-grid {
         display: grid;
-        grid-template-columns: repeat(3, minmax(160px, 1fr));
+        grid-template-columns: repeat(4, minmax(150px, 1fr));
         gap: 0.75rem;
       }
 
@@ -138,12 +158,34 @@
         font-size: 0.9rem;
       }
 
-      .orders-meta {
+      .control-panel {
+        display: grid;
+        gap: 0.95rem;
+      }
+
+      .toolbar-grid {
+        display: grid;
+        grid-template-columns: minmax(280px, 1.1fr) minmax(320px, 1fr);
+        gap: 0.85rem;
+      }
+
+      .toolbar-box {
         border: 1px solid #ece5db;
         border-radius: 0.95rem;
         padding: 0.95rem;
         background: rgba(255, 255, 255, 0.84);
         box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7);
+      }
+
+      .toolbar-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+      }
+
+      .filter-panel {
+        display: grid;
+        gap: 0.75rem;
       }
 
       .table-wrap {
@@ -155,7 +197,7 @@
       }
 
       .orders-table {
-        min-width: 1160px;
+        min-width: 1180px;
         margin-bottom: 0;
       }
 
@@ -166,10 +208,36 @@
         background: rgba(248, 250, 252, 0.93);
         backdrop-filter: blur(6px);
         border-bottom: 2px solid #dbe2ea;
+        white-space: normal;
+        padding-top: 0.68rem;
+        padding-bottom: 0.68rem;
       }
 
       .orders-table td, .orders-table th {
         vertical-align: middle;
+      }
+
+      .table-head-label {
+        display: inline-flex;
+        flex-direction: column;
+        align-items: flex-start;
+        justify-content: center;
+        gap: 0.08rem;
+        min-height: 1.85rem;
+      }
+
+      .table-head-label.single-line {
+        min-height: auto;
+      }
+
+      .table-head-line {
+        display: block;
+        font-size: 0.74rem;
+        line-height: 1.1;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        font-weight: 800;
+        color: var(--orders-muted);
       }
 
       .category-row td {
@@ -221,6 +289,10 @@
       .item-name {
         font-weight: 700;
         color: #1f2937;
+        display: block;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
       }
 
       .item-meta {
@@ -230,6 +302,19 @@
         gap: 0.4rem;
         align-items: center;
       }
+
+      .item-col {
+        width: 210px;
+        max-width: 210px;
+        cursor: help;
+      }
+      .stock-col { min-width: 120px; }
+      .unit-col { min-width: 92px; }
+      .required-col,
+      .need-col { min-width: 120px; }
+      .purchase-url-col { min-width: 270px; }
+      .status-col { min-width: 110px; }
+      .notes-col { min-width: 180px; }
 
       .qty-input {
         width: 100%;
@@ -243,6 +328,7 @@
       .to-order-cell { font-weight: 800; color: #9a3412; }
       .to-order-zero { color: var(--orders-muted); font-weight: 500; }
       .url-input { min-width: 240px; font-size: 0.78rem; background: #fffefc !important; }
+      .notes-input { min-width: 180px; background: #fffefc !important; }
       .order-meta-label { font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--orders-muted); font-weight: 800; }
       .status-chip { font-size: 0.66rem; font-weight: 700; border-radius: 999px; padding: 0.15rem 0.5rem; border: 1px solid var(--orders-border); display: inline-flex; }
       .status-chip.not-ordered { background: #fff7ed; color: #9a3412; border-color: #fdba74; }
@@ -307,6 +393,10 @@
           grid-template-columns: repeat(2, minmax(140px, 1fr));
         }
 
+        .toolbar-grid {
+          grid-template-columns: 1fr;
+        }
+
         .table-wrap {
           max-height: none;
         }
@@ -351,12 +441,13 @@
               <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false"><i class="fa-solid fa-boxes-stacked me-1"></i> Inventory</a>
               <ul class="dropdown-menu">
                 <li><a class="dropdown-item" href="inventory-home.html"><i class="fa-solid fa-warehouse me-2"></i> Inventory Home</a></li>
-                <li><a class="dropdown-item" href="inventory-baseline.html"><i class="fa-solid fa-barcode me-2"></i> Baseline Scan</a></li>
                 <li><a class="dropdown-item" href="inventory.html?full=1"><i class="fa-solid fa-clipboard-list me-2"></i> Full Inventory</a></li>
                 <li><a class="dropdown-item" href="inventory-orders.html"><i class="fa-solid fa-list-check me-2"></i> Orders Planning</a></li>
+                <li><a class="dropdown-item" href="inventory-purchasing.html"><i class="fa-solid fa-cart-shopping me-2"></i> Purchasing</a></li>
                 <li><a class="dropdown-item" href="inventory-receiving.html"><i class="fa-solid fa-truck-ramp-box me-2"></i> Receiving</a></li>
                 <li><a class="dropdown-item" href="inventory-add.html"><i class="fa-solid fa-plus me-2"></i> Putaway / Add</a></li>
                 <li><a class="dropdown-item" href="inventory-remove.html"><i class="fa-solid fa-minus me-2"></i> Remove Inventory</a></li>
+                <li><a class="dropdown-item" href="inventory-baseline.html"><i class="fa-solid fa-barcode me-2"></i> Baseline Scan</a></li>
               </ul>
             </li>
             <li class="nav-item dropdown">
@@ -394,10 +485,15 @@
 
     <main class="inventory-shell">
       <section class="soft-card hero-card p-4">
-        <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
+        <div class="d-flex flex-wrap align-items-start justify-content-between gap-3">
           <div class="flex-grow-1">
             <h1 class="fw-bold mb-2"><i class="fa-solid fa-list-check me-2" style="color: var(--orders-primary);"></i>Non-Food Order Planning</h1>
             <p class="hero-note mb-0">Set total required quantities for retreat supplies, compare against current stock, and plan what still needs to be ordered without losing the category structure.</p>
+            <div class="hero-meta">
+              <span class="meta-chip" id="currentOrderName"><i class="fa-solid fa-list-check"></i><span>No order selected</span></span>
+              <span class="meta-chip" id="currentOrderStatus"><i class="fa-solid fa-signal"></i><span>Status: --</span></span>
+              <span class="meta-chip" id="currentOrderUpdated"><i class="fa-solid fa-clock"></i><span>Updated: --</span></span>
+            </div>
           </div>
           <span id="statusPill" class="status-pill info">Ready.</span>
         </div>
@@ -416,19 +512,61 @@
           <div class="label"><i class="fa-solid fa-cubes me-1"></i>Rows</div>
           <div class="value" id="statTotal">--</div>
         </div>
+        <div class="metric-card">
+          <div class="label"><i class="fa-solid fa-link-slash me-1"></i>Missing Links</div>
+          <div class="value" id="statMissingLinks">--</div>
+        </div>
       </section>
 
-      <section class="soft-card p-3">
-        <div class="row g-3 align-items-center">
-          <div class="col-xl-6">
-            <div class="d-flex flex-wrap gap-2 align-items-center" id="categoryFilters">
-              <span class="small text-uppercase fw-semibold text-muted me-1">Category:</span>
+      <section class="soft-card p-4 control-panel">
+        <div class="d-flex flex-wrap align-items-start justify-content-between gap-3">
+          <div>
+            <h2 class="h4 mb-1"><i class="fa-solid fa-clipboard-list me-2 text-muted"></i>Order Planning Workspace</h2>
+            <p class="section-note mb-0">Work inside the full planning table, keep order-level details close at hand, and finalize a purchaser copy when the plan is ready. Directly opening the current order in purchaser view remains available as an advanced option.</p>
+          </div>
+          <div class="toolbar-actions">
+            <button id="newOrderBtn" type="button" class="btn btn-sm btn-outline-primary"><i class="fa-solid fa-plus me-1"></i>New Order</button>
+            <button id="renameOrderBtn" type="button" class="btn btn-sm btn-outline-primary"><i class="fa-solid fa-pen-to-square me-1"></i>Rename Order</button>
+            <button id="deleteOrderBtn" type="button" class="btn btn-sm btn-outline-danger"><i class="fa-solid fa-trash me-1"></i>Delete Order</button>
+            <button id="newOrderFromFiltersBtn" type="button" class="btn btn-sm btn-outline-primary"><i class="fa-solid fa-filter me-1"></i>New From Filters</button>
+            <button id="finalizeForPurchasingBtn" type="button" class="btn btn-sm btn-warning"><i class="fa-solid fa-cart-shopping me-1"></i>Finalize</button>
+            <button id="openPurchasingViewBtn" type="button" class="btn btn-sm btn-outline-secondary" title="Advanced: open this exact order in purchaser view without creating a separate copy."><i class="fa-solid fa-arrow-up-right-from-square me-1"></i>Open Current Order in Purchaser View</button>
+            <button id="addNewItemBtn" type="button" class="btn btn-sm btn-outline-success"><i class="fa-solid fa-circle-plus me-1"></i>Add New Item</button>
+            <button id="exportCsvBtn" type="button" class="btn btn-sm btn-outline-dark"><i class="fa-solid fa-file-csv me-1"></i>Export CSV</button>
+            <button id="refreshBtn" type="button" class="btn btn-sm btn-outline-secondary"><i class="fa-solid fa-arrows-rotate me-1"></i>Refresh</button>
+            <button id="saveBtn" type="button" class="btn btn-sm btn-primary"><i class="fa-solid fa-floppy-disk me-1"></i>Save Changes</button>
+          </div>
+        </div>
+
+        <div class="toolbar-grid">
+          <div class="toolbar-box">
+            <label class="order-meta-label mb-2" for="orderSelect">Current Order</label>
+            <select id="orderSelect" class="form-select form-select-sm"></select>
+          </div>
+          <div class="toolbar-box">
+            <div class="row g-3">
+              <div class="col-lg-4">
+                <label class="order-meta-label mb-1" for="orderNameInput">Order Name</label>
+                <input id="orderNameInput" type="text" class="form-control form-control-sm" placeholder="Inventory Order" />
+              </div>
+              <div class="col-lg-8">
+                <label class="order-meta-label mb-1" for="orderNotesInput">Order Notes</label>
+                <input id="orderNotesInput" type="text" class="form-control form-control-sm" placeholder="Optional notes for this order" />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="toolbar-grid">
+          <div class="toolbar-box filter-panel">
+            <div class="order-meta-label">Categories</div>
+            <div class="d-flex flex-wrap gap-2" id="categoryFilters">
               <button type="button" class="filter-pill active" data-category="all">All</button>
             </div>
           </div>
-          <div class="col-xl-6">
-            <div class="d-flex flex-wrap gap-2 align-items-center" id="statusFilters">
-              <span class="small text-uppercase fw-semibold text-muted me-1">Status:</span>
+          <div class="toolbar-box filter-panel">
+            <div class="order-meta-label">Status Filter</div>
+            <div class="d-flex flex-wrap gap-2" id="statusFilters">
               <button type="button" class="filter-pill active" data-status="all">All</button>
               <button type="button" class="filter-pill" data-status="NOT_ORDERED">Needs Order</button>
               <button type="button" class="filter-pill" data-status="ORDERED">Ordered</button>
@@ -442,51 +580,22 @@
         <div class="d-flex flex-wrap align-items-start justify-content-between gap-3 mb-3">
           <div>
             <h2 class="h4 mb-1"><i class="fa-solid fa-clipboard-list me-2 text-muted"></i>Order Lines</h2>
-            <p class="section-note mb-0">Categories stay visible, while the table focuses on stock, required quantity, and what still needs to be ordered. Finalize a shorter purchasing copy when the planner is done.</p>
-          </div>
-          <div class="d-flex flex-wrap gap-2">
-            <button id="newOrderBtn" type="button" class="btn btn-sm btn-outline-primary"><i class="fa-solid fa-plus me-1"></i>New Order</button>
-            <button id="renameOrderBtn" type="button" class="btn btn-sm btn-outline-primary"><i class="fa-solid fa-pen-to-square me-1"></i>Rename Order</button>
-            <button id="deleteOrderBtn" type="button" class="btn btn-sm btn-outline-danger"><i class="fa-solid fa-trash me-1"></i>Delete Order</button>
-            <button id="newOrderFromFiltersBtn" type="button" class="btn btn-sm btn-outline-primary"><i class="fa-solid fa-filter me-1"></i>New From Filters</button>
-            <button id="finalizeForPurchasingBtn" type="button" class="btn btn-sm btn-outline-warning"><i class="fa-solid fa-cart-shopping me-1"></i>Finalize for Purchasing</button>
-            <button id="openPurchasingViewBtn" type="button" class="btn btn-sm btn-outline-warning"><i class="fa-solid fa-arrow-up-right-from-square me-1"></i>Purchaser View</button>
-            <button id="addNewItemBtn" type="button" class="btn btn-sm btn-outline-success"><i class="fa-solid fa-circle-plus me-1"></i>Add New Item</button>
-            <button id="exportCsvBtn" type="button" class="btn btn-sm btn-outline-dark"><i class="fa-solid fa-file-csv me-1"></i>Export CSV</button>
-            <button id="refreshBtn" type="button" class="btn btn-sm btn-outline-secondary"><i class="fa-solid fa-arrows-rotate me-1"></i>Refresh</button>
-            <button id="saveBtn" type="button" class="btn btn-sm btn-primary"><i class="fa-solid fa-floppy-disk me-1"></i>Save Changes</button>
-          </div>
-        </div>
-
-        <div class="row g-3 mb-3 orders-meta">
-          <div class="col-lg-4">
-            <label class="order-meta-label mb-1" for="orderSelect">Active Order</label>
-            <select id="orderSelect" class="form-select form-select-sm"></select>
-          </div>
-          <div class="col-lg-3">
-            <label class="order-meta-label mb-1" for="orderNameInput">Order Name</label>
-            <input id="orderNameInput" type="text" class="form-control form-control-sm" placeholder="Inventory Order" />
-          </div>
-          <div class="col-lg-5">
-            <label class="order-meta-label mb-1" for="orderNotesInput">Order Notes</label>
-            <input id="orderNotesInput" type="text" class="form-control form-control-sm" placeholder="Optional notes for this order" />
+            <p class="section-note mb-0">Categories stay visible, while the table focuses on stock, required quantity, purchase links, and what still needs to be ordered.</p>
           </div>
         </div>
 
         <div class="table-wrap">
           <table class="orders-table table table-sm align-middle sticky-head">
-            <thead>
-              <tr class="small text-uppercase text-muted">
-                <th>Item</th>
-                <th>Category</th>
-                <th>Current Stock</th>
-                <th>Unit</th>
-                <th>Total Required Quantity</th>
-                <th>Need to Order</th>
-                <th>Ordered Quantity</th>
-                <th>Purchase URL</th>
-                <th>Ordered?</th>
-                <th>Notes</th>
+            <thead class="small text-uppercase text-muted">
+              <tr>
+                <th class="item-col"><span class="table-head-label single-line"><span class="table-head-line">Item</span></span></th>
+                <th class="stock-col"><span class="table-head-label"><span class="table-head-line">Current</span><span class="table-head-line">Stock</span></span></th>
+                <th class="unit-col"><span class="table-head-label single-line"><span class="table-head-line">Unit</span></span></th>
+                <th class="required-col"><span class="table-head-label"><span class="table-head-line">Total</span><span class="table-head-line">Required</span></span></th>
+                <th class="need-col"><span class="table-head-label"><span class="table-head-line">Need to</span><span class="table-head-line">Order</span></span></th>
+                <th class="purchase-url-col"><span class="table-head-label"><span class="table-head-line">Purchase</span><span class="table-head-line">URL</span></span></th>
+                <th class="status-col"><span class="table-head-label single-line"><span class="table-head-line">Status</span></span></th>
+                <th class="notes-col"><span class="table-head-label single-line"><span class="table-head-line">Notes</span></span></th>
               </tr>
             </thead>
             <tbody id="orderBody"></tbody>
@@ -496,6 +605,7 @@
         <div class="d-flex flex-wrap gap-4 mt-3 pt-3 border-top small fw-semibold text-muted">
           <span><i class="fa-solid fa-cart-plus me-1"></i> Needs Order: <strong id="summaryToOrder" class="text-dark">0</strong></span>
           <span><i class="fa-solid fa-truck me-1"></i> Ordered: <strong id="summaryOrdered" class="text-dark">0</strong></span>
+          <span><i class="fa-solid fa-link-slash me-1"></i> Missing Links: <strong id="summaryMissingLinks" class="text-dark">0</strong></span>
           <span><i class="fa-solid fa-cubes me-1"></i> Total Rows: <strong id="summaryTotal" class="text-dark">0</strong></span>
         </div>
       </section>
@@ -562,6 +672,9 @@
     <script src="assets/auth.js?v=20260218f"></script>
     <script>
       var statusPill = document.getElementById("statusPill");
+      var currentOrderName = document.getElementById("currentOrderName");
+      var currentOrderStatus = document.getElementById("currentOrderStatus");
+      var currentOrderUpdated = document.getElementById("currentOrderUpdated");
       var categoryFilters = document.getElementById("categoryFilters");
       var statusFilters = document.getElementById("statusFilters");
       var orderBody = document.getElementById("orderBody");
@@ -582,8 +695,10 @@
       var statToOrder = document.getElementById("statToOrder");
       var statOrdered = document.getElementById("statOrdered");
       var statTotal = document.getElementById("statTotal");
+      var statMissingLinks = document.getElementById("statMissingLinks");
       var summaryToOrder = document.getElementById("summaryToOrder");
       var summaryOrdered = document.getElementById("summaryOrdered");
+      var summaryMissingLinks = document.getElementById("summaryMissingLinks");
       var summaryTotal = document.getElementById("summaryTotal");
 
       var newItemModalElement = document.getElementById("newItemModal");
@@ -748,6 +863,21 @@
         if (openPurchasingViewBtn) openPurchasingViewBtn.disabled = !hasActiveOrder;
       }
 
+      function renderHeaderDetails() {
+        if (!activeOrder) {
+          currentOrderName.innerHTML = '<i class="fa-solid fa-list-check"></i><span>No order selected</span>';
+          currentOrderStatus.innerHTML = '<i class="fa-solid fa-signal"></i><span>Status: --</span>';
+          currentOrderUpdated.innerHTML = '<i class="fa-solid fa-clock"></i><span>Updated: --</span>';
+          return;
+        }
+
+        var draftName = String(orderNameInput && orderNameInput.value ? orderNameInput.value : "").trim();
+        var displayName = draftName || activeOrder.name || ("Order #" + activeOrder.id);
+        currentOrderName.innerHTML = '<i class="fa-solid fa-list-check"></i><span>' + escapeHtml(displayName) + '</span>';
+        currentOrderStatus.innerHTML = '<i class="fa-solid fa-signal"></i><span>Status: ' + escapeHtml(activeOrder.status || "--") + '</span>';
+        currentOrderUpdated.innerHTML = '<i class="fa-solid fa-clock"></i><span>Updated: ' + escapeHtml(formatDateTime(activeOrder.updated_at) || "--") + '</span>';
+      }
+
       function normalizePurchaseUnit(value) {
         var raw = String(value || "").trim().toLowerCase();
         if (!raw || raw === "unit" || raw === "units" || raw === "each" || raw === "ea") return "unit";
@@ -871,27 +1001,26 @@
       function renderStats() {
         var toOrderCount = 0;
         var orderedCount = 0;
+        var missingLinksCount = 0;
         orderRows.forEach(function (row) {
           if (row.status === "NOT_ORDERED" && row.toOrderQty > 0) toOrderCount++;
           if (row.status === "ORDERED") orderedCount++;
+          if (isPurchasingActionRow(row) && !toSafeHttpUrl(row.effectiveUrl)) missingLinksCount++;
         });
 
         statToOrder.textContent = String(toOrderCount);
         statOrdered.textContent = String(orderedCount);
         statTotal.textContent = String(orderRows.length);
+        statMissingLinks.textContent = String(missingLinksCount);
         summaryToOrder.textContent = String(toOrderCount);
         summaryOrdered.textContent = String(orderedCount);
+        summaryMissingLinks.textContent = String(missingLinksCount);
         summaryTotal.textContent = String(orderRows.length);
       }
 
       function renderCategoryFilterPills() {
         pruneActiveCategories();
         categoryFilters.innerHTML = "";
-        var label = document.createElement("span");
-        label.className = "small text-uppercase fw-semibold text-muted me-1";
-        label.textContent = "Category:";
-        categoryFilters.appendChild(label);
-
         var allPill = document.createElement("button");
         allPill.type = "button";
         allPill.className = "filter-pill" + (!hasCategoryFilter() ? " active" : "");
@@ -987,7 +1116,7 @@
         headerTr.className = "category-row";
 
         var headerTd = document.createElement("td");
-        headerTd.colSpan = 10;
+        headerTd.colSpan = 8;
 
         var heading = document.createElement("div");
         heading.className = "category-heading";
@@ -1011,7 +1140,7 @@
         var rows = getFilteredRows();
 
         if (!rows.length) {
-          orderBody.innerHTML = '<tr><td colspan="10" class="text-muted small py-3">No items match your filters.</td></tr>';
+          orderBody.innerHTML = '<tr><td colspan="8" class="text-muted small py-3">No items match your filters.</td></tr>';
           renderStats();
           return;
         }
@@ -1027,17 +1156,15 @@
             tr.dataset.itemId = String(row.itemId);
 
             var tdItem = document.createElement("td");
-            tdItem.innerHTML =
-              '<div class="item-name">' + escapeHtml(row.name) + '</div>' +
-              '<div class="item-meta">' +
-                (row.barcode ? '<div class="text-muted small">' + escapeHtml(row.barcode) + '</div>' : '') +
-                '<span class="status-chip ' + statusClass(row.status) + '">' + statusLabel(row.status) + '</span>' +
-              '</div>';
+            tdItem.className = "item-col";
+            tdItem.title = [
+              row.name || "",
+              row.barcode ? "Barcode: " + row.barcode : "",
+              row.location ? "Location: " + row.location : "",
+              row.categoryName ? "Category: " + row.categoryName : "",
+            ].filter(Boolean).join("\n");
+            tdItem.innerHTML = '<div class="item-name">' + escapeHtml(row.name) + '</div>';
             tr.appendChild(tdItem);
-
-            var tdCategory = document.createElement("td");
-            tdCategory.textContent = row.categoryName || "Uncategorized";
-            tr.appendChild(tdCategory);
 
             var tdCurrent = document.createElement("td");
             tdCurrent.innerHTML =
@@ -1062,12 +1189,6 @@
             tdToOrder.textContent = formatQty(row.toOrderQty);
             tr.appendChild(tdToOrder);
 
-            var tdOrderedQty = document.createElement("td");
-            tdOrderedQty.innerHTML =
-              '<input type="number" min="0" step="0.01" class="form-control form-control-sm qty-input" ' +
-              'data-item-id="' + row.itemId + '" data-field="ordered" value="' + escapeHtml(formatQty(row.orderedQty)) + '" title="Ordered quantity in the unit shown in the Units column">';
-            tr.appendChild(tdOrderedQty);
-
             var tdUrl = document.createElement("td");
             var safeUrl = toSafeHttpUrl(row.effectiveUrl);
             tdUrl.innerHTML =
@@ -1080,16 +1201,13 @@
               '</div>';
             tr.appendChild(tdUrl);
 
-            var tdOrderedFlag = document.createElement("td");
-            tdOrderedFlag.className = "text-center";
-            tdOrderedFlag.innerHTML =
-              '<input type="checkbox" class="form-check-input" data-item-id="' + row.itemId + '" data-field="ordered-flag" ' +
-              (row.orderedQty > 0 ? "checked" : "") + '>';
-            tr.appendChild(tdOrderedFlag);
+            var tdStatus = document.createElement("td");
+            tdStatus.innerHTML = '<span class="status-chip ' + statusClass(row.status) + '">' + statusLabel(row.status) + '</span>';
+            tr.appendChild(tdStatus);
 
             var tdNotes = document.createElement("td");
             tdNotes.innerHTML =
-              '<input type="text" class="form-control form-control-sm" data-item-id="' + row.itemId + '" data-field="notes" ' +
+              '<input type="text" class="form-control form-control-sm notes-input" data-item-id="' + row.itemId + '" data-field="notes" ' +
               'value="' + escapeHtml(row.notes || '') + '" placeholder="Optional notes">';
             tr.appendChild(tdNotes);
 
@@ -1153,6 +1271,7 @@
         renderOrderSelect();
         orderNameInput.value = activeOrder.name || "";
         orderNotesInput.value = activeOrder.notes || "";
+        renderHeaderDetails();
         updateOrderActionButtons();
         buildOrderRows();
         renderTable();
@@ -1224,6 +1343,10 @@
         return baseName + " (Purchasing)";
       }
 
+      function goToPurchasingView(orderId) {
+        window.location.href = buildPageUrl("inventory-purchasing.html", { orderId: Number(orderId) });
+      }
+
       async function renameActiveOrder() {
         if (!activeOrder || !activeOrder.id) throw new Error("No active order selected.");
         var nextName = String(orderNameInput.value || "").trim();
@@ -1245,6 +1368,7 @@
         await fetchOrderList();
         renderOrderSelect();
         orderNameInput.value = activeOrder.name || "";
+        renderHeaderDetails();
         updateOrderActionButtons();
         setStatus('Renamed order to "' + activeOrder.name + '".', "ok");
       }
@@ -1267,6 +1391,7 @@
         activeOrder = null;
         orderRows = [];
         orderBody.innerHTML = "";
+        renderHeaderDetails();
         syncOrderQueryParam(null);
         updateOrderActionButtons();
         await refreshAll({ preserveOrder: false });
@@ -1298,9 +1423,11 @@
 
         var sourceName = String(activeOrder.name || "").trim() || ("Order #" + activeOrder.id);
         var sourceId = Number(activeOrder.id);
-        var purchasingNotes =
+        var sourceOrderNotes = String(activeOrder.notes || "").trim();
+        var generatedNote =
           "Finalized for purchasing from order #" + sourceId + " (" + sourceName + "). " +
           "Includes only lines with Need to Order > 0 or existing ordered/received activity.";
+        var purchasingNotes = sourceOrderNotes ? (sourceOrderNotes + "\n\n" + generatedNote) : generatedNote;
 
         var response = await fetch(apiUrl("/api/inventory/orders"), {
           method: "POST",
@@ -1315,18 +1442,7 @@
         if (!response.ok) throw new Error(await parseApiError(response));
 
         var created = await response.json();
-        await fetchOrderList();
-        activeOrder = created;
-        activeCategories.clear();
-        activeStatus = "all";
-        renderCategoryFilterPills();
-        Array.from(statusFilters.querySelectorAll(".filter-pill")).forEach(function (node) {
-          node.classList.remove("active");
-          if (node.getAttribute("data-status") === "all") node.classList.add("active");
-        });
-        renderOrderSelect();
-        await loadOrderById(created.id);
-        setStatus("Purchasing copy created with " + items.length + " actionable item(s).", "ok");
+        setStatus('Finalized "' + nextName + '" with ' + items.length + ' actionable item(s). It is now available in the Purchasing page dropdown.', "ok");
       }
 
       async function createOrderFromCurrentFilters() {
@@ -1432,6 +1548,9 @@
         activeOrder = await response.json();
         await fetchOrderList();
         renderOrderSelect();
+        orderNameInput.value = activeOrder.name || "";
+        orderNotesInput.value = activeOrder.notes || "";
+        renderHeaderDetails();
         buildOrderRows();
         renderTable();
         if (!silent) setStatus("Order saved.", "ok");
@@ -1522,6 +1641,10 @@
         });
       });
 
+      orderNameInput.addEventListener("input", function () {
+        renderHeaderDetails();
+      });
+
       orderBody.addEventListener("click", function (event) {
         var target = event.target;
         if (!(target instanceof HTMLElement)) return;
@@ -1566,22 +1689,6 @@
         if (field === "notes" && target instanceof HTMLInputElement) {
           row.notes = target.value || "";
           return;
-        }
-        if (field === "ordered-flag" && target instanceof HTMLInputElement) {
-          if (!target.checked && row.receivedQty > 0) {
-            target.checked = true;
-            setStatus("This line already has received quantity. Edit receipt details on the Receiving page.", "err");
-            return;
-          }
-          if (target.checked) {
-            if (row.orderedQty <= 0) {
-              row.orderedQty = row.toOrderQty > 0 ? row.toOrderQty : row.requiredQty;
-            }
-          } else {
-            row.orderedQty = 0;
-          }
-          recomputeRow(row);
-          renderTable();
         }
       });
 
@@ -1640,7 +1747,7 @@
           setStatus("Select an order first.", "err");
           return;
         }
-        window.location.href = buildPageUrl("inventory-purchasing.html", { orderId: Number(activeOrder.id) });
+        goToPurchasingView(activeOrder.id);
       });
 
       addNewItemBtn.addEventListener("click", function () {

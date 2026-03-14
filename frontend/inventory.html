@@ -196,6 +196,26 @@
       .notes-inline-input {
         min-width: 130px;
       }
+
+      .barcode-stack {
+        display: flex;
+        flex-direction: column;
+        gap: 0.2rem;
+      }
+
+      .barcode-tag {
+        display: inline-flex;
+        align-items: center;
+        width: fit-content;
+        border-radius: 999px;
+        border: 1px solid #d6d3d1;
+        background: #fafaf9;
+        color: #57534e;
+        font-size: 0.68rem;
+        font-weight: 700;
+        letter-spacing: 0.02em;
+        padding: 0.08rem 0.45rem;
+      }
     </style>
     <link rel="stylesheet" href="assets/ui-theme.css" />
   </head>
@@ -229,12 +249,13 @@
               <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false"><i class="fa-solid fa-boxes-stacked me-1"></i> Inventory</a>
               <ul class="dropdown-menu">
                 <li><a class="dropdown-item" href="inventory-home.html"><i class="fa-solid fa-warehouse me-2"></i> Inventory Home</a></li>
-                <li><a class="dropdown-item" href="inventory-baseline.html"><i class="fa-solid fa-barcode me-2"></i> Baseline Scan</a></li>
                 <li><a class="dropdown-item" href="inventory.html?full=1"><i class="fa-solid fa-clipboard-list me-2"></i> Full Inventory</a></li>
                 <li><a class="dropdown-item" href="inventory-orders.html"><i class="fa-solid fa-list-check me-2"></i> Orders Planning</a></li>
+                <li><a class="dropdown-item" href="inventory-purchasing.html"><i class="fa-solid fa-cart-shopping me-2"></i> Purchasing</a></li>
                 <li><a class="dropdown-item" href="inventory-receiving.html"><i class="fa-solid fa-truck-ramp-box me-2"></i> Receiving</a></li>
                 <li><a class="dropdown-item" href="inventory-add.html"><i class="fa-solid fa-plus me-2"></i> Putaway / Add</a></li>
                 <li><a class="dropdown-item" href="inventory-remove.html"><i class="fa-solid fa-minus me-2"></i> Remove Inventory</a></li>
+                <li><a class="dropdown-item" href="inventory-baseline.html"><i class="fa-solid fa-barcode me-2"></i> Baseline Scan</a></li>
               </ul>
             </li>
 
@@ -361,7 +382,7 @@
               <tr class="small text-muted text-uppercase fw-bold">
                 <th style="width: 68px;">Image</th>
                 <th style="width: 220px;">Item Name (Enter to save)</th>
-                <th style="width: 130px;">Barcode</th>
+                <th style="width: 170px;">Barcodes</th>
                 <th style="width: 90px;">Qty</th>
                 <th style="width: 90px;">Unit</th>
                 <th style="width: 110px;">Storage</th>
@@ -393,7 +414,7 @@
               <input type="hidden" id="itemMode" value="create" />
               <div class="row g-3 mb-2">
                 <div class="col-8">
-                  <label class="form-label fw-semibold" for="itemBarcode">Barcode *</label>
+                  <label class="form-label fw-semibold" for="itemBarcode">Primary Barcode *</label>
                   <input id="itemBarcode" type="text" class="form-control" required />
                 </div>
                 <div class="col-4 d-grid">
@@ -401,6 +422,16 @@
                     <i class="fa-solid fa-magnifying-glass me-1"></i> Lookup
                   </button>
                 </div>
+              </div>
+              <div class="mb-3">
+                <label class="form-label fw-semibold" for="itemAdditionalBarcodes">Additional Barcodes</label>
+                <textarea
+                  id="itemAdditionalBarcodes"
+                  class="form-control"
+                  rows="2"
+                  placeholder="One barcode per line or separated by commas"
+                ></textarea>
+                <div class="form-text">Use this when the same inventory item is sold under multiple UPCs/barcodes.</div>
               </div>
               <div id="itemLookupHint" class="small text-muted mb-3">Scan or enter barcode, then lookup product details.</div>
               <div id="barcodeBindSection" class="border rounded p-2 mb-3 d-none">
@@ -420,6 +451,25 @@
                   </button>
                 </div>
                 <div id="bindStatus" class="small text-muted mt-2">Lookup a matching item, then bind.</div>
+              </div>
+              <div id="mergeSection" class="border rounded p-2 mb-3 d-none">
+                <div class="fw-semibold small mb-2">Merge this item into another existing item:</div>
+                <div class="small text-muted mb-2">Quantity and all barcodes will move to the selected target item, and this row will be removed.</div>
+                <div class="input-group input-group-sm mb-2">
+                  <input id="mergeSearchInput" type="text" class="form-control" placeholder="Search target inventory item name" />
+                  <button id="mergeSearchBtn" type="button" class="btn btn-outline-secondary">Search</button>
+                </div>
+                <div class="mb-2">
+                  <select id="mergeTargetSelect" class="form-select form-select-sm">
+                    <option value="">Select merge target</option>
+                  </select>
+                </div>
+                <div class="d-grid">
+                  <button id="mergeItemBtn" type="button" class="btn btn-sm btn-outline-warning">
+                    <i class="fa-solid fa-code-merge me-1"></i> Merge Into Selected Item
+                  </button>
+                </div>
+                <div id="mergeStatus" class="small text-muted mt-2">Open an item, search for its canonical match, then merge.</div>
               </div>
               <div class="mb-3">
                 <label class="form-label fw-semibold" for="itemName">Item Name *</label>
@@ -516,10 +566,17 @@
       const bindItemSelect = document.getElementById("bindItemSelect");
       const bindBarcodeBtn = document.getElementById("bindBarcodeBtn");
       const bindStatus = document.getElementById("bindStatus");
+      const mergeSection = document.getElementById("mergeSection");
+      const mergeSearchInput = document.getElementById("mergeSearchInput");
+      const mergeSearchBtn = document.getElementById("mergeSearchBtn");
+      const mergeTargetSelect = document.getElementById("mergeTargetSelect");
+      const mergeItemBtn = document.getElementById("mergeItemBtn");
+      const mergeStatus = document.getElementById("mergeStatus");
       const itemQtyLabel = document.getElementById("itemQtyLabel");
       const itemId = document.getElementById("itemId");
       const itemMode = document.getElementById("itemMode");
       const itemBarcode = document.getElementById("itemBarcode");
+      const itemAdditionalBarcodes = document.getElementById("itemAdditionalBarcodes");
       const itemName = document.getElementById("itemName");
       const itemQty = document.getElementById("itemQty");
       const itemUnit = document.getElementById("itemUnit");
@@ -537,6 +594,8 @@
       let selectedCleanupFilter = "pending";
       let itemModal = null;
       let bindCandidates = [];
+      let mergeCandidates = [];
+      let editSnapshot = null;
 
       const BARCODE_PATTERN = /^\d{8,14}$/;
       const STORAGE_LOCATION_PATTERN = /^([a-zA-Z])\s*-?\s*([1-9]|[1-9][0-9])$/;
@@ -595,12 +654,36 @@
         }
       }
 
+      function setMergeStatus(message, tone = "muted") {
+        mergeStatus.textContent = message;
+        mergeStatus.classList.remove("text-muted", "text-success", "text-danger", "text-primary");
+        if (tone === "ok") {
+          mergeStatus.classList.add("text-success");
+        } else if (tone === "err") {
+          mergeStatus.classList.add("text-danger");
+        } else if (tone === "info") {
+          mergeStatus.classList.add("text-primary");
+        } else {
+          mergeStatus.classList.add("text-muted");
+        }
+      }
+
       function toggleBindSection(show) {
         barcodeBindSection.classList.toggle("d-none", !show);
         if (!show) {
           bindCandidates = [];
           bindItemSelect.innerHTML = '<option value="">Select inventory item</option>';
           setBindStatus("Lookup a matching item, then bind.");
+        }
+      }
+
+      function toggleMergeSection(show) {
+        mergeSection.classList.toggle("d-none", !show);
+        if (!show) {
+          mergeCandidates = [];
+          mergeSearchInput.value = "";
+          mergeTargetSelect.innerHTML = '<option value="">Select merge target</option>';
+          setMergeStatus("Open an item, search for its canonical match, then merge.");
         }
       }
 
@@ -613,11 +696,99 @@
           itemModalLabel.textContent = "Add Inventory Item";
           itemQtyLabel.textContent = "Quantity Received *";
         }
+        toggleMergeSection(mode === "edit");
       }
 
       function normalizeBarcode(rawValue) {
         const digitsOnly = String(rawValue || "").replace(/\D+/g, "");
         return BARCODE_PATTERN.test(digitsOnly) ? digitsOnly : null;
+      }
+
+      function getItemBarcodes(item) {
+        const seen = new Set();
+        const values = [];
+        const rawBarcodes = Array.isArray(item && item.barcodes) ? item.barcodes : [];
+        rawBarcodes.forEach((rawValue) => {
+          const barcode = normalizeBarcode(rawValue);
+          if (!barcode || seen.has(barcode)) return;
+          seen.add(barcode);
+          values.push(barcode);
+        });
+        const primary = normalizeBarcode(item && item.barcode ? item.barcode : "");
+        if (primary && !seen.has(primary)) {
+          seen.add(primary);
+          values.unshift(primary);
+        }
+        return values;
+      }
+
+      function formatBarcodeSummary(item) {
+        return getItemBarcodes(item).join(", ");
+      }
+
+      function parseBarcodeList(rawValue) {
+        const tokens = String(rawValue || "")
+          .split(/[\s,;]+/)
+          .map((token) => token.trim())
+          .filter(Boolean);
+        const unique = [];
+        const invalid = [];
+        tokens.forEach((token) => {
+          const barcode = normalizeBarcode(token);
+          if (!barcode) {
+            invalid.push(token);
+            return;
+          }
+          if (!unique.includes(barcode)) unique.push(barcode);
+        });
+        if (invalid.length) {
+          throw new Error(`Barcode entries must be 8-14 digits. Invalid: ${invalid.slice(0, 3).join(", ")}.`);
+        }
+        return unique;
+      }
+
+      function setBarcodeInputsFromItem(item) {
+        const barcodes = getItemBarcodes(item);
+        const primary = normalizeBarcode(item && item.primary_barcode ? item.primary_barcode : "")
+          || normalizeBarcode(item && item.barcode ? item.barcode : "")
+          || (barcodes.length ? barcodes[0] : "");
+        itemBarcode.value = primary || "";
+        itemAdditionalBarcodes.value = barcodes.filter((barcode) => barcode !== primary).join("\n");
+      }
+
+      function captureEditFormSnapshot() {
+        return {
+          item_name: String(itemName.value || "").trim(),
+          barcode: String(itemBarcode.value || "").trim(),
+          additionalBarcodes: String(itemAdditionalBarcodes.value || "").trim(),
+          quantity: String(itemQty.value || "").trim(),
+          unit: String(itemUnit.value || "").trim(),
+          category: String(itemCategory.value || "").trim(),
+          location: String(itemLocation.value || "").trim(),
+          image_url: String(itemImageUrl.value || "").trim(),
+          notes: String(itemNotes.value || ""),
+          baselineVerified: Boolean(itemBaselineVerified.checked),
+        };
+      }
+
+      function renderInventoryState() {
+        items.sort((a, b) => String(a.item_name || "").localeCompare(String(b.item_name || "")));
+        renderCategoryOptions();
+        updateStats();
+        renderCleanupFilter();
+        renderCategoryFilter();
+        renderTable();
+      }
+
+      function upsertInventoryItemInState(updatedItem) {
+        const id = Number(updatedItem && updatedItem.id);
+        if (!Number.isInteger(id) || id <= 0) return;
+        const existingIndex = items.findIndex((item) => Number(item.id) === id);
+        if (existingIndex >= 0) {
+          items.splice(existingIndex, 1, updatedItem);
+        } else {
+          items.push(updatedItem);
+        }
       }
 
       function normalizeStorageLocation(rawValue) {
@@ -765,8 +936,7 @@
       }
 
       function hasBarcode(item) {
-        const value = String(item && item.barcode ? item.barcode : "").trim();
-        return BARCODE_PATTERN.test(value);
+        return getItemBarcodes(item).length > 0;
       }
 
       function hasValidLocation(item) {
@@ -805,7 +975,7 @@
         const category = String(row.category || "").toLowerCase();
         const note = String(row.notes || "");
         let score = 0;
-        if (!row.barcode) score += 1200;
+        if (!getItemBarcodes(row).length) score += 1200;
         if (name === needle) score += 600;
         else if (name.startsWith(needle)) score += 320;
         else if (name.includes(needle)) score += 120;
@@ -828,7 +998,8 @@
           option.value = String(row.id);
           const qtyPart = `${formatQuantity(row.quantity)} ${row.unit || ""}`.trim();
           const locationPart = row.location ? row.location : "No location";
-          const barcodePart = row.barcode ? ` | barcode ${row.barcode}` : "";
+          const barcodeSummary = formatBarcodeSummary(row);
+          const barcodePart = barcodeSummary ? ` | barcodes ${barcodeSummary}` : "";
           option.textContent = `${row.item_name} | ${row.category || "Uncategorized"} | ${qtyPart} | ${locationPart}${barcodePart}`;
           bindItemSelect.appendChild(option);
         });
@@ -851,13 +1022,8 @@
           });
           if (!response.ok) throw new Error(await parseApiError(response));
           const payload = await response.json();
-          const barcode = normalizeBarcode(itemBarcode.value);
           const rows = Array.isArray(payload) ? payload : [];
           const filtered = rows
-            .filter((row) => {
-              const rowBarcode = String(row.barcode || "").trim();
-              return !rowBarcode || (barcode && rowBarcode === barcode);
-            })
             .sort((a, b) => {
               const scoreDiff = bindCandidateScore(b, query) - bindCandidateScore(a, query);
               if (scoreDiff !== 0) return scoreDiff;
@@ -901,28 +1067,120 @@
           renderCategoryFilter();
           renderTable();
 
-          setFormMode("edit");
-          itemId.value = String(boundItem.id);
-          itemName.value = boundItem.item_name || itemName.value;
-          itemUnit.value = boundItem.unit || itemUnit.value;
-          itemCategory.value = boundItem.category || itemCategory.value;
-          itemLocation.value = boundItem.location || itemLocation.value;
-          itemImageUrl.value = boundItem.image_url || itemImageUrl.value;
-          itemNotes.value = removeUrlsFromNotes(boundItem.notes || "");
-          itemQty.value = String(Number(boundItem.quantity || 0));
-          itemBaselineVerified.checked = true;
+          applyExistingItemToForm(boundItem, {
+            forceBaselineVerify: true,
+            lookupHint: `Barcode bound to "${boundItem.item_name}". Confirm/update quantity and location, then save.`,
+            lookupTone: "ok",
+            mergeSearch: boundItem.item_name || "",
+          });
           scanExistingMeta.textContent = "Bound";
           toggleBindSection(false);
-          setLookupHint(
-            `Barcode bound to "${boundItem.item_name}". Confirm/update quantity and location, then save.`,
-            "ok",
-          );
-          updateImagePreview();
           setBindStatus(`Bound barcode ${barcode} to "${boundItem.item_name}".`, "ok");
           setStatus(`Bound barcode ${barcode} to "${boundItem.item_name}".`, "ok");
         } catch (error) {
           setBindStatus(error instanceof Error ? error.message : "Could not bind barcode.", "err");
           setStatus(error instanceof Error ? error.message : "Could not bind barcode.", "err");
+        }
+      }
+
+      function populateMergeCandidates(rows, query) {
+        mergeCandidates = rows;
+        mergeTargetSelect.innerHTML = '<option value="">Select merge target</option>';
+        if (!rows.length) {
+          setMergeStatus("No merge targets found for that search.", "err");
+          return;
+        }
+
+        rows.forEach((row) => {
+          const option = document.createElement("option");
+          option.value = String(row.id);
+          const qtyPart = `${formatQuantity(row.quantity)} ${row.unit || ""}`.trim();
+          const locationPart = row.location || "No location";
+          const barcodePart = formatBarcodeSummary(row) ? ` | ${formatBarcodeSummary(row)}` : "";
+          option.textContent = `${row.item_name} | ${qtyPart} | ${locationPart}${barcodePart}`;
+          mergeTargetSelect.appendChild(option);
+        });
+        setMergeStatus(`Found ${rows.length} merge target(s) for "${query}".`, "ok");
+      }
+
+      async function loadMergeCandidates(rawQuery) {
+        const query = String(rawQuery || "").trim();
+        mergeSearchInput.value = query;
+        const currentItemId = Number.parseInt(itemId.value, 10);
+        if (!Number.isInteger(currentItemId) || currentItemId <= 0) {
+          setMergeStatus("Open an existing item before searching merge targets.", "err");
+          return;
+        }
+        if (!query) {
+          populateMergeCandidates([], "");
+          setMergeStatus("Enter the canonical item name and search for a merge target.", "info");
+          return;
+        }
+
+        try {
+          setMergeStatus("Searching merge targets...", "info");
+          const response = await fetch(apiUrl(`/api/inventory?search=${encodeURIComponent(query)}`), {
+            credentials: "include",
+          });
+          if (!response.ok) throw new Error(await parseApiError(response));
+          const payload = await response.json();
+          const rows = Array.isArray(payload) ? payload : [];
+          const filtered = rows
+            .filter((row) => Number(row.id) !== currentItemId)
+            .sort((a, b) => {
+              const scoreDiff = bindCandidateScore(b, query) - bindCandidateScore(a, query);
+              if (scoreDiff !== 0) return scoreDiff;
+              return String(a.item_name || "").localeCompare(String(b.item_name || ""));
+            })
+            .slice(0, 40);
+          populateMergeCandidates(filtered, query);
+        } catch (error) {
+          populateMergeCandidates([], query);
+          setMergeStatus(error instanceof Error ? error.message : "Could not search merge targets.", "err");
+        }
+      }
+
+      async function mergeCurrentItemIntoSelected() {
+        const sourceId = Number.parseInt(itemId.value, 10);
+        const targetId = Number.parseInt(mergeTargetSelect.value, 10);
+        if (!Number.isInteger(sourceId) || sourceId <= 0) {
+          setMergeStatus("Open an existing item before merging.", "err");
+          return;
+        }
+        if (!Number.isInteger(targetId) || targetId <= 0) {
+          setMergeStatus("Select a target item to merge into.", "err");
+          return;
+        }
+        const sourceItem = items.find((item) => Number(item.id) === sourceId) || null;
+        const targetItem = mergeCandidates.find((item) => Number(item.id) === targetId)
+          || items.find((item) => Number(item.id) === targetId)
+          || null;
+        const sourceName = sourceItem && sourceItem.item_name ? sourceItem.item_name : "this item";
+        const targetName = targetItem && targetItem.item_name ? targetItem.item_name : "selected target";
+
+        if (!window.confirm(`Merge "${sourceName}" into "${targetName}"?\n\nThis moves quantity and all barcodes to the target item and deletes the source row.`)) {
+          return;
+        }
+
+        try {
+          setMergeStatus(`Merging "${sourceName}" into "${targetName}"...`, "info");
+          const response = await fetch(apiUrl("/api/inventory/merge"), {
+            method: "POST",
+            credentials: "include",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ source_item_id: sourceId, target_item_id: targetId }),
+          });
+          if (!response.ok) throw new Error(await parseApiError(response));
+
+          itemModal.hide();
+          await fetchItems();
+          renderCategoryFilter();
+          renderTable();
+          setStatus(`Merged "${sourceName}" into "${targetName}".`, "ok");
+        } catch (error) {
+          const message = error instanceof Error ? error.message : "Could not merge items.";
+          setMergeStatus(message, "err");
+          setStatus(message, "err");
         }
       }
 
@@ -1006,7 +1264,7 @@
             item.item_name || "",
             item.category || "",
             item.location || "",
-            item.barcode || "",
+            formatBarcodeSummary(item),
             item.order_url || "",
             removeUrlsFromNotes(item.notes || ""),
           ].join(" ").toLowerCase();
@@ -1254,7 +1512,20 @@
 
           const barcodeTd = document.createElement("td");
           barcodeTd.className = "text-muted small";
-          barcodeTd.textContent = item.barcode || "";
+          const barcodeStack = document.createElement("div");
+          barcodeStack.className = "barcode-stack";
+          const barcodes = getItemBarcodes(item);
+          if (barcodes.length) {
+            barcodes.forEach((barcode) => {
+              const chip = document.createElement("span");
+              chip.className = "barcode-tag";
+              chip.textContent = barcode;
+              barcodeStack.appendChild(chip);
+            });
+          } else {
+            barcodeStack.textContent = "";
+          }
+          barcodeTd.appendChild(barcodeStack);
           tr.appendChild(barcodeTd);
 
           const quantityTd = document.createElement("td");
@@ -1391,10 +1662,37 @@
         itemImagePreviewLabel.textContent = "Image preview";
       }
 
+      function applyExistingItemToForm(item, options = {}) {
+        setFormMode("edit");
+        itemId.value = String(item.id);
+        setBarcodeInputsFromItem(item);
+        itemName.value = item.item_name || "";
+        itemQty.value = item.quantity != null ? String(item.quantity) : "0";
+        itemUnit.value = item.unit || "";
+        itemCategory.value = item.category || "";
+        itemLocation.value = item.location || "";
+        itemImageUrl.value = item.image_url || "";
+        itemNotes.value = removeUrlsFromNotes(item.notes || "");
+        itemBaselineVerified.checked = options.forceBaselineVerify ? true : hasBaselineVerification(item.notes);
+        bindSearchInput.value = "";
+        toggleBindSection(false);
+        mergeCandidates = [];
+        mergeTargetSelect.innerHTML = '<option value="">Select merge target</option>';
+        setMergeStatus("Open an item, search for its canonical match, then merge.");
+        if (Object.prototype.hasOwnProperty.call(options, "mergeSearch")) {
+          mergeSearchInput.value = String(options.mergeSearch || "");
+        }
+        setLookupHint(options.lookupHint || "Editing existing inventory record.", options.lookupTone || "muted");
+        updateImagePreview();
+        editSnapshot = captureEditFormSnapshot();
+      }
+
       function resetItemForm() {
         setFormMode("create");
+        editSnapshot = null;
         itemId.value = "";
         itemBarcode.value = "";
+        itemAdditionalBarcodes.value = "";
         itemName.value = "";
         itemQty.value = "1";
         itemUnit.value = "";
@@ -1420,26 +1718,18 @@
           itemModal.show();
         }
 
-        itemBarcode.value = result.barcode || itemBarcode.value;
         if (existing) {
-          setFormMode("edit");
-          itemId.value = String(existing.id);
-          itemName.value = existing.item_name || lookup.name || "";
-          itemUnit.value = existing.unit || lookup.unit || "";
-          itemCategory.value = existing.category || lookup.category || "";
-          itemLocation.value = existing.location || "";
-          itemImageUrl.value = existing.image_url || lookup.image_url || "";
-          itemNotes.value = removeUrlsFromNotes(existing.notes || "");
-          itemQty.value = String(Number(existing.quantity || 0));
-          itemBaselineVerified.checked = true;
-          toggleBindSection(false);
-          setLookupHint(
-            "Existing item found. Confirm/update quantity and location, then save.",
-            "ok",
-          );
+          applyExistingItemToForm(existing, {
+            forceBaselineVerify: true,
+            lookupHint: "Existing item found. Confirm/update quantity and location, then save.",
+            lookupTone: "ok",
+            mergeSearch: existing.item_name || lookup.name || "",
+          });
         } else {
           setFormMode("create");
           itemId.value = "";
+          itemBarcode.value = result.barcode || itemBarcode.value;
+          itemAdditionalBarcodes.value = "";
           if (lookup.name) itemName.value = lookup.name;
           if (lookup.unit) itemUnit.value = lookup.unit;
           if (lookup.category && !itemCategory.value.trim()) itemCategory.value = lookup.category;
@@ -1487,21 +1777,11 @@
       }
 
       function openEditModal(item, options = {}) {
-        setFormMode("edit");
-        itemId.value = String(item.id);
-        itemBarcode.value = item.barcode || "";
-        itemName.value = item.item_name || "";
-        itemQty.value = item.quantity != null ? String(item.quantity) : "0";
-        itemUnit.value = item.unit || "";
-        itemCategory.value = item.category || "";
-        itemLocation.value = item.location || "";
-        itemImageUrl.value = item.image_url || "";
-        itemNotes.value = removeUrlsFromNotes(item.notes || "");
-        itemBaselineVerified.checked = options.forceBaselineVerify ? true : hasBaselineVerification(item.notes);
-        bindSearchInput.value = "";
-        toggleBindSection(false);
-        setLookupHint("Editing existing inventory record.");
-        updateImagePreview();
+        applyExistingItemToForm(item, {
+          forceBaselineVerify: options.forceBaselineVerify,
+          lookupHint: "Editing existing inventory record.",
+          mergeSearch: item.item_name || "",
+        });
         itemModal.show();
       }
 
@@ -1512,84 +1792,157 @@
           setStatus("Could not determine which inventory item to update.", "err");
           return;
         }
-        const barcode = normalizeBarcode(itemBarcode.value);
-        if (!barcode) {
-          setStatus("Barcode must be 8-14 digits.", "err");
-          return;
-        }
-
-        const cleanName = itemName.value.trim();
-        if (!cleanName) {
-          setStatus("Item name is required.", "err");
-          return;
-        }
-
-        const qtyValue = Number.parseFloat(itemQty.value);
-        if (!Number.isFinite(qtyValue) || qtyValue < 0 || (mode !== "edit" && qtyValue <= 0)) {
-          setStatus(mode === "edit" ? "Quantity must be 0 or greater." : "Quantity received must be greater than 0.", "err");
-          return;
-        }
-
-        const cleanUnit = itemUnit.value.trim();
-        if (!cleanUnit) {
-          setStatus("Unit is required.", "err");
-          return;
-        }
-
-        const location = normalizeStorageLocation(itemLocation.value);
-        if (!location) {
-          setStatus("Storage location must be in shelf-grid format like A1 through Z99 (A1-A20 preferred).", "err");
-          return;
-        }
-
-        const imageUrl = itemImageUrl.value.trim();
-        if (!imageUrl) {
-          setStatus("Product image is required.", "err");
-          return;
-        }
-
-        const payload = {
-          item_name: cleanName,
-          barcode,
-          quantity: qtyValue,
-          unit: cleanUnit,
-          category: itemCategory.value.trim() || null,
-          location,
-          image_url: imageUrl,
-          notes: mergeNotesForSave(itemNotes.value, itemBaselineVerified.checked),
-        };
-
+        let response = null;
         try {
-          const isEdit = mode === "edit";
-          const url = isEdit ? apiUrl(`/api/inventory/${id}`) : apiUrl("/api/inventory");
-          const method = isEdit ? "PUT" : "POST";
-          setStatus(isEdit ? "Saving inventory..." : "Creating inventory item...", "info");
+          saveItemBtn.disabled = true;
+          if (mode === "edit") {
+            const original = editSnapshot || captureEditFormSnapshot();
+            const current = captureEditFormSnapshot();
+            const payload = {};
 
-          const response = await fetch(url, {
-            method,
-            credentials: "include",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(payload),
-          });
+            if (current.item_name !== original.item_name) {
+              if (!current.item_name) throw new Error("Item name is required.");
+              payload.item_name = current.item_name;
+            }
+
+            if (current.barcode !== original.barcode || current.additionalBarcodes !== original.additionalBarcodes) {
+              const primaryRaw = current.barcode;
+              const additional = parseBarcodeList(current.additionalBarcodes);
+              if (primaryRaw && !normalizeBarcode(primaryRaw)) {
+                throw new Error("Barcode must be 8-14 digits.");
+              }
+              if (!primaryRaw && additional.length) {
+                throw new Error("Enter a primary barcode before adding extra barcodes.");
+              }
+              const primaryBarcode = primaryRaw ? normalizeBarcode(primaryRaw) : null;
+              const barcodes = primaryBarcode
+                ? [primaryBarcode, ...additional].filter((value, index, values) => values.indexOf(value) === index)
+                : [];
+              payload.barcode = primaryBarcode;
+              payload.barcodes = barcodes;
+            }
+
+            if (current.quantity !== original.quantity) {
+              const qtyValue = Number.parseFloat(current.quantity);
+              if (!Number.isFinite(qtyValue) || qtyValue < 0) {
+                throw new Error("Quantity must be 0 or greater.");
+              }
+              payload.quantity = qtyValue;
+            }
+
+            if (current.unit !== original.unit) {
+              if (!current.unit) throw new Error("Unit is required.");
+              payload.unit = current.unit;
+            }
+
+            if (current.category !== original.category) {
+              payload.category = current.category || null;
+            }
+
+            if (current.location !== original.location) {
+              if (current.location) {
+                const normalizedLocation = normalizeStorageLocation(current.location);
+                if (!normalizedLocation) {
+                  throw new Error("Storage location must be in shelf-grid format like A1 through Z99 (A1-A20 preferred).");
+                }
+                payload.location = normalizedLocation;
+              } else {
+                payload.location = null;
+              }
+            }
+
+            if (current.image_url !== original.image_url) {
+              payload.image_url = current.image_url || null;
+            }
+
+            if (current.notes !== original.notes || current.baselineVerified !== original.baselineVerified) {
+              payload.notes = mergeNotesForSave(itemNotes.value, itemBaselineVerified.checked);
+            }
+
+            if (!Object.keys(payload).length) {
+              setStatus("No changes to save.", "info");
+              return;
+            }
+
+            setStatus("Saving inventory...", "info");
+            response = await fetch(apiUrl(`/api/inventory/${id}`), {
+              method: "PATCH",
+              credentials: "include",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(payload),
+            });
+          } else {
+            const barcode = normalizeBarcode(itemBarcode.value);
+            if (!barcode) {
+              throw new Error("Barcode must be 8-14 digits.");
+            }
+            const barcodes = [barcode, ...parseBarcodeList(itemAdditionalBarcodes.value)]
+              .filter((value, index, values) => values.indexOf(value) === index);
+            const cleanName = itemName.value.trim();
+            if (!cleanName) {
+              throw new Error("Item name is required.");
+            }
+            const qtyValue = Number.parseFloat(itemQty.value);
+            if (!Number.isFinite(qtyValue) || qtyValue <= 0) {
+              throw new Error("Quantity received must be greater than 0.");
+            }
+            const cleanUnit = itemUnit.value.trim();
+            if (!cleanUnit) {
+              throw new Error("Unit is required.");
+            }
+            const location = normalizeStorageLocation(itemLocation.value);
+            if (!location) {
+              throw new Error("Storage location must be in shelf-grid format like A1 through Z99 (A1-A20 preferred).");
+            }
+            const imageUrl = itemImageUrl.value.trim();
+            if (!imageUrl) {
+              throw new Error("Product image is required.");
+            }
+
+            const payload = {
+              item_name: cleanName,
+              barcode,
+              barcodes,
+              quantity: qtyValue,
+              unit: cleanUnit,
+              category: itemCategory.value.trim() || null,
+              location,
+              image_url: imageUrl,
+              notes: mergeNotesForSave(itemNotes.value, itemBaselineVerified.checked),
+            };
+
+            setStatus("Creating inventory item...", "info");
+            response = await fetch(apiUrl("/api/inventory"), {
+              method: "POST",
+              credentials: "include",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(payload),
+            });
+          }
 
           if (!response.ok) throw new Error(await parseApiError(response));
+          const updatedItem = await response.json();
+          upsertInventoryItemInState(updatedItem);
+          renderInventoryState();
+          editSnapshot = null;
 
           itemModal.hide();
-          await fetchItems();
-          renderCategoryFilter();
-          renderTable();
           if (mode === "edit") {
             setStatus(
               itemBaselineVerified.checked
-                ? `Updated "${cleanName}" and marked baseline verified.`
-                : `Updated "${cleanName}".`,
+                ? `Updated "${updatedItem.item_name || "item"}" and marked baseline verified.`
+                : `Updated "${updatedItem.item_name || "item"}".`,
               "ok",
             );
           } else {
-            setStatus(`Created "${cleanName}".`, "ok");
+            setStatus(`Created "${updatedItem.item_name || "item"}".`, "ok");
           }
         } catch (error) {
-          setStatus(error instanceof Error ? error.message : "Could not save.", "err");
+          const message = error instanceof Error ? error.message : "Could not save.";
+          setStatus(message, "err");
+          window.alert(`${message}\nAPI: ${API_BASE}`);
+        } finally {
+          saveItemBtn.disabled = false;
         }
       }
 
@@ -1632,6 +1985,12 @@
       bindBarcodeBtn.addEventListener("click", () => {
         void bindBarcodeToSelectedItem();
       });
+      mergeSearchBtn.addEventListener("click", () => {
+        void loadMergeCandidates(mergeSearchInput.value);
+      });
+      mergeItemBtn.addEventListener("click", () => {
+        void mergeCurrentItemIntoSelected();
+      });
 
       scanBarcodeInput.addEventListener("keydown", (event) => {
         if (event.key !== "Enter") return;
@@ -1649,6 +2008,12 @@
         if (event.key !== "Enter") return;
         event.preventDefault();
         void loadBindCandidates(bindSearchInput.value);
+      });
+
+      mergeSearchInput.addEventListener("keydown", (event) => {
+        if (event.key !== "Enter") return;
+        event.preventDefault();
+        void loadMergeCandidates(mergeSearchInput.value);
       });
 
       itemImageUrl.addEventListener("input", updateImagePreview);

@@ -315,6 +315,7 @@ class IngredientDuplicateScanPayload(BaseModel):
 class StandaloneInventoryCreate(BaseModel):
     item_name: str = Field(min_length=1)
     barcode: str = Field(min_length=8)
+    barcodes: list[str] | None = None
     quantity: float = Field(ge=0, default=0)
     unit: str = Field(min_length=1)
     category: str | None = None
@@ -326,11 +327,24 @@ class StandaloneInventoryCreate(BaseModel):
 class StandaloneInventoryUpdate(BaseModel):
     item_name: str = Field(min_length=1)
     barcode: str = Field(min_length=8)
+    barcodes: list[str] | None = None
     quantity: float = Field(ge=0, default=0)
     unit: str = Field(min_length=1)
     category: str | None = None
     location: str = Field(min_length=1)
     image_url: str = Field(min_length=1)
+    notes: str | None = None
+
+
+class StandaloneInventoryPatch(BaseModel):
+    item_name: str | None = None
+    barcode: str | None = None
+    barcodes: list[str] | None = None
+    quantity: float | None = Field(default=None, ge=0)
+    unit: str | None = None
+    category: str | None = None
+    location: str | None = None
+    image_url: str | None = None
     notes: str | None = None
 
 
@@ -349,6 +363,11 @@ class StandaloneInventoryNamePatch(BaseModel):
 class StandaloneInventoryBarcodeBindPayload(BaseModel):
     item_id: int = Field(gt=0)
     barcode: str = Field(min_length=8)
+
+
+class StandaloneInventoryMergePayload(BaseModel):
+    source_item_id: int = Field(gt=0)
+    target_item_id: int = Field(gt=0)
 
 
 class StandaloneInventoryOrderItemInput(BaseModel):
@@ -6590,10 +6609,420 @@ def load_purchase_order_items(conn: Any, order_ids: list[int]) -> dict[int, list
     return by_order
 
 
-def format_standalone_inventory_row(row: Any) -> dict[str, Any]:
+def normalize_inventory_barcode_list(values: list[Any] | None) -> list[str]:
+    normalized: list[str] = []
+    seen: set[str] = set()
+    for value in values or []:
+        barcode = normalize_inventory_barcode(value)
+        if barcode in seen:
+            continue
+        seen.add(barcode)
+        normalized.append(barcode)
+    return normalized
+
+
+def build_inventory_barcode_payload(
+    primary_barcode: Any | None,
+    *,
+    requested_barcodes: list[Any] | None = None,
+    existing_barcodes: list[str] | None = None,
+) -> tuple[str | None, list[str]]:
+    primary = normalize_inventory_barcode(primary_barcode) if primary_barcode is not None else None
+    merged_values: list[str] = []
+    if primary:
+        merged_values.append(primary)
+    if requested_barcodes is None:
+        merged_values.extend(existing_barcodes or [])
+    else:
+        merged_values.extend(normalize_inventory_barcode_list(requested_barcodes))
+
+    ordered: list[str] = []
+    seen: set[str] = set()
+    for barcode in merged_values:
+        if barcode in seen:
+            continue
+        seen.add(barcode)
+        ordered.append(barcode)
+    return primary or (ordered[0] if ordered else None), ordered
+
+
+def load_standalone_inventory_barcodes_map(
+    conn: Any,
+    item_ids: list[int],
+    *,
+    fallback_primary_by_item: dict[int, Any] | None = None,
+) -> dict[int, list[str]]:
+    normalized_ids = [int(item_id) for item_id in item_ids if int(item_id) > 0]
+    barcode_map: dict[int, list[str]] = {item_id: [] for item_id in normalized_ids}
+    primary_by_item = {
+        int(item_id): normalize_lookup_barcode_candidate(barcode)
+        for item_id, barcode in (fallback_primary_by_item or {}).items()
+        if int(item_id) > 0
+    }
+
+    if normalized_ids and table_exists(conn, "standalone_inventory_barcodes"):
+        placeholders = ", ".join("?" for _ in normalized_ids)
+        rows = conn.execute(
+            f"""
+            SELECT inventory_item_id, barcode
+            FROM standalone_inventory_barcodes
+            WHERE inventory_item_id IN ({placeholders})
+            ORDER BY inventory_item_id, id
+            """,
+            tuple(normalized_ids),
+        ).fetchall()
+        for row in rows:
+            item_id = int(row["inventory_item_id"])
+            barcode = normalize_lookup_barcode_candidate(row["barcode"])
+            if not barcode:
+                continue
+            barcode_map.setdefault(item_id, [])
+            if barcode not in barcode_map[item_id]:
+                barcode_map[item_id].append(barcode)
+
+    for item_id in normalized_ids:
+        ordered: list[str] = []
+        primary = primary_by_item.get(item_id)
+        if primary:
+            ordered.append(primary)
+        for barcode in barcode_map.get(item_id, []):
+            if barcode not in ordered:
+                ordered.append(barcode)
+        barcode_map[item_id] = ordered
+    return barcode_map
+
+
+def load_standalone_inventory_item_barcodes(
+    conn: Any,
+    item_id: int,
+    *,
+    fallback_primary_barcode: Any | None = None,
+) -> list[str]:
+    barcode_map = load_standalone_inventory_barcodes_map(
+        conn,
+        [item_id],
+        fallback_primary_by_item={int(item_id): fallback_primary_barcode},
+    )
+    return barcode_map.get(int(item_id), [])
+
+
+def format_standalone_inventory_row(
+    row: Any,
+    *,
+    barcode_map: dict[int, list[str]] | None = None,
+) -> dict[str, Any]:
     entry = dict(row)
+    item_id = int(entry.get("id") or 0)
+    primary_barcode = normalize_lookup_barcode_candidate(entry.get("barcode"))
+    barcodes = list((barcode_map or {}).get(item_id, []))
+    if primary_barcode and primary_barcode not in barcodes:
+        barcodes.insert(0, primary_barcode)
+    entry["barcode"] = primary_barcode or (barcodes[0] if barcodes else None)
+    entry["primary_barcode"] = entry["barcode"]
+    entry["barcodes"] = barcodes
+    entry["barcode_count"] = len(barcodes)
     entry["category"] = normalize_inventory_category(entry.get("category"))
     return entry
+
+
+def format_standalone_inventory_rows(conn: Any, rows: list[Any]) -> list[dict[str, Any]]:
+    row_list = list(rows)
+    if not row_list:
+        return []
+    fallback_primary_by_item = {
+        int(row["id"]): row["barcode"]
+        for row in row_list
+        if row["id"] is not None
+    }
+    barcode_map = load_standalone_inventory_barcodes_map(
+        conn,
+        [int(row["id"]) for row in row_list if row["id"] is not None],
+        fallback_primary_by_item=fallback_primary_by_item,
+    )
+    return [format_standalone_inventory_row(row, barcode_map=barcode_map) for row in row_list]
+
+
+def find_standalone_inventory_item_by_barcode(conn: Any, barcode: str) -> Any | None:
+    normalized_barcode = normalize_inventory_barcode(barcode)
+    if table_exists(conn, "standalone_inventory_barcodes"):
+        row = conn.execute(
+            """
+            SELECT si.*
+            FROM standalone_inventory_barcodes sib
+            JOIN standalone_inventory si
+              ON si.id = sib.inventory_item_id
+            WHERE sib.barcode = ?
+            ORDER BY
+                CASE WHEN COALESCE(si.barcode, '') = ? THEN 0 ELSE 1 END,
+                si.updated_at DESC,
+                si.id DESC
+            LIMIT 1
+            """,
+            (normalized_barcode, normalized_barcode),
+        ).fetchone()
+        if row:
+            return row
+    return conn.execute(
+        """
+        SELECT *
+        FROM standalone_inventory
+        WHERE barcode = ?
+        ORDER BY updated_at DESC, id DESC
+        LIMIT 1
+        """,
+        (normalized_barcode,),
+    ).fetchone()
+
+
+def find_standalone_inventory_barcode_owner(
+    conn: Any,
+    barcode: str,
+    *,
+    exclude_item_id: int | None = None,
+) -> Any | None:
+    normalized_barcode = normalize_inventory_barcode(barcode)
+    if table_exists(conn, "standalone_inventory_barcodes"):
+        filters = ["sib.barcode = ?"]
+        params: list[Any] = [normalized_barcode]
+        if exclude_item_id is not None:
+            filters.append("si.id != ?")
+            params.append(int(exclude_item_id))
+        row = conn.execute(
+            f"""
+            SELECT si.id, si.item_name
+            FROM standalone_inventory_barcodes sib
+            JOIN standalone_inventory si
+              ON si.id = sib.inventory_item_id
+            WHERE {' AND '.join(filters)}
+            LIMIT 1
+            """,
+            tuple(params),
+        ).fetchone()
+        if row:
+            return row
+
+    filters = ["barcode = ?"]
+    params = [normalized_barcode]
+    if exclude_item_id is not None:
+        filters.append("id != ?")
+        params.append(int(exclude_item_id))
+    return conn.execute(
+        f"""
+        SELECT id, item_name
+        FROM standalone_inventory
+        WHERE {' AND '.join(filters)}
+        LIMIT 1
+        """,
+        tuple(params),
+    ).fetchone()
+
+
+def sync_standalone_inventory_item_barcodes(
+    conn: Any,
+    *,
+    item_id: int,
+    primary_barcode: str | None,
+    barcodes: list[str],
+) -> None:
+    normalized_item_id = int(item_id)
+    normalized_primary = normalize_inventory_barcode(primary_barcode) if primary_barcode else None
+    ordered_barcodes: list[str] = []
+    seen: set[str] = set()
+    for raw_barcode in ([normalized_primary] if normalized_primary else []) + list(barcodes or []):
+        barcode = normalize_inventory_barcode(raw_barcode)
+        if barcode in seen:
+            continue
+        seen.add(barcode)
+        ordered_barcodes.append(barcode)
+    effective_primary = normalized_primary or (ordered_barcodes[0] if ordered_barcodes else None)
+
+    for barcode in ordered_barcodes:
+        duplicate = find_standalone_inventory_barcode_owner(conn, barcode, exclude_item_id=normalized_item_id)
+        if duplicate:
+            raise HTTPException(
+                status_code=409,
+                detail=f'Barcode {barcode} already exists for "{duplicate["item_name"]}".',
+            )
+
+    conn.execute(
+        """
+        UPDATE standalone_inventory
+        SET barcode = ?, updated_at = CURRENT_TIMESTAMP
+        WHERE id = ?
+        """,
+        (effective_primary, normalized_item_id),
+    )
+
+    if not table_exists(conn, "standalone_inventory_barcodes"):
+        return
+
+    if ordered_barcodes:
+        placeholders = ", ".join("?" for _ in ordered_barcodes)
+        conn.execute(
+            f"""
+            DELETE FROM standalone_inventory_barcodes
+            WHERE inventory_item_id = ?
+              AND barcode NOT IN ({placeholders})
+            """,
+            (normalized_item_id, *ordered_barcodes),
+        )
+    else:
+        conn.execute(
+            "DELETE FROM standalone_inventory_barcodes WHERE inventory_item_id = ?",
+            (normalized_item_id,),
+        )
+
+    for barcode in ordered_barcodes:
+        existing = conn.execute(
+            """
+            SELECT id
+            FROM standalone_inventory_barcodes
+            WHERE barcode = ?
+            """,
+            (barcode,),
+        ).fetchone()
+        if existing:
+            conn.execute(
+                """
+                UPDATE standalone_inventory_barcodes
+                SET inventory_item_id = ?, updated_at = CURRENT_TIMESTAMP
+                WHERE id = ?
+                """,
+                (normalized_item_id, int(existing["id"])),
+            )
+            continue
+        conn.execute(
+            """
+            INSERT INTO standalone_inventory_barcodes(
+                inventory_item_id,
+                barcode,
+                created_at,
+                updated_at
+            )
+            VALUES (?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+            """,
+            (normalized_item_id, barcode),
+        )
+
+
+def merge_distinct_pipe_text(*values: Any) -> str | None:
+    parts: list[str] = []
+    seen: set[str] = set()
+    for raw_value in values:
+        for part in str(raw_value or "").split("|"):
+            clean = normalize_optional_text(part)
+            if not clean or clean in seen:
+                continue
+            seen.add(clean)
+            parts.append(clean)
+    return " | ".join(parts) if parts else None
+
+
+def normalize_inventory_unit_for_merge(value: Any) -> str | None:
+    text = normalize_optional_text(value)
+    if not text:
+        return None
+    lowered = text.lower()
+    aliases = {
+        "ea": "each",
+        "eaches": "each",
+        "each": "each",
+        "unit": "each",
+        "units": "each",
+        "count": "each",
+        "counts": "each",
+        "ct": "each",
+        "pk": "pack",
+        "pks": "pack",
+        "packs": "pack",
+        "cases": "case",
+        "boxes": "box",
+        "bags": "bag",
+        "bottles": "bottle",
+        "rolls": "roll",
+        "pairs": "pair",
+        "sets": "set",
+        "jars": "jar",
+        "cans": "can",
+        "cartons": "carton",
+        "tubs": "tub",
+        "jugs": "jug",
+        "pieces": "piece",
+        "packets": "packet",
+        "bundles": "bundle",
+    }
+    return aliases.get(lowered, lowered)
+
+
+def normalize_inventory_location_for_merge(value: Any) -> str | None:
+    text = normalize_optional_text(value)
+    if not text:
+        return None
+    try:
+        return normalize_storage_grid_location(text)
+    except HTTPException:
+        return text.upper()
+
+
+def ensure_standalone_inventory_merge_safe(source: Any, target: Any) -> None:
+    source_name = normalize_optional_text(source["item_name"]) or f'item {source["id"]}'
+    target_name = normalize_optional_text(target["item_name"]) or f'item {target["id"]}'
+    source_unit_raw = normalize_optional_text(source["unit"])
+    target_unit_raw = normalize_optional_text(target["unit"])
+    source_unit = normalize_inventory_unit_for_merge(source_unit_raw)
+    target_unit = normalize_inventory_unit_for_merge(target_unit_raw)
+    if source_unit and target_unit and source_unit != target_unit:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f'Cannot merge "{source_name}" into "{target_name}" because units differ '
+                f'({source_unit_raw} vs {target_unit_raw}). Align the units first.'
+            ),
+        )
+
+    source_location_raw = normalize_optional_text(source["location"])
+    target_location_raw = normalize_optional_text(target["location"])
+    source_location = normalize_inventory_location_for_merge(source_location_raw)
+    target_location = normalize_inventory_location_for_merge(target_location_raw)
+    if source_location and target_location and source_location != target_location:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f'Cannot merge "{source_name}" into "{target_name}" because locations differ '
+                f'({source_location_raw} vs {target_location_raw}). Move them to one location first '
+                "or keep them as separate rows."
+            ),
+        )
+
+
+def ensure_standalone_inventory_order_merge_safe(source_order_row: Any, target_order_row: Any) -> None:
+    order_id = int(source_order_row["order_id"])
+    source_unit_raw = normalize_optional_text(source_order_row["unit_snapshot"])
+    target_unit_raw = normalize_optional_text(target_order_row["unit_snapshot"])
+    source_unit = normalize_inventory_unit_for_merge(source_unit_raw)
+    target_unit = normalize_inventory_unit_for_merge(target_unit_raw)
+    if source_unit and target_unit and source_unit != target_unit:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"Cannot merge inventory items because order {order_id} has conflicting unit snapshots "
+                f"({source_unit_raw} vs {target_unit_raw}). Resolve the order rows first."
+            ),
+        )
+
+    source_purchase_unit = normalize_purchase_unit(source_order_row["purchase_unit"])
+    target_purchase_unit = normalize_purchase_unit(target_order_row["purchase_unit"])
+    source_units_per_purchase = round(normalize_units_per_purchase(source_order_row["units_per_purchase"]), 6)
+    target_units_per_purchase = round(normalize_units_per_purchase(target_order_row["units_per_purchase"]), 6)
+    if source_purchase_unit != target_purchase_unit or source_units_per_purchase != target_units_per_purchase:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"Cannot merge inventory items because order {order_id} uses different purchase packaging "
+                f"({source_purchase_unit} x {source_units_per_purchase:g} vs "
+                f"{target_purchase_unit} x {target_units_per_purchase:g}). Resolve the order rows first."
+            ),
+        )
 
 
 def build_standalone_inventory_filters(
@@ -6615,10 +7044,24 @@ def build_standalone_inventory_filters(
             (
                 "(lower(item_name) LIKE ? OR lower(COALESCE(category, '')) LIKE ? "
                 "OR lower(COALESCE(location, '')) LIKE ? OR COALESCE(barcode, '') LIKE ? "
+                "OR EXISTS ("
+                "  SELECT 1 FROM standalone_inventory_barcodes sib "
+                "  WHERE sib.inventory_item_id = standalone_inventory.id AND sib.barcode LIKE ?"
+                ") "
                 "OR lower(COALESCE(notes, '')) LIKE ? OR lower(COALESCE(order_url, '')) LIKE ?)"
             )
         )
-        params.extend([f"%{needle}%", f"%{needle}%", f"%{needle}%", f"%{needle}%", f"%{needle}%", f"%{needle}%"])
+        params.extend(
+            [
+                f"%{needle}%",
+                f"%{needle}%",
+                f"%{needle}%",
+                f"%{needle}%",
+                f"%{needle}%",
+                f"%{needle}%",
+                f"%{needle}%",
+            ]
+        )
 
     return filters, params
 
@@ -6638,7 +7081,7 @@ def query_standalone_inventory_rows(
         sql = f"{sql} LIMIT ?"
         params.append(bounded_limit)
     rows = conn.execute(sql, tuple(params)).fetchall()
-    return [format_standalone_inventory_row(row) for row in rows]
+    return format_standalone_inventory_rows(conn, rows)
 
 
 def format_standalone_inventory_order_row(row: Any) -> dict[str, Any]:
@@ -7213,10 +7656,10 @@ def search_similar_inventory_items(
     excluded = exclude_item_ids or set()
     bounded_limit = max(1, min(int(limit), 80))
     rows = conn.execute("SELECT * FROM standalone_inventory ORDER BY lower(item_name)").fetchall()
+    payload_rows = format_standalone_inventory_rows(conn, rows)
 
     scored_rows: list[dict[str, Any]] = []
-    for row in rows:
-        payload = format_standalone_inventory_row(row)
+    for payload in payload_rows:
         row_id = int(payload.get("id") or 0)
         if row_id and row_id in excluded:
             continue
@@ -7449,9 +7892,10 @@ def create_inventory_order_draft_item(
                 now,
             ),
         ).fetchone()
+        payload_row = format_standalone_inventory_rows(conn, [row])[0]
         conn.commit()
 
-    return format_standalone_inventory_row(row)
+    return payload_row
 
 
 @app.get("/api/inventory/orders")
@@ -8009,18 +8453,9 @@ def search_inventory_equivalents(
     seen_inventory_ids: set[int] = set()
     with get_connection() as conn:
         if normalized_barcode:
-            exact = conn.execute(
-                """
-                SELECT *
-                FROM standalone_inventory
-                WHERE barcode = ?
-                ORDER BY updated_at DESC, id DESC
-                LIMIT 1
-                """,
-                (normalized_barcode,),
-            ).fetchone()
+            exact = find_standalone_inventory_item_by_barcode(conn, normalized_barcode)
             if exact:
-                payload = format_standalone_inventory_row(exact)
+                payload = format_standalone_inventory_rows(conn, [exact])[0]
                 payload["match_type"] = "exact_barcode"
                 row_id = int(payload.get("id") or 0)
                 if row_id:
@@ -8161,17 +8596,8 @@ def lookup_inventory_barcode(
 ) -> dict[str, Any]:
     normalized_barcode = normalize_inventory_barcode(barcode)
     with get_connection() as conn:
-        existing = conn.execute(
-            """
-            SELECT *
-            FROM standalone_inventory
-            WHERE barcode = ?
-            ORDER BY updated_at DESC, id DESC
-            LIMIT 1
-            """,
-            (normalized_barcode,),
-        ).fetchone()
-    existing_item = format_standalone_inventory_row(existing) if existing else None
+        existing = find_standalone_inventory_item_by_barcode(conn, normalized_barcode)
+        existing_item = format_standalone_inventory_rows(conn, [existing])[0] if existing else None
     lookup_hit = lookup_inventory_product_metadata(normalized_barcode)
 
     similar_matches: list[dict[str, Any]] = []
@@ -8202,7 +8628,6 @@ def bind_inventory_barcode(
 ) -> dict[str, Any]:
     item_id = int(payload.item_id)
     barcode = normalize_inventory_barcode(payload.barcode)
-    now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
 
     with get_connection() as conn:
         item = conn.execute(
@@ -8212,48 +8637,318 @@ def bind_inventory_barcode(
         if not item:
             raise HTTPException(status_code=404, detail="Inventory item not found")
 
-        existing_barcode = normalize_optional_text(item["barcode"])
-        if existing_barcode and existing_barcode != barcode:
-            raise HTTPException(
-                status_code=409,
-                detail=(
-                    f'Item "{item["item_name"]}" already has barcode {existing_barcode}. '
-                    "Use edit mode to replace barcode."
+        existing_barcodes = load_standalone_inventory_item_barcodes(
+            conn,
+            item_id,
+            fallback_primary_barcode=item["barcode"],
+        )
+        primary_barcode = (
+            normalize_lookup_barcode_candidate(item["barcode"])
+            or (existing_barcodes[0] if existing_barcodes else None)
+            or barcode
+        )
+        next_barcodes = list(existing_barcodes)
+        if barcode not in next_barcodes:
+            next_barcodes.append(barcode)
+        sync_standalone_inventory_item_barcodes(
+            conn,
+            item_id=item_id,
+            primary_barcode=primary_barcode,
+            barcodes=next_barcodes,
+        )
+        row = conn.execute("SELECT * FROM standalone_inventory WHERE id = ?", (item_id,)).fetchone()
+        item_payload = format_standalone_inventory_rows(conn, [row])[0]
+        conn.commit()
+
+    return {
+        "status": "already_bound" if barcode in existing_barcodes else "bound",
+        "barcode": barcode,
+        "item": item_payload,
+    }
+
+
+@app.post("/api/inventory/merge")
+def merge_inventory_items(
+    payload: StandaloneInventoryMergePayload,
+    _user: Annotated[AuthUser, Depends(require_roles(ROLE_VIEWER, ROLE_PLANNER, ROLE_ADMIN))],
+) -> dict[str, Any]:
+    source_item_id = int(payload.source_item_id)
+    target_item_id = int(payload.target_item_id)
+    if source_item_id == target_item_id:
+        raise HTTPException(status_code=400, detail="Source and target inventory items must be different.")
+
+    impacted_order_ids: set[int] = set()
+
+    with get_connection() as conn:
+        rows = conn.execute(
+            """
+            SELECT *
+            FROM standalone_inventory
+            WHERE id IN (?, ?)
+            """,
+            (source_item_id, target_item_id),
+        ).fetchall()
+        rows_by_id = {int(row["id"]): row for row in rows}
+        source = rows_by_id.get(source_item_id)
+        target = rows_by_id.get(target_item_id)
+        if not source or not target:
+            raise HTTPException(status_code=404, detail="One or both inventory items were not found.")
+        ensure_standalone_inventory_merge_safe(source, target)
+
+        source_barcodes = load_standalone_inventory_item_barcodes(
+            conn,
+            source_item_id,
+            fallback_primary_barcode=source["barcode"],
+        )
+        target_barcodes = load_standalone_inventory_item_barcodes(
+            conn,
+            target_item_id,
+            fallback_primary_barcode=target["barcode"],
+        )
+        merged_primary = (
+            normalize_lookup_barcode_candidate(target["barcode"])
+            or normalize_lookup_barcode_candidate(source["barcode"])
+            or (target_barcodes[0] if target_barcodes else None)
+            or (source_barcodes[0] if source_barcodes else None)
+        )
+        merged_barcodes: list[str] = []
+        for barcode in ([merged_primary] if merged_primary else []) + target_barcodes + source_barcodes:
+            normalized = normalize_lookup_barcode_candidate(barcode)
+            if normalized and normalized not in merged_barcodes:
+                merged_barcodes.append(normalized)
+
+        source_order_rows = conn.execute(
+            """
+            SELECT *
+            FROM standalone_inventory_order_items
+            WHERE inventory_item_id = ?
+            ORDER BY order_id, id
+            """,
+            (source_item_id,),
+        ).fetchall()
+
+        for source_order_row in source_order_rows:
+            source_order_item_id = int(source_order_row["id"])
+            order_id = int(source_order_row["order_id"])
+            impacted_order_ids.add(order_id)
+
+            target_order_row = conn.execute(
+                """
+                SELECT *
+                FROM standalone_inventory_order_items
+                WHERE order_id = ?
+                  AND inventory_item_id = ?
+                LIMIT 1
+                """,
+                (order_id, target_item_id),
+            ).fetchone()
+
+            if not target_order_row:
+                conn.execute(
+                    """
+                    UPDATE standalone_inventory_order_items
+                    SET inventory_item_id = ?, updated_at = CURRENT_TIMESTAMP
+                    WHERE id = ?
+                    """,
+                    (target_item_id, source_order_item_id),
+                )
+                continue
+
+            ensure_standalone_inventory_order_merge_safe(source_order_row, target_order_row)
+            target_order_item_id = int(target_order_row["id"])
+            merged_purchase_unit = normalize_purchase_unit(
+                normalize_optional_text(target_order_row["purchase_unit"])
+                or normalize_optional_text(source_order_row["purchase_unit"])
+            )
+            merged_units_per_purchase = normalize_units_per_purchase(
+                target_order_row["units_per_purchase"]
+                if float(target_order_row["units_per_purchase"] or 0) > 0
+                else source_order_row["units_per_purchase"]
+            )
+            merged_required_quantity = round(
+                rounded_quantity(target_order_row["required_quantity"])
+                + rounded_quantity(source_order_row["required_quantity"]),
+                3,
+            )
+            merged_ordered_quantity = round(
+                rounded_quantity(target_order_row["ordered_quantity"])
+                + rounded_quantity(source_order_row["ordered_quantity"]),
+                3,
+            )
+            merged_received_quantity = round(
+                rounded_quantity(target_order_row["received_quantity"])
+                + rounded_quantity(source_order_row["received_quantity"]),
+                3,
+            )
+            merged_ordered_purchase_quantity = round(
+                rounded_quantity(target_order_row["ordered_purchase_quantity"])
+                + rounded_quantity(source_order_row["ordered_purchase_quantity"]),
+                3,
+            )
+            merged_received_purchase_quantity = round(
+                rounded_quantity(target_order_row["received_purchase_quantity"])
+                + rounded_quantity(source_order_row["received_purchase_quantity"]),
+                3,
+            )
+            merged_applied_received_quantity = round(
+                rounded_quantity(target_order_row["applied_received_quantity"])
+                + rounded_quantity(source_order_row["applied_received_quantity"]),
+                3,
+            )
+            conn.execute(
+                """
+                UPDATE standalone_inventory_order_items
+                SET item_name_snapshot = ?,
+                    category_snapshot = ?,
+                    unit_snapshot = ?,
+                    current_quantity_snapshot = ?,
+                    required_quantity = ?,
+                    ordered_quantity = ?,
+                    received_quantity = ?,
+                    purchase_unit = ?,
+                    units_per_purchase = ?,
+                    ordered_purchase_quantity = ?,
+                    received_purchase_quantity = ?,
+                    applied_received_quantity = ?,
+                    order_url_snapshot = ?,
+                    order_url_override = ?,
+                    notes = ?,
+                    ordered_by_user_id = ?,
+                    ordered_at = ?,
+                    received_by_user_id = ?,
+                    received_at = ?,
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE id = ?
+                """,
+                (
+                    normalize_optional_text(target_order_row["item_name_snapshot"])
+                    or normalize_optional_text(target["item_name"])
+                    or source_order_row["item_name_snapshot"],
+                    normalize_inventory_category(target_order_row["category_snapshot"])
+                    or normalize_inventory_category(target["category"])
+                    or normalize_inventory_category(source_order_row["category_snapshot"]),
+                    normalize_optional_text(target_order_row["unit_snapshot"])
+                    or normalize_optional_text(target["unit"])
+                    or normalize_optional_text(source_order_row["unit_snapshot"]),
+                    round(
+                        rounded_quantity(target_order_row["current_quantity_snapshot"])
+                        + rounded_quantity(source_order_row["current_quantity_snapshot"]),
+                        3,
+                    ),
+                    merged_required_quantity,
+                    merged_ordered_quantity,
+                    merged_received_quantity,
+                    merged_purchase_unit,
+                    merged_units_per_purchase,
+                    merged_ordered_purchase_quantity,
+                    merged_received_purchase_quantity,
+                    merged_applied_received_quantity,
+                    normalize_optional_text(target_order_row["order_url_snapshot"])
+                    or normalize_optional_text(source_order_row["order_url_snapshot"]),
+                    normalize_optional_text(target_order_row["order_url_override"])
+                    or normalize_optional_text(source_order_row["order_url_override"]),
+                    merge_distinct_pipe_text(target_order_row["notes"], source_order_row["notes"]),
+                    target_order_row["ordered_by_user_id"] or source_order_row["ordered_by_user_id"],
+                    target_order_row["ordered_at"] or source_order_row["ordered_at"],
+                    target_order_row["received_by_user_id"] or source_order_row["received_by_user_id"],
+                    target_order_row["received_at"] or source_order_row["received_at"],
+                    target_order_item_id,
                 ),
             )
-
-        duplicate = conn.execute(
-            """
-            SELECT id, item_name
-            FROM standalone_inventory
-            WHERE barcode = ?
-              AND id != ?
-            """,
-            (barcode, item_id),
-        ).fetchone()
-        if duplicate:
-            raise HTTPException(
-                status_code=409,
-                detail=f'Barcode {barcode} already exists for "{duplicate["item_name"]}".',
+            conn.execute(
+                """
+                UPDATE standalone_inventory_transactions
+                SET order_item_id = ?
+                WHERE order_item_id = ?
+                """,
+                (target_order_item_id, source_order_item_id),
+            )
+            conn.execute(
+                "DELETE FROM standalone_inventory_order_items WHERE id = ?",
+                (source_order_item_id,),
             )
 
         conn.execute(
             """
+            UPDATE standalone_inventory_transactions
+            SET inventory_item_id = ?
+            WHERE inventory_item_id = ?
+            """,
+            (target_item_id, source_item_id),
+        )
+        if table_exists(conn, "standalone_inventory_barcodes"):
+            conn.execute(
+                """
+                UPDATE standalone_inventory_barcodes
+                SET inventory_item_id = ?, updated_at = CURRENT_TIMESTAMP
+                WHERE inventory_item_id = ?
+                """,
+                (target_item_id, source_item_id),
+            )
+        conn.execute(
+            """
             UPDATE standalone_inventory
-            SET barcode = ?, updated_at = ?
+            SET barcode = NULL, updated_at = CURRENT_TIMESTAMP
             WHERE id = ?
             """,
-            (barcode, now, item_id),
+            (source_item_id,),
         )
-        row = conn.execute("SELECT * FROM standalone_inventory WHERE id = ?", (item_id,)).fetchone()
+
+        merged_quantity = round(
+            as_non_negative_quantity(target["quantity"]) + as_non_negative_quantity(source["quantity"]),
+            3,
+        )
+        conn.execute(
+            """
+            UPDATE standalone_inventory
+            SET item_name = ?,
+                barcode = ?,
+                quantity = ?,
+                unit = ?,
+                category = ?,
+                location = ?,
+                image_url = ?,
+                notes = ?,
+                order_url = ?,
+                import_source = ?,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+            """,
+            (
+                normalize_optional_text(target["item_name"]) or normalize_optional_text(source["item_name"]),
+                merged_primary,
+                merged_quantity,
+                normalize_optional_text(target["unit"]) or normalize_optional_text(source["unit"]),
+                normalize_inventory_category(target["category"]) or normalize_inventory_category(source["category"]),
+                normalize_optional_text(target["location"]) or normalize_optional_text(source["location"]),
+                normalize_optional_text(target["image_url"]) or normalize_optional_text(source["image_url"]),
+                merge_distinct_pipe_text(target["notes"], source["notes"]),
+                normalize_optional_text(target["order_url"]) or normalize_optional_text(source["order_url"]),
+                normalize_optional_text(target["import_source"]) or normalize_optional_text(source["import_source"]),
+                target_item_id,
+            ),
+        )
+        sync_standalone_inventory_item_barcodes(
+            conn,
+            item_id=target_item_id,
+            primary_barcode=merged_primary,
+            barcodes=merged_barcodes,
+        )
+        conn.execute("DELETE FROM standalone_inventory WHERE id = ?", (source_item_id,))
+
+        for order_id in impacted_order_ids:
+            refresh_standalone_inventory_order_status(conn, order_id)
+
+        merged_row = conn.execute("SELECT * FROM standalone_inventory WHERE id = ?", (target_item_id,)).fetchone()
+        merged_item = format_standalone_inventory_rows(conn, [merged_row])[0]
         conn.commit()
 
-    item_payload = dict(row)
-    item_payload["category"] = normalize_inventory_category(item_payload.get("category"))
     return {
-        "status": "bound",
-        "barcode": barcode,
-        "item": item_payload,
+        "status": "merged",
+        "source_item_id": source_item_id,
+        "target_item_id": target_item_id,
+        "impacted_order_count": len(impacted_order_ids),
+        "item": merged_item,
     }
 
 
@@ -8263,22 +8958,16 @@ def create_inventory_item(
     _user: Annotated[AuthUser, Depends(require_roles(ROLE_VIEWER, ROLE_PLANNER, ROLE_ADMIN))],
 ) -> dict[str, Any]:
     item_name = normalize_required_text(payload.item_name, field_name="Item name")
-    barcode = normalize_inventory_barcode(payload.barcode)
+    primary_barcode, barcodes = build_inventory_barcode_payload(
+        payload.barcode,
+        requested_barcodes=payload.barcodes,
+    )
     unit = normalize_required_text(payload.unit, field_name="Unit")
     location = normalize_storage_grid_location(payload.location)
     image_url = normalize_required_text(payload.image_url, field_name="Product image")
     category = normalize_inventory_category(payload.category)
     now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
     with get_connection() as conn:
-        duplicate = conn.execute(
-            "SELECT id, item_name FROM standalone_inventory WHERE barcode = ?",
-            (barcode,),
-        ).fetchone()
-        if duplicate:
-            raise HTTPException(
-                status_code=409,
-                detail=f'Barcode {barcode} already exists for "{duplicate["item_name"]}".',
-            )
         row = conn.execute(
             """
             INSERT INTO standalone_inventory(
@@ -8298,7 +8987,7 @@ def create_inventory_item(
             """,
             (
                 item_name,
-                barcode,
+                primary_barcode,
                 payload.quantity,
                 unit,
                 category,
@@ -8309,9 +8998,15 @@ def create_inventory_item(
                 now,
             ),
         ).fetchone()
+        sync_standalone_inventory_item_barcodes(
+            conn,
+            item_id=int(row["id"]),
+            primary_barcode=primary_barcode,
+            barcodes=barcodes,
+        )
+        row = conn.execute("SELECT * FROM standalone_inventory WHERE id = ?", (int(row["id"]),)).fetchone()
+        payload_row = format_standalone_inventory_rows(conn, [row])[0]
         conn.commit()
-    payload_row = dict(row)
-    payload_row["category"] = normalize_inventory_category(payload_row.get("category"))
     return payload_row
 
 
@@ -8322,25 +9017,25 @@ def update_inventory_item(
     _user: Annotated[AuthUser, Depends(require_roles(ROLE_VIEWER, ROLE_PLANNER, ROLE_ADMIN))],
 ) -> dict[str, Any]:
     item_name = normalize_required_text(payload.item_name, field_name="Item name")
-    barcode = normalize_inventory_barcode(payload.barcode)
     unit = normalize_required_text(payload.unit, field_name="Unit")
     location = normalize_storage_grid_location(payload.location)
     image_url = normalize_required_text(payload.image_url, field_name="Product image")
     category = normalize_inventory_category(payload.category)
     now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
     with get_connection() as conn:
-        existing = conn.execute("SELECT id FROM standalone_inventory WHERE id = ?", (item_id,)).fetchone()
+        existing = conn.execute("SELECT id, barcode FROM standalone_inventory WHERE id = ?", (item_id,)).fetchone()
         if not existing:
             raise HTTPException(status_code=404, detail="Inventory item not found")
-        duplicate = conn.execute(
-            "SELECT id, item_name FROM standalone_inventory WHERE barcode = ? AND id != ?",
-            (barcode, item_id),
-        ).fetchone()
-        if duplicate:
-            raise HTTPException(
-                status_code=409,
-                detail=f'Barcode {barcode} already exists for "{duplicate["item_name"]}".',
-            )
+        existing_barcodes = load_standalone_inventory_item_barcodes(
+            conn,
+            item_id,
+            fallback_primary_barcode=existing["barcode"],
+        )
+        primary_barcode, barcodes = build_inventory_barcode_payload(
+            payload.barcode,
+            requested_barcodes=payload.barcodes,
+            existing_barcodes=existing_barcodes,
+        )
         conn.execute(
             """
             UPDATE standalone_inventory
@@ -8349,7 +9044,7 @@ def update_inventory_item(
             """,
             (
                 item_name,
-                barcode,
+                primary_barcode,
                 payload.quantity,
                 unit,
                 category,
@@ -8360,10 +9055,114 @@ def update_inventory_item(
                 item_id,
             ),
         )
+        sync_standalone_inventory_item_barcodes(
+            conn,
+            item_id=item_id,
+            primary_barcode=primary_barcode,
+            barcodes=barcodes,
+        )
         row = conn.execute("SELECT * FROM standalone_inventory WHERE id = ?", (item_id,)).fetchone()
+        payload_row = format_standalone_inventory_rows(conn, [row])[0]
         conn.commit()
-    payload_row = dict(row)
-    payload_row["category"] = normalize_inventory_category(payload_row.get("category"))
+    return payload_row
+
+
+@app.patch("/api/inventory/{item_id}")
+def patch_inventory_item(
+    item_id: int,
+    payload: StandaloneInventoryPatch,
+    _user: Annotated[AuthUser, Depends(require_roles(ROLE_VIEWER, ROLE_PLANNER, ROLE_ADMIN))],
+) -> dict[str, Any]:
+    fields = payload.model_fields_set
+    if not fields:
+        raise HTTPException(status_code=400, detail="Provide at least one field to update.")
+
+    updates: list[str] = []
+    params: list[Any] = []
+    now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+
+    with get_connection() as conn:
+        existing = conn.execute("SELECT * FROM standalone_inventory WHERE id = ?", (item_id,)).fetchone()
+        if not existing:
+            raise HTTPException(status_code=404, detail="Inventory item not found")
+
+        current_primary_barcode = normalize_optional_text(existing["barcode"])
+        current_barcodes = load_standalone_inventory_item_barcodes(
+            conn,
+            item_id,
+            fallback_primary_barcode=current_primary_barcode,
+        )
+        barcode_fields_touched = "barcode" in fields or "barcodes" in fields
+        next_primary_barcode: str | None = current_primary_barcode
+        next_barcodes: list[str] = list(current_barcodes)
+
+        if barcode_fields_touched:
+            primary_input = current_primary_barcode
+            if "barcode" in fields:
+                primary_input = normalize_optional_text(payload.barcode)
+            requested_barcodes = current_barcodes
+            if "barcodes" in fields:
+                requested_barcodes = payload.barcodes or []
+            next_primary_barcode, next_barcodes = build_inventory_barcode_payload(
+                primary_input,
+                requested_barcodes=requested_barcodes,
+            )
+            updates.append("barcode = ?")
+            params.append(next_primary_barcode)
+
+        if "item_name" in fields:
+            updates.append("item_name = ?")
+            params.append(normalize_required_text(payload.item_name, field_name="Item name"))
+
+        if "quantity" in fields:
+            updates.append("quantity = ?")
+            params.append(float(payload.quantity))
+
+        if "unit" in fields:
+            unit_value = normalize_optional_text(payload.unit)
+            updates.append("unit = ?")
+            params.append(normalize_required_text(unit_value, field_name="Unit") if unit_value is not None else None)
+
+        if "category" in fields:
+            updates.append("category = ?")
+            params.append(normalize_inventory_category(payload.category))
+
+        if "location" in fields:
+            location_value = normalize_optional_text(payload.location)
+            updates.append("location = ?")
+            params.append(normalize_storage_grid_location(location_value) if location_value is not None else None)
+
+        if "image_url" in fields:
+            updates.append("image_url = ?")
+            params.append(normalize_optional_text(payload.image_url))
+
+        if "notes" in fields:
+            updates.append("notes = ?")
+            params.append(normalize_optional_text(payload.notes))
+
+        updates.append("updated_at = ?")
+        params.append(now)
+        params.append(item_id)
+        conn.execute(
+            f"""
+            UPDATE standalone_inventory
+            SET {', '.join(updates)}
+            WHERE id = ?
+            """,
+            tuple(params),
+        )
+
+        if barcode_fields_touched:
+            sync_standalone_inventory_item_barcodes(
+                conn,
+                item_id=item_id,
+                primary_barcode=next_primary_barcode,
+                barcodes=next_barcodes,
+            )
+
+        row = conn.execute("SELECT * FROM standalone_inventory WHERE id = ?", (item_id,)).fetchone()
+        payload_row = format_standalone_inventory_rows(conn, [row])[0]
+        conn.commit()
     return payload_row
 
 
@@ -8391,9 +9190,8 @@ def patch_inventory_item_category(
             (category, now, item_id),
         )
         row = conn.execute("SELECT * FROM standalone_inventory WHERE id = ?", (item_id,)).fetchone()
+        payload_row = format_standalone_inventory_rows(conn, [row])[0]
         conn.commit()
-    payload_row = dict(row)
-    payload_row["category"] = normalize_inventory_category(payload_row.get("category"))
     return payload_row
 
 
@@ -8421,9 +9219,8 @@ def patch_inventory_item_notes(
             (notes, now, item_id),
         )
         row = conn.execute("SELECT * FROM standalone_inventory WHERE id = ?", (item_id,)).fetchone()
+        payload_row = format_standalone_inventory_rows(conn, [row])[0]
         conn.commit()
-    payload_row = dict(row)
-    payload_row["category"] = normalize_inventory_category(payload_row.get("category"))
     return payload_row
 
 
@@ -8451,9 +9248,8 @@ def patch_inventory_item_name(
             (item_name, now, item_id),
         )
         row = conn.execute("SELECT * FROM standalone_inventory WHERE id = ?", (item_id,)).fetchone()
+        payload_row = format_standalone_inventory_rows(conn, [row])[0]
         conn.commit()
-    payload_row = dict(row)
-    payload_row["category"] = normalize_inventory_category(payload_row.get("category"))
     return payload_row
 
 

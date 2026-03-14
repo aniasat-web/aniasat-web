@@ -73,7 +73,7 @@
 
       .workflow-strip {
         display: grid;
-        grid-template-columns: repeat(3, minmax(0, 1fr));
+        grid-template-columns: repeat(4, minmax(0, 1fr));
         gap: 0.65rem;
         margin-bottom: 1rem;
       }
@@ -117,11 +117,12 @@
 
       @media (max-width: 991.98px) {
         .card-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-        .workflow-strip { grid-template-columns: 1fr; }
+        .workflow-strip { grid-template-columns: repeat(2, minmax(0, 1fr)); }
       }
 
       @media (max-width: 575.98px) {
         .card-grid { grid-template-columns: 1fr; }
+        .workflow-strip { grid-template-columns: 1fr; }
       }
 
       .journey-card {
@@ -232,12 +233,13 @@
               <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false"><i class="fa-solid fa-boxes-stacked me-1"></i> Inventory</a>
               <ul class="dropdown-menu">
                 <li><a class="dropdown-item" href="inventory-home.html"><i class="fa-solid fa-warehouse me-2"></i> Inventory Home</a></li>
-                <li><a class="dropdown-item" href="inventory-baseline.html"><i class="fa-solid fa-barcode me-2"></i> Baseline Scan</a></li>
                 <li><a class="dropdown-item" href="inventory.html?full=1"><i class="fa-solid fa-clipboard-list me-2"></i> Full Inventory</a></li>
                 <li><a class="dropdown-item" href="inventory-orders.html"><i class="fa-solid fa-list-check me-2"></i> Orders Planning</a></li>
+                <li><a class="dropdown-item" href="inventory-purchasing.html"><i class="fa-solid fa-cart-shopping me-2"></i> Purchasing</a></li>
                 <li><a class="dropdown-item" href="inventory-receiving.html"><i class="fa-solid fa-truck-ramp-box me-2"></i> Receiving</a></li>
                 <li><a class="dropdown-item" href="inventory-add.html"><i class="fa-solid fa-plus me-2"></i> Putaway / Add</a></li>
                 <li><a class="dropdown-item" href="inventory-remove.html"><i class="fa-solid fa-minus me-2"></i> Remove Inventory</a></li>
+                <li><a class="dropdown-item" href="inventory-baseline.html"><i class="fa-solid fa-barcode me-2"></i> Baseline Scan</a></li>
               </ul>
             </li>
             <li class="nav-item dropdown">
@@ -277,23 +279,27 @@
       <section class="inventory-hero">
         <div class="inventory-hero-content">
           <h1 class="fw-bold"><i class="fa-solid fa-boxes-stacked me-2"></i>Inventory</h1>
-          <p>Manage all non-food retreat operations inventory in one place: baseline scan, receiving/removing items, and order planning.</p>
+          <p>Manage all non-food retreat operations inventory in one place: full inventory review, order planning, purchasing, receiving, putaway, and day-to-day stock changes.</p>
           <p class="inventory-hero-caption"><i class="fa-solid fa-warehouse"></i> Blossom Inventory Operations</p>
         </div>
       </section>
 
       <section class="workflow-strip">
         <article class="workflow-item">
-          <div class="workflow-step">Step 1: Baseline</div>
-          <p>Scan and verify each item so quantity, category, location, and barcode are accurate.</p>
+          <div class="workflow-step">Step 1: Full Inventory</div>
+          <p>Use the main inventory table as the clean starting point for review, maintenance, and daily stock visibility.</p>
         </article>
         <article class="workflow-item">
-          <div class="workflow-step">Step 2: Maintain</div>
-          <p>Use Orders Planning to set quantities, then Receiving to log arrivals for each line item.</p>
+          <div class="workflow-step">Step 2: Plan</div>
+          <p>Use Orders Planning to set required quantities and finalize a purchaser-ready copy.</p>
         </article>
         <article class="workflow-item">
-          <div class="workflow-step">Step 3: Putaway</div>
-          <p>Move received stock to shelf locations and add quantities into live inventory counts.</p>
+          <div class="workflow-step">Step 3: Purchase</div>
+          <p>Use Purchasing as its own workspace to select the finalized order copy and place the order.</p>
+        </article>
+        <article class="workflow-item">
+          <div class="workflow-step">Step 4: Receive + Putaway</div>
+          <p>Log arrivals, then move received stock to shelf locations and update live inventory counts.</p>
         </article>
       </section>
 
@@ -310,18 +316,18 @@
     <script>
       const INVENTORY_PAGES = [
         {
-          title: "1. Baseline Scan",
-          description: "Start here: volunteer scan-and-confirm workflow for initial physical count and barcode binding.",
-          path: "inventory-baseline.html",
-          icon: "fa-barcode",
-          badge: "Volunteer",
-          color: "#14532d",
-          bg: "#dcfce7",
-          button: "Open Baseline Scan",
+          title: "1. Full Inventory",
+          description: "Primary inventory workspace for review, inline maintenance, cleanup, and day-to-day visibility.",
+          path: "inventory.html?full=1",
+          icon: "fa-clipboard-list",
+          badge: "Ops",
+          color: "#92400e",
+          bg: "#ffedd5",
+          button: "Open Full Inventory",
         },
         {
           title: "2. Orders Planning",
-          description: "Set required quantities, calculate to-order from current stock, and mark ordered amounts.",
+          description: "Set required quantities, calculate to-order from current stock, and finalize a purchaser-ready copy.",
           path: "inventory-orders.html",
           icon: "fa-list-check",
           badge: "Planner",
@@ -330,7 +336,17 @@
           button: "Open Orders Planning",
         },
         {
-          title: "3. Receiving",
+          title: "3. Purchasing",
+          description: "Standalone purchaser workspace for selecting finalized order copies and updating ordering progress.",
+          path: "inventory-purchasing.html",
+          icon: "fa-cart-shopping",
+          badge: "Purchaser",
+          color: "#0f766e",
+          bg: "#ccfbf1",
+          button: "Open Purchasing",
+        },
+        {
+          title: "4. Receiving",
           description: "Record what actually arrived for each order line, including partial deliveries.",
           path: "inventory-receiving.html",
           icon: "fa-truck-ramp-box",
@@ -340,7 +356,7 @@
           button: "Open Receiving",
         },
         {
-          title: "4. Putaway / Add",
+          title: "5. Putaway / Add",
           description: "Take received items to shelf locations and apply quantities into current inventory.",
           path: "inventory-add.html",
           icon: "fa-boxes-packing",
@@ -350,7 +366,7 @@
           button: "Open Putaway",
         },
         {
-          title: "5. Remove Inventory",
+          title: "6. Remove Inventory",
           description: "Use during retreat operations to reduce inventory when supplies are consumed.",
           path: "inventory-remove.html",
           icon: "fa-minus",
@@ -360,14 +376,14 @@
           button: "Open Remove Inventory",
         },
         {
-          title: "Full Inventory",
-          description: "Reference/admin view: complete inventory table for record review and inline maintenance.",
-          path: "inventory.html?full=1",
-          icon: "fa-clipboard-list",
-          badge: "Ops",
-          color: "#92400e",
-          bg: "#ffedd5",
-          button: "Open Full Inventory",
+          title: "7. Baseline Scan",
+          description: "Volunteer audit workflow for periodic barcode cleanup, verification, and catch-up corrections.",
+          path: "inventory-baseline.html",
+          icon: "fa-barcode",
+          badge: "Volunteer",
+          color: "#14532d",
+          bg: "#dcfce7",
+          button: "Open Baseline Scan",
         },
       ];
 

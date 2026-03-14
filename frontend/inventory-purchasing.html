@@ -226,7 +226,7 @@
       }
 
       .purchasing-table {
-        min-width: 1180px;
+        min-width: 1320px;
         margin-bottom: 0;
       }
 
@@ -237,6 +237,31 @@
         background: rgba(247, 250, 248, 0.94);
         backdrop-filter: blur(6px);
         border-bottom: 2px solid #d7e2db;
+        white-space: normal;
+        padding-top: 0.68rem;
+        padding-bottom: 0.68rem;
+      }
+
+      .table-head-label {
+        display: inline-flex;
+        flex-direction: column;
+        align-items: flex-start;
+        justify-content: center;
+        gap: 0.08rem;
+        min-height: 1.85rem;
+      }
+
+      .table-head-label.single-line {
+        min-height: auto;
+      }
+
+      .table-head-line {
+        display: block;
+        font-size: 0.74rem;
+        line-height: 1.02;
+        font-weight: 700;
+        letter-spacing: 0.01em;
+        color: #304439;
       }
 
       .purchasing-table td,
@@ -277,8 +302,8 @@
       }
 
       .item-row td {
-        padding-top: 0.66rem;
-        padding-bottom: 0.66rem;
+        padding-top: 0.54rem;
+        padding-bottom: 0.54rem;
       }
 
       .item-row:nth-of-type(even) td {
@@ -292,19 +317,28 @@
       .item-name {
         font-weight: 700;
         color: #20342a;
+        display: block;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
       }
 
-      .item-meta {
-        margin-top: 0.28rem;
-        display: inline-flex;
-        flex-wrap: wrap;
-        gap: 0.4rem;
-        align-items: center;
+      .item-col {
+        width: 210px;
+        max-width: 210px;
+        cursor: help;
       }
 
-      .item-meta-text {
-        color: var(--purchasing-muted);
-        font-size: 0.76rem;
+      .need-col {
+        width: 96px;
+        max-width: 96px;
+        white-space: nowrap;
+      }
+
+      .unit-col {
+        width: 84px;
+        max-width: 84px;
+        white-space: nowrap;
       }
 
       .status-chip {
@@ -388,22 +422,60 @@
         background: #fffefc !important;
       }
 
-      .ordered-qty-stack {
-        display: grid;
-        gap: 0.34rem;
+      .context-end {
+        border-right: 3px solid #d6e1d9;
       }
 
-      .order-unit-inline {
-        display: grid;
-        grid-template-columns: 96px 112px;
-        gap: 0.38rem;
+      .purchase-action-head {
+        background: rgba(239, 247, 241, 0.98) !important;
+      }
+
+      .order-qty-col {
+        width: 116px;
+        max-width: 116px;
+      }
+
+      .units-ordered-col {
+        width: 112px;
+        max-width: 112px;
+      }
+
+      .order-unit-size-col {
+        width: 134px;
+        max-width: 134px;
+      }
+
+      .purchase-action-start {
+        border-left: 3px solid #b7ccbd !important;
+      }
+
+      .purchase-action-cell {
+        background-image: linear-gradient(180deg, rgba(234, 244, 237, 0.5), rgba(234, 244, 237, 0.16));
+      }
+
+      .item-row:nth-of-type(even) td.purchase-action-cell {
+        background-image: linear-gradient(180deg, rgba(229, 241, 233, 0.66), rgba(229, 241, 233, 0.24));
+      }
+
+      .item-row:hover td.purchase-action-cell {
+        background: linear-gradient(180deg, #f3fbf3, #ebf6ed);
+      }
+
+      .unit-chip {
+        display: inline-flex;
         align-items: center;
+        justify-content: center;
+        border-radius: 999px;
+        border: 1px solid #cad8cf;
+        background: #ffffff;
+        color: #365143;
+        font-size: 0.76rem;
+        font-weight: 700;
+        padding: 0.18rem 0.58rem;
       }
 
-      .qty-helper {
-        font-size: 0.68rem;
-        color: var(--purchasing-muted);
-        line-height: 1.25;
+      .units-per-order-static {
+        min-width: 52px;
       }
 
       .to-order-chip {
@@ -472,10 +544,6 @@
         .metrics-grid {
           grid-template-columns: 1fr;
         }
-
-        .order-unit-inline {
-          grid-template-columns: 1fr 1fr;
-        }
       }
     </style>
     <link rel="stylesheet" href="assets/ui-theme.css" />
@@ -510,13 +578,13 @@
               <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false"><i class="fa-solid fa-boxes-stacked me-1"></i> Inventory</a>
               <ul class="dropdown-menu">
                 <li><a class="dropdown-item" href="inventory-home.html"><i class="fa-solid fa-warehouse me-2"></i> Inventory Home</a></li>
-                <li><a class="dropdown-item" href="inventory-baseline.html"><i class="fa-solid fa-barcode me-2"></i> Baseline Scan</a></li>
                 <li><a class="dropdown-item" href="inventory.html?full=1"><i class="fa-solid fa-clipboard-list me-2"></i> Full Inventory</a></li>
                 <li><a class="dropdown-item" href="inventory-orders.html"><i class="fa-solid fa-list-check me-2"></i> Orders Planning</a></li>
                 <li><a class="dropdown-item" href="inventory-purchasing.html"><i class="fa-solid fa-cart-shopping me-2"></i> Purchasing</a></li>
                 <li><a class="dropdown-item" href="inventory-receiving.html"><i class="fa-solid fa-truck-ramp-box me-2"></i> Receiving</a></li>
                 <li><a class="dropdown-item" href="inventory-add.html"><i class="fa-solid fa-plus me-2"></i> Putaway / Add</a></li>
                 <li><a class="dropdown-item" href="inventory-remove.html"><i class="fa-solid fa-minus me-2"></i> Remove Inventory</a></li>
+                <li><a class="dropdown-item" href="inventory-baseline.html"><i class="fa-solid fa-barcode me-2"></i> Baseline Scan</a></li>
               </ul>
             </li>
             <li class="nav-item dropdown">
@@ -632,15 +700,17 @@
         <div class="table-wrap">
           <table class="purchasing-table table table-sm align-middle sticky-head">
             <thead>
-              <tr class="small text-uppercase text-muted">
-                <th>Item</th>
-                <th>Category</th>
-                <th>Need to Order</th>
-                <th>Ordered Quantity</th>
-                <th>Purchase URL</th>
-                <th>Ordered?</th>
-                <th>Status</th>
-                <th>Notes</th>
+              <tr>
+                <th class="item-col"><span class="table-head-label single-line"><span class="table-head-line">Item</span></span></th>
+                <th class="need-col"><span class="table-head-label"><span class="table-head-line">Need to</span><span class="table-head-line">Order</span></span></th>
+                <th class="unit-col context-end"><span class="table-head-label single-line"><span class="table-head-line">Unit</span></span></th>
+                <th class="purchase-action-head purchase-action-start order-qty-col"><span class="table-head-label"><span class="table-head-line">Order</span><span class="table-head-line">Quantity</span></span></th>
+                <th class="purchase-action-head units-ordered-col"><span class="table-head-label"><span class="table-head-line">Units</span><span class="table-head-line">Ordered</span></span></th>
+                <th class="purchase-action-head order-unit-size-col"><span class="table-head-label"><span class="table-head-line">Order Unit</span><span class="table-head-line">Size</span></span></th>
+                <th class="purchase-action-head"><span class="table-head-label"><span class="table-head-line">Purchase</span><span class="table-head-line">URL</span></span></th>
+                <th><span class="table-head-label single-line"><span class="table-head-line">Ordered?</span></span></th>
+                <th><span class="table-head-label single-line"><span class="table-head-line">Status</span></span></th>
+                <th><span class="table-head-label single-line"><span class="table-head-line">Notes</span></span></th>
               </tr>
             </thead>
             <tbody id="purchasingBody"></tbody>
@@ -925,7 +995,7 @@
         headerTr.className = "category-row";
 
         var headerTd = document.createElement("td");
-        headerTd.colSpan = 8;
+        headerTd.colSpan = 10;
 
         var heading = document.createElement("div");
         heading.className = "category-heading";
@@ -1025,14 +1095,13 @@
         });
       }
 
-      function buildOrderedQtyHelper(row) {
+      function buildOrderedQtySummary(row) {
         var orderUnit = String(row.purchaseUnit || "unit");
-        var helper = "Order as " + orderUnit;
-        if (orderUnit !== "unit") {
-          helper += " | " + formatQty(row.unitsPerPurchase) + " " + (row.unit || "units") + "/" + orderUnit;
+        var unitLabel = row.unit || "units";
+        if (orderUnit === "unit") {
+          return "1 unit = 1 " + unitLabel + " | Total ordered: " + formatQty(row.orderedQty) + " " + unitLabel;
         }
-        helper += " | = " + formatQty(row.orderedQty) + " " + (row.unit || "units");
-        return helper;
+        return "1 " + orderUnit + " = " + formatQty(row.unitsPerPurchase) + " " + unitLabel + " | Total ordered: " + formatQty(row.orderedQty) + " " + unitLabel;
       }
 
       function renderHeaderDetails() {
@@ -1055,7 +1124,7 @@
         var rows = getFilteredRows();
 
         if (!rows.length) {
-          purchasingBody.innerHTML = '<tr><td colspan="8" class="text-muted small py-3">No lines match the current purchaser filters.</td></tr>';
+          purchasingBody.innerHTML = '<tr><td colspan="10" class="text-muted small py-3">No lines match the current purchaser filters.</td></tr>';
           renderMetrics();
           return;
         }
@@ -1071,45 +1140,60 @@
             tr.dataset.itemId = String(row.itemId);
 
             var tdItem = document.createElement("td");
-            tdItem.innerHTML =
-              '<div class="item-name">' + escapeHtml(row.name) + '</div>' +
-              '<div class="item-meta">' +
-                (row.barcode ? '<span class="item-meta-text"><i class="fa-solid fa-barcode me-1"></i>' + escapeHtml(row.barcode) + '</span>' : '') +
-                (row.location ? '<span class="item-meta-text"><i class="fa-solid fa-location-dot me-1"></i>' + escapeHtml(row.location) + '</span>' : '') +
-              '</div>';
+            tdItem.className = "item-col";
+            tdItem.title = [
+              row.name || "",
+              row.barcode ? "Barcode: " + row.barcode : "",
+              row.location ? "Location: " + row.location : "",
+            ].filter(Boolean).join("\n");
+            tdItem.innerHTML = '<div class="item-name">' + escapeHtml(row.name) + '</div>';
             tr.appendChild(tdItem);
 
-            var tdCategory = document.createElement("td");
-            tdCategory.textContent = row.categoryName || "Uncategorized";
-            tr.appendChild(tdCategory);
-
             var tdToOrder = document.createElement("td");
+            tdToOrder.className = "need-col";
             tdToOrder.innerHTML =
               '<span class="to-order-chip' + (row.toOrderQty > 0 ? "" : " done") + '">' +
-              escapeHtml(formatQty(row.toOrderQty)) + " " + escapeHtml(row.unit || "units") +
+              escapeHtml(formatQty(row.toOrderQty)) +
               '</span>';
             tr.appendChild(tdToOrder);
 
-            var tdOrderedQty = document.createElement("td");
-            tdOrderedQty.innerHTML =
-              '<div class="ordered-qty-stack">' +
-                '<input type="number" min="0" step="0.01" class="form-control form-control-sm qty-input" ' +
-                'data-item-id="' + row.itemId + '" data-field="ordered-purchase" value="' + escapeHtml(formatQty(row.orderedPurchaseQty)) + '">' +
-                '<div class="order-unit-inline">' +
-                  '<select class="form-select form-select-sm purchase-unit-select" data-item-id="' + row.itemId + '" data-field="purchase-unit" title="Order unit">' +
-                    '<option value="unit"' + (row.purchaseUnit === "unit" ? " selected" : "") + '>unit</option>' +
-                    '<option value="case"' + (row.purchaseUnit === "case" ? " selected" : "") + '>case</option>' +
-                    '<option value="pack"' + (row.purchaseUnit === "pack" ? " selected" : "") + '>pack</option>' +
-                  '</select>' +
-                  '<input type="number" min="0.001" step="0.01" class="form-control form-control-sm qty-input" ' +
-                  'data-item-id="' + row.itemId + '" data-field="units-per-purchase" value="' + escapeHtml(formatQty(row.unitsPerPurchase)) + '" title="Units per purchase"' +
-                  (row.purchaseUnit === "unit" ? " disabled" : "") + '>' +
-                '</div>' +
-                '<div class="qty-helper">' + escapeHtml(buildOrderedQtyHelper(row)) + '</div>' +
-              '</div>';
-            tr.appendChild(tdOrderedQty);
+            var tdUnit = document.createElement("td");
+            tdUnit.className = "unit-col context-end";
+            tdUnit.innerHTML = '<span class="unit-chip">' + escapeHtml(row.unit || "units") + '</span>';
+            tr.appendChild(tdUnit);
+
+            var conversionTitle = escapeHtml(buildOrderedQtySummary(row));
+
+            var tdOrderedPurchase = document.createElement("td");
+            tdOrderedPurchase.className = "purchase-action-cell purchase-action-start order-qty-col";
+            tdOrderedPurchase.innerHTML =
+              '<input type="number" min="0" step="0.01" class="form-control form-control-sm qty-input" ' +
+              'data-item-id="' + row.itemId + '" data-field="ordered-purchase" value="' + escapeHtml(formatQty(row.orderedPurchaseQty)) + '" title="' + conversionTitle + '">';
+            tr.appendChild(tdOrderedPurchase);
+
+            var tdPurchaseUnit = document.createElement("td");
+            tdPurchaseUnit.className = "purchase-action-cell units-ordered-col";
+            tdPurchaseUnit.innerHTML =
+              '<select class="form-select form-select-sm purchase-unit-select" data-item-id="' + row.itemId + '" data-field="purchase-unit" title="' + conversionTitle + '">' +
+                '<option value="unit"' + (row.purchaseUnit === "unit" ? " selected" : "") + '>unit</option>' +
+                '<option value="case"' + (row.purchaseUnit === "case" ? " selected" : "") + '>case</option>' +
+                '<option value="pack"' + (row.purchaseUnit === "pack" ? " selected" : "") + '>pack</option>' +
+              '</select>';
+            tr.appendChild(tdPurchaseUnit);
+
+            var tdUnitsPerPurchase = document.createElement("td");
+            tdUnitsPerPurchase.className = "purchase-action-cell order-unit-size-col";
+            if (row.purchaseUnit === "unit") {
+              tdUnitsPerPurchase.innerHTML = '<span class="unit-chip units-per-order-static" title="' + conversionTitle + '">1</span>';
+            } else {
+              tdUnitsPerPurchase.innerHTML =
+                '<input type="number" min="0.001" step="0.01" class="form-control form-control-sm qty-input" ' +
+                'data-item-id="' + row.itemId + '" data-field="units-per-purchase" value="' + escapeHtml(formatQty(row.unitsPerPurchase)) + '" title="' + conversionTitle + '">';
+            }
+            tr.appendChild(tdUnitsPerPurchase);
 
             var tdUrl = document.createElement("td");
+            tdUrl.className = "purchase-action-cell";
             var safeUrl = toSafeHttpUrl(row.effectiveUrl);
             tdUrl.innerHTML =
               '<div class="input-group input-group-sm">' +
@@ -1251,9 +1335,9 @@
           "Location",
           "Need to Order",
           "Unit",
-          "Purchase Unit",
-          "Units per Purchase",
-          "Ordered Purchase Qty",
+          "Order Quantity",
+          "Units Ordered",
+          "Order Unit Size",
           "Ordered Qty (Units)",
           "Purchase URL",
           "Item Status",
@@ -1272,9 +1356,9 @@
             row.location || "",
             formatQty(row.toOrderQty),
             row.unit || "",
+            formatQty(row.orderedPurchaseQty),
             row.purchaseUnit || "unit",
             formatQty(row.unitsPerPurchase),
-            formatQty(row.orderedPurchaseQty),
             formatQty(row.orderedQty),
             row.effectiveUrl || "",
             row.status || "",

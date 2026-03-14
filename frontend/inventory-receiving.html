@@ -32,6 +32,36 @@
       .status-chip.sufficient { background: #f5f5f4; color: #57534e; border-color: #d6d3d1; }
       .filter-pill { display: inline-flex; align-items: center; padding: 0.3rem 0.7rem; border-radius: 999px; font-size: 0.75rem; font-weight: 600; border: 1px solid var(--ui-border); background: #fff; cursor: pointer; }
       .filter-pill:hover, .filter-pill.active { border-color: var(--ui-primary-300); background: var(--ui-primary-100); color: var(--ui-primary-700); }
+      .scan-card { border-color: #d9e8e0; background: linear-gradient(135deg, rgba(250, 255, 253, 0.98), rgba(239, 248, 244, 0.95)); }
+      .scan-shell { display: grid; gap: 0.95rem; }
+      .scan-header { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 0.75rem; }
+      .scan-note { max-width: 72ch; color: var(--ui-muted); font-size: 0.9rem; line-height: 1.45; }
+      .scan-badge { display: inline-flex; align-items: center; border-radius: 999px; padding: 0.3rem 0.72rem; font-size: 0.75rem; font-weight: 700; border: 1px solid transparent; }
+      .scan-badge.idle { background: #eff6ff; border-color: #bfdbfe; color: #1d4ed8; }
+      .scan-badge.searching { background: #fff7ed; border-color: #fdba74; color: #9a3412; }
+      .scan-badge.choose { background: #fefce8; border-color: #fde68a; color: #854d0e; }
+      .scan-badge.matched { background: #ecfdf5; border-color: #86efac; color: #047857; }
+      .scan-badge.warn { background: #fee2e2; border-color: #fecaca; color: #991b1b; }
+      .scan-grid { display: grid; grid-template-columns: minmax(240px, 1.3fr) 160px minmax(260px, 1fr); gap: 0.8rem; align-items: end; }
+      .scan-summary { border: 1px solid #dbe7df; border-radius: 0.9rem; background: rgba(255, 255, 255, 0.84); padding: 0.72rem 0.84rem; min-height: 88px; }
+      .scan-summary-label { font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--ui-muted); font-weight: 700; margin-bottom: 0.18rem; }
+      .scan-summary-main { font-weight: 700; color: #16372d; line-height: 1.2; }
+      .scan-meta { font-size: 0.76rem; color: var(--ui-muted); line-height: 1.35; }
+      .scan-candidates { display: grid; gap: 0.55rem; }
+      .scan-candidate-btn { width: 100%; display: flex; align-items: flex-start; justify-content: space-between; gap: 0.8rem; text-align: left; border: 1px solid #d8e5dd; border-radius: 0.92rem; background: rgba(255, 255, 255, 0.96); padding: 0.72rem 0.82rem; transition: border-color 0.14s ease, box-shadow 0.14s ease, transform 0.14s ease; }
+      .scan-candidate-btn:hover { border-color: #0d9488; box-shadow: 0 0 0 3px rgba(13, 148, 136, 0.08); transform: translateY(-1px); }
+      .scan-candidate-btn.active { border-color: #0f766e; box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.12); background: #f4fdfa; }
+      .scan-candidate-name { font-weight: 700; color: #15392f; line-height: 1.2; }
+      .scan-candidate-reason { font-size: 0.73rem; color: #0f766e; font-weight: 700; margin-top: 0.22rem; }
+      .scan-candidate-meta { display: flex; flex-wrap: wrap; gap: 0.5rem; font-size: 0.72rem; color: var(--ui-muted); margin-top: 0.28rem; }
+      .scan-empty { border: 1px dashed #cddad3; border-radius: 0.9rem; background: rgba(255, 255, 255, 0.72); padding: 0.8rem 0.9rem; color: var(--ui-muted); font-size: 0.8rem; }
+      .scan-conflict { display: none; border: 1px solid #fecaca; border-radius: 0.9rem; background: rgba(255, 245, 245, 0.95); color: #7f1d1d; padding: 0.78rem 0.9rem; font-size: 0.79rem; line-height: 1.45; }
+      .scan-conflict.visible { display: block; }
+      .scan-actions { display: flex; flex-wrap: wrap; gap: 0.6rem; }
+      .scan-target-row td { box-shadow: inset 0 0 0 9999px rgba(13, 148, 136, 0.10); }
+      @media (max-width: 991.98px) {
+        .scan-grid { grid-template-columns: 1fr; }
+      }
     </style>
     <link rel="stylesheet" href="assets/ui-theme.css" />
   </head>
@@ -65,12 +95,13 @@
               <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false"><i class="fa-solid fa-boxes-stacked me-1"></i> Inventory</a>
               <ul class="dropdown-menu">
                 <li><a class="dropdown-item" href="inventory-home.html"><i class="fa-solid fa-warehouse me-2"></i> Inventory Home</a></li>
-                <li><a class="dropdown-item" href="inventory-baseline.html"><i class="fa-solid fa-barcode me-2"></i> Baseline Scan</a></li>
                 <li><a class="dropdown-item" href="inventory.html?full=1"><i class="fa-solid fa-clipboard-list me-2"></i> Full Inventory</a></li>
                 <li><a class="dropdown-item" href="inventory-orders.html"><i class="fa-solid fa-list-check me-2"></i> Orders Planning</a></li>
+                <li><a class="dropdown-item" href="inventory-purchasing.html"><i class="fa-solid fa-cart-shopping me-2"></i> Purchasing</a></li>
                 <li><a class="dropdown-item" href="inventory-receiving.html"><i class="fa-solid fa-truck-ramp-box me-2"></i> Receiving</a></li>
                 <li><a class="dropdown-item" href="inventory-add.html"><i class="fa-solid fa-plus me-2"></i> Putaway / Add</a></li>
                 <li><a class="dropdown-item" href="inventory-remove.html"><i class="fa-solid fa-minus me-2"></i> Remove Inventory</a></li>
+                <li><a class="dropdown-item" href="inventory-baseline.html"><i class="fa-solid fa-barcode me-2"></i> Baseline Scan</a></li>
               </ul>
             </li>
             <li class="nav-item dropdown">
@@ -166,6 +197,53 @@
           <button id="saveBtn" type="button" class="btn btn-sm btn-primary"><i class="fa-solid fa-floppy-disk me-1"></i>Save Receipts</button>
           <a class="btn btn-sm btn-outline-success" href="inventory-add.html"><i class="fa-solid fa-boxes-packing me-1"></i>Go To Putaway</a>
         </div>
+        <div class="small text-muted mt-2">Select the order that is physically arriving now. Orders can be received in any sequence.</div>
+      </section>
+
+      <section class="soft-card scan-card p-4 mb-4">
+        <div class="scan-shell">
+          <div class="scan-header">
+            <div>
+              <h2 class="h5 mb-1"><i class="fa-solid fa-barcode me-2 text-success"></i>Scan To Match</h2>
+              <p class="scan-note mb-0">Choose the order that is arriving, then scan items. Scans are matched against that active order first, even if orders are received out of placement sequence.</p>
+            </div>
+            <span id="scanStateBadge" class="scan-badge idle">Awaiting scan</span>
+          </div>
+
+          <div class="scan-grid">
+            <div>
+              <label class="small text-uppercase fw-semibold text-muted mb-1" for="scanBarcodeInput">Scanned Barcode</label>
+              <div class="input-group">
+                <input id="scanBarcodeInput" type="text" class="form-control" placeholder="Scan barcode..." inputmode="numeric" autocomplete="off" />
+                <button id="scanFindBtn" type="button" class="btn btn-outline-secondary"><i class="fa-solid fa-magnifying-glass me-1"></i>Find</button>
+              </div>
+            </div>
+
+            <div>
+              <label class="small text-uppercase fw-semibold text-muted mb-1" for="scanReceivedQtyInput">Received Qty</label>
+              <input id="scanReceivedQtyInput" type="number" min="0.01" step="0.01" value="1" class="form-control" />
+            </div>
+
+            <div class="scan-summary">
+              <div class="scan-summary-label">Selected Order Line</div>
+              <div id="scanSummaryMain" class="scan-summary-main">Select an order and scan an item.</div>
+              <div id="scanSummaryMeta" class="scan-meta mt-1">Received quantity will be added in the order unit for the selected line.</div>
+              <div class="form-check mt-2">
+                <input class="form-check-input" type="checkbox" id="scanBindCheckbox" checked />
+                <label class="form-check-label small" id="scanBindLabel" for="scanBindCheckbox">Remember barcode for selected item</label>
+              </div>
+            </div>
+          </div>
+
+          <div id="scanLookupMeta" class="scan-meta">Select the order being received, then scan an item. Candidate choices are restricted to that active order.</div>
+          <div id="scanConflictNote" class="scan-conflict" aria-live="polite"></div>
+          <div id="scanCandidates" class="scan-candidates"></div>
+
+          <div class="scan-actions">
+            <button id="scanApplyBtn" type="button" class="btn btn-sm btn-primary" disabled><i class="fa-solid fa-truck-ramp-box me-1"></i>Apply Receipt</button>
+            <button id="scanClearBtn" type="button" class="btn btn-sm btn-outline-secondary"><i class="fa-solid fa-xmark me-1"></i>Clear Scan</button>
+          </div>
+        </div>
       </section>
 
       <section class="soft-card p-4">
@@ -201,6 +279,19 @@
       var statusFilters = document.getElementById("statusFilters");
       var refreshBtn = document.getElementById("refreshBtn");
       var saveBtn = document.getElementById("saveBtn");
+      var scanBarcodeInput = document.getElementById("scanBarcodeInput");
+      var scanFindBtn = document.getElementById("scanFindBtn");
+      var scanReceivedQtyInput = document.getElementById("scanReceivedQtyInput");
+      var scanSummaryMain = document.getElementById("scanSummaryMain");
+      var scanSummaryMeta = document.getElementById("scanSummaryMeta");
+      var scanBindCheckbox = document.getElementById("scanBindCheckbox");
+      var scanBindLabel = document.getElementById("scanBindLabel");
+      var scanLookupMeta = document.getElementById("scanLookupMeta");
+      var scanConflictNote = document.getElementById("scanConflictNote");
+      var scanCandidates = document.getElementById("scanCandidates");
+      var scanApplyBtn = document.getElementById("scanApplyBtn");
+      var scanClearBtn = document.getElementById("scanClearBtn");
+      var scanStateBadge = document.getElementById("scanStateBadge");
 
       var statOrdered = document.getElementById("statOrdered");
       var statPending = document.getElementById("statPending");
@@ -211,6 +302,8 @@
       var activeOrder = null;
       var orderRows = [];
       var activeStatus = "all";
+      var highlightedItemId = null;
+      var scanState = createEmptyScanState();
 
       function resolveApiBase() {
         var queryValue = new URLSearchParams(window.location.search).get("api");
@@ -266,6 +359,429 @@
         if (raw === "cases" || raw === "cs") return "case";
         if (raw === "packs") return "pack";
         return raw;
+      }
+
+      function createEmptyScanState() {
+        return {
+          barcode: "",
+          normalizedBarcode: "",
+          lookupName: "",
+          lookupCategory: "",
+          lookupSource: "",
+          candidates: [],
+          selectedItemId: null,
+          mode: "idle",
+          message: "",
+          existingConflictItemId: null,
+          existingConflictName: "",
+          exactMatch: false,
+        };
+      }
+
+      function normalizeBarcodeValue(value) {
+        var digits = String(value || "").replace(/\D+/g, "");
+        if (!/^\d{8,14}$/.test(digits)) return null;
+        return digits;
+      }
+
+      function collectBarcodes(primaryBarcode, barcodeList) {
+        var seen = {};
+        var ordered = [];
+        [primaryBarcode].concat(Array.isArray(barcodeList) ? barcodeList : []).forEach(function (value) {
+          var normalized = normalizeBarcodeValue(value);
+          if (!normalized || seen[normalized]) return;
+          seen[normalized] = true;
+          ordered.push(normalized);
+        });
+        return ordered;
+      }
+
+      function normalizeSearchText(value) {
+        return String(value || "")
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, " ")
+          .trim();
+      }
+
+      function tokenizeSearchText(value) {
+        return normalizeSearchText(value)
+          .split(/\s+/)
+          .map(function (token) {
+            if (token.length > 3 && token.charAt(token.length - 1) === "s") return token.slice(0, -1);
+            return token;
+          })
+          .filter(function (token) { return token.length > 1; });
+      }
+
+      function computeNameHintScore(lookupName, rowName) {
+        var left = normalizeSearchText(lookupName);
+        var right = normalizeSearchText(rowName);
+        if (!left || !right) return 0;
+        if (left === right) return 900;
+        if (right.indexOf(left) !== -1 || left.indexOf(right) !== -1) return 520;
+
+        var leftTokens = tokenizeSearchText(left);
+        var rightTokens = tokenizeSearchText(right);
+        if (!leftTokens.length || !rightTokens.length) return 0;
+        var rightSet = {};
+        rightTokens.forEach(function (token) { rightSet[token] = true; });
+        var overlap = 0;
+        leftTokens.forEach(function (token) {
+          if (rightSet[token]) overlap += 1;
+        });
+        if (!overlap) return 0;
+        return 220 + (overlap * 80);
+      }
+
+      function remainingPurchaseQty(row) {
+        return Math.max(0, asNonNegativeNumber(row.orderedPurchaseQty) - asNonNegativeNumber(row.receivedPurchaseQty));
+      }
+
+      function describePurchaseUnit(row) {
+        return row.purchaseUnit || "unit";
+      }
+
+      function formatOrderUnitLine(row) {
+        var orderUnit = describePurchaseUnit(row);
+        var remaining = remainingPurchaseQty(row);
+        return (
+          formatQty(row.orderedPurchaseQty) + " " + orderUnit + " ordered | " +
+          formatQty(row.receivedPurchaseQty) + " " + orderUnit + " received | " +
+          formatQty(remaining) + " " + orderUnit + " open"
+        );
+      }
+
+      function getRowBarcodeList(row) {
+        return collectBarcodes(row && row.barcode, row && row.barcodes);
+      }
+
+      function getLookupName(payload) {
+        if (!payload) return "";
+        if (payload.lookup && payload.lookup.name) return String(payload.lookup.name);
+        if (payload.existing_item && payload.existing_item.item_name) return String(payload.existing_item.item_name);
+        return "";
+      }
+
+      function getLookupCategory(payload) {
+        if (!payload) return "";
+        if (payload.lookup && payload.lookup.category) return String(payload.lookup.category);
+        if (payload.existing_item && payload.existing_item.category) return String(payload.existing_item.category);
+        return "";
+      }
+
+      function scrollToRow(itemId) {
+        window.requestAnimationFrame(function () {
+          var rowEl = receivingBody.querySelector('tr[data-item-id="' + itemId + '"]');
+          if (!rowEl) return;
+          rowEl.scrollIntoView({ block: "center", behavior: "smooth" });
+        });
+      }
+
+      function updateInventoryBarcodeCache(itemId, itemPayload) {
+        if (!itemPayload) return;
+        inventoryRows = inventoryRows.map(function (row) {
+          if (Number(row.id) !== Number(itemId)) return row;
+          var next = Object.assign({}, row);
+          next.barcode = itemPayload.barcode || next.barcode || "";
+          next.barcodes = Array.isArray(itemPayload.barcodes) ? itemPayload.barcodes.slice() : collectBarcodes(itemPayload.barcode, []);
+          return next;
+        });
+      }
+
+      function buildScanCandidates(barcode, lookupPayload) {
+        var candidateMap = {};
+        var lookupName = getLookupName(lookupPayload);
+        var lookupCategory = normalizeSearchText(getLookupCategory(lookupPayload));
+
+        function ensureCandidate(row) {
+          var key = String(row.itemId);
+          if (!candidateMap[key]) {
+            candidateMap[key] = {
+              itemId: row.itemId,
+              score: 0,
+              reasons: [],
+              exactBarcode: false,
+            };
+          }
+          return candidateMap[key];
+        }
+
+        function addCandidate(row, score, reason, options) {
+          var candidate = ensureCandidate(row);
+          candidate.score += Number(score || 0);
+          if (reason && candidate.reasons.indexOf(reason) === -1) candidate.reasons.push(reason);
+          if (options && options.exactBarcode) candidate.exactBarcode = true;
+        }
+
+        orderRows.forEach(function (row) {
+          if (getRowBarcodeList(row).indexOf(barcode) !== -1) {
+            addCandidate(row, 5000, "Known barcode for this order line", { exactBarcode: true });
+          }
+        });
+
+        if (lookupPayload && lookupPayload.existing_item) {
+          var existingId = Number(lookupPayload.existing_item.id || 0);
+          var existingRow = getRowByItemId(existingId);
+          if (existingRow) {
+            addCandidate(existingRow, 2400, "Existing inventory item match");
+          } else if (existingId > 0) {
+            scanState.existingConflictItemId = existingId;
+            scanState.existingConflictName = lookupPayload.existing_item.item_name || lookupPayload.existing_item.name || ("Inventory item #" + existingId);
+          }
+        }
+
+        if (lookupPayload && Array.isArray(lookupPayload.similar_matches)) {
+          lookupPayload.similar_matches.forEach(function (match, index) {
+            var row = getRowByItemId(Number(match.id || 0));
+            if (!row) return;
+            addCandidate(row, 1600 - (index * 60), index === 0 ? "Closest active-order match" : "Similar active-order match");
+          });
+        }
+
+        orderRows.forEach(function (row) {
+          var bestNameScore = computeNameHintScore(lookupName, row.name);
+          if (bestNameScore > 0) addCandidate(row, bestNameScore, "Name hint");
+
+          if (lookupCategory && lookupCategory === normalizeSearchText(row.categoryName)) {
+            addCandidate(row, 90, "Category hint");
+          }
+
+          if (row.orderedPurchaseQty > 0) addCandidate(row, 18, "Ordered for receipt");
+          if (remainingPurchaseQty(row) > 0) addCandidate(row, 26 + Math.min(remainingPurchaseQty(row), 20), "Still open");
+          if (row.status === "RECEIVED") addCandidate(row, -18, "Already fully received");
+        });
+
+        var candidates = orderRows
+          .map(function (row) {
+            var existing = candidateMap[String(row.itemId)] || {
+              itemId: row.itemId,
+              score: row.orderedPurchaseQty > 0 ? 12 : 0,
+              reasons: [],
+              exactBarcode: false,
+            };
+            return existing;
+          })
+          .sort(function (a, b) {
+            if (!!a.exactBarcode !== !!b.exactBarcode) return a.exactBarcode ? -1 : 1;
+            if (b.score !== a.score) return b.score - a.score;
+            var rowA = getRowByItemId(a.itemId);
+            var rowB = getRowByItemId(b.itemId);
+            var openA = rowA ? remainingPurchaseQty(rowA) : 0;
+            var openB = rowB ? remainingPurchaseQty(rowB) : 0;
+            if (openB !== openA) return openB - openA;
+            return String((rowA && rowA.name) || "").localeCompare(String((rowB && rowB.name) || ""));
+          });
+
+        return candidates;
+      }
+
+      function renderScanPanel() {
+        var activeOrderName = activeOrder ? (activeOrder.name || ("Order #" + activeOrder.id)) : "No order selected";
+        var selectedRow = scanState.selectedItemId ? getRowByItemId(scanState.selectedItemId) : null;
+        var badgeClass = scanState.mode || "idle";
+        var badgeText = "Awaiting scan";
+        var bindLabel = "Remember barcode for selected item";
+        var conflictText = "";
+
+        if (badgeClass === "searching") badgeText = "Searching";
+        else if (badgeClass === "choose") badgeText = "Choose line";
+        else if (badgeClass === "matched") badgeText = "Ready to apply";
+        else if (badgeClass === "warn") badgeText = "Review match";
+
+        scanStateBadge.className = "scan-badge " + badgeClass;
+        scanStateBadge.textContent = badgeText;
+        scanBarcodeInput.disabled = !activeOrder;
+        scanFindBtn.disabled = !activeOrder;
+        scanBarcodeInput.placeholder = activeOrder ? "Scan barcode..." : "Select an order first";
+
+        if (!activeOrder) {
+          scanSummaryMain.textContent = "Select an order before scanning.";
+          scanSummaryMeta.textContent = "Receiving is always matched against the currently selected order.";
+        } else if (selectedRow) {
+          scanSummaryMain.textContent = selectedRow.name;
+          scanSummaryMeta.textContent = formatOrderUnitLine(selectedRow);
+        } else if (scanState.candidates.length) {
+          scanSummaryMain.textContent = "Choose the matching order line";
+          scanSummaryMeta.textContent = "Candidates are limited to " + activeOrderName + ".";
+        } else {
+          scanSummaryMain.textContent = "Scan against " + activeOrderName;
+          scanSummaryMeta.textContent = "Received quantity will be added in the order unit for the selected line.";
+        }
+
+        var lookupBits = [];
+        lookupBits.push("Active order: " + activeOrderName + ".");
+        if (scanState.normalizedBarcode) lookupBits.push("Scanned barcode: " + scanState.normalizedBarcode + ".");
+        if (scanState.lookupName) lookupBits.push("Lookup: " + scanState.lookupName + (scanState.lookupSource ? " (" + scanState.lookupSource + ")." : "."));
+        if (scanState.existingConflictName) lookupBits.push("Barcode is currently bound to \"" + scanState.existingConflictName + "\" outside this order.");
+        if (!scanState.normalizedBarcode) lookupBits.push("Candidate choices are restricted to the active order.");
+        scanLookupMeta.textContent = lookupBits.join(" ");
+
+        if (selectedRow) {
+          var knownForRow = getRowBarcodeList(selectedRow).indexOf(scanState.normalizedBarcode) !== -1;
+          if (knownForRow) {
+            scanBindCheckbox.checked = false;
+            scanBindCheckbox.disabled = true;
+            bindLabel = "Barcode already known for \"" + selectedRow.name + "\"";
+          } else if (scanState.existingConflictItemId && scanState.existingConflictItemId !== selectedRow.itemId) {
+            scanBindCheckbox.disabled = false;
+            bindLabel = "Move barcode to \"" + selectedRow.name + "\"";
+            conflictText = "This barcode is currently attached to \"" + scanState.existingConflictName + "\" outside the active order. Leave this unchecked to receive the item without changing barcode bindings. Check it only if this scanned product should now become the barcode for \"" + selectedRow.name + "\".";
+          } else {
+            scanBindCheckbox.disabled = false;
+            if (scanState.normalizedBarcode) bindLabel = "Remember barcode for \"" + selectedRow.name + "\"";
+          }
+        } else {
+          scanBindCheckbox.disabled = false;
+          if (scanState.existingConflictName) {
+            conflictText = "This barcode is currently attached to \"" + scanState.existingConflictName + "\" outside the active order. Choose the matching order line before applying receipt.";
+          }
+        }
+        scanBindLabel.textContent = bindLabel;
+        scanConflictNote.textContent = conflictText;
+        scanConflictNote.classList.toggle("visible", !!conflictText);
+
+        if (!activeOrder) {
+          scanCandidates.innerHTML = '<div class="scan-empty">Select the order being received before scanning.</div>';
+        } else if (!scanState.normalizedBarcode) {
+          scanCandidates.innerHTML = '<div class="scan-empty">Scanned items will show candidate order lines here. If the barcode is new, you will choose from names already on the active order.</div>';
+        } else if (!scanState.candidates.length) {
+          scanCandidates.innerHTML = '<div class="scan-empty">No candidate order lines are available in the active order. Check that you selected the correct order above.</div>';
+        } else {
+          scanCandidates.innerHTML = scanState.candidates.map(function (candidate) {
+            var row = getRowByItemId(candidate.itemId);
+            if (!row) return "";
+            var reason = candidate.reasons.length ? candidate.reasons[0] : "Available order line";
+            return (
+              '<button type="button" class="scan-candidate-btn' + (scanState.selectedItemId === row.itemId ? ' active' : '') + '" data-action="pick-scan-candidate" data-item-id="' + row.itemId + '">' +
+                '<div>' +
+                  '<div class="scan-candidate-name">' + escapeHtml(row.name) + '</div>' +
+                  '<div class="scan-candidate-reason">' + escapeHtml(reason) + '</div>' +
+                  '<div class="scan-candidate-meta">' +
+                    '<span>' + escapeHtml(formatOrderUnitLine(row)) + '</span>' +
+                  '</div>' +
+                '</div>' +
+                '<span class="status-chip ' + statusClass(row.status) + '">' + escapeHtml(statusLabel(row.status)) + '</span>' +
+              '</button>'
+            );
+          }).join("");
+        }
+
+        scanApplyBtn.disabled = !activeOrder || !selectedRow || asNonNegativeNumber(scanReceivedQtyInput.value) <= 0;
+      }
+
+      function resetScanState(options) {
+        var opts = options || {};
+        scanState = createEmptyScanState();
+        if (!opts.preserveBarcodeInput) scanBarcodeInput.value = "";
+        if (!opts.preserveQty) scanReceivedQtyInput.value = "1";
+        if (!opts.preserveBindChoice) scanBindCheckbox.checked = true;
+        if (!opts.preserveHighlight) highlightedItemId = null;
+        renderScanPanel();
+      }
+
+      async function lookupBarcode(barcode) {
+        var response = await fetch(apiUrl("/api/inventory/barcode-lookup/" + encodeURIComponent(barcode)), { credentials: "include" });
+        if (!response.ok) throw new Error(await parseApiError(response));
+        return response.json();
+      }
+
+      async function bindBarcodeToInventoryItem(itemId, barcode) {
+        var response = await fetch(apiUrl("/api/inventory/barcode-bind"), {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ item_id: itemId, barcode: barcode }),
+        });
+        if (!response.ok) throw new Error(await parseApiError(response));
+        return response.json();
+      }
+
+      function selectScanCandidate(itemId) {
+        if (!itemId) return;
+        scanState.selectedItemId = itemId;
+        scanState.mode = "matched";
+        highlightedItemId = itemId;
+        renderTable();
+        renderScanPanel();
+        scrollToRow(itemId);
+      }
+
+      async function handleBarcodeScan() {
+        if (!activeOrder || !activeOrder.id) throw new Error("Select the order being received first.");
+        var normalized = normalizeBarcodeValue(scanBarcodeInput.value);
+        if (!normalized) throw new Error("Barcode must be 8-14 digits.");
+
+        scanBindCheckbox.checked = true;
+        scanBindCheckbox.disabled = false;
+        scanState = createEmptyScanState();
+        scanState.barcode = scanBarcodeInput.value || normalized;
+        scanState.normalizedBarcode = normalized;
+        scanState.mode = "searching";
+        highlightedItemId = null;
+        renderTable();
+        renderScanPanel();
+
+        var exactRows = orderRows.filter(function (row) {
+          return getRowBarcodeList(row).indexOf(normalized) !== -1;
+        });
+        if (exactRows.length === 1) {
+          scanState.candidates = [{ itemId: exactRows[0].itemId, score: 9999, reasons: ["Known barcode for this order line"], exactBarcode: true }];
+          scanState.exactMatch = true;
+          selectScanCandidate(exactRows[0].itemId);
+          setStatus("Scanned barcode matched \"" + exactRows[0].name + "\" in the active order.", "ok");
+          return;
+        }
+
+        var lookupPayload = await lookupBarcode(normalized).catch(function () { return null; });
+        scanState.lookupName = getLookupName(lookupPayload);
+        scanState.lookupCategory = getLookupCategory(lookupPayload);
+        scanState.lookupSource = lookupPayload && lookupPayload.lookup && lookupPayload.lookup.source ? String(lookupPayload.lookup.source) : "";
+        scanState.candidates = buildScanCandidates(normalized, lookupPayload);
+        scanState.mode = scanState.candidates.length ? "choose" : "warn";
+        if (scanState.existingConflictItemId) scanBindCheckbox.checked = false;
+        renderScanPanel();
+
+        if (scanState.candidates.length === 1 || (scanState.candidates.length && scanState.candidates[0].exactBarcode)) {
+          selectScanCandidate(scanState.candidates[0].itemId);
+        } else {
+          setStatus("Choose the correct active-order line for scanned barcode " + normalized + ".", "info");
+        }
+      }
+
+      async function applyScannedReceipt() {
+        if (!activeOrder || !activeOrder.id) throw new Error("Select the order being received first.");
+        if (!scanState.selectedItemId) throw new Error("Choose the matching order line first.");
+        var qty = asNonNegativeNumber(scanReceivedQtyInput.value);
+        if (qty <= 0) throw new Error("Received quantity must be greater than zero.");
+        var row = getRowByItemId(scanState.selectedItemId);
+        if (!row) throw new Error("Selected order line is no longer available.");
+        var movedFromName = scanState.existingConflictItemId && scanState.existingConflictItemId !== row.itemId
+          ? scanState.existingConflictName
+          : "";
+        var rememberedBarcode = false;
+
+        if (scanBindCheckbox.checked && scanState.normalizedBarcode && getRowBarcodeList(row).indexOf(scanState.normalizedBarcode) === -1) {
+          var bindPayload = await bindBarcodeToInventoryItem(row.itemId, scanState.normalizedBarcode);
+          updateInventoryBarcodeCache(row.itemId, bindPayload.item || null);
+          row.barcodes = collectBarcodes(bindPayload.item && bindPayload.item.barcode, bindPayload.item && bindPayload.item.barcodes);
+          row.barcode = bindPayload.item && bindPayload.item.barcode ? bindPayload.item.barcode : row.barcode;
+          rememberedBarcode = true;
+        }
+
+        row.receivedPurchaseQty = asNonNegativeNumber(row.receivedPurchaseQty + qty);
+        recomputeRow(row);
+        highlightedItemId = row.itemId;
+        renderTable();
+        setStatus(
+          "Applied " + formatQty(qty) + " " + describePurchaseUnit(row) + " received to \"" + row.name + "\"." +
+          (rememberedBarcode && movedFromName ? " Barcode moved from \"" + movedFromName + "\"." : "") +
+          (rememberedBarcode && !movedFromName ? " Barcode remembered for future scans." : "") +
+          " Save receipts to persist.",
+          "ok"
+        );
+        resetScanState({ preserveHighlight: true });
+        scrollToRow(row.itemId);
+        scanBarcodeInput.focus();
       }
 
       function deriveRowStatus(row) {
@@ -335,8 +851,10 @@
           var orderItem = byInventoryId[itemId] || null;
           var row = {
             itemId: itemId,
+            orderItemId: orderItem ? Number(orderItem.id || 0) : 0,
             name: orderItem && orderItem.item_name_snapshot ? orderItem.item_name_snapshot : (inventory.item_name || "Unknown"),
             barcode: inventory.barcode || "",
+            barcodes: collectBarcodes(inventory.barcode, inventory.barcodes),
             categoryName: inventory.category || "",
             unit: orderItem && orderItem.unit_snapshot ? orderItem.unit_snapshot : (inventory.unit || "each"),
             requiredQty: orderItem ? asNonNegativeNumber(orderItem.required_quantity) : 0,
@@ -423,6 +941,7 @@
         rows.forEach(function (row) {
           var tr = document.createElement("tr");
           tr.dataset.itemId = String(row.itemId);
+          if (highlightedItemId === row.itemId) tr.className = "scan-target-row";
 
           var tdItem = document.createElement("td");
           tdItem.innerHTML =
@@ -514,6 +1033,7 @@
         orderNotesInput.value = activeOrder.notes || "";
         buildOrderRows();
         renderTable();
+        resetScanState();
       }
 
       function collectPayloadItems() {
@@ -556,6 +1076,7 @@
         renderOrderSelect();
         buildOrderRows();
         renderTable();
+        resetScanState();
         setStatus("Receipt updates saved.", "ok");
       }
 
@@ -570,6 +1091,7 @@
           activeOrder = null;
           orderRows = [];
           renderTable();
+          resetScanState();
           setStatus("No orders available yet.", "ok");
           return;
         }
@@ -578,6 +1100,7 @@
           ? previousId
           : Number(orderList[0].id);
         await loadOrderById(targetId);
+        renderScanPanel();
         setStatus("Receiving workspace ready.", "ok");
       }
 
@@ -586,6 +1109,8 @@
         if (!selectedId) return;
         void loadOrderById(selectedId).catch(function (error) {
           setStatus(error instanceof Error ? error.message : "Could not load order.", "err");
+        }).finally(function () {
+          scanBarcodeInput.focus();
         });
       });
 
@@ -615,29 +1140,83 @@
           row.purchaseUnit = normalizePurchaseUnit(target.value);
           recomputeRow(row);
           renderTable();
+          renderScanPanel();
           return;
         }
         if (field === "units-per-purchase" && target instanceof HTMLInputElement) {
           row.unitsPerPurchase = asNonNegativeNumber(target.value);
           recomputeRow(row);
           renderTable();
+          renderScanPanel();
           return;
         }
         if (field === "ordered-purchase" && target instanceof HTMLInputElement) {
           row.orderedPurchaseQty = asNonNegativeNumber(target.value);
           recomputeRow(row);
           renderTable();
+          renderScanPanel();
           return;
         }
         if (field === "received-purchase" && target instanceof HTMLInputElement) {
           row.receivedPurchaseQty = asNonNegativeNumber(target.value);
           recomputeRow(row);
           renderTable();
+          renderScanPanel();
           return;
         }
         if (field === "notes" && target instanceof HTMLInputElement) {
           row.notes = target.value || "";
         }
+      });
+
+      scanFindBtn.addEventListener("click", function () {
+        void handleBarcodeScan().catch(function (error) {
+          setStatus(error instanceof Error ? error.message : "Could not scan barcode.", "err");
+          scanState.mode = "warn";
+          renderScanPanel();
+        });
+      });
+
+      scanBarcodeInput.addEventListener("keydown", function (event) {
+        if (event.key !== "Enter") return;
+        event.preventDefault();
+        void handleBarcodeScan().catch(function (error) {
+          setStatus(error instanceof Error ? error.message : "Could not scan barcode.", "err");
+          scanState.mode = "warn";
+          renderScanPanel();
+        });
+      });
+
+      scanCandidates.addEventListener("click", function (event) {
+        var target = event.target;
+        if (!(target instanceof HTMLElement)) return;
+        var button = target.closest("button[data-action='pick-scan-candidate']");
+        if (!(button instanceof HTMLButtonElement)) return;
+        var itemId = Number(button.getAttribute("data-item-id"));
+        if (!itemId) return;
+        selectScanCandidate(itemId);
+      });
+
+      scanReceivedQtyInput.addEventListener("input", function () {
+        renderScanPanel();
+      });
+
+      scanBindCheckbox.addEventListener("change", function () {
+        renderScanPanel();
+      });
+
+      scanApplyBtn.addEventListener("click", function () {
+        void applyScannedReceipt().catch(function (error) {
+          setStatus(error instanceof Error ? error.message : "Could not apply scanned receipt.", "err");
+          scanState.mode = "warn";
+          renderScanPanel();
+        });
+      });
+
+      scanClearBtn.addEventListener("click", function () {
+        resetScanState();
+        setStatus("Scan selection cleared.", "ok");
+        scanBarcodeInput.focus();
       });
 
       refreshBtn.addEventListener("click", function () {
@@ -655,6 +1234,7 @@
       async function init() {
         try {
           await refreshAll({ preserveOrder: false });
+          scanBarcodeInput.focus();
         } catch (error) {
           setStatus(error instanceof Error ? error.message : "Could not load receiving page.", "err");
         }

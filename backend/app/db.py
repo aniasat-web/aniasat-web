@@ -575,6 +575,68 @@ def migrate_standalone_inventory_order_urls(conn: CompatConnection) -> None:
             )
 
 
+def migrate_standalone_inventory_barcodes(conn: CompatConnection) -> None:
+    if not table_exists(conn, "standalone_inventory"):
+        return
+    if not table_exists(conn, "standalone_inventory_barcodes"):
+        return
+
+    rows = conn.execute(
+        """
+        SELECT id, barcode
+        FROM standalone_inventory
+        WHERE trim(COALESCE(barcode, '')) <> ''
+        """
+    ).fetchall()
+
+    for row in rows:
+        item_id = int(row["id"])
+        barcode = normalize_optional_text(row["barcode"])
+        if not barcode:
+            continue
+
+        existing = conn.execute(
+            """
+            SELECT inventory_item_id
+            FROM standalone_inventory_barcodes
+            WHERE barcode = ?
+            """,
+            (barcode,),
+        ).fetchone()
+        if existing and int(existing["inventory_item_id"]) != item_id:
+            LOGGER.warning(
+                "Skipping standalone inventory barcode migration for barcode %s because it already belongs to item %s.",
+                barcode,
+                existing["inventory_item_id"],
+            )
+            continue
+
+        linked = conn.execute(
+            """
+            SELECT id
+            FROM standalone_inventory_barcodes
+            WHERE inventory_item_id = ?
+              AND barcode = ?
+            """,
+            (item_id, barcode),
+        ).fetchone()
+        if linked:
+            continue
+
+        conn.execute(
+            """
+            INSERT INTO standalone_inventory_barcodes(
+                inventory_item_id,
+                barcode,
+                created_at,
+                updated_at
+            )
+            VALUES (?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+            """,
+            (item_id, barcode),
+        )
+
+
 def ensure_retreat_inventory_location(conn: CompatConnection, location_name: str) -> int:
     clean_name = str(location_name or "").strip()
     if not clean_name:
@@ -771,6 +833,11 @@ def init_db(_allow_malformed_recovery: bool = True) -> None:
             standalone_inventory_columns = table_columns(conn, "standalone_inventory")
             if standalone_inventory_columns and "barcode" in standalone_inventory_columns:
                 conn.execute("CREATE INDEX IF NOT EXISTS idx_standalone_inventory_barcode ON standalone_inventory(barcode)")
+            if table_exists(conn, "standalone_inventory_barcodes"):
+                conn.execute(
+                    "CREATE INDEX IF NOT EXISTS idx_standalone_inventory_barcodes_item_id ON standalone_inventory_barcodes(inventory_item_id)"
+                )
+                migrate_standalone_inventory_barcodes(conn)
             if standalone_inventory_columns and "order_url" in standalone_inventory_columns:
                 migrate_standalone_inventory_order_urls(conn)
             if standalone_inventory_columns and "category" in standalone_inventory_columns:

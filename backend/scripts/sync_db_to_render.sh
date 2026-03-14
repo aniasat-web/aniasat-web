@@ -220,6 +220,10 @@ remote_db_local = Path(r'''${TMP_REMOTE_DB_LOCAL_PATH}''')
 inventory_tables = [
     "inventory_product_catalog",
     "standalone_inventory",
+    "standalone_inventory_barcodes",
+    "standalone_inventory_orders",
+    "standalone_inventory_order_items",
+    "standalone_inventory_transactions",
     "inventory_items",
     "retreat_inventory_categories",
     "retreat_inventory_items",

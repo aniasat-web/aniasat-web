@@ -870,7 +870,8 @@ Notes:
 - `sync_db_to_render.sh` full sync now creates a local SQLite backup snapshot before upload,
   so pending WAL changes are included in what gets pushed.
 - `sync_db_to_render.sh --scope inventory` overwrites only inventory tables on Render
-  (`inventory_product_catalog`, `standalone_inventory`, `inventory_items`, and `retreat_inventory_*`).
+  (`inventory_product_catalog`, `standalone_inventory`, `standalone_inventory_*`,
+  `inventory_items`, and `retreat_inventory_*`).
 - Default remote DB path is `/opt/render/project/src/backend/data/retreat_ops.db`.
 - `sync_db_to_render.sh` creates a remote pre-sync backup unless `--skip-remote-backup` is set.
 - Restart the Render service after push so all workers use the updated file.

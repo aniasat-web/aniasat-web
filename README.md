@@ -174,6 +174,29 @@ Keep that file updated so new sessions start with the same Inventory context.
 
 ### Inventory Change Log
 
+#### 2026-03-13
+
+- Standalone inventory now supports multiple barcodes:
+  - Added `standalone_inventory_barcodes`.
+  - Barcode bind/lookup now works with barcode aliases instead of a single barcode per item.
+  - Added duplicate-item merge support with safety checks that block incompatible merges (for example mixed unit/location or conflicting order packaging).
+- Full inventory save reliability was improved:
+  - The edit modal now uses partial `PATCH` updates so editing one field does not fail because unrelated fields are incomplete.
+  - Full inventory UI now supports editing/showing multiple barcodes on one item.
+- Planning and purchasing workflow was refined:
+  - `inventory-purchasing.html` remains the standalone purchaser workspace and is now surfaced directly in Inventory navigation and Inventory Home.
+  - `inventory-orders.html` was updated to a purchaser-style layout, with a cleaner fixed-width item column, category-first filter placement, and redundant planning columns removed.
+  - `Finalize` now creates a purchaser copy for the active planning order.
+  - Directly opening the current order in purchaser view is still available as an advanced option for overlapping volunteer work.
+  - Planning row notes transfer into purchaser rows, and order-level notes now carry into the finalized purchaser copy.
+- Inventory Home and Inventory nav were updated for steady-state operations:
+  - `Full Inventory` is now the primary top-level inventory workspace.
+  - `Baseline Scan` is still available, but is treated more like periodic audit / cleanup rather than the default entry point.
+- Render inventory sync follow-up:
+  - The inventory-only sync script originally missed `standalone_inventory_barcodes`, `standalone_inventory_orders`, `standalone_inventory_order_items`, and `standalone_inventory_transactions`.
+  - `backend/scripts/sync_db_to_render.sh --scope inventory` now includes those standalone inventory tables.
+  - Verified on the Render host that standalone orders such as `Order 1:  Dining Dishes PPE (Purchasing)` were present after the corrected sync.
+
 #### 2026-03-01
 
 - Removed `frontend/inventory-current.html` and all navigation links/cards that pointed to the old Current Inventory page.

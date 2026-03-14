@@ -544,6 +544,13 @@
             <select id="orderSelect" class="form-select form-select-sm"></select>
           </div>
           <div class="toolbar-box">
+            <div class="order-meta-label mb-2">View</div>
+            <div class="d-flex flex-wrap gap-2" id="scopeFilters">
+              <button type="button" class="filter-pill" data-scope="order">Order Items</button>
+              <button type="button" class="filter-pill active" data-scope="all">Full Inventory</button>
+            </div>
+          </div>
+          <div class="toolbar-box">
             <div class="row g-3">
               <div class="col-lg-4">
                 <label class="order-meta-label mb-1" for="orderNameInput">Order Name</label>
@@ -689,6 +696,7 @@
       var addNewItemBtn = document.getElementById("addNewItemBtn");
       var exportCsvBtn = document.getElementById("exportCsvBtn");
       var orderSelect = document.getElementById("orderSelect");
+      var scopeFilters = document.getElementById("scopeFilters");
       var orderNameInput = document.getElementById("orderNameInput");
       var orderNotesInput = document.getElementById("orderNotesInput");
 
@@ -718,6 +726,7 @@
       var orderRows = [];
       var activeCategories = new Set();
       var activeStatus = "all";
+      var activeScope = "all";
 
       function resolveApiBase() {
         var queryValue = new URLSearchParams(window.location.search).get("api");
@@ -834,6 +843,19 @@
         return "sufficient";
       }
 
+      function defaultScopeForActiveOrder() {
+        return activeOrder && Array.isArray(activeOrder.items) && activeOrder.items.length ? "order" : "all";
+      }
+
+      function rowIsIncludedInCurrentOrder(row) {
+        return Boolean(row && row.includedInOrder) || isNonEmptyOrderRow(row);
+      }
+
+      function getScopeRows() {
+        if (activeScope !== "order") return orderRows;
+        return orderRows.filter(rowIsIncludedInCurrentOrder);
+      }
+
       function hasCategoryFilter() {
         return activeCategories.size > 0;
       }
@@ -846,8 +868,8 @@
       function pruneActiveCategories() {
         if (!hasCategoryFilter()) return;
         var available = {};
-        inventoryRows.forEach(function (row) {
-          var category = String(row.category || "").trim();
+        getScopeRows().forEach(function (row) {
+          var category = String(row.categoryName || row.category || "").trim();
           if (!category) return;
           available[category] = true;
         });
@@ -861,6 +883,18 @@
         if (renameOrderBtn) renameOrderBtn.disabled = !hasActiveOrder;
         if (deleteOrderBtn) deleteOrderBtn.disabled = !hasActiveOrder;
         if (openPurchasingViewBtn) openPurchasingViewBtn.disabled = !hasActiveOrder;
+      }
+
+      function renderScopeFilters() {
+        if (!scopeFilters) return;
+        var hasOrderRows = orderRows.some(rowIsIncludedInCurrentOrder);
+        Array.from(scopeFilters.querySelectorAll(".filter-pill")).forEach(function (node) {
+          var scope = node.dataset.scope || "all";
+          node.classList.toggle("active", scope === activeScope);
+          if (node instanceof HTMLButtonElement && scope === "order") {
+            node.disabled = !hasOrderRows;
+          }
+        });
       }
 
       function renderHeaderDetails() {
@@ -959,6 +993,7 @@
           name: orderItem && orderItem.item_name_snapshot ? orderItem.item_name_snapshot : (inventory.item_name || "Unknown"),
           barcode: inventory.barcode || "",
           categoryName: inventory.category || "",
+          location: inventory.location || "",
           currentStock: currentStock,
           liveStock: asNonNegativeNumber(inventory.quantity),
           unit: orderItem && orderItem.unit_snapshot ? orderItem.unit_snapshot : (inventory.unit || "each"),
@@ -975,6 +1010,36 @@
           effectiveUrl: "",
           notes: orderItem ? (orderItem.notes || "") : "",
           status: "NOT_ORDERED",
+          includedInOrder: Boolean(orderItem),
+        };
+        recomputeRow(row);
+        return row;
+      }
+
+      function makeRowFromOrderItem(orderItem) {
+        var row = {
+          itemId: Number(orderItem.inventory_item_id),
+          name: orderItem.item_name_snapshot || orderItem.inventory_item_name || "Unknown",
+          barcode: orderItem.inventory_barcode || "",
+          categoryName: orderItem.category_snapshot || orderItem.inventory_category || "",
+          location: orderItem.inventory_location || "",
+          currentStock: asNonNegativeNumber(orderItem.current_quantity_snapshot),
+          liveStock: asNonNegativeNumber(orderItem.inventory_quantity),
+          unit: orderItem.unit_snapshot || orderItem.inventory_unit || "each",
+          requiredQty: asNonNegativeNumber(orderItem.required_quantity),
+          orderedQty: asNonNegativeNumber(orderItem.ordered_quantity),
+          receivedQty: asNonNegativeNumber(orderItem.received_quantity),
+          purchaseUnit: normalizePurchaseUnit(orderItem.purchase_unit || "unit"),
+          unitsPerPurchase: asNonNegativeNumber(orderItem.units_per_purchase || 1),
+          orderedPurchaseQty: asNonNegativeNumber(orderItem.ordered_purchase_quantity || 0),
+          receivedPurchaseQty: asNonNegativeNumber(orderItem.received_purchase_quantity || 0),
+          toOrderQty: 0,
+          defaultOrderUrl: orderItem.order_url_snapshot || orderItem.inventory_order_url || "",
+          orderUrlOverride: orderItem.order_url_override || "",
+          effectiveUrl: "",
+          notes: orderItem.notes || "",
+          status: "NOT_ORDERED",
+          includedInOrder: true,
         };
         recomputeRow(row);
         return row;
@@ -982,6 +1047,7 @@
 
       function buildOrderRows() {
         var byInventoryId = {};
+        var seenInventoryIds = {};
         if (activeOrder && Array.isArray(activeOrder.items)) {
           activeOrder.items.forEach(function (item) {
             byInventoryId[Number(item.inventory_item_id)] = item;
@@ -989,20 +1055,32 @@
         }
 
         orderRows = inventoryRows.map(function (inventory) {
+          seenInventoryIds[Number(inventory.id)] = true;
           var orderItem = byInventoryId[Number(inventory.id)] || null;
           return makeRowFromInventory(inventory, orderItem);
         });
 
+        if (activeOrder && Array.isArray(activeOrder.items)) {
+          activeOrder.items.forEach(function (item) {
+            var inventoryItemId = Number(item.inventory_item_id);
+            if (seenInventoryIds[inventoryItemId]) return;
+            orderRows.push(makeRowFromOrderItem(item));
+          });
+        }
+
         orderRows.sort(function (a, b) {
           return String(a.name || "").localeCompare(String(b.name || ""));
         });
+        renderScopeFilters();
+        renderCategoryFilterPills();
       }
 
       function renderStats() {
+        var scopedRows = getScopeRows();
         var toOrderCount = 0;
         var orderedCount = 0;
         var missingLinksCount = 0;
-        orderRows.forEach(function (row) {
+        scopedRows.forEach(function (row) {
           if (row.status === "NOT_ORDERED" && row.toOrderQty > 0) toOrderCount++;
           if (row.status === "ORDERED") orderedCount++;
           if (isPurchasingActionRow(row) && !toSafeHttpUrl(row.effectiveUrl)) missingLinksCount++;
@@ -1010,12 +1088,12 @@
 
         statToOrder.textContent = String(toOrderCount);
         statOrdered.textContent = String(orderedCount);
-        statTotal.textContent = String(orderRows.length);
+        statTotal.textContent = String(scopedRows.length);
         statMissingLinks.textContent = String(missingLinksCount);
         summaryToOrder.textContent = String(toOrderCount);
         summaryOrdered.textContent = String(orderedCount);
         summaryMissingLinks.textContent = String(missingLinksCount);
-        summaryTotal.textContent = String(orderRows.length);
+        summaryTotal.textContent = String(scopedRows.length);
       }
 
       function renderCategoryFilterPills() {
@@ -1030,8 +1108,8 @@
 
         var seen = {};
         var categories = [];
-        inventoryRows.forEach(function (row) {
-          var category = String(row.category || "").trim();
+        getScopeRows().forEach(function (row) {
+          var category = String(row.categoryName || row.category || "").trim();
           if (!category) return;
           var key = category.toLowerCase();
           if (seen[key]) return;
@@ -1066,7 +1144,7 @@
       }
 
       function getFilteredRows() {
-        return orderRows.filter(function (row) {
+        return getScopeRows().filter(function (row) {
           if (hasCategoryFilter() && !activeCategories.has(row.categoryName)) return false;
           if (activeStatus !== "all" && row.status !== activeStatus) return false;
           return true;
@@ -1137,10 +1215,17 @@
 
       function renderTable() {
         orderBody.innerHTML = "";
+        renderScopeFilters();
         var rows = getFilteredRows();
 
         if (!rows.length) {
-          orderBody.innerHTML = '<tr><td colspan="8" class="text-muted small py-3">No items match your filters.</td></tr>';
+          var hasFiltersApplied = hasCategoryFilter() || activeStatus !== "all";
+          var emptyMessage = hasFiltersApplied
+            ? "No items match your filters."
+            : (activeScope === "order"
+              ? "No items are included in this order yet. Switch to Full Inventory to add items."
+              : "No items match your filters.");
+          orderBody.innerHTML = '<tr><td colspan="8" class="text-muted small py-3">' + escapeHtml(emptyMessage) + '</td></tr>';
           renderStats();
           return;
         }
@@ -1243,11 +1328,12 @@
       }
 
       async function createNewOrder(defaultName) {
+        var nextName = String(defaultName || "").trim() || "Inventory Order";
         var response = await fetch(apiUrl("/api/inventory/orders"), {
           method: "POST",
           credentials: "include",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ name: defaultName || null, notes: null, items: [] }),
+          body: JSON.stringify({ name: nextName, notes: null, items: [] }),
         });
         if (!response.ok) throw new Error(await parseApiError(response));
         return response.json();
@@ -1267,6 +1353,7 @@
       async function loadOrderById(orderId) {
         if (!orderId) return;
         activeOrder = await fetchOrderDetail(orderId);
+        activeScope = defaultScopeForActiveOrder();
         syncOrderQueryParam(activeOrder && activeOrder.id ? Number(activeOrder.id) : null);
         renderOrderSelect();
         orderNameInput.value = activeOrder.name || "";
@@ -1619,6 +1706,21 @@
         renderCategoryFilterPills();
         renderTable();
       });
+
+      if (scopeFilters) {
+        scopeFilters.addEventListener("click", function (event) {
+          var target = event.target;
+          if (!(target instanceof HTMLElement)) return;
+          var pill = target.closest(".filter-pill");
+          if (!(pill instanceof HTMLElement)) return;
+          var nextScope = pill.dataset.scope || "all";
+          if (nextScope !== "all" && nextScope !== "order") return;
+          activeScope = nextScope;
+          renderScopeFilters();
+          renderCategoryFilterPills();
+          renderTable();
+        });
+      }
 
       statusFilters.addEventListener("click", function (event) {
         var target = event.target;

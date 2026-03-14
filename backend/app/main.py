@@ -8050,8 +8050,7 @@ def create_standalone_inventory_order(
     payload: StandaloneInventoryOrderCreate,
     user: Annotated[AuthUser, Depends(require_roles(ROLE_PLANNER, ROLE_ADMIN))],
 ) -> dict[str, Any]:
-    now = datetime.now(timezone.utc)
-    name = normalize_optional_text(payload.name) or f"Inventory Order {now.strftime('%Y-%m-%d %H:%M')}"
+    name = normalize_optional_text(payload.name) or "Inventory Order"
     notes = normalize_optional_text(payload.notes)
     with get_connection() as conn:
         row = conn.execute(

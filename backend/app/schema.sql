@@ -266,6 +266,7 @@ CREATE TABLE IF NOT EXISTS inventory_orders (
     source_id INTEGER,
     name TEXT NOT NULL,
     status TEXT NOT NULL DEFAULT 'DRAFT' CHECK (status IN ('DRAFT', 'ORDERED', 'PARTIAL', 'RECEIVED')),
+    workflow_stage TEXT NOT NULL DEFAULT 'PLANNING' CHECK (workflow_stage IN ('PLANNING', 'PURCHASING', 'RECEIVING', 'COMPLETE')),
     supplier_name TEXT,
     notes TEXT,
     created_by_user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
@@ -280,6 +281,7 @@ CREATE TABLE IF NOT EXISTS inventory_orders (
 
 CREATE INDEX IF NOT EXISTS idx_inventory_orders_domain ON inventory_orders(domain);
 CREATE INDEX IF NOT EXISTS idx_inventory_orders_status ON inventory_orders(status);
+CREATE INDEX IF NOT EXISTS idx_inventory_orders_workflow_stage ON inventory_orders(workflow_stage);
 CREATE INDEX IF NOT EXISTS idx_inventory_orders_source ON inventory_orders(source_type, source_id);
 
 CREATE TABLE IF NOT EXISTS inventory_order_items (
@@ -297,6 +299,9 @@ CREATE TABLE IF NOT EXISTS inventory_order_items (
     applied_quantity REAL NOT NULL DEFAULT 0 CHECK (applied_quantity >= 0),
     purchase_unit TEXT NOT NULL DEFAULT 'unit',
     units_per_purchase REAL NOT NULL DEFAULT 1 CHECK (units_per_purchase > 0),
+    draft_purchase_unit TEXT NOT NULL DEFAULT 'unit',
+    draft_units_per_purchase REAL NOT NULL DEFAULT 1 CHECK (draft_units_per_purchase > 0),
+    draft_ordered_purchase_quantity REAL NOT NULL DEFAULT 0 CHECK (draft_ordered_purchase_quantity >= 0),
     ordered_purchase_quantity REAL NOT NULL DEFAULT 0 CHECK (ordered_purchase_quantity >= 0),
     received_purchase_quantity REAL NOT NULL DEFAULT 0 CHECK (received_purchase_quantity >= 0),
     source_shopping_list_item_id INTEGER REFERENCES shopping_list_items(id) ON DELETE SET NULL,

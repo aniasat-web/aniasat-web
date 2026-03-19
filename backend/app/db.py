@@ -1100,9 +1100,130 @@ def migrate_legacy_non_food_order_tables_to_shared(conn: CompatConnection) -> No
             conn.execute(f"DROP TABLE IF EXISTS {table_name}")
 
 
+def migrate_inventory_order_workflow_stage(conn: CompatConnection) -> None:
+    if not table_exists(conn, "inventory_orders"):
+        return
+
+    inventory_order_columns = table_columns(conn, "inventory_orders")
+    if "workflow_stage" not in inventory_order_columns:
+        conn.execute("ALTER TABLE inventory_orders ADD COLUMN workflow_stage TEXT")
+        inventory_order_columns = table_columns(conn, "inventory_orders")
+    if "workflow_stage" not in inventory_order_columns:
+        return
+
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_inventory_orders_workflow_stage ON inventory_orders(workflow_stage)"
+    )
+    if conn.backend == "postgres":
+        conn.execute("ALTER TABLE inventory_orders ALTER COLUMN workflow_stage SET DEFAULT 'PLANNING'")
+
+    conn.execute(
+        """
+        UPDATE inventory_orders
+        SET workflow_stage = UPPER(REPLACE(REPLACE(TRIM(workflow_stage), '-', '_'), ' ', '_'))
+        WHERE workflow_stage IS NOT NULL
+          AND TRIM(COALESCE(workflow_stage, '')) <> ''
+        """
+    )
+
+    missing_stage_sql = """
+        (workflow_stage IS NULL OR trim(COALESCE(workflow_stage, '')) = ''
+            OR workflow_stage NOT IN ('PLANNING', 'PURCHASING', 'RECEIVING', 'COMPLETE'))
+    """
+
+    conn.execute(
+        f"""
+        UPDATE inventory_orders
+        SET workflow_stage = 'COMPLETE'
+        WHERE {missing_stage_sql}
+          AND status = 'RECEIVED'
+          AND NOT EXISTS (
+            SELECT 1
+            FROM inventory_order_items ioi
+            WHERE ioi.order_id = inventory_orders.id
+              AND ROUND(COALESCE(ioi.received_quantity, 0) - COALESCE(ioi.applied_quantity, 0), 3) > 0
+          )
+        """
+    )
+    conn.execute(
+        f"""
+        UPDATE inventory_orders
+        SET workflow_stage = 'RECEIVING'
+        WHERE {missing_stage_sql}
+          AND domain = 'FOOD'
+        """
+    )
+    conn.execute(
+        f"""
+        UPDATE inventory_orders
+        SET workflow_stage = 'RECEIVING'
+        WHERE {missing_stage_sql}
+          AND (
+            status IN ('PARTIAL', 'RECEIVED')
+            OR EXISTS (
+              SELECT 1
+              FROM inventory_order_items ioi
+              WHERE ioi.order_id = inventory_orders.id
+                AND (
+                  COALESCE(ioi.received_quantity, 0) > 0
+                  OR COALESCE(ioi.applied_quantity, 0) > 0
+                )
+            )
+          )
+        """
+    )
+    conn.execute(
+        f"""
+        UPDATE inventory_orders
+        SET workflow_stage = 'PURCHASING'
+        WHERE {missing_stage_sql}
+          AND domain = 'NON_FOOD'
+          AND (
+            lower(COALESCE(name, '')) LIKE '%(purchasing)%'
+            OR lower(COALESCE(notes, '')) LIKE '%finalized for purchasing from order%'
+          )
+        """
+    )
+    conn.execute(
+        f"""
+        UPDATE inventory_orders
+        SET workflow_stage = 'PURCHASING'
+        WHERE {missing_stage_sql}
+          AND domain = 'NON_FOOD'
+          AND (
+            status = 'ORDERED'
+            OR EXISTS (
+              SELECT 1
+              FROM inventory_order_items ioi
+              WHERE ioi.order_id = inventory_orders.id
+                AND COALESCE(ioi.ordered_quantity, 0) > 0
+            )
+          )
+        """
+    )
+    conn.execute(
+        f"""
+        UPDATE inventory_orders
+        SET workflow_stage = CASE
+            WHEN domain = 'FOOD' THEN 'RECEIVING'
+            ELSE 'PLANNING'
+        END
+        WHERE {missing_stage_sql}
+        """
+    )
+
+    if conn.backend == "postgres":
+        conn.execute("ALTER TABLE inventory_orders ALTER COLUMN workflow_stage SET NOT NULL")
+
+
 def init_db(_allow_malformed_recovery: bool = True) -> None:
     try:
         with get_connection() as conn:
+            if table_exists(conn, "inventory_orders"):
+                inventory_order_columns = table_columns(conn, "inventory_orders")
+                if "workflow_stage" not in inventory_order_columns:
+                    conn.execute("ALTER TABLE inventory_orders ADD COLUMN workflow_stage TEXT")
+
             schema_path = SCHEMA_POSTGRES_PATH if conn.backend == "postgres" else SCHEMA_SQLITE_PATH
             schema = schema_path.read_text(encoding="utf-8")
             conn.executescript(schema)
@@ -1290,6 +1411,40 @@ def init_db(_allow_malformed_recovery: bool = True) -> None:
                     conn.execute("ALTER TABLE inventory_order_items ADD COLUMN order_url_snapshot TEXT")
                 if inventory_order_item_columns and "order_url_override" not in inventory_order_item_columns:
                     conn.execute("ALTER TABLE inventory_order_items ADD COLUMN order_url_override TEXT")
+                if inventory_order_item_columns and "draft_purchase_unit" not in inventory_order_item_columns:
+                    conn.execute("ALTER TABLE inventory_order_items ADD COLUMN draft_purchase_unit TEXT NOT NULL DEFAULT 'unit'")
+                if inventory_order_item_columns and "draft_units_per_purchase" not in inventory_order_item_columns:
+                    conn.execute(
+                        "ALTER TABLE inventory_order_items ADD COLUMN draft_units_per_purchase REAL NOT NULL DEFAULT 1"
+                    )
+                if inventory_order_item_columns and "draft_ordered_purchase_quantity" not in inventory_order_item_columns:
+                    conn.execute(
+                        "ALTER TABLE inventory_order_items ADD COLUMN draft_ordered_purchase_quantity REAL NOT NULL DEFAULT 0"
+                    )
+                inventory_order_item_columns = table_columns(conn, "inventory_order_items")
+                if inventory_order_item_columns:
+                    conn.execute(
+                        """
+                        UPDATE inventory_order_items
+                        SET draft_purchase_unit = COALESCE(NULLIF(trim(COALESCE(purchase_unit, '')), ''), 'unit')
+                        WHERE trim(COALESCE(draft_purchase_unit, '')) = ''
+                        """
+                    )
+                    conn.execute(
+                        """
+                        UPDATE inventory_order_items
+                        SET draft_units_per_purchase = COALESCE(NULLIF(units_per_purchase, 0), 1)
+                        WHERE draft_units_per_purchase IS NULL OR draft_units_per_purchase <= 0
+                        """
+                    )
+                    conn.execute(
+                        """
+                        UPDATE inventory_order_items
+                        SET draft_ordered_purchase_quantity = ordered_purchase_quantity
+                        WHERE draft_ordered_purchase_quantity <= 0
+                          AND ordered_purchase_quantity > 0
+                        """
+                    )
                 conn.execute("DROP INDEX IF EXISTS idx_inventory_order_items_unique")
                 conn.execute(
                     """
@@ -1298,6 +1453,7 @@ def init_db(_allow_malformed_recovery: bool = True) -> None:
                     """
                 )
                 migrate_legacy_non_food_order_tables_to_shared(conn)
+            migrate_inventory_order_workflow_stage(conn)
 
             retreat_inventory_item_columns = table_columns(conn, "retreat_inventory_items")
             if retreat_inventory_item_columns and "shelf_location" not in retreat_inventory_item_columns:

@@ -381,6 +381,9 @@ class InventoryOrderItemInput(BaseModel):
     unit: str | None = None
     purchaseUnit: str | None = None
     unitsPerPurchase: float = Field(default=1, gt=0)
+    draftPurchaseUnit: str | None = None
+    draftUnitsPerPurchase: float | None = Field(default=None, gt=0)
+    draftOrderedPurchaseQuantity: float | None = Field(default=None, ge=0)
     orderedPurchaseQuantity: float | None = Field(default=None, ge=0)
     receivedPurchaseQuantity: float | None = Field(default=None, ge=0)
     sourceShoppingListItemId: int | None = Field(default=None, gt=0)
@@ -393,6 +396,7 @@ class InventoryOrderCreate(BaseModel):
     name: str | None = None
     sourceType: Literal["SHOPPING_LIST", "NON_FOOD_PLAN", "MANUAL", "LEGACY"] | None = None
     sourceId: int | None = Field(default=None, gt=0)
+    workflowStage: Literal["PLANNING", "PURCHASING", "RECEIVING", "COMPLETE"] | None = None
     supplierName: str | None = None
     notes: str | None = None
     items: list[InventoryOrderItemInput] = Field(default_factory=list)
@@ -402,9 +406,11 @@ class InventoryOrderUpdate(BaseModel):
     name: str | None = None
     sourceType: Literal["SHOPPING_LIST", "NON_FOOD_PLAN", "MANUAL", "LEGACY"] | None = None
     sourceId: int | None = Field(default=None, gt=0)
+    workflowStage: Literal["PLANNING", "PURCHASING", "RECEIVING", "COMPLETE"] | None = None
     supplierName: str | None = None
     notes: str | None = None
     items: list[InventoryOrderItemInput] | None = None
+    preserveEmptyItems: bool = False
 
 
 class InventoryOrderPutawayItemInput(BaseModel):
@@ -6707,7 +6713,26 @@ def normalize_inventory_order_source_type(value: Any) -> str | None:
     return key
 
 
+def normalize_inventory_order_workflow_stage(value: Any) -> str | None:
+    normalized = normalize_optional_text(value)
+    if not normalized:
+        return None
+    key = normalized.upper().replace("-", "_").replace(" ", "_")
+    allowed = {"PLANNING", "PURCHASING", "RECEIVING", "COMPLETE"}
+    if key not in allowed:
+        raise HTTPException(status_code=400, detail="Invalid inventory order workflow stage.")
+    return key
+
+
+def default_inventory_order_workflow_stage(domain: Any) -> str:
+    normalized_domain = normalize_inventory_order_domain(domain)
+    return "RECEIVING" if normalized_domain == "FOOD" else "PLANNING"
+
+
 def format_inventory_order_row(row: Any) -> dict[str, Any]:
+    workflow_stage = normalize_inventory_order_workflow_stage(row["workflow_stage"])
+    if workflow_stage is None:
+        workflow_stage = default_inventory_order_workflow_stage(row["domain"])
     return {
         "id": int(row["id"]),
         "domain": row["domain"],
@@ -6715,6 +6740,7 @@ def format_inventory_order_row(row: Any) -> dict[str, Any]:
         "source_id": int(row["source_id"]) if row["source_id"] is not None else None,
         "name": row["name"],
         "status": row["status"],
+        "workflow_stage": workflow_stage,
         "supplier_name": normalize_optional_text(row["supplier_name"]),
         "notes": normalize_optional_text(row["notes"]),
         "created_by_user_id": int(row["created_by_user_id"]) if row["created_by_user_id"] is not None else None,
@@ -6906,6 +6932,9 @@ def load_inventory_order_items(conn: Any, order_ids: list[int]) -> dict[int, lis
             ioi.applied_quantity,
             ioi.purchase_unit,
             ioi.units_per_purchase,
+            ioi.draft_purchase_unit,
+            ioi.draft_units_per_purchase,
+            ioi.draft_ordered_purchase_quantity,
             ioi.ordered_purchase_quantity,
             ioi.received_purchase_quantity,
             ioi.source_shopping_list_item_id,
@@ -6960,12 +6989,26 @@ def load_inventory_order_items(conn: Any, order_ids: list[int]) -> dict[int, lis
         applied_quantity = rounded_quantity(row["applied_quantity"])
         purchase_unit = normalize_purchase_unit(row["purchase_unit"])
         units_per_purchase = normalize_units_per_purchase(row["units_per_purchase"])
+        draft_purchase_unit = normalize_purchase_unit(row["draft_purchase_unit"])
+        draft_units_per_purchase = normalize_units_per_purchase(row["draft_units_per_purchase"])
+        draft_ordered_purchase_quantity = rounded_quantity(row["draft_ordered_purchase_quantity"])
         ordered_purchase_quantity = rounded_quantity(row["ordered_purchase_quantity"])
         received_purchase_quantity = rounded_quantity(row["received_purchase_quantity"])
+        if draft_purchase_unit == "unit":
+            draft_units_per_purchase = 1.0
+        if draft_ordered_purchase_quantity <= 0 and ordered_purchase_quantity > 0:
+            draft_purchase_unit = purchase_unit
+            draft_units_per_purchase = units_per_purchase
+            draft_ordered_purchase_quantity = ordered_purchase_quantity
         if ordered_purchase_quantity <= 0 and ordered_quantity > 0:
             ordered_purchase_quantity = round(ordered_quantity / units_per_purchase, 3)
         if received_purchase_quantity <= 0 and received_quantity > 0:
             received_purchase_quantity = round(received_quantity / units_per_purchase, 3)
+        draft_ordered_quantity = (
+            draft_ordered_purchase_quantity
+            if draft_purchase_unit == "unit"
+            else round(draft_ordered_purchase_quantity * draft_units_per_purchase, 3)
+        )
 
         live_quantity: float | None = None
         live_unit: str | None = None
@@ -7024,6 +7067,10 @@ def load_inventory_order_items(conn: Any, order_ids: list[int]) -> dict[int, lis
             "applied_received_quantity": applied_quantity,
             "purchase_unit": purchase_unit,
             "units_per_purchase": units_per_purchase,
+            "draft_purchase_unit": draft_purchase_unit,
+            "draft_units_per_purchase": draft_units_per_purchase,
+            "draft_ordered_purchase_quantity": draft_ordered_purchase_quantity,
+            "draft_ordered_quantity": draft_ordered_quantity,
             "ordered_purchase_quantity": ordered_purchase_quantity,
             "received_purchase_quantity": received_purchase_quantity,
             "source_shopping_list_item_id": (
@@ -7117,6 +7164,28 @@ def refresh_inventory_order_status(conn: Any, order_id: int, *, actor_user_id: i
     return status
 
 
+def finalize_inventory_order_workflow_stage_if_complete(conn: Any, order_id: int) -> dict[str, Any]:
+    detail = load_inventory_order_detail(conn, order_id)
+    current_stage = normalize_inventory_order_workflow_stage(detail.get("workflow_stage")) or default_inventory_order_workflow_stage(
+        detail.get("domain")
+    )
+    if current_stage != "RECEIVING":
+        return detail
+    if detail.get("status") != "RECEIVED" or not detail.get("fully_put_away"):
+        return detail
+
+    conn.execute(
+        """
+        UPDATE inventory_orders
+        SET workflow_stage = 'COMPLETE',
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = ?
+        """,
+        (order_id,),
+    )
+    return load_inventory_order_detail(conn, order_id)
+
+
 def upsert_inventory_order_items(
     conn: Any,
     order_id: int,
@@ -7125,6 +7194,7 @@ def upsert_inventory_order_items(
     items: list[InventoryOrderItemInput],
     actor_user_id: int | None,
     preserve_requested_unit: bool = False,
+    preserve_empty_items: bool = False,
 ) -> None:
     existing_rows = conn.execute(
         """
@@ -7220,22 +7290,52 @@ def upsert_inventory_order_items(
                 detail="orderUrlOverride is only valid for non-food inventory lines.",
             )
 
+        key = (item_type, item_id, source_shopping_list_item_id)
+        existing = existing_by_key.get(key)
+        item_fields = set(getattr(item, "model_fields_set", set()))
+        draft_purchase_unit = (
+            normalize_purchase_unit(item.draftPurchaseUnit)
+            if "draftPurchaseUnit" in item_fields and item.draftPurchaseUnit is not None
+            else normalize_purchase_unit(existing["draft_purchase_unit"])
+            if existing and existing["draft_purchase_unit"] is not None
+            else purchase_unit
+        )
+        draft_units_per_purchase = (
+            normalize_units_per_purchase(item.draftUnitsPerPurchase)
+            if "draftUnitsPerPurchase" in item_fields and item.draftUnitsPerPurchase is not None
+            else normalize_units_per_purchase(existing["draft_units_per_purchase"])
+            if existing and existing["draft_units_per_purchase"] is not None
+            else units_per_purchase
+        )
+        if draft_purchase_unit == "unit":
+            draft_units_per_purchase = 1.0
+        draft_ordered_purchase_quantity = (
+            rounded_quantity(item.draftOrderedPurchaseQuantity)
+            if "draftOrderedPurchaseQuantity" in item_fields and item.draftOrderedPurchaseQuantity is not None
+            else rounded_quantity(existing["draft_ordered_purchase_quantity"])
+            if existing and existing["draft_ordered_purchase_quantity"] is not None
+            else ordered_purchase_quantity
+        )
+        if ordered_quantity > 0:
+            draft_purchase_unit = purchase_unit
+            draft_units_per_purchase = units_per_purchase
+            draft_ordered_purchase_quantity = ordered_purchase_quantity
+
         if (
-            required_quantity <= 0
+            not preserve_empty_items
+            and required_quantity <= 0
             and ordered_quantity <= 0
             and received_quantity <= 0
             and applied_quantity <= 0
+            and draft_ordered_purchase_quantity <= 0
             and not order_url_override
             and not notes
             and source_shopping_list_item_id is None
         ):
             continue
 
-        key = (item_type, item_id, source_shopping_list_item_id)
         if key in keep_keys:
             raise HTTPException(status_code=400, detail="Duplicate order lines are not allowed.")
-
-        existing = existing_by_key.get(key)
         old_ordered = as_non_negative_quantity(existing["ordered_quantity"]) if existing else 0.0
         old_received = as_non_negative_quantity(existing["received_quantity"]) if existing else 0.0
         ordered_at = existing["ordered_at"] if existing else None
@@ -7273,6 +7373,9 @@ def upsert_inventory_order_items(
                     applied_quantity = ?,
                     purchase_unit = ?,
                     units_per_purchase = ?,
+                    draft_purchase_unit = ?,
+                    draft_units_per_purchase = ?,
+                    draft_ordered_purchase_quantity = ?,
                     ordered_purchase_quantity = ?,
                     received_purchase_quantity = ?,
                     source_shopping_list_item_id = ?,
@@ -7297,6 +7400,9 @@ def upsert_inventory_order_items(
                     applied_quantity,
                     purchase_unit,
                     units_per_purchase,
+                    draft_purchase_unit,
+                    draft_units_per_purchase,
+                    draft_ordered_purchase_quantity,
                     ordered_purchase_quantity,
                     received_purchase_quantity,
                     source_shopping_list_item_id,
@@ -7327,6 +7433,9 @@ def upsert_inventory_order_items(
                     applied_quantity,
                     purchase_unit,
                     units_per_purchase,
+                    draft_purchase_unit,
+                    draft_units_per_purchase,
+                    draft_ordered_purchase_quantity,
                     ordered_purchase_quantity,
                     received_purchase_quantity,
                     source_shopping_list_item_id,
@@ -7356,6 +7465,9 @@ def upsert_inventory_order_items(
                     applied_quantity,
                     purchase_unit,
                     units_per_purchase,
+                    draft_purchase_unit,
+                    draft_units_per_purchase,
+                    draft_ordered_purchase_quantity,
                     ordered_purchase_quantity,
                     received_purchase_quantity,
                     source_shopping_list_item_id,
@@ -7391,6 +7503,7 @@ def load_inventory_order_detail(conn: Any, order_id: int) -> dict[str, Any]:
             source_id,
             name,
             status,
+            workflow_stage,
             supplier_name,
             notes,
             created_by_user_id,
@@ -7843,12 +7956,13 @@ def sync_food_inventory_orders_for_shopping_list(
                     source_id,
                     name,
                     status,
+                    workflow_stage,
                     supplier_name,
                     created_by_user_id,
                     created_at,
                     updated_at
                 )
-                VALUES ('FOOD', 'SHOPPING_LIST', ?, ?, 'DRAFT', ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                VALUES ('FOOD', 'SHOPPING_LIST', ?, ?, 'DRAFT', 'RECEIVING', ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
                 RETURNING id
                 """,
                 (shopping_list_id, order_name, supplier_name, actor_user_id),
@@ -7860,6 +7974,7 @@ def sync_food_inventory_orders_for_shopping_list(
                 """
                 UPDATE inventory_orders
                 SET name = ?,
+                    workflow_stage = 'RECEIVING',
                     supplier_name = ?,
                     deleted_at = NULL,
                     updated_at = CURRENT_TIMESTAMP
@@ -8246,6 +8361,7 @@ def list_inventory_orders(
     domain: str | None = Query(default=None),
     status: str | None = Query(default=None),
     source_type: str | None = Query(default=None, alias="sourceType"),
+    workflow_stage: str | None = Query(default=None, alias="workflowStage"),
 ) -> list[dict[str, Any]]:
     filters = ["deleted_at IS NULL"]
     params: list[Any] = []
@@ -8268,6 +8384,11 @@ def list_inventory_orders(
         filters.append("source_type = ?")
         params.append(normalized_source_type)
 
+    normalized_workflow_stage = normalize_inventory_order_workflow_stage(workflow_stage)
+    if normalized_workflow_stage:
+        filters.append("workflow_stage = ?")
+        params.append(normalized_workflow_stage)
+
     where_sql = f"WHERE {' AND '.join(filters)}"
     with get_connection() as conn:
         rows = conn.execute(
@@ -8279,6 +8400,7 @@ def list_inventory_orders(
                 source_id,
                 name,
                 status,
+                workflow_stage,
                 supplier_name,
                 notes,
                 created_by_user_id,
@@ -8338,6 +8460,7 @@ def create_inventory_order(
 
     source_type = normalize_inventory_order_source_type(payload.sourceType)
     source_id = int(payload.sourceId) if payload.sourceId is not None else None
+    workflow_stage = normalize_inventory_order_workflow_stage(payload.workflowStage) or default_inventory_order_workflow_stage(domain)
     if source_id is not None and not source_type:
         raise HTTPException(status_code=400, detail="sourceId requires sourceType.")
 
@@ -8354,16 +8477,17 @@ def create_inventory_order(
                 source_id,
                 name,
                 status,
+                workflow_stage,
                 supplier_name,
                 notes,
                 created_by_user_id,
                 created_at,
                 updated_at
             )
-            VALUES (?, ?, ?, ?, 'DRAFT', ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+            VALUES (?, ?, ?, ?, 'DRAFT', ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
             RETURNING id
             """,
-            (domain, source_type, source_id, name, supplier_name, notes, user.id),
+            (domain, source_type, source_id, name, workflow_stage, supplier_name, notes, user.id),
         ).fetchone()
         order_id = int(row["id"])
 
@@ -8406,7 +8530,7 @@ def update_inventory_order(
     with get_connection() as conn:
         existing = conn.execute(
             """
-            SELECT id, domain, source_type, source_id
+            SELECT id, domain, source_type, source_id, workflow_stage
             FROM inventory_orders
             WHERE id = ? AND deleted_at IS NULL
             """,
@@ -8427,6 +8551,12 @@ def update_inventory_order(
         if "notes" in fields:
             updates.append("notes = ?")
             params.append(normalize_optional_text(payload.notes))
+        if "workflowStage" in fields:
+            updates.append("workflow_stage = ?")
+            params.append(
+                normalize_inventory_order_workflow_stage(payload.workflowStage)
+                or default_inventory_order_workflow_stage(existing["domain"])
+            )
 
         if "sourceType" in fields or "sourceId" in fields:
             next_source_type = (
@@ -8470,10 +8600,11 @@ def update_inventory_order(
                 domain=str(existing["domain"] or "").strip().upper(),
                 items=payload.items,
                 actor_user_id=user.id,
+                preserve_empty_items=bool(payload.preserveEmptyItems),
             )
 
         refresh_inventory_order_status(conn, order_id, actor_user_id=user.id)
-        detail = load_inventory_order_detail(conn, order_id)
+        detail = finalize_inventory_order_workflow_stage_if_complete(conn, order_id)
         conn.commit()
     return detail
 
@@ -8725,7 +8856,7 @@ def putaway_inventory_order_items(
             )
 
         refresh_inventory_order_status(conn, order_id, actor_user_id=user.id)
-        detail = load_inventory_order_detail(conn, order_id)
+        detail = finalize_inventory_order_workflow_stage_if_complete(conn, order_id)
         conn.commit()
 
     return {
@@ -9074,6 +9205,16 @@ def merge_inventory_items(
                 if float(target_order_row["units_per_purchase"] or 0) > 0
                 else source_order_row["units_per_purchase"]
             )
+            merged_draft_purchase_unit = normalize_purchase_unit(
+                normalize_optional_text(target_order_row["draft_purchase_unit"])
+                or normalize_optional_text(source_order_row["draft_purchase_unit"])
+                or merged_purchase_unit
+            )
+            merged_draft_units_per_purchase = normalize_units_per_purchase(
+                target_order_row["draft_units_per_purchase"]
+                if float(target_order_row["draft_units_per_purchase"] or 0) > 0
+                else source_order_row["draft_units_per_purchase"]
+            )
             merged_required_quantity = round(
                 rounded_quantity(target_order_row["required_quantity"])
                 + rounded_quantity(source_order_row["required_quantity"]),
@@ -9099,11 +9240,22 @@ def merge_inventory_items(
                 + rounded_quantity(source_order_row["received_purchase_quantity"]),
                 3,
             )
+            merged_draft_ordered_purchase_quantity = round(
+                rounded_quantity(target_order_row["draft_ordered_purchase_quantity"])
+                + rounded_quantity(source_order_row["draft_ordered_purchase_quantity"]),
+                3,
+            )
             merged_applied_quantity = round(
                 rounded_quantity(target_order_row["applied_quantity"])
                 + rounded_quantity(source_order_row["applied_quantity"]),
                 3,
             )
+            if merged_draft_purchase_unit == "unit":
+                merged_draft_units_per_purchase = 1.0
+            if merged_ordered_purchase_quantity > 0:
+                merged_draft_purchase_unit = merged_purchase_unit
+                merged_draft_units_per_purchase = merged_units_per_purchase
+                merged_draft_ordered_purchase_quantity = merged_ordered_purchase_quantity
             conn.execute(
                 """
                 UPDATE inventory_order_items
@@ -9116,6 +9268,9 @@ def merge_inventory_items(
                     received_quantity = ?,
                     purchase_unit = ?,
                     units_per_purchase = ?,
+                    draft_purchase_unit = ?,
+                    draft_units_per_purchase = ?,
+                    draft_ordered_purchase_quantity = ?,
                     ordered_purchase_quantity = ?,
                     received_purchase_quantity = ?,
                     applied_quantity = ?,
@@ -9149,6 +9304,9 @@ def merge_inventory_items(
                     merged_received_quantity,
                     merged_purchase_unit,
                     merged_units_per_purchase,
+                    merged_draft_purchase_unit,
+                    merged_draft_units_per_purchase,
+                    merged_draft_ordered_purchase_quantity,
                     merged_ordered_purchase_quantity,
                     merged_received_purchase_quantity,
                     merged_applied_quantity,

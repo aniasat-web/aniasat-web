@@ -200,7 +200,7 @@
           <button id="saveBtn" type="button" class="btn btn-sm btn-primary"><i class="fa-solid fa-floppy-disk me-1"></i>Save Receipts</button>
           <button id="saveAndPutawayBtn" type="button" class="btn btn-sm btn-success"><i class="fa-solid fa-boxes-packing me-1"></i>Save + Put Away</button>
         </div>
-        <div class="small text-muted mt-2">Select the order that is physically arriving now. You can save receipts only, or save and put away in one pass.</div>
+        <div class="small text-muted mt-2">Select the order that is physically arriving now. Orders land here after purchasing is finalized. You can save receipts only, or save and put away in one pass.</div>
       </section>
 
       <section class="soft-card scan-card p-4 mb-4">
@@ -382,6 +382,29 @@
 
       function apiUrl(path) {
         return API_BASE + (path.charAt(0) === "/" ? path : "/" + path);
+      }
+
+      function getRequestedOrderId() {
+        var raw = new URLSearchParams(window.location.search).get("order");
+        var parsed = Number(raw);
+        return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+      }
+
+      function updatePageUrl(orderId) {
+        try {
+          var url = new URL(window.location.href);
+          if (API_BASE !== window.location.origin) {
+            url.searchParams.set("api", API_BASE);
+          } else {
+            url.searchParams.delete("api");
+          }
+          if (orderId) {
+            url.searchParams.set("order", String(orderId));
+          } else {
+            url.searchParams.delete("order");
+          }
+          window.history.replaceState({}, "", url.pathname + url.search);
+        } catch (_error) {}
       }
 
       function buildOrderKey(source, orderId) {
@@ -1271,8 +1294,8 @@
 
       async function fetchOrderList() {
         var responses = await Promise.all([
-          fetch(apiUrl("/api/orders?domain=FOOD"), { credentials: "include" }),
-          fetch(apiUrl("/api/orders?domain=NON_FOOD"), { credentials: "include" }),
+          fetch(apiUrl("/api/orders?domain=FOOD&workflowStage=RECEIVING"), { credentials: "include" }),
+          fetch(apiUrl("/api/orders?domain=NON_FOOD&workflowStage=RECEIVING"), { credentials: "include" }),
         ]);
         if (!responses[0].ok) throw new Error(await parseApiError(responses[0]));
         if (!responses[1].ok) throw new Error(await parseApiError(responses[1]));
@@ -1325,12 +1348,33 @@
         var summary = orderList.find(function (order) { return order.key === orderKey; }) || null;
         if (!summary) throw new Error("Order not found.");
         activeOrder = await fetchOrderDetail(summary);
+        updatePageUrl(activeOrder.id);
         renderOrderSelect();
         orderNameInput.value = activeOrder.name || "";
         orderNotesInput.value = activeOrder.notes || "";
         buildOrderRows();
         renderWorkspaceTables();
         resetScanState();
+      }
+
+      async function reloadActiveOrderAfterListRefresh() {
+        var activeKey = activeOrder ? String(activeOrder.orderKey || buildOrderKey(activeOrder.orderSource, activeOrder.id)) : null;
+        if (!orderList.length) {
+          orderSelect.innerHTML = '<option value="">No orders found</option>';
+          activeOrder = null;
+          orderRows = [];
+          renderWorkspaceTables();
+          resetScanState();
+          updatePageUrl(null);
+          return "cleared";
+        }
+
+        var nextKey = activeKey && orderList.some(function (order) {
+          return String(order.key) === activeKey;
+        }) ? activeKey : String(orderList[0].key);
+        var mode = activeKey && nextKey === activeKey ? "same" : "switched";
+        await loadOrderByKey(nextKey);
+        return mode;
       }
 
       function collectPayloadItems() {
@@ -1380,19 +1424,25 @@
         activeOrder.orderDomain = activeOrder.orderDomain || activeOrder.domain || "NON_FOOD";
         activeOrder.orderKey = buildOrderKey(activeOrder.orderSource, activeOrder.id);
         await fetchOrderList();
-        renderOrderSelect();
-        buildOrderRows();
-        renderWorkspaceTables();
-        resetScanState();
-        if (!opts.quiet) setStatus("Receipt updates saved.", "ok");
+        var reloadMode = await reloadActiveOrderAfterListRefresh();
+        if (!opts.quiet) {
+          var saveMessage = reloadMode === "same"
+            ? "Receipt updates saved."
+            : "Receipt updates saved. Completed orders were moved out of the receiving queue.";
+          setStatus(saveMessage, "ok");
+        }
         return activeOrder;
       }
 
       async function applyPutawaySelections(options) {
         var opts = options || {};
         if (!activeOrder || !activeOrder.id) throw new Error("No active order selected.");
+        var startingOrderId = Number(activeOrder.id);
         if (!opts.skipSave) {
           await saveReceipts({ quiet: true });
+          if (!activeOrder || Number(activeOrder.id) !== startingOrderId) {
+            throw new Error("This order completed while saving receipts and moved out of the receiving queue.");
+          }
         }
 
         var selectedItems = getPendingPutawayRows().filter(function (row) {
@@ -1425,17 +1475,21 @@
         activeOrder.orderDomain = activeOrder.orderDomain || activeOrder.domain || "NON_FOOD";
         activeOrder.orderKey = buildOrderKey(activeOrder.orderSource, activeOrder.id);
         await fetchOrderList();
-        renderOrderSelect();
-        buildOrderRows();
-        renderWorkspaceTables();
-        resetScanState();
-        setStatus("Putaway applied for " + formatQty(payload.applied_quantity_total || 0) + " units across " + formatQty(payload.applied_item_count || 0) + " line(s).", "ok");
+        var reloadMode = await reloadActiveOrderAfterListRefresh();
+        var putawayMessage =
+          "Putaway applied for " + formatQty(payload.applied_quantity_total || 0) +
+          " units across " + formatQty(payload.applied_item_count || 0) + " line(s).";
+        if (reloadMode !== "same") {
+          putawayMessage += " The completed order moved out of the receiving queue.";
+        }
+        setStatus(putawayMessage, "ok");
         return payload;
       }
 
       async function refreshAll(options) {
         var preserveOrder = !options || options.preserveOrder !== false;
         var previousKey = preserveOrder && activeOrder ? String(activeOrder.orderKey || buildOrderKey(activeOrder.orderSource, activeOrder.id)) : null;
+        var requestedId = getRequestedOrderId();
         setStatus("Loading receive / put away workspace...", "info");
         await fetchInventory();
         await fetchOrderList();
@@ -1445,13 +1499,24 @@
           orderRows = [];
           renderWorkspaceTables();
           resetScanState();
+          updatePageUrl(null);
           setStatus("No orders available yet.", "ok");
           return;
         }
 
-        var targetKey = previousKey && orderList.some(function (order) { return String(order.key) === previousKey; })
-          ? previousKey
-          : String(orderList[0].key);
+        var targetKey = null;
+        if (requestedId) {
+          var requestedOrder = orderList.find(function (order) {
+            return Number(order.id) === requestedId;
+          }) || null;
+          if (requestedOrder) targetKey = String(requestedOrder.key);
+        }
+        if (!targetKey && previousKey && orderList.some(function (order) { return String(order.key) === previousKey; })) {
+          targetKey = previousKey;
+        }
+        if (!targetKey) {
+          targetKey = String(orderList[0].key);
+        }
         await loadOrderByKey(targetKey);
         renderScanPanel();
         setStatus("Receive / put away workspace ready.", "ok");

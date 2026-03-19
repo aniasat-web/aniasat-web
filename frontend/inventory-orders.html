@@ -521,15 +521,15 @@
         <div class="d-flex flex-wrap align-items-start justify-content-between gap-3">
           <div>
             <h2 class="h4 mb-1"><i class="fa-solid fa-clipboard-list me-2 text-muted"></i>Order Planning Workspace</h2>
-            <p class="section-note mb-0">Work inside the full planning table, keep order-level details close at hand, and finalize a purchaser copy when the plan is ready. Directly opening the current order in purchaser view remains available as an advanced option.</p>
+            <p class="section-note mb-0">Work inside the full planning table, save draft progress whenever needed, and when the plan is ready move the same order into Purchasing with only the actionable lines.</p>
           </div>
           <div class="toolbar-actions">
             <button id="newOrderBtn" type="button" class="btn btn-sm btn-outline-primary"><i class="fa-solid fa-plus me-1"></i>New Order</button>
             <button id="renameOrderBtn" type="button" class="btn btn-sm btn-outline-primary"><i class="fa-solid fa-pen-to-square me-1"></i>Rename Order</button>
             <button id="deleteOrderBtn" type="button" class="btn btn-sm btn-outline-danger"><i class="fa-solid fa-trash me-1"></i>Delete Order</button>
             <button id="newOrderFromFiltersBtn" type="button" class="btn btn-sm btn-outline-primary"><i class="fa-solid fa-filter me-1"></i>New From Filters</button>
-            <button id="finalizeForPurchasingBtn" type="button" class="btn btn-sm btn-warning"><i class="fa-solid fa-cart-shopping me-1"></i>Finalize</button>
-            <button id="openPurchasingViewBtn" type="button" class="btn btn-sm btn-outline-secondary" title="Advanced: open this exact order in purchaser view without creating a separate copy."><i class="fa-solid fa-arrow-up-right-from-square me-1"></i>Open Current Order in Purchaser View</button>
+            <button id="finalizeForPurchasingBtn" type="button" class="btn btn-sm btn-warning"><i class="fa-solid fa-cart-shopping me-1"></i>Move To Purchasing</button>
+            <button id="openPurchasingViewBtn" type="button" class="btn btn-sm btn-outline-secondary" title="Open the Purchasing workspace for draft order entry and final ordering."><i class="fa-solid fa-arrow-up-right-from-square me-1"></i>Open Purchasing Page</button>
             <button id="addNewItemBtn" type="button" class="btn btn-sm btn-outline-success"><i class="fa-solid fa-circle-plus me-1"></i>Add New Item</button>
             <button id="exportCsvBtn" type="button" class="btn btn-sm btn-outline-dark"><i class="fa-solid fa-file-csv me-1"></i>Export CSV</button>
             <button id="refreshBtn" type="button" class="btn btn-sm btn-outline-secondary"><i class="fa-solid fa-arrows-rotate me-1"></i>Refresh</button>
@@ -1321,7 +1321,7 @@
       }
 
       async function fetchOrderList() {
-        var response = await fetch(apiUrl("/api/orders?domain=NON_FOOD"), { credentials: "include" });
+        var response = await fetch(apiUrl("/api/orders?domain=NON_FOOD&workflowStage=PLANNING"), { credentials: "include" });
         if (!response.ok) throw new Error(await parseApiError(response));
         var payload = await response.json();
         orderList = Array.isArray(payload) ? payload : [];
@@ -1437,6 +1437,10 @@
           .map(toOrderItemPayload);
       }
 
+      function collectPlanningSavePayloadItems() {
+        return orderRows.map(toOrderItemPayload);
+      }
+
       function collectFilteredPayloadItems() {
         return getFilteredRows()
           .filter(isNonEmptyOrderRow)
@@ -1449,14 +1453,8 @@
           .map(toOrderItemPayload);
       }
 
-      function buildPurchasingOrderName() {
-        var baseName = String((activeOrder && activeOrder.name) || "Inventory Order").trim() || "Inventory Order";
-        if (/\(purchasing\)/i.test(baseName)) return baseName + " Copy";
-        return baseName + " (Purchasing)";
-      }
-
-      function goToPurchasingView(orderId) {
-        window.location.href = buildPageUrl("inventory-purchasing.html", { orderId: Number(orderId) });
+      function goToPurchasingView() {
+        window.location.href = buildPageUrl("inventory-purchasing.html");
       }
 
       async function renameActiveOrder() {
@@ -1513,7 +1511,7 @@
       async function finalizeForPurchasing() {
         if (!activeOrder || !activeOrder.id) throw new Error("No active order selected.");
 
-        setStatus("Finalizing purchasing copy...", "info");
+        setStatus("Moving order into Purchasing...", "info");
         await saveChanges({ silent: true });
 
         var items = collectPurchasingPayloadItems();
@@ -1521,42 +1519,21 @@
           throw new Error("No actionable lines to include. Add rows with Need to Order greater than 0 first.");
         }
 
-        var suggestedName = buildPurchasingOrderName();
-        var rawName = window.prompt("Name for the purchasing copy:", suggestedName);
-        if (rawName == null) {
-          setStatus("Purchasing finalization cancelled.", "info");
-          return;
-        }
-
-        var nextName = String(rawName || "").trim();
-        if (!nextName) {
-          throw new Error("Purchasing copy name cannot be blank.");
-        }
-
-        var sourceName = String(activeOrder.name || "").trim() || ("Order #" + activeOrder.id);
-        var sourceId = Number(activeOrder.id);
-        var sourceOrderNotes = String(activeOrder.notes || "").trim();
-        var generatedNote =
-          "Finalized for purchasing from order #" + sourceId + " (" + sourceName + "). " +
-          "Includes only lines with Need to Order > 0 or existing ordered/received activity.";
-        var purchasingNotes = sourceOrderNotes ? (sourceOrderNotes + "\n\n" + generatedNote) : generatedNote;
-
-        var response = await fetch(apiUrl("/api/orders"), {
-          method: "POST",
+        var response = await fetch(apiUrl("/api/orders/" + activeOrder.id), {
+          method: "PATCH",
           credentials: "include",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            domain: "NON_FOOD",
-            sourceType: "NON_FOOD_PLAN",
-            name: nextName,
-            notes: purchasingNotes,
+            name: String(orderNameInput.value || "").trim(),
+            notes: String(orderNotesInput.value || "").trim() || null,
+            workflowStage: "PURCHASING",
             items: items,
           }),
         });
         if (!response.ok) throw new Error(await parseApiError(response));
 
-        var created = await response.json();
-        setStatus('Finalized "' + nextName + '" with ' + items.length + ' actionable item(s). It is now available in the Purchasing page dropdown.', "ok");
+        var updated = await response.json();
+        window.location.href = buildPageUrl("inventory-purchasing.html", { orderId: Number(updated.id) });
       }
 
       async function createOrderFromCurrentFilters() {
@@ -1661,7 +1638,8 @@
           body: JSON.stringify({
             name: String(orderNameInput.value || "").trim(),
             notes: String(orderNotesInput.value || "").trim() || null,
-            items: collectPayloadItems(),
+            items: collectPlanningSavePayloadItems(),
+            preserveEmptyItems: true,
           }),
         });
         if (!response.ok) throw new Error(await parseApiError(response));
@@ -1873,16 +1851,12 @@
 
       finalizeForPurchasingBtn.addEventListener("click", function () {
         void finalizeForPurchasing().catch(function (error) {
-          setStatus(error instanceof Error ? error.message : "Could not finalize purchasing copy.", "err");
+          setStatus(error instanceof Error ? error.message : "Could not move the order into Purchasing.", "err");
         });
       });
 
       openPurchasingViewBtn.addEventListener("click", function () {
-        if (!activeOrder || !activeOrder.id) {
-          setStatus("Select an order first.", "err");
-          return;
-        }
-        goToPurchasingView(activeOrder.id);
+        goToPurchasingView();
       });
 
       addNewItemBtn.addEventListener("click", function () {

@@ -738,7 +738,7 @@
         <div class="d-flex flex-wrap align-items-start justify-content-between gap-3">
           <div class="flex-grow-1">
             <h1 class="fw-bold mb-2"><i class="fa-solid fa-cart-shopping me-2" style="color: var(--purchasing-primary);"></i>Purchasing View</h1>
-            <p class="hero-note mb-0">Focused handoff space for placing orders. It defaults to actionable lines only, keeps vendor links close at hand, and lets the purchaser update ordered quantities without wading through the full planning table.</p>
+            <p class="hero-note mb-0">Focused handoff space for placing orders. Enter draft order quantities, review the full list, and finalize when the order is ready to move into receiving.</p>
             <div class="hero-meta">
               <span class="meta-chip" id="currentOrderName"><i class="fa-solid fa-list-check"></i><span>No order selected</span></span>
               <span class="meta-chip" id="currentOrderStatus"><i class="fa-solid fa-signal"></i><span>Status: --</span></span>
@@ -772,14 +772,15 @@
         <div class="d-flex flex-wrap align-items-start justify-content-between gap-3">
           <div>
             <h2 class="h4 mb-1"><i class="fa-solid fa-bag-shopping me-2 text-muted"></i>Purchasing Workspace</h2>
-            <p class="section-note mb-0">Select an order, keep the table on actionable rows by default, and save purchasing progress back to the same order record.</p>
+            <p class="section-note mb-0">Select an order that has already been finalized from planning, capture draft purchasing quantities as you work, and when ready move the same order forward into Receiving.</p>
           </div>
           <div class="toolbar-actions">
+            <button id="finalizeBtn" type="button" class="btn btn-sm btn-warning"><i class="fa-solid fa-circle-check me-1"></i>Finalize To Receiving</button>
             <button id="deleteOrderBtn" type="button" class="btn btn-sm btn-outline-danger"><i class="fa-solid fa-trash me-1"></i>Delete Order</button>
-            <button id="openPlanningBtn" type="button" class="btn btn-sm btn-outline-primary"><i class="fa-solid fa-list-check me-1"></i>Open Planning View</button>
+            <button id="openPlanningBtn" type="button" class="btn btn-sm btn-outline-primary"><i class="fa-solid fa-list-check me-1"></i>Open Planning Page</button>
             <button id="exportCsvBtn" type="button" class="btn btn-sm btn-outline-primary"><i class="fa-solid fa-file-csv me-1"></i>Export CSV</button>
             <button id="refreshBtn" type="button" class="btn btn-sm btn-outline-secondary"><i class="fa-solid fa-arrows-rotate me-1"></i>Refresh</button>
-            <button id="saveBtn" type="button" class="btn btn-sm btn-primary"><i class="fa-solid fa-floppy-disk me-1"></i>Save Progress</button>
+            <button id="saveBtn" type="button" class="btn btn-sm btn-primary"><i class="fa-solid fa-floppy-disk me-1"></i>Save Draft</button>
           </div>
         </div>
 
@@ -799,6 +800,11 @@
               <button type="button" class="filter-pill" data-status="RECEIVED">Received</button>
               <button type="button" class="filter-pill" data-status="ALL">All</button>
             </div>
+          </div>
+          <div class="toolbar-box">
+            <label class="order-meta-label mb-2" for="finalizePurchaserInput">Purchased By</label>
+            <input id="finalizePurchaserInput" type="text" class="form-control" placeholder="Signed-in user" readonly />
+            <div class="small text-muted mt-2">Finalizing to receiving records the signed-in user as the purchaser.</div>
           </div>
         </div>
 
@@ -855,11 +861,13 @@
       var statusFilters = document.getElementById("statusFilters");
       var categoryFilters = document.getElementById("categoryFilters");
       var purchasingBody = document.getElementById("purchasingBody");
+      var finalizeBtn = document.getElementById("finalizeBtn");
       var deleteOrderBtn = document.getElementById("deleteOrderBtn");
       var openPlanningBtn = document.getElementById("openPlanningBtn");
       var exportCsvBtn = document.getElementById("exportCsvBtn");
       var refreshBtn = document.getElementById("refreshBtn");
       var saveBtn = document.getElementById("saveBtn");
+      var finalizePurchaserInput = document.getElementById("finalizePurchaserInput");
 
       var metricActionable = document.getElementById("metricActionable");
       var metricNeedsOrder = document.getElementById("metricNeedsOrder");
@@ -871,6 +879,7 @@
       var orderRows = [];
       var activeStatus = "ACTIONABLE";
       var activeCategory = "all";
+      var currentAuthUser = null;
 
       function resolveApiBase() {
         var queryValue = new URLSearchParams(window.location.search).get("api");
@@ -882,6 +891,29 @@
 
       function apiUrl(path) {
         return API_BASE + (path.charAt(0) === "/" ? path : "/" + path);
+      }
+
+      function applyCurrentUserUi(user) {
+        currentAuthUser = user && user.username ? user : null;
+        if (finalizePurchaserInput) {
+          finalizePurchaserInput.value = currentAuthUser ? currentAuthUser.username : "";
+        }
+      }
+
+      async function ensureCurrentUser() {
+        if (currentAuthUser && currentAuthUser.username) return currentAuthUser;
+        if (window.retreatAuthUser && window.retreatAuthUser.username) {
+          applyCurrentUserUi(window.retreatAuthUser);
+          return currentAuthUser;
+        }
+        var response = await fetch(apiUrl("/api/auth/me"), {
+          method: "GET",
+          credentials: "include",
+        });
+        if (!response.ok) throw new Error(await parseApiError(response));
+        var payload = await response.json();
+        applyCurrentUserUi(payload);
+        return currentAuthUser;
       }
 
       function buildPageUrl(path, options) {
@@ -999,7 +1031,7 @@
       }
 
       function isActionableRow(row) {
-        return row.toOrderQty > 0 || row.orderedQty > 0 || row.receivedQty > 0;
+        return row.toOrderQty > 0 || row.draftOrderedQty > 0 || row.orderedQty > 0 || row.receivedQty > 0;
       }
 
       function isNonEmptyOrderRow(row) {
@@ -1007,10 +1039,39 @@
           row.requiredQty > 0 ||
           row.orderedQty > 0 ||
           row.receivedQty > 0 ||
+          row.draftOrderedQty > 0 ||
           row.toOrderQty > 0 ||
           String(row.orderUrlOverride || "").trim() ||
           String(row.notes || "").trim()
         );
+      }
+
+      function computeTotalUnitsFromPurchase(purchaseQty, purchaseUnit, unitsPerPurchase) {
+        var qty = asNonNegativeNumber(purchaseQty);
+        var orderUnit = normalizePurchaseUnit(purchaseUnit);
+        var size = asNonNegativeNumber(unitsPerPurchase);
+        if (size <= 0) size = 1;
+        if (orderUnit === "unit") return qty;
+        return asNonNegativeNumber(qty * size);
+      }
+
+      function syncDraftFields(row) {
+        row.draftPurchaseUnit = normalizePurchaseUnit(row.draftPurchaseUnit || row.purchaseUnit || "unit");
+        row.draftUnitsPerPurchase = asNonNegativeNumber(row.draftUnitsPerPurchase);
+        if (row.draftUnitsPerPurchase <= 0) row.draftUnitsPerPurchase = 1;
+        if (row.draftPurchaseUnit === "unit") row.draftUnitsPerPurchase = 1;
+        row.draftOrderedPurchaseQty = asNonNegativeNumber(row.draftOrderedPurchaseQty);
+        row.draftOrderedQty = computeTotalUnitsFromPurchase(
+          row.draftOrderedPurchaseQty,
+          row.draftPurchaseUnit,
+          row.draftUnitsPerPurchase
+        );
+      }
+
+      function syncDraftFromCommitted(row) {
+        row.draftPurchaseUnit = row.purchaseUnit;
+        row.draftUnitsPerPurchase = row.unitsPerPurchase;
+        row.draftOrderedPurchaseQty = row.orderedPurchaseQty;
       }
 
       function recomputeRow(row) {
@@ -1046,6 +1107,10 @@
           }
         }
 
+        if (row.orderedQty > 0 || row.receivedQty > 0) {
+          syncDraftFromCommitted(row);
+        }
+        syncDraftFields(row);
         row.toOrderQty = Math.max(0, Math.round((row.requiredQty - row.currentStock) * 1000) / 1000);
         row.effectiveUrl = String(row.orderUrlOverride || "").trim() || String(row.defaultOrderUrl || "").trim() || "";
         row.status = deriveRowStatus(row);
@@ -1066,6 +1131,12 @@
           receivedQty: asNonNegativeNumber(item.received_quantity),
           purchaseUnit: normalizePurchaseUnit(item.purchase_unit || "unit"),
           unitsPerPurchase: asNonNegativeNumber(item.units_per_purchase || 1),
+          draftPurchaseUnit: normalizePurchaseUnit(item.draft_purchase_unit || item.purchase_unit || "unit"),
+          draftUnitsPerPurchase: asNonNegativeNumber(item.draft_units_per_purchase || item.units_per_purchase || 1),
+          draftOrderedPurchaseQty: asNonNegativeNumber(
+            item.draft_ordered_purchase_quantity != null ? item.draft_ordered_purchase_quantity : item.ordered_purchase_quantity || 0
+          ),
+          draftOrderedQty: asNonNegativeNumber(item.draft_ordered_quantity || 0),
           orderedPurchaseQty: asNonNegativeNumber(item.ordered_purchase_quantity || 0),
           receivedPurchaseQty: asNonNegativeNumber(item.received_purchase_quantity || 0),
           defaultOrderUrl: String(item.effective_order_url || item.order_url_snapshot || item.inventory_order_url || "").trim(),
@@ -1219,31 +1290,32 @@
       }
 
       function buildOrderedQtySummary(row) {
-        var orderUnit = String(row.purchaseUnit || "unit");
+        var orderUnit = String(row.draftPurchaseUnit || "unit");
         var unitLabel = row.unit || "units";
         if (orderUnit === "unit") {
-          return formatQty(row.orderedQty) + " " + unitLabel + " total";
+          return formatQty(row.draftOrderedQty) + " " + unitLabel + " total";
         }
         return (
-          formatQty(row.orderedPurchaseQty) + " " + orderUnit +
-          " x " + formatQty(row.unitsPerPurchase) + " " + unitLabel +
-          " = " + formatQty(row.orderedQty) + " " + unitLabel
+          formatQty(row.draftOrderedPurchaseQty) + " " + orderUnit +
+          " x " + formatQty(row.draftUnitsPerPurchase) + " " + unitLabel +
+          " = " + formatQty(row.draftOrderedQty) + " " + unitLabel
         );
       }
 
       function getRecommendedOrderedPurchaseQty(row) {
         var targetUnits = row.toOrderQty > 0 ? row.toOrderQty : row.requiredQty;
         if (row.receivedQty > targetUnits) targetUnits = row.receivedQty;
-        if (targetUnits <= 0 && row.orderedQty > 0) targetUnits = row.orderedQty;
+        if (targetUnits <= 0 && row.draftOrderedQty > 0) targetUnits = row.draftOrderedQty;
         if (targetUnits <= 0) return 0;
-        if (row.purchaseUnit === "unit") return asNonNegativeNumber(targetUnits);
+        if (row.draftPurchaseUnit === "unit") return asNonNegativeNumber(targetUnits);
 
-        var unitsPerPurchase = row.unitsPerPurchase > 0 ? row.unitsPerPurchase : 1;
+        var unitsPerPurchase = row.draftUnitsPerPurchase > 0 ? row.draftUnitsPerPurchase : 1;
         return asNonNegativeNumber(Math.ceil(targetUnits / unitsPerPurchase));
       }
 
       function updateActionButtons() {
         var hasActiveOrder = Boolean(activeOrder && activeOrder.id);
+        if (finalizeBtn) finalizeBtn.disabled = !hasActiveOrder;
         if (deleteOrderBtn) deleteOrderBtn.disabled = !hasActiveOrder;
         if (openPlanningBtn) openPlanningBtn.disabled = !hasActiveOrder;
         if (exportCsvBtn) exportCsvBtn.disabled = !hasActiveOrder;
@@ -1286,6 +1358,7 @@
             var tr = document.createElement("tr");
             tr.className = "item-row";
             tr.dataset.itemId = String(row.itemId);
+            var lockedByReceipt = row.receivedQty > 0;
 
             var tdItem = document.createElement("td");
             tdItem.className = "item-col planner-context-cell";
@@ -1315,21 +1388,21 @@
             var tdPurchaseUnit = document.createElement("td");
             tdPurchaseUnit.className = "purchase-action-cell purchase-action-start units-ordered-col";
             tdPurchaseUnit.innerHTML =
-              '<select class="form-select form-select-sm purchase-unit-select" data-item-id="' + row.itemId + '" data-field="purchase-unit" title="' + conversionTitle + '">' +
-                '<option value="unit"' + (row.purchaseUnit === "unit" ? " selected" : "") + '>unit</option>' +
-                '<option value="case"' + (row.purchaseUnit === "case" ? " selected" : "") + '>case</option>' +
-                '<option value="pack"' + (row.purchaseUnit === "pack" ? " selected" : "") + '>pack</option>' +
+              '<select class="form-select form-select-sm purchase-unit-select" data-item-id="' + row.itemId + '" data-field="purchase-unit" title="' + conversionTitle + '"' + (lockedByReceipt ? ' disabled' : '') + '>' +
+                '<option value="unit"' + (row.draftPurchaseUnit === "unit" ? " selected" : "") + '>unit</option>' +
+                '<option value="case"' + (row.draftPurchaseUnit === "case" ? " selected" : "") + '>case</option>' +
+                '<option value="pack"' + (row.draftPurchaseUnit === "pack" ? " selected" : "") + '>pack</option>' +
               '</select>';
             tr.appendChild(tdPurchaseUnit);
 
             var tdUnitsPerPurchase = document.createElement("td");
             tdUnitsPerPurchase.className = "purchase-action-cell order-unit-size-col";
-            if (row.purchaseUnit === "unit") {
+            if (row.draftPurchaseUnit === "unit") {
               tdUnitsPerPurchase.innerHTML = '<span class="unit-chip units-per-order-static" title="' + conversionTitle + '">1</span>';
             } else {
               tdUnitsPerPurchase.innerHTML =
                 '<input type="number" min="0.001" step="0.01" class="form-control form-control-sm qty-input" ' +
-                'data-item-id="' + row.itemId + '" data-field="units-per-purchase" value="' + escapeHtml(formatQty(row.unitsPerPurchase)) + '" title="' + conversionTitle + '">';
+                'data-item-id="' + row.itemId + '" data-field="units-per-purchase" value="' + escapeHtml(formatQty(row.draftUnitsPerPurchase)) + '" title="' + conversionTitle + '"' + (lockedByReceipt ? ' disabled' : '') + '>';
             }
             tr.appendChild(tdUnitsPerPurchase);
 
@@ -1337,12 +1410,12 @@
             tdOrderedPurchase.className = "purchase-action-cell order-qty-col";
             tdOrderedPurchase.innerHTML =
               '<input type="number" min="0" step="0.01" class="form-control form-control-sm qty-input" ' +
-              'data-item-id="' + row.itemId + '" data-field="ordered-purchase" value="' + escapeHtml(formatQty(row.orderedPurchaseQty)) + '" title="' + conversionTitle + '">';
+              'data-item-id="' + row.itemId + '" data-field="ordered-purchase" value="' + escapeHtml(formatQty(row.draftOrderedPurchaseQty)) + '" title="' + conversionTitle + '"' + (lockedByReceipt ? ' disabled' : '') + '>';
             tr.appendChild(tdOrderedPurchase);
 
             var tdTotalOrdered = document.createElement("td");
             tdTotalOrdered.className = "purchase-action-cell total-ordered-col";
-            tdTotalOrdered.innerHTML = '<span class="total-ordered-value" title="' + conversionTitle + '">' + escapeHtml(formatQty(row.orderedQty) + ' ' + (row.unit || 'units')) + '</span>';
+            tdTotalOrdered.innerHTML = '<span class="total-ordered-value" title="' + conversionTitle + '">' + escapeHtml(formatQty(row.draftOrderedQty) + ' ' + (row.unit || 'units')) + '</span>';
             tr.appendChild(tdTotalOrdered);
 
             var tdUrl = document.createElement("td");
@@ -1361,7 +1434,7 @@
             tdOrderedFlag.className = "purchase-action-cell text-center";
             tdOrderedFlag.innerHTML =
               '<input type="checkbox" class="form-check-input purchase-action-check" data-item-id="' + row.itemId + '" data-field="ordered-flag" ' +
-              (row.orderedQty > 0 ? "checked" : "") + '>';
+              (row.orderedQty > 0 ? "checked" : "") + (lockedByReceipt ? " disabled" : "") + '>';
             tr.appendChild(tdOrderedFlag);
 
             var tdNotes = document.createElement("td");
@@ -1393,6 +1466,9 @@
           unit: row.unit || null,
           purchaseUnit: row.purchaseUnit || "unit",
           unitsPerPurchase: row.unitsPerPurchase > 0 ? row.unitsPerPurchase : 1,
+          draftPurchaseUnit: row.draftPurchaseUnit || row.purchaseUnit || "unit",
+          draftUnitsPerPurchase: row.draftUnitsPerPurchase > 0 ? row.draftUnitsPerPurchase : 1,
+          draftOrderedPurchaseQuantity: row.draftOrderedPurchaseQty,
           orderedPurchaseQuantity: row.orderedPurchaseQty,
           receivedPurchaseQuantity: row.receivedPurchaseQty,
           orderUrlOverride: String(row.orderUrlOverride || "").trim() || null,
@@ -1402,6 +1478,12 @@
 
       function collectPayloadItems() {
         return orderRows.filter(isNonEmptyOrderRow).map(toOrderItemPayload);
+      }
+
+      function collectReceivingPayloadItems() {
+        return orderRows.filter(function (row) {
+          return row.orderedQty > 0 || row.receivedQty > 0;
+        }).map(toOrderItemPayload);
       }
 
       function toCsvCell(value) {
@@ -1415,7 +1497,7 @@
       }
 
       async function fetchOrderList() {
-        var response = await fetch(apiUrl("/api/orders?domain=NON_FOOD"), { credentials: "include" });
+        var response = await fetch(apiUrl("/api/orders?domain=NON_FOOD&workflowStage=PURCHASING"), { credentials: "include" });
         if (!response.ok) throw new Error(await parseApiError(response));
         var payload = await response.json();
         orderList = Array.isArray(payload) ? payload : [];
@@ -1446,9 +1528,23 @@
         renderTable();
       }
 
-      async function saveProgress() {
+      function applyDraftToCommitted(row) {
+        row.purchaseUnit = row.draftPurchaseUnit || row.purchaseUnit || "unit";
+        row.unitsPerPurchase = row.draftUnitsPerPurchase > 0 ? row.draftUnitsPerPurchase : 1;
+        row.orderedPurchaseQty = row.draftOrderedPurchaseQty;
+        row.orderedQty = row.draftOrderedQty;
+        if (row.orderedQty <= 0) {
+          row.receivedPurchaseQty = 0;
+          row.receivedQty = 0;
+        }
+        recomputeRow(row);
+      }
+
+      async function saveProgress(options) {
         if (!activeOrder || !activeOrder.id) throw new Error("No active order selected.");
-        setStatus("Saving purchaser updates...", "info");
+        var loadingMessage = options && options.loadingMessage ? options.loadingMessage : "Saving purchasing draft...";
+        var successMessage = options && options.successMessage ? options.successMessage : "Purchasing draft saved.";
+        setStatus(loadingMessage, "info");
 
         var response = await fetch(apiUrl("/api/orders/" + activeOrder.id), {
           method: "PATCH",
@@ -1470,7 +1566,75 @@
         renderHeaderDetails();
         renderCategoryFilters();
         renderTable();
-        setStatus("Purchasing progress saved.", "ok");
+        setStatus(successMessage, "ok");
+      }
+
+      async function finalizeDraftLines() {
+        if (!activeOrder || !activeOrder.id) throw new Error("No active order selected.");
+        var purchaser = await ensureCurrentUser();
+        var purchaserName = purchaser && purchaser.username ? purchaser.username : "current user";
+        var draftCandidates = orderRows.filter(function (row) {
+          return row.draftOrderedPurchaseQty > 0 && (
+            row.orderedPurchaseQty !== row.draftOrderedPurchaseQty ||
+            row.purchaseUnit !== row.draftPurchaseUnit ||
+            row.unitsPerPurchase !== row.draftUnitsPerPurchase
+          );
+        });
+        var projectedItemCount = orderRows.filter(function (row) {
+          var projectedPurchaseUnit = row.purchaseUnit || "unit";
+          var projectedUnitsPerPurchase = row.unitsPerPurchase > 0 ? row.unitsPerPurchase : 1;
+          var projectedOrderedPurchaseQty = row.orderedPurchaseQty;
+          var hasDraftOverride = row.draftOrderedPurchaseQty > 0 && (
+            row.orderedPurchaseQty !== row.draftOrderedPurchaseQty ||
+            row.purchaseUnit !== row.draftPurchaseUnit ||
+            row.unitsPerPurchase !== row.draftUnitsPerPurchase
+          );
+          if (hasDraftOverride) {
+            projectedPurchaseUnit = row.draftPurchaseUnit || projectedPurchaseUnit;
+            projectedUnitsPerPurchase = row.draftUnitsPerPurchase > 0 ? row.draftUnitsPerPurchase : projectedUnitsPerPurchase;
+            projectedOrderedPurchaseQty = row.draftOrderedPurchaseQty;
+          }
+          var projectedOrderedQty = computeTotalUnitsFromPurchase(
+            projectedOrderedPurchaseQty,
+            projectedPurchaseUnit,
+            projectedUnitsPerPurchase
+          );
+          return projectedOrderedQty > 0 || row.receivedQty > 0;
+        }).length;
+        if (!projectedItemCount) {
+          throw new Error("Enter ordered quantities first. Only orders with committed ordered lines can move to Receiving.");
+        }
+
+        var confirmationMessage = draftCandidates.length
+          ? 'Finalize ' + draftCandidates.length + ' draft line(s) and move this order to Receiving as "' + purchaserName + '"?'
+          : 'Move this order to Receiving with ' + projectedItemCount + ' ordered line(s) as "' + purchaserName + '"?';
+
+        var confirmed = window.confirm(
+          confirmationMessage
+        );
+        if (!confirmed) {
+          setStatus("Finalization cancelled.", "info");
+          return;
+        }
+
+        draftCandidates.forEach(applyDraftToCommitted);
+        var items = collectReceivingPayloadItems();
+        setStatus("Finalizing order for receiving...", "info");
+        var response = await fetch(apiUrl("/api/orders/" + activeOrder.id), {
+          method: "PATCH",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            name: String(activeOrder.name || "").trim() || ("Order #" + activeOrder.id),
+            notes: String(activeOrder.notes || "").trim() || null,
+            workflowStage: "RECEIVING",
+            items: items,
+          }),
+        });
+        if (!response.ok) throw new Error(await parseApiError(response));
+
+        var updated = await response.json();
+        window.location.href = buildPageUrl("inventory-receiving.html", { orderId: Number(updated.id) });
       }
 
       async function deleteActiveOrder() {
@@ -1535,10 +1699,10 @@
             row.location || "",
             formatQty(row.toOrderQty),
             row.unit || "",
-            row.purchaseUnit || "unit",
-            formatQty(row.unitsPerPurchase),
-            formatQty(row.orderedPurchaseQty),
-            formatQty(row.orderedQty),
+            row.draftPurchaseUnit || "unit",
+            formatQty(row.draftUnitsPerPurchase),
+            formatQty(row.draftOrderedPurchaseQty),
+            formatQty(row.draftOrderedQty),
             row.effectiveUrl || "",
             row.status || "",
             row.notes || "",
@@ -1563,6 +1727,7 @@
         var requestedId = getRequestedOrderId();
         setStatus("Loading purchasing workspace...", "info");
 
+        await ensureCurrentUser();
         await fetchOrderList();
         if (!orderList.length) {
           orderRows = [];
@@ -1654,22 +1819,34 @@
         var field = target.getAttribute("data-field") || "";
 
         if (field === "purchase-unit" && target instanceof HTMLSelectElement) {
-          row.purchaseUnit = normalizePurchaseUnit(target.value);
-          row.orderedPurchaseQty = getRecommendedOrderedPurchaseQty(row);
-          recomputeRow(row);
+          row.draftPurchaseUnit = normalizePurchaseUnit(target.value);
+          row.draftOrderedPurchaseQty = getRecommendedOrderedPurchaseQty(row);
+          if (row.orderedQty > 0) {
+            applyDraftToCommitted(row);
+          } else {
+            recomputeRow(row);
+          }
           renderTable();
           return;
         }
         if (field === "units-per-purchase" && target instanceof HTMLInputElement) {
-          row.unitsPerPurchase = asNonNegativeNumber(target.value);
-          row.orderedPurchaseQty = getRecommendedOrderedPurchaseQty(row);
-          recomputeRow(row);
+          row.draftUnitsPerPurchase = asNonNegativeNumber(target.value);
+          row.draftOrderedPurchaseQty = getRecommendedOrderedPurchaseQty(row);
+          if (row.orderedQty > 0) {
+            applyDraftToCommitted(row);
+          } else {
+            recomputeRow(row);
+          }
           renderTable();
           return;
         }
         if (field === "ordered-purchase" && target instanceof HTMLInputElement) {
-          row.orderedPurchaseQty = asNonNegativeNumber(target.value);
-          recomputeRow(row);
+          row.draftOrderedPurchaseQty = asNonNegativeNumber(target.value);
+          if (row.orderedQty > 0) {
+            applyDraftToCommitted(row);
+          } else {
+            recomputeRow(row);
+          }
           renderTable();
           return;
         }
@@ -1685,10 +1862,17 @@
           }
           if (target.checked) {
             if (row.orderedQty <= 0) {
-              row.orderedPurchaseQty = getRecommendedOrderedPurchaseQty(row);
+              if (row.draftOrderedQty <= 0) {
+                row.draftOrderedPurchaseQty = getRecommendedOrderedPurchaseQty(row);
+                recomputeRow(row);
+              }
+              applyDraftToCommitted(row);
             }
           } else {
             row.orderedPurchaseQty = 0;
+            row.orderedQty = 0;
+            row.receivedPurchaseQty = 0;
+            row.receivedQty = 0;
           }
           recomputeRow(row);
           renderTable();
@@ -1703,7 +1887,7 @@
 
       saveBtn.addEventListener("click", function () {
         void saveProgress().catch(function (error) {
-          setStatus(error instanceof Error ? error.message : "Could not save purchaser updates.", "err");
+          setStatus(error instanceof Error ? error.message : "Could not save purchaser draft.", "err");
         });
       });
 
@@ -1722,14 +1906,19 @@
       });
 
       openPlanningBtn.addEventListener("click", function () {
-        if (!activeOrder || !activeOrder.id) {
-          setStatus("Select an order first.", "err");
-          return;
-        }
-        window.location.href = buildPageUrl("inventory-orders.html", { orderId: Number(activeOrder.id) });
+        window.location.href = buildPageUrl("inventory-orders.html");
+      });
+
+      finalizeBtn.addEventListener("click", function () {
+        void finalizeDraftLines().catch(function (error) {
+          setStatus(error instanceof Error ? error.message : "Could not finalize the order for receiving.", "err");
+        });
       });
 
       window.addEventListener("load", function () {
+        if (window.retreatAuthUser && window.retreatAuthUser.username) {
+          applyCurrentUserUi(window.retreatAuthUser);
+        }
         void refreshAll({ preserveOrder: true }).catch(function (error) {
           setStatus(error instanceof Error ? error.message : "Could not initialize purchaser view.", "err");
         });

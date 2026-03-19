@@ -4,6 +4,7 @@
   const isLoginPage = currentPath.endsWith(loginPath);
   const PUBLIC_PAGES = new Set([
     "/kitchen-service-view.html",
+    "/kitchen-test-view.html",
     "/about.html",
     "/about-sri-m.html",
     "/sacred-grove.html",

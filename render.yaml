@@ -24,4 +24,6 @@ services:
         value: "admin"
       - key: RETREAT_OPS_BOOTSTRAP_ADMIN_PASSWORD
         sync: false
+      - key: RETREAT_OPS_INVENTORY_WITHDRAW_ACCESS_CODE
+        sync: false
     plan: free

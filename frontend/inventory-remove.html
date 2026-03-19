@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Remove Inventory - Blossom Foundation</title>
+    <title>Withdraw Inventory - Blossom Foundation</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -13,6 +13,8 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
     <link rel="stylesheet" href="assets/header-theme.css" />
+    <link rel="stylesheet" href="assets/ui-theme.css" />
+    <link rel="stylesheet" href="assets/inventory-quantity-controls.css" />
     <style>
       body {
         font-family: "Plus Jakarta Sans", sans-serif;
@@ -23,7 +25,7 @@
       }
 
       .inventory-shell {
-        max-width: 1120px;
+        max-width: 1180px;
         margin: 0 auto;
         padding: 1.4rem 1rem 2rem;
       }
@@ -31,27 +33,123 @@
       .soft-card {
         border: 1px solid var(--ui-border);
         border-radius: var(--ui-radius-md);
-        background: rgba(255, 255, 255, 0.88);
+        background: rgba(255, 255, 255, 0.9);
         box-shadow: var(--ui-shadow-sm);
         backdrop-filter: blur(2px);
       }
 
+      .hero-copy {
+        max-width: 720px;
+      }
+
       .scanner-field {
-        font-size: 1.15rem;
+        font-size: 1.08rem;
         font-weight: 700;
         letter-spacing: 0.02em;
       }
 
-      .product-photo {
-        width: 150px;
-        height: 150px;
+      .selected-item-card {
+        min-height: 100%;
+      }
+
+      .selected-item-photo {
+        width: 168px;
+        height: 168px;
         border-radius: var(--ui-radius-md);
         border: 1px solid var(--ui-border);
         object-fit: cover;
         background: #f5f5f4;
       }
+
+      .result-list {
+        max-height: 440px;
+        overflow: auto;
+      }
+
+      .result-button {
+        width: 100%;
+        text-align: left;
+        border: 1px solid transparent;
+        border-radius: 16px;
+        background: #fff;
+        padding: 0.95rem 1rem;
+        transition: border-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
+      }
+
+      .result-button:hover,
+      .result-button:focus-visible {
+        border-color: rgba(163, 94, 35, 0.25);
+        box-shadow: 0 12px 28px rgba(94, 56, 33, 0.08);
+        transform: translateY(-1px);
+      }
+
+      .result-button.active {
+        border-color: rgba(163, 94, 35, 0.4);
+        background: rgba(247, 241, 232, 0.9);
+        box-shadow: 0 12px 28px rgba(94, 56, 33, 0.08);
+      }
+
+      .summary-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        padding: 0.28rem 0.65rem;
+        border-radius: 999px;
+        background: rgba(237, 231, 225, 0.88);
+        color: #6a4b36;
+        font-size: 0.82rem;
+        font-weight: 700;
+        letter-spacing: 0.03em;
+        text-transform: uppercase;
+      }
+
+      .metadata-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 0.85rem;
+      }
+
+      .metadata-grid dt {
+        font-size: 0.78rem;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: #7f6d61;
+        margin-bottom: 0.2rem;
+      }
+
+      .metadata-grid dd {
+        margin-bottom: 0;
+        font-weight: 600;
+        color: #3d3027;
+      }
+
+      .queue-table td,
+      .queue-table th {
+        vertical-align: middle;
+      }
+
+      .section-lead {
+        max-width: 62ch;
+      }
+
+      .empty-state {
+        border: 1px dashed rgba(127, 109, 97, 0.4);
+        border-radius: 18px;
+        padding: 1.1rem;
+        background: rgba(252, 248, 244, 0.75);
+        color: #6b5a4d;
+      }
+
+      @media (max-width: 767px) {
+        .selected-item-photo {
+          width: 100%;
+          max-width: 220px;
+          height: auto;
+          aspect-ratio: 1 / 1;
+        }
+      }
     </style>
-    <link rel="stylesheet" href="assets/ui-theme.css" />
   </head>
   <body>
     <nav class="navbar navbar-expand-lg navbar-light fixed-top">
@@ -87,7 +185,7 @@
                 <li><a class="dropdown-item" href="inventory-orders.html"><i class="fa-solid fa-list-check me-2"></i> Orders Planning</a></li>
                 <li><a class="dropdown-item" href="inventory-purchasing.html"><i class="fa-solid fa-cart-shopping me-2"></i> Purchasing</a></li>
                 <li><a class="dropdown-item" href="inventory-receiving.html"><i class="fa-solid fa-truck-ramp-box me-2"></i> Receive / Put Away</a></li>
-                <li><a class="dropdown-item" href="inventory-remove.html"><i class="fa-solid fa-minus me-2"></i> Remove Inventory</a></li>
+                <li><a class="dropdown-item" href="inventory-remove.html"><i class="fa-solid fa-minus me-2"></i> Withdraw Inventory</a></li>
                 <li><a class="dropdown-item" href="inventory-baseline.html"><i class="fa-solid fa-barcode me-2"></i> Baseline Scan</a></li>
               </ul>
             </li>
@@ -127,80 +225,258 @@
 
     <main class="inventory-shell">
       <div class="d-flex flex-wrap align-items-center gap-3 mb-4">
-        <div class="flex-grow-1">
-          <h1 class="fw-bold mb-2"><i class="fa-solid fa-minus me-2" style="color: var(--ui-danger-700);"></i>Remove Inventory</h1>
-          <p class="text-muted mb-0">Scan barcodes to remove items from retreat inventory. Each scan records an OUT transaction.</p>
+        <div class="flex-grow-1 hero-copy">
+          <h1 class="fw-bold mb-2"><i class="fa-solid fa-arrow-up-from-bracket fa-rotate-90 me-2" style="color: var(--ui-danger-700);"></i>Withdraw Inventory</h1>
+          <p class="text-muted mb-0">
+            Scan a barcode or search by item name, review the item details, add the quantity needed, then complete the withdrawal as one session.
+            Signed-in users are captured automatically; volunteers can use the shared withdraw access code and enter their name.
+          </p>
         </div>
-        <span id="statusPill" class="status-pill info">Ready.</span>
+        <span id="statusPill" class="status-pill info">Loading...</span>
       </div>
 
       <section class="soft-card p-4 mb-4">
-        <h2 class="h5 mb-3 fw-bold"><i class="fa-solid fa-barcode me-2 text-success"></i>Scan Item</h2>
+        <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-3">
+          <div>
+            <h2 class="h4 mb-1 fw-bold"><i class="fa-solid fa-user-check me-2 text-success"></i>Withdrawal Session</h2>
+            <p class="text-muted mb-0 section-lead">Every completed session records who withdrew the items and why the supplies were taken from storage.</p>
+          </div>
+          <span class="summary-chip" id="sessionModeChip">Checking access</span>
+        </div>
+        <div id="sessionAlert" class="alert alert-warning d-none mb-3" role="alert"></div>
         <div class="row g-3 align-items-end">
+          <div class="col-lg-4">
+            <label for="withdrawnByInput" class="form-label fw-semibold">Withdrawn By</label>
+            <input id="withdrawnByInput" type="text" class="form-control" placeholder="Volunteer name" autocomplete="name" />
+            <div class="form-text" id="withdrawnByHelp">Required before completing a guest withdrawal.</div>
+          </div>
+          <div class="col-lg-3" id="accessCodeField">
+            <label for="accessCodeInput" class="form-label fw-semibold">Guest Access Code</label>
+            <input id="accessCodeInput" type="password" class="form-control" placeholder="Shared code" autocomplete="one-time-code" />
+            <div class="form-text">Signed-in users do not need this.</div>
+          </div>
           <div class="col-lg-5">
-            <label for="barcodeInput" class="form-label fw-semibold">Barcode</label>
-            <input id="barcodeInput" type="text" class="form-control scanner-field" placeholder="Scan barcode and press Enter" />
-          </div>
-          <div class="col-sm-4 col-lg-2">
-            <label for="txQty" class="form-label fw-semibold">Quantity</label>
-            <input id="txQty" type="number" min="1" max="99999" step="1" value="1" class="form-control" />
-          </div>
-          <div class="col-sm-8 col-lg-3">
-            <label for="txLocation" class="form-label fw-semibold">Location</label>
-            <select id="txLocation" class="form-select">
-              <option value="">Auto / Unspecified</option>
-            </select>
-          </div>
-          <div class="col-lg-2 d-grid">
-            <button id="scanAddBtn" type="button" class="btn btn-danger"><i class="fa-solid fa-minus me-1"></i>Remove</button>
-          </div>
-          <div class="col-12">
-            <label for="txReason" class="form-label fw-semibold">Reason</label>
-            <input id="txReason" type="text" class="form-control" placeholder="Retreat use, damaged, consumed" />
+            <label for="reasonInput" class="form-label fw-semibold">Retreat / Reason</label>
+            <input id="reasonInput" type="text" class="form-control" placeholder="Spring retreat towels, meditation hall setup, cleaning supplies" />
+            <div class="form-text">Saved on every movement written by this session.</div>
           </div>
         </div>
       </section>
 
       <section class="soft-card p-4 mb-4">
-        <div class="d-flex align-items-center justify-content-between mb-2">
-          <h2 class="h5 mb-0">Latest Scan Result</h2>
-        </div>
-        <div class="row g-3 mt-1" id="scanResultWrap" style="display: none">
-          <div class="col-sm-4 col-lg-2">
-            <img id="scanImage" class="product-photo" alt="Scanned item" />
+        <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-3">
+          <div>
+            <h2 class="h4 mb-1 fw-bold"><i class="fa-solid fa-magnifying-glass me-2 text-primary"></i>Find Item</h2>
+            <p class="text-muted mb-0 section-lead">Use a barcode scanner into the search field or type part of the item name. Barcode matches are prioritized automatically.</p>
           </div>
-          <div class="col-sm-8 col-lg-10">
-            <div class="small text-uppercase text-muted fw-bold mb-1">Latest scan</div>
-            <h3 id="scanName" class="mb-1"></h3>
-            <div class="text-muted mb-1" id="scanCategory"></div>
-            <div class="fw-semibold" id="scanQuantity"></div>
-            <div class="small text-muted mt-1" id="scanLocation"></div>
-            <div class="small mt-1" id="scanPurchase"></div>
+          <button id="clearSearchBtn" type="button" class="btn btn-outline-secondary btn-sm">Clear Search</button>
+        </div>
+        <div class="row g-3 align-items-end">
+          <div class="col-lg-9">
+            <label for="searchInput" class="form-label fw-semibold">Barcode or Item Name</label>
+            <input id="searchInput" type="text" class="form-control scanner-field" placeholder="Scan barcode or search by item name" />
+          </div>
+          <div class="col-lg-3 d-grid">
+            <button id="searchBtn" type="button" class="btn btn-primary"><i class="fa-solid fa-magnifying-glass me-1"></i>Find Item</button>
           </div>
         </div>
-        <div id="scanResultEmpty" class="text-muted small">No scans yet.</div>
+      </section>
+
+      <section class="row g-4 mb-4">
+        <div class="col-lg-5">
+          <div class="soft-card p-4 h-100">
+            <div class="d-flex align-items-center justify-content-between gap-3 mb-3">
+              <div>
+                <h2 class="h5 mb-1 fw-bold">Matches</h2>
+                <p class="text-muted mb-0 small">Choose the exact inventory row to withdraw from.</p>
+              </div>
+              <span class="summary-chip" id="resultsCountChip">0 results</span>
+            </div>
+            <div id="resultsEmpty" class="empty-state small">No search yet. Scan a barcode or search by item name to begin.</div>
+            <div id="resultsList" class="result-list d-grid gap-2"></div>
+          </div>
+        </div>
+        <div class="col-lg-7">
+          <div class="soft-card p-4 selected-item-card">
+            <div class="d-flex align-items-center justify-content-between gap-3 mb-3">
+              <div>
+                <h2 class="h5 mb-1 fw-bold">Selected Item</h2>
+                <p class="text-muted mb-0 small">Review the item details, then enter the quantity to withdraw.</p>
+              </div>
+              <span class="summary-chip" id="selectedQueuedChip">Queued: 0</span>
+            </div>
+            <div id="selectedEmpty" class="empty-state">Choose an item from the search results to continue.</div>
+            <div id="selectedCard" class="d-none">
+              <div class="row g-4">
+                <div class="col-md-4">
+                  <img id="selectedImage" class="selected-item-photo" src="assets/blossom-mark.png" alt="Selected inventory item" />
+                </div>
+                <div class="col-md-8">
+                  <div class="small text-uppercase text-muted fw-bold mb-2">Inventory Detail</div>
+                  <h3 id="selectedName" class="mb-2"></h3>
+                  <div class="d-flex flex-wrap gap-2 mb-3" id="selectedTags"></div>
+                  <dl class="metadata-grid mb-3">
+                    <div>
+                      <dt>Category</dt>
+                      <dd id="selectedCategory">-</dd>
+                    </div>
+                    <div>
+                      <dt>Location</dt>
+                      <dd id="selectedLocation">-</dd>
+                    </div>
+                    <div>
+                      <dt>Current Stock</dt>
+                      <dd id="selectedStock">-</dd>
+                    </div>
+                    <div>
+                      <dt>Barcode</dt>
+                      <dd id="selectedBarcode">-</dd>
+                    </div>
+                  </dl>
+                  <div id="selectedOrderLinkWrap" class="mb-3 d-none">
+                    <a id="selectedOrderLink" href="#" target="_blank" rel="noopener noreferrer">Open replenishment link</a>
+                  </div>
+                  <div class="row g-3 align-items-end">
+                    <div class="col-sm-5 col-lg-4">
+                      <label for="selectedQuantityInput" class="form-label fw-semibold">Withdraw Quantity</label>
+                      <div class="inventory-stepper">
+                        <button type="button" class="btn btn-outline-secondary inventory-stepper-btn" data-inventory-stepper-action="down" aria-label="Decrease withdraw quantity">-</button>
+                        <input id="selectedQuantityInput" type="number" min="0" step="1" inputmode="numeric" class="form-control inventory-stepper-input" value="1" />
+                        <button type="button" class="btn btn-outline-secondary inventory-stepper-btn" data-inventory-stepper-action="up" aria-label="Increase withdraw quantity">+</button>
+                      </div>
+                    </div>
+                    <div class="col-sm-7 col-lg-8 d-grid">
+                      <button id="addToSessionBtn" type="button" class="btn btn-danger"><i class="fa-solid fa-layer-group me-1"></i>Add To Session</button>
+                    </div>
+                  </div>
+                  <div class="form-text mt-2" id="selectedHelpText">You can queue multiple items, then commit the withdrawal once at the end.</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="soft-card p-4 mb-4">
+        <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-3">
+          <div>
+            <h2 class="h4 mb-1 fw-bold"><i class="fa-solid fa-list-check me-2 text-danger"></i>Withdrawal Queue</h2>
+            <p class="text-muted mb-0 section-lead">Review everything in this session before inventory is actually decremented.</p>
+          </div>
+          <span class="summary-chip" id="queueSummaryChip">0 lines queued</span>
+        </div>
+        <div id="queueEmpty" class="empty-state mb-3">No items added yet. Search for an item, choose the quantity, and add it to this session.</div>
+        <div id="queueTableWrap" class="table-responsive d-none">
+          <table class="table queue-table align-middle">
+            <thead>
+              <tr>
+                <th scope="col">Item</th>
+                <th scope="col">Location</th>
+                <th scope="col">Qty</th>
+                <th scope="col">Stock After</th>
+                <th scope="col" class="text-end">Action</th>
+              </tr>
+            </thead>
+            <tbody id="queueTableBody"></tbody>
+          </table>
+        </div>
+        <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
+          <div class="text-muted small" id="queueTotalsText">0 total units planned for withdrawal.</div>
+          <div class="d-flex flex-wrap gap-2">
+            <button id="clearQueueBtn" type="button" class="btn btn-outline-secondary">Clear Queue</button>
+            <button id="completeWithdrawalBtn" type="button" class="btn btn-danger"><i class="fa-solid fa-check me-1"></i>Withdrawal Complete</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="soft-card p-4">
+        <div class="d-flex align-items-center justify-content-between gap-3 mb-3">
+          <div>
+            <h2 class="h5 mb-1 fw-bold">Last Completed Session</h2>
+            <p class="text-muted mb-0 small">This summary updates after each successful withdrawal submission.</p>
+          </div>
+        </div>
+        <div id="lastCompletedEmpty" class="empty-state">No withdrawal has been completed from this browser session yet.</div>
+        <div id="lastCompletedCard" class="d-none">
+          <div class="row g-3 mb-3">
+            <div class="col-md-3">
+              <div class="small text-uppercase text-muted fw-bold">Withdrawn By</div>
+              <div id="lastCompletedBy" class="fw-semibold"></div>
+            </div>
+            <div class="col-md-3">
+              <div class="small text-uppercase text-muted fw-bold">Lines</div>
+              <div id="lastCompletedLines" class="fw-semibold"></div>
+            </div>
+            <div class="col-md-3">
+              <div class="small text-uppercase text-muted fw-bold">Total Quantity</div>
+              <div id="lastCompletedTotal" class="fw-semibold"></div>
+            </div>
+            <div class="col-md-3">
+              <div class="small text-uppercase text-muted fw-bold">Reason</div>
+              <div id="lastCompletedReason" class="fw-semibold"></div>
+            </div>
+          </div>
+          <div id="lastCompletedItems" class="small text-muted"></div>
+        </div>
       </section>
     </main>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
     <script src="assets/auth.js?v=20260218f"></script>
+    <script src="assets/inventory-quantity-controls.js"></script>
     <script>
-      const barcodeInput = document.getElementById("barcodeInput");
-      const txQty = document.getElementById("txQty");
-      const txLocation = document.getElementById("txLocation");
-      const txReason = document.getElementById("txReason");
-      const scanAddBtn = document.getElementById("scanAddBtn");
       const statusPill = document.getElementById("statusPill");
-      const scanResultWrap = document.getElementById("scanResultWrap");
-      const scanResultEmpty = document.getElementById("scanResultEmpty");
-      const scanImage = document.getElementById("scanImage");
-      const scanName = document.getElementById("scanName");
-      const scanCategory = document.getElementById("scanCategory");
-      const scanQuantity = document.getElementById("scanQuantity");
-      const scanLocation = document.getElementById("scanLocation");
-      const scanPurchase = document.getElementById("scanPurchase");
+      const sessionModeChip = document.getElementById("sessionModeChip");
+      const sessionAlert = document.getElementById("sessionAlert");
+      const withdrawnByInput = document.getElementById("withdrawnByInput");
+      const withdrawnByHelp = document.getElementById("withdrawnByHelp");
+      const accessCodeField = document.getElementById("accessCodeField");
+      const accessCodeInput = document.getElementById("accessCodeInput");
+      const reasonInput = document.getElementById("reasonInput");
+      const searchInput = document.getElementById("searchInput");
+      const searchBtn = document.getElementById("searchBtn");
+      const clearSearchBtn = document.getElementById("clearSearchBtn");
+      const resultsCountChip = document.getElementById("resultsCountChip");
+      const resultsEmpty = document.getElementById("resultsEmpty");
+      const resultsList = document.getElementById("resultsList");
+      const selectedQueuedChip = document.getElementById("selectedQueuedChip");
+      const selectedEmpty = document.getElementById("selectedEmpty");
+      const selectedCard = document.getElementById("selectedCard");
+      const selectedImage = document.getElementById("selectedImage");
+      const selectedName = document.getElementById("selectedName");
+      const selectedTags = document.getElementById("selectedTags");
+      const selectedCategory = document.getElementById("selectedCategory");
+      const selectedLocation = document.getElementById("selectedLocation");
+      const selectedStock = document.getElementById("selectedStock");
+      const selectedBarcode = document.getElementById("selectedBarcode");
+      const selectedOrderLinkWrap = document.getElementById("selectedOrderLinkWrap");
+      const selectedOrderLink = document.getElementById("selectedOrderLink");
+      const selectedQuantityInput = document.getElementById("selectedQuantityInput");
+      const addToSessionBtn = document.getElementById("addToSessionBtn");
+      const selectedHelpText = document.getElementById("selectedHelpText");
+      const queueSummaryChip = document.getElementById("queueSummaryChip");
+      const queueEmpty = document.getElementById("queueEmpty");
+      const queueTableWrap = document.getElementById("queueTableWrap");
+      const queueTableBody = document.getElementById("queueTableBody");
+      const queueTotalsText = document.getElementById("queueTotalsText");
+      const clearQueueBtn = document.getElementById("clearQueueBtn");
+      const completeWithdrawalBtn = document.getElementById("completeWithdrawalBtn");
+      const lastCompletedEmpty = document.getElementById("lastCompletedEmpty");
+      const lastCompletedCard = document.getElementById("lastCompletedCard");
+      const lastCompletedBy = document.getElementById("lastCompletedBy");
+      const lastCompletedLines = document.getElementById("lastCompletedLines");
+      const lastCompletedTotal = document.getElementById("lastCompletedTotal");
+      const lastCompletedReason = document.getElementById("lastCompletedReason");
+      const lastCompletedItems = document.getElementById("lastCompletedItems");
 
-      let locationCache = [];
+      const state = {
+        currentUser: null,
+        config: null,
+        searchResults: [],
+        selectedItemId: null,
+        queue: [],
+        lastCompleted: null,
+      };
 
       function resolveApiBase() {
         const queryValue = new URLSearchParams(window.location.search).get("api");
@@ -247,156 +523,583 @@
         return null;
       }
 
-      function formatDateTime(value) {
-        if (!value) return "";
-        try {
-          const d = new Date(value);
-          return `${d.toLocaleDateString()} ${d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`;
-        } catch (_e) {
-          return String(value);
+      function formatQuantity(value) {
+        const numeric = Number(value);
+        if (!Number.isFinite(numeric)) {
+          return "0";
         }
-      }
-
-      function renderLocationOptions() {
-        txLocation.innerHTML = "";
-
-        const defaultOption = document.createElement("option");
-        defaultOption.value = "";
-        defaultOption.textContent = "Auto / Unspecified";
-        txLocation.appendChild(defaultOption);
-
-        const activeLocations = locationCache.filter(function (location) {
-          return Boolean(location.active);
-        });
-        activeLocations.forEach(function (location) {
-          const option = document.createElement("option");
-          option.value = String(location.id);
-          option.textContent = location.name;
-          txLocation.appendChild(option);
+        return numeric.toLocaleString(undefined, {
+          minimumFractionDigits: Number.isInteger(numeric) ? 0 : 0,
+          maximumFractionDigits: 3,
         });
       }
 
-      async function fetchLocations() {
-        const response = await fetch(apiUrl("/api/retreat-inventory/locations"), {
-          credentials: "include",
-        });
-        if (!response.ok) {
-          throw new Error(await parseApiError(response));
+      function normalizeQuantityInput(value) {
+        const numeric = Number.parseFloat(String(value || "").trim());
+        if (!Number.isFinite(numeric) || numeric <= 0) {
+          return null;
         }
-        const payload = await response.json();
-        locationCache = Array.isArray(payload) ? payload : [];
-        renderLocationOptions();
+        return Math.round(numeric * 1000) / 1000;
       }
 
-      async function handleRemoveScan() {
-        const barcode = barcodeInput.value.trim();
-        if (!barcode) {
-          setStatus("Scan barcode first.", "err");
-          barcodeInput.focus();
+      function queuedQuantityForItem(itemId) {
+        return state.queue.reduce(function (total, entry) {
+          return total + (entry.itemId === itemId ? Number(entry.quantity || 0) : 0);
+        }, 0);
+      }
+
+      function isInteractionAllowed() {
+        return Boolean(
+          (state.currentUser && state.currentUser.username) ||
+          (state.config && state.config.guest_access_enabled)
+        );
+      }
+
+      function getSelectedItem() {
+        if (!Number.isFinite(Number(state.selectedItemId))) {
+          return null;
+        }
+        return state.searchResults.find(function (item) {
+          return Number(item.id) === Number(state.selectedItemId);
+        }) || null;
+      }
+
+      function setSessionAlert(message, tone) {
+        if (!message) {
+          sessionAlert.textContent = "";
+          sessionAlert.className = "alert d-none mb-3";
+          return;
+        }
+        const normalizedTone = tone === "danger" ? "danger" : tone === "success" ? "success" : "warning";
+        sessionAlert.textContent = message;
+        sessionAlert.className = `alert alert-${normalizedTone} mb-3`;
+      }
+
+      function updateAccessUi() {
+        const user = state.currentUser;
+        const guestEnabled = Boolean(state.config && state.config.guest_access_enabled);
+        if (user && user.username) {
+          withdrawnByInput.value = user.username;
+          withdrawnByInput.disabled = true;
+          accessCodeField.classList.add("d-none");
+          sessionModeChip.textContent = `${user.role} session`;
+          withdrawnByHelp.textContent = "Captured automatically from the signed-in account.";
+          setSessionAlert(`Signed in as ${user.username}. This withdrawal will be recorded under your account.`, "success");
+          searchInput.disabled = false;
+          searchBtn.disabled = false;
+          addToSessionBtn.disabled = false;
+          completeWithdrawalBtn.disabled = state.queue.length === 0;
           return;
         }
 
-        const quantity = Number.parseInt(txQty.value, 10);
-        if (!Number.isFinite(quantity) || quantity <= 0) {
-          setStatus("Quantity must be greater than zero.", "err");
-          txQty.focus();
-          return;
-        }
-
-        const locationId = Number.parseInt(txLocation.value, 10);
-        const requestPayload = {
-          barcode: barcode,
-          transactionType: "OUT",
-          quantity: quantity,
-          reason: txReason.value.trim() || null,
-        };
-        if (Number.isFinite(locationId)) {
-          requestPayload.locationId = locationId;
-        }
-
-        setStatus("Processing removal...", "info");
-        const response = await fetch(apiUrl("/api/retreat-inventory/scan"), {
-          method: "POST",
-          credentials: "include",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(requestPayload),
-        });
-
-        if (!response.ok) {
-          throw new Error(await parseApiError(response));
-        }
-
-        const result = await response.json();
-
-        scanResultWrap.style.display = "flex";
-        if (scanResultEmpty) {
-          scanResultEmpty.style.display = "none";
-        }
-
-        scanImage.src = result.item && result.item.image_url ? result.item.image_url : "assets/blossom-mark.png";
-        scanName.textContent = result.item ? result.item.name : "";
-
-        const locations = Array.isArray(result.item && result.item.locations) ? result.item.locations : [];
-        const locationSummary = locations.length
-          ? locations.map(function (loc) { return loc.location_name + " (" + Number(loc.quantity || 0) + ")"; }).join(", ")
-          : (result.item ? result.item.shelf_location : "");
-
-        const itemUnitLabel = result.item && result.item.unit ? " " + result.item.unit : "";
-
-        scanCategory.textContent = (result.item ? result.item.category_name : "") +
-          " \u2022 " +
-          (result.item ? result.item.tracking_mode : "") +
-          (locationSummary ? " \u2022 Locations: " + locationSummary : "");
-
-        scanQuantity.textContent = "Stock: " + result.quantity_before + " \u2192 " + result.quantity_after + itemUnitLabel +
-          " (" + (result.delta > 0 ? "+" : "") + result.delta + ")";
-
-        if (result.location && result.location.name) {
-          scanLocation.textContent = "Shelf: " + result.location.name;
+        withdrawnByInput.disabled = false;
+        accessCodeField.classList.remove("d-none");
+        withdrawnByHelp.textContent = "Enter the volunteer name that should be recorded on this session.";
+        if (guestEnabled) {
+          sessionModeChip.textContent = "Guest session";
+          setSessionAlert("Guests can withdraw inventory with the shared access code. A name is required before completion.", "warning");
+          searchInput.disabled = false;
+          searchBtn.disabled = false;
+          addToSessionBtn.disabled = false;
+          completeWithdrawalBtn.disabled = state.queue.length === 0;
         } else {
-          scanLocation.textContent = "";
+          sessionModeChip.textContent = "Sign-in required";
+          setSessionAlert("Guest withdraw access is not configured. Sign in with an inventory account to use this page.", "danger");
+          searchInput.disabled = true;
+          searchBtn.disabled = true;
+          addToSessionBtn.disabled = true;
+          completeWithdrawalBtn.disabled = true;
         }
-
-        scanPurchase.replaceChildren();
-        const purchaseUrl = toSafeHttpUrl(result.item ? result.item.purchase_url : null);
-        if (purchaseUrl) {
-          const purchaseLink = document.createElement("a");
-          purchaseLink.href = purchaseUrl;
-          purchaseLink.target = "_blank";
-          purchaseLink.rel = "noopener noreferrer";
-          purchaseLink.textContent = "Open purchase link";
-          scanPurchase.appendChild(purchaseLink);
-        }
-
-        barcodeInput.value = "";
-        txReason.value = "";
-        setStatus("Removed " + (result.item ? result.item.name : "item") + ".", "ok");
-        barcodeInput.focus();
       }
 
-      scanAddBtn.addEventListener("click", function () {
-        void handleRemoveScan().catch(function (error) {
-          setStatus(error instanceof Error ? error.message : "Remove inventory failed.", "err");
-          barcodeInput.focus();
-        });
-      });
-
-      barcodeInput.addEventListener("keydown", function (event) {
-        if (event.key === "Enter") {
-          event.preventDefault();
-          scanAddBtn.click();
+      function validateActorInputs(options) {
+        const requireName = Boolean(options && options.requireName);
+        if (state.currentUser && state.currentUser.username) {
+          return {
+            withdrawnBy: state.currentUser.username,
+            accessCode: null,
+          };
         }
-      });
+
+        if (!state.config || !state.config.guest_access_enabled) {
+          throw new Error("Guest withdraw access is not configured. Sign in or ask an admin to set the access code.");
+        }
+
+        const accessCode = accessCodeInput.value.trim();
+        if (!accessCode) {
+          throw new Error("Access code is required.");
+        }
+
+        const withdrawnBy = withdrawnByInput.value.trim();
+        if (requireName && !withdrawnBy) {
+          throw new Error("Withdrawn by is required.");
+        }
+
+        return {
+          withdrawnBy: withdrawnBy || null,
+          accessCode: accessCode,
+        };
+      }
+
+      function renderResults() {
+        resultsList.replaceChildren();
+        resultsCountChip.textContent = `${state.searchResults.length} result${state.searchResults.length === 1 ? "" : "s"}`;
+        if (!state.searchResults.length) {
+          resultsEmpty.classList.remove("d-none");
+          resultsList.classList.add("d-none");
+          renderSelectedItem();
+          return;
+        }
+
+        resultsEmpty.classList.add("d-none");
+        resultsList.classList.remove("d-none");
+        state.searchResults.forEach(function (item) {
+          const button = document.createElement("button");
+          button.type = "button";
+          button.className = "result-button";
+          if (Number(item.id) === Number(state.selectedItemId)) {
+            button.classList.add("active");
+          }
+          const queuedQuantity = queuedQuantityForItem(Number(item.id));
+          const stockLabel = `${formatQuantity(item.quantity)} ${item.unit || "each"} on hand`;
+          const queuedLabel = queuedQuantity > 0 ? ` • ${formatQuantity(queuedQuantity)} already queued` : "";
+          button.innerHTML = `
+            <div class="d-flex justify-content-between gap-3">
+              <div class="flex-grow-1">
+                <div class="fw-semibold">${escapeHtml(item.item_name || "Unnamed item")}</div>
+                <div class="small text-muted">${escapeHtml(item.category || "Uncategorized")} • ${escapeHtml(item.location || "No location")} • ${escapeHtml(stockLabel + queuedLabel)}</div>
+                <div class="small text-muted">${escapeHtml(item.barcode || "No barcode")}</div>
+              </div>
+              <div class="text-end small text-muted">
+                <div>${formatQuantity(Math.max(Number(item.quantity || 0) - queuedQuantity, 0))}</div>
+                <div>available</div>
+              </div>
+            </div>
+          `;
+          button.addEventListener("click", function () {
+            state.selectedItemId = Number(item.id);
+            if (!selectedQuantityInput.value || Number(selectedQuantityInput.value) <= 0) {
+              selectedQuantityInput.value = "1";
+            }
+            renderResults();
+            renderSelectedItem();
+          });
+          resultsList.appendChild(button);
+        });
+
+        renderSelectedItem();
+      }
+
+      function renderSelectedItem() {
+        const item = getSelectedItem();
+        if (!item) {
+          selectedEmpty.classList.remove("d-none");
+          selectedCard.classList.add("d-none");
+          selectedQueuedChip.textContent = "Queued: 0";
+          return;
+        }
+
+        const queuedQuantity = queuedQuantityForItem(Number(item.id));
+        const unitLabel = item.unit || "each";
+        const barcodeText = Array.isArray(item.barcodes) && item.barcodes.length
+          ? item.barcodes.join(", ")
+          : (item.barcode || "No barcode");
+        const stockAfterAdd = Math.max(Number(item.quantity || 0) - queuedQuantity, 0);
+
+        selectedEmpty.classList.add("d-none");
+        selectedCard.classList.remove("d-none");
+        selectedQueuedChip.textContent = `Queued: ${formatQuantity(queuedQuantity)} ${unitLabel}`;
+        selectedImage.src = item.image_url || "assets/blossom-mark.png";
+        selectedName.textContent = item.item_name || "Unnamed item";
+        selectedCategory.textContent = item.category || "Uncategorized";
+        selectedLocation.textContent = item.location || "No location";
+        selectedStock.textContent = `${formatQuantity(item.quantity)} ${unitLabel}`;
+        selectedBarcode.textContent = barcodeText;
+
+        selectedTags.replaceChildren();
+        [
+          `${formatQuantity(stockAfterAdd)} ${unitLabel} still available`,
+          item.import_source ? `Source: ${item.import_source}` : null,
+          item.barcode_count > 1 ? `${item.barcode_count} barcodes` : null,
+        ].filter(Boolean).forEach(function (label) {
+          const chip = document.createElement("span");
+          chip.className = "summary-chip";
+          chip.textContent = label;
+          selectedTags.appendChild(chip);
+        });
+
+        const safeOrderUrl = toSafeHttpUrl(item.order_url);
+        if (safeOrderUrl) {
+          selectedOrderLinkWrap.classList.remove("d-none");
+          selectedOrderLink.href = safeOrderUrl;
+        } else {
+          selectedOrderLinkWrap.classList.add("d-none");
+          selectedOrderLink.removeAttribute("href");
+        }
+
+        if (stockAfterAdd <= 0) {
+          addToSessionBtn.disabled = true;
+          selectedHelpText.textContent = "All available stock for this row is already queued in the current session.";
+        } else {
+          addToSessionBtn.disabled = !isInteractionAllowed();
+          selectedHelpText.textContent = "Add the quantity needed to the queue. Inventory is not decremented until completion.";
+        }
+      }
+
+      function renderQueue() {
+        queueSummaryChip.textContent = `${state.queue.length} line${state.queue.length === 1 ? "" : "s"} queued`;
+        const totalQuantity = state.queue.reduce(function (sum, entry) {
+          return sum + Number(entry.quantity || 0);
+        }, 0);
+        queueTotalsText.textContent = `${formatQuantity(totalQuantity)} total units planned for withdrawal.`;
+        clearQueueBtn.disabled = state.queue.length === 0;
+        completeWithdrawalBtn.disabled = !isInteractionAllowed() || state.queue.length === 0;
+
+        queueTableBody.replaceChildren();
+        if (!state.queue.length) {
+          queueEmpty.classList.remove("d-none");
+          queueTableWrap.classList.add("d-none");
+          renderResults();
+          return;
+        }
+
+        queueEmpty.classList.add("d-none");
+        queueTableWrap.classList.remove("d-none");
+
+        state.queue.forEach(function (entry) {
+          const row = document.createElement("tr");
+          row.innerHTML = `
+            <td>
+              <div class="fw-semibold">${escapeHtml(entry.itemName)}</div>
+              <div class="small text-muted">${escapeHtml(entry.category || "Uncategorized")} • ${escapeHtml(entry.unit || "each")}</div>
+            </td>
+            <td>${escapeHtml(entry.location || "No location")}</td>
+            <td>${escapeHtml(formatQuantity(entry.quantity))}</td>
+            <td>${escapeHtml(formatQuantity(Math.max(Number(entry.available || 0) - Number(entry.quantity || 0), 0)))} ${escapeHtml(entry.unit || "each")}</td>
+            <td class="text-end">
+              <button type="button" class="btn btn-sm btn-outline-danger" data-remove-item="${entry.itemId}">
+                <i class="fa-solid fa-trash-can me-1"></i>Remove
+              </button>
+            </td>
+          `;
+          queueTableBody.appendChild(row);
+        });
+
+        queueTableBody.querySelectorAll("[data-remove-item]").forEach(function (button) {
+          button.addEventListener("click", function () {
+            const itemId = Number(button.getAttribute("data-remove-item"));
+            state.queue = state.queue.filter(function (entry) {
+              return Number(entry.itemId) !== itemId;
+            });
+            renderQueue();
+          });
+        });
+
+        renderResults();
+      }
+
+      function renderLastCompleted() {
+        if (!state.lastCompleted) {
+          lastCompletedEmpty.classList.remove("d-none");
+          lastCompletedCard.classList.add("d-none");
+          return;
+        }
+
+        lastCompletedEmpty.classList.add("d-none");
+        lastCompletedCard.classList.remove("d-none");
+        lastCompletedBy.textContent = state.lastCompleted.withdrawn_by || "-";
+        lastCompletedLines.textContent = String(state.lastCompleted.line_count || 0);
+        lastCompletedTotal.textContent = formatQuantity(state.lastCompleted.total_quantity || 0);
+        lastCompletedReason.textContent = state.lastCompleted.reason || "Not specified";
+        const items = Array.isArray(state.lastCompleted.items) ? state.lastCompleted.items : [];
+        lastCompletedItems.innerHTML = items.map(function (item) {
+          return `
+            <div class="mb-1">
+              <span class="fw-semibold">${escapeHtml(item.item_name || "Unnamed item")}</span>
+              <span> • withdrew ${escapeHtml(formatQuantity(item.quantity_withdrawn))} ${escapeHtml(item.unit || "each")}</span>
+              <span> • stock ${escapeHtml(formatQuantity(item.quantity_before))} → ${escapeHtml(formatQuantity(item.quantity_after))}</span>
+            </div>
+          `;
+        }).join("");
+      }
+
+      async function loadOptionalCurrentUser() {
+        const response = await fetch(apiUrl("/api/auth/me"), {
+          method: "GET",
+          credentials: "include",
+        });
+        if (!response.ok) {
+          return null;
+        }
+        return response.json();
+      }
+
+      async function loadWithdrawConfig() {
+        const response = await fetch(apiUrl("/api/inventory/withdraw-config"), {
+          method: "GET",
+          credentials: "include",
+        });
+        if (!response.ok) {
+          throw new Error(await parseApiError(response));
+        }
+        return response.json();
+      }
+
+      async function performSearch() {
+        const query = searchInput.value.trim();
+        if (!query) {
+          setStatus("Scan a barcode or enter an item name first.", "err");
+          searchInput.focus();
+          return;
+        }
+
+        let accessPayload;
+        try {
+          accessPayload = validateActorInputs({ requireName: false });
+        } catch (error) {
+          setStatus(error instanceof Error ? error.message : "Search access is not ready.", "err");
+          if (!(state.currentUser && state.currentUser.username)) {
+            accessCodeInput.focus();
+          }
+          return;
+        }
+
+        searchBtn.disabled = true;
+        setStatus("Searching inventory...", "info");
+
+        try {
+          const response = await fetch(apiUrl("/api/inventory/withdraw-search"), {
+            method: "POST",
+            credentials: "include",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              query: query,
+              limit: 12,
+              accessCode: accessPayload.accessCode,
+            }),
+          });
+          if (!response.ok) {
+            throw new Error(await parseApiError(response));
+          }
+          const payload = await response.json();
+          state.searchResults = Array.isArray(payload.items) ? payload.items : [];
+          if (state.searchResults.length === 1) {
+            state.selectedItemId = Number(state.searchResults[0].id);
+          } else if (!state.searchResults.some(function (item) { return Number(item.id) === Number(state.selectedItemId); })) {
+            state.selectedItemId = null;
+          }
+          renderResults();
+          if (state.searchResults.length) {
+            setStatus(`Found ${state.searchResults.length} matching item${state.searchResults.length === 1 ? "" : "s"}.`, "ok");
+          } else {
+            setStatus("No matching inventory item found.", "err");
+          }
+        } finally {
+          searchBtn.disabled = searchInput.disabled;
+        }
+      }
+
+      function handleAddToSession() {
+        const item = getSelectedItem();
+        if (!item) {
+          setStatus("Choose an inventory item first.", "err");
+          return;
+        }
+
+        try {
+          validateActorInputs({ requireName: false });
+        } catch (error) {
+          setStatus(error instanceof Error ? error.message : "Session access is not ready.", "err");
+          return;
+        }
+
+        const quantity = normalizeQuantityInput(selectedQuantityInput.value);
+        if (!quantity) {
+          setStatus("Withdraw quantity must be greater than zero.", "err");
+          selectedQuantityInput.focus();
+          return;
+        }
+
+        const currentQueued = queuedQuantityForItem(Number(item.id));
+        const available = Number(item.quantity || 0);
+        if ((currentQueued + quantity) > available) {
+          setStatus(`Only ${formatQuantity(Math.max(available - currentQueued, 0))} ${item.unit || "each"} remain available for this item.`, "err");
+          selectedQuantityInput.focus();
+          return;
+        }
+
+        const existingIndex = state.queue.findIndex(function (entry) {
+          return Number(entry.itemId) === Number(item.id);
+        });
+        const baseEntry = {
+          itemId: Number(item.id),
+          itemName: item.item_name || "Unnamed item",
+          category: item.category || "",
+          location: item.location || "",
+          unit: item.unit || "each",
+          available: available,
+        };
+        if (existingIndex >= 0) {
+          state.queue[existingIndex] = {
+            ...state.queue[existingIndex],
+            ...baseEntry,
+            quantity: Math.round((Number(state.queue[existingIndex].quantity || 0) + quantity) * 1000) / 1000,
+          };
+        } else {
+          state.queue.push({
+            ...baseEntry,
+            quantity: quantity,
+          });
+        }
+
+        selectedQuantityInput.value = "1";
+        renderQueue();
+        renderSelectedItem();
+        setStatus(`Queued ${formatQuantity(quantity)} ${item.unit || "each"} of ${item.item_name || "item"}.`, "ok");
+        searchInput.focus();
+      }
+
+      async function completeWithdrawal() {
+        let actorPayload;
+        try {
+          actorPayload = validateActorInputs({ requireName: true });
+        } catch (error) {
+          setStatus(error instanceof Error ? error.message : "Withdrawn by is required.", "err");
+          if (!(state.currentUser && state.currentUser.username)) {
+            if (!withdrawnByInput.value.trim()) {
+              withdrawnByInput.focus();
+            } else {
+              accessCodeInput.focus();
+            }
+          }
+          return;
+        }
+
+        if (!state.queue.length) {
+          setStatus("Add at least one item before completing the withdrawal.", "err");
+          return;
+        }
+
+        completeWithdrawalBtn.disabled = true;
+        setStatus("Completing withdrawal...", "info");
+
+        try {
+          const response = await fetch(apiUrl("/api/inventory/withdraw-complete"), {
+            method: "POST",
+            credentials: "include",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              withdrawnBy: actorPayload.withdrawnBy,
+              accessCode: actorPayload.accessCode,
+              reason: reasonInput.value.trim() || null,
+              items: state.queue.map(function (entry) {
+                return {
+                  itemId: Number(entry.itemId),
+                  quantity: Number(entry.quantity),
+                };
+              }),
+            }),
+          });
+          if (!response.ok) {
+            throw new Error(await parseApiError(response));
+          }
+
+          const payload = await response.json();
+          state.lastCompleted = payload;
+          state.queue = [];
+          state.searchResults = [];
+          state.selectedItemId = null;
+          searchInput.value = "";
+          selectedQuantityInput.value = "1";
+          reasonInput.value = "";
+          renderResults();
+          renderQueue();
+          renderLastCompleted();
+          setStatus(`Withdrawal complete for ${payload.withdrawn_by || "session"}.`, "ok");
+          searchInput.focus();
+        } finally {
+          completeWithdrawalBtn.disabled = false;
+        }
+      }
+
+      function clearSearchState() {
+        searchInput.value = "";
+        state.searchResults = [];
+        state.selectedItemId = null;
+        selectedQuantityInput.value = "1";
+        renderResults();
+        setStatus("Search cleared.", "info");
+        searchInput.focus();
+      }
+
+      function clearQueueState() {
+        state.queue = [];
+        renderQueue();
+        renderSelectedItem();
+        setStatus("Withdrawal queue cleared.", "info");
+      }
 
       async function init() {
-        setStatus("Loading...", "info");
+        setStatus("Loading withdraw page...", "info");
         try {
-          await fetchLocations();
-          setStatus("Ready to scan.", "ok");
+          const [config, currentUser] = await Promise.all([
+            loadWithdrawConfig(),
+            loadOptionalCurrentUser().catch(function () { return null; }),
+          ]);
+          state.config = config;
+          state.currentUser = currentUser && currentUser.username ? currentUser : null;
+          updateAccessUi();
+          renderResults();
+          renderQueue();
+          renderLastCompleted();
+          setStatus("Ready to withdraw inventory.", "ok");
+          searchInput.focus();
         } catch (error) {
-          setStatus(error instanceof Error ? error.message : "Could not load locations.", "err");
+          updateAccessUi();
+          renderResults();
+          renderQueue();
+          renderLastCompleted();
+          setStatus(error instanceof Error ? error.message : "Could not load withdraw page.", "err");
         }
       }
+
+      searchBtn.addEventListener("click", function () {
+        void performSearch().catch(function (error) {
+          setStatus(error instanceof Error ? error.message : "Search failed.", "err");
+        });
+      });
+
+      searchInput.addEventListener("keydown", function (event) {
+        if (event.key === "Enter") {
+          event.preventDefault();
+          searchBtn.click();
+        }
+      });
+
+      selectedQuantityInput.addEventListener("keydown", function (event) {
+        if (event.key === "Enter") {
+          event.preventDefault();
+          handleAddToSession();
+        }
+      });
+
+      addToSessionBtn.addEventListener("click", function () {
+        handleAddToSession();
+      });
+
+      completeWithdrawalBtn.addEventListener("click", function () {
+        void completeWithdrawal().catch(function (error) {
+          setStatus(error instanceof Error ? error.message : "Withdrawal failed.", "err");
+        });
+      });
+
+      clearSearchBtn.addEventListener("click", function () {
+        clearSearchState();
+      });
+
+      clearQueueBtn.addEventListener("click", function () {
+        clearQueueState();
+      });
 
       void init();
     </script>

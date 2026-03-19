@@ -13,6 +13,7 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
     <link rel="stylesheet" href="assets/header-theme.css" />
+    <link rel="stylesheet" href="assets/inventory-quantity-controls.css" />
     <style>
       :root {
         --purchasing-bg: #f5f7f3;
@@ -696,7 +697,7 @@
                 <li><a class="dropdown-item" href="inventory-orders.html"><i class="fa-solid fa-list-check me-2"></i> Orders Planning</a></li>
                 <li><a class="dropdown-item" href="inventory-purchasing.html"><i class="fa-solid fa-cart-shopping me-2"></i> Purchasing</a></li>
                 <li><a class="dropdown-item" href="inventory-receiving.html"><i class="fa-solid fa-truck-ramp-box me-2"></i> Receive / Put Away</a></li>
-                <li><a class="dropdown-item" href="inventory-remove.html"><i class="fa-solid fa-minus me-2"></i> Remove Inventory</a></li>
+                <li><a class="dropdown-item" href="inventory-remove.html"><i class="fa-solid fa-minus me-2"></i> Withdraw Inventory</a></li>
                 <li><a class="dropdown-item" href="inventory-baseline.html"><i class="fa-solid fa-barcode me-2"></i> Baseline Scan</a></li>
               </ul>
             </li>
@@ -851,6 +852,7 @@
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
     <script src="assets/auth.js?v=20260218f"></script>
+    <script src="assets/inventory-quantity-controls.js"></script>
     <script>
       var statusPill = document.getElementById("statusPill");
       var currentOrderName = document.getElementById("currentOrderName");
@@ -977,6 +979,10 @@
         if (!Number.isFinite(num)) return "0";
         if (Math.abs(num - Math.round(num)) < 0.000001) return String(Math.round(num));
         return String(Math.round(num * 100) / 100);
+      }
+
+      function renderIntegerStepperInput(options) {
+        return window.InventoryQuantityControls.renderInput(options);
       }
 
       function normalizePurchaseUnit(value) {
@@ -1339,6 +1345,15 @@
         updateActionButtons();
       }
 
+      function buildItemHoverText(row) {
+        return [
+          row.name || "",
+          row.barcode ? "Barcode: " + row.barcode : "",
+          row.location ? "Location: " + row.location : "",
+          row.categoryName ? "Category: " + row.categoryName : "",
+        ].filter(Boolean).join("\n");
+      }
+
       function renderTable() {
         purchasingBody.innerHTML = "";
         var rows = getFilteredRows();
@@ -1362,12 +1377,15 @@
 
             var tdItem = document.createElement("td");
             tdItem.className = "item-col planner-context-cell";
-            tdItem.title = [
-              row.name || "",
-              row.barcode ? "Barcode: " + row.barcode : "",
-              row.location ? "Location: " + row.location : "",
-            ].filter(Boolean).join("\n");
-            tdItem.innerHTML = '<div class="item-name">' + escapeHtml(row.name) + '</div>';
+            var itemHoverText = buildItemHoverText(row);
+            tdItem.title = itemHoverText;
+            tdItem.setAttribute("aria-label", itemHoverText);
+            var itemName = document.createElement("div");
+            itemName.className = "item-name";
+            itemName.textContent = row.name || "Unknown";
+            itemName.title = itemHoverText;
+            itemName.setAttribute("aria-label", itemHoverText);
+            tdItem.appendChild(itemName);
             tr.appendChild(tdItem);
 
             var tdToOrder = document.createElement("td");
@@ -1400,17 +1418,41 @@
             if (row.draftPurchaseUnit === "unit") {
               tdUnitsPerPurchase.innerHTML = '<span class="unit-chip units-per-order-static" title="' + conversionTitle + '">1</span>';
             } else {
-              tdUnitsPerPurchase.innerHTML =
-                '<input type="number" min="0.001" step="0.01" class="form-control form-control-sm qty-input" ' +
-                'data-item-id="' + row.itemId + '" data-field="units-per-purchase" value="' + escapeHtml(formatQty(row.draftUnitsPerPurchase)) + '" title="' + conversionTitle + '"' + (lockedByReceipt ? ' disabled' : '') + '>';
+              tdUnitsPerPurchase.innerHTML = renderIntegerStepperInput({
+                min: "1",
+                step: "1",
+                compact: true,
+                disabled: lockedByReceipt,
+                title: conversionTitle,
+                inputClassName: "qty-input",
+                decrementLabel: "Decrease units per order",
+                incrementLabel: "Increase units per order",
+                value: formatQty(row.draftUnitsPerPurchase),
+                extraAttributes: {
+                  "data-item-id": String(row.itemId),
+                  "data-field": "units-per-purchase",
+                },
+              });
             }
             tr.appendChild(tdUnitsPerPurchase);
 
             var tdOrderedPurchase = document.createElement("td");
             tdOrderedPurchase.className = "purchase-action-cell order-qty-col";
-            tdOrderedPurchase.innerHTML =
-              '<input type="number" min="0" step="0.01" class="form-control form-control-sm qty-input" ' +
-              'data-item-id="' + row.itemId + '" data-field="ordered-purchase" value="' + escapeHtml(formatQty(row.draftOrderedPurchaseQty)) + '" title="' + conversionTitle + '"' + (lockedByReceipt ? ' disabled' : '') + '>';
+            tdOrderedPurchase.innerHTML = renderIntegerStepperInput({
+              min: "0",
+              step: "1",
+              compact: true,
+              disabled: lockedByReceipt,
+              title: conversionTitle,
+              inputClassName: "qty-input",
+              decrementLabel: "Decrease ordered quantity",
+              incrementLabel: "Increase ordered quantity",
+              value: formatQty(row.draftOrderedPurchaseQty),
+              extraAttributes: {
+                "data-item-id": String(row.itemId),
+                "data-field": "ordered-purchase",
+              },
+            });
             tr.appendChild(tdOrderedPurchase);
 
             var tdTotalOrdered = document.createElement("td");
@@ -1553,6 +1595,8 @@
           body: JSON.stringify({
             name: String(activeOrder.name || "").trim() || ("Order #" + activeOrder.id),
             notes: String(activeOrder.notes || "").trim() || null,
+            expectedWorkflowStage: "PURCHASING",
+            workflowStage: "PURCHASING",
             items: collectPayloadItems(),
           }),
         });
@@ -1627,6 +1671,7 @@
           body: JSON.stringify({
             name: String(activeOrder.name || "").trim() || ("Order #" + activeOrder.id),
             notes: String(activeOrder.notes || "").trim() || null,
+            expectedWorkflowStage: "PURCHASING",
             workflowStage: "RECEIVING",
             items: items,
           }),

@@ -24,6 +24,8 @@
       .qty-input { width: 104px; font-size: 0.82rem; padding: 0.25rem 0.4rem; text-align: center; }
       .purchase-unit-select { width: 88px; font-size: 0.78rem; padding: 0.2rem 0.35rem; }
       .qty-helper { font-size: 0.68rem; color: var(--ui-muted); line-height: 1.1; margin-top: 0.15rem; }
+      .table-helper { font-size: 0.72rem; color: var(--ui-muted); line-height: 1.3; margin-top: 0.18rem; }
+      .location-chip { display: inline-flex; align-items: center; border-radius: 999px; padding: 0.16rem 0.55rem; font-size: 0.72rem; font-weight: 700; background: #f0fdf4; border: 1px solid #86efac; color: #166534; }
       .status-chip { font-size: 0.66rem; font-weight: 700; border-radius: 999px; padding: 0.15rem 0.5rem; border: 1px solid var(--ui-border); display: inline-flex; }
       .status-chip.not-ordered { background: #fff7ed; color: #9a3412; border-color: #fdba74; }
       .status-chip.ordered { background: #eff6ff; color: #1d4ed8; border-color: #93c5fd; }
@@ -36,6 +38,7 @@
       .putaway-qty-input { width: 104px; font-size: 0.82rem; padding: 0.25rem 0.4rem; text-align: center; }
       .putaway-location-input { width: 96px; font-size: 0.82rem; text-transform: uppercase; }
       .remaining-chip { display: inline-flex; align-items: center; border-radius: 999px; padding: 0.15rem 0.55rem; font-size: 0.72rem; font-weight: 700; background: #eff6ff; border: 1px solid #bfdbfe; color: #1d4ed8; }
+      .remaining-chip.over { background: #fff7ed; border-color: #fdba74; color: #9a3412; }
       .scan-card { border-color: #d9e8e0; background: linear-gradient(135deg, rgba(250, 255, 253, 0.98), rgba(239, 248, 244, 0.95)); }
       .scan-shell { display: grid; gap: 0.95rem; }
       .scan-header { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 0.75rem; }
@@ -51,6 +54,10 @@
       .scan-summary-label { font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--ui-muted); font-weight: 700; margin-bottom: 0.18rem; }
       .scan-summary-main { font-weight: 700; color: #16372d; line-height: 1.2; }
       .scan-meta { font-size: 0.76rem; color: var(--ui-muted); line-height: 1.35; }
+      .scan-detail-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.75rem; }
+      .scan-detail-card { border: 1px solid #dbe7df; border-radius: 0.9rem; background: rgba(255, 255, 255, 0.84); padding: 0.72rem 0.84rem; }
+      .scan-detail-label { font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--ui-muted); font-weight: 700; margin-bottom: 0.25rem; }
+      .scan-detail-main { font-weight: 700; color: #16372d; line-height: 1.25; }
       .scan-candidates { display: grid; gap: 0.55rem; }
       .scan-candidate-btn { width: 100%; display: flex; align-items: flex-start; justify-content: space-between; gap: 0.8rem; text-align: left; border: 1px solid #d8e5dd; border-radius: 0.92rem; background: rgba(255, 255, 255, 0.96); padding: 0.72rem 0.82rem; transition: border-color 0.14s ease, box-shadow 0.14s ease, transform 0.14s ease; }
       .scan-candidate-btn:hover { border-color: #0d9488; box-shadow: 0 0 0 3px rgba(13, 148, 136, 0.08); transform: translateY(-1px); }
@@ -62,12 +69,16 @@
       .scan-conflict { display: none; border: 1px solid #fecaca; border-radius: 0.9rem; background: rgba(255, 245, 245, 0.95); color: #7f1d1d; padding: 0.78rem 0.9rem; font-size: 0.79rem; line-height: 1.45; }
       .scan-conflict.visible { display: block; }
       .scan-actions { display: flex; flex-wrap: wrap; gap: 0.6rem; }
+      .scan-create-panel { display: grid; gap: 0.7rem; border: 1px dashed #b7d3c7; border-radius: 0.95rem; background: rgba(255, 255, 255, 0.76); padding: 0.9rem; }
+      .scan-create-panel[hidden] { display: none; }
       .scan-target-row td { box-shadow: inset 0 0 0 9999px rgba(13, 148, 136, 0.10); }
       @media (max-width: 991.98px) {
         .scan-grid { grid-template-columns: 1fr; }
+        .scan-detail-grid { grid-template-columns: 1fr; }
       }
     </style>
     <link rel="stylesheet" href="assets/ui-theme.css" />
+    <link rel="stylesheet" href="assets/inventory-quantity-controls.css" />
   </head>
   <body>
     <nav class="navbar navbar-expand-lg navbar-light fixed-top">
@@ -103,7 +114,7 @@
                 <li><a class="dropdown-item" href="inventory-orders.html"><i class="fa-solid fa-list-check me-2"></i> Orders Planning</a></li>
                 <li><a class="dropdown-item" href="inventory-purchasing.html"><i class="fa-solid fa-cart-shopping me-2"></i> Purchasing</a></li>
                 <li><a class="dropdown-item" href="inventory-receiving.html"><i class="fa-solid fa-truck-ramp-box me-2"></i> Receive / Put Away</a></li>
-                <li><a class="dropdown-item" href="inventory-remove.html"><i class="fa-solid fa-minus me-2"></i> Remove Inventory</a></li>
+                <li><a class="dropdown-item" href="inventory-remove.html"><i class="fa-solid fa-minus me-2"></i> Withdraw Inventory</a></li>
                 <li><a class="dropdown-item" href="inventory-baseline.html"><i class="fa-solid fa-barcode me-2"></i> Baseline Scan</a></li>
               </ul>
             </li>
@@ -197,10 +208,23 @@
 
         <div class="d-flex flex-wrap gap-2 mt-3">
           <button id="refreshBtn" type="button" class="btn btn-sm btn-outline-secondary"><i class="fa-solid fa-arrows-rotate me-1"></i>Refresh</button>
-          <button id="saveBtn" type="button" class="btn btn-sm btn-primary"><i class="fa-solid fa-floppy-disk me-1"></i>Save Receipts</button>
-          <button id="saveAndPutawayBtn" type="button" class="btn btn-sm btn-success"><i class="fa-solid fa-boxes-packing me-1"></i>Save + Put Away</button>
+          <button id="saveBtn" type="button" class="btn btn-sm btn-primary"><i class="fa-solid fa-floppy-disk me-1"></i>Save Receipt Progress</button>
+          <button id="saveAndPutawayBtn" type="button" class="btn btn-sm btn-success"><i class="fa-solid fa-boxes-packing me-1"></i>Save Shipment</button>
+          <button id="finalizeBtn" type="button" class="btn btn-sm btn-warning"><i class="fa-solid fa-circle-check me-1"></i>Finalize Order</button>
         </div>
-        <div class="small text-muted mt-2">Select the order that is physically arriving now. Orders land here after purchasing is finalized. You can save receipts only, or save and put away in one pass.</div>
+        <div class="small text-muted mt-2">Select the placed order that is physically arriving now. Scan and review one shipment at a time, save partial progress as shipments land, and finalize only after the order is fully received and fully put away.</div>
+        <div class="row g-3 mt-1">
+          <div class="col-lg-4">
+            <label class="small text-uppercase fw-semibold text-muted mb-1" for="receivingActorInput">Receiving By</label>
+            <input id="receivingActorInput" type="text" class="form-control form-control-sm" placeholder="Signed-in user" readonly />
+            <div id="receivingActorMeta" class="small text-muted mt-2">Receipts are recorded under the signed-in user.</div>
+          </div>
+          <div class="col-lg-4">
+            <label class="small text-uppercase fw-semibold text-muted mb-1" for="putawayActorInput">Put Away By</label>
+            <input id="putawayActorInput" type="text" class="form-control form-control-sm" placeholder="Signed-in user" readonly />
+            <div id="putawayActorMeta" class="small text-muted mt-2">Putaway actions are recorded under the signed-in user.</div>
+          </div>
+        </div>
       </section>
 
       <section class="soft-card scan-card p-4 mb-4">
@@ -224,7 +248,11 @@
 
             <div>
               <label class="small text-uppercase fw-semibold text-muted mb-1" for="scanReceivedQtyInput">Received Qty</label>
-              <input id="scanReceivedQtyInput" type="number" min="0.01" step="0.01" value="1" class="form-control" />
+              <div class="inventory-stepper">
+                <button type="button" class="btn btn-outline-secondary inventory-stepper-btn" data-inventory-stepper-action="down" aria-label="Decrease received quantity">-</button>
+                <input id="scanReceivedQtyInput" type="number" min="0" step="1" inputmode="numeric" value="1" class="form-control inventory-stepper-input" />
+                <button type="button" class="btn btn-outline-secondary inventory-stepper-btn" data-inventory-stepper-action="up" aria-label="Increase received quantity">+</button>
+              </div>
             </div>
 
             <div class="scan-summary">
@@ -239,11 +267,56 @@
           </div>
 
           <div id="scanLookupMeta" class="scan-meta">Select the order being received, then scan an item. Candidate choices are restricted to that active order.</div>
+          <div class="scan-detail-grid">
+            <div class="scan-detail-card">
+              <div class="scan-detail-label">Industry Description</div>
+              <div id="scanLookupName" class="scan-detail-main">No barcode scanned yet.</div>
+              <div id="scanLookupSource" class="scan-meta mt-1">Industry lookup details will appear here when available.</div>
+            </div>
+            <div class="scan-detail-card">
+              <div class="scan-detail-label">Internal Item</div>
+              <div id="scanInternalName" class="scan-detail-main">Match a scanned barcode to an order line.</div>
+              <div id="scanInternalMeta" class="scan-meta mt-1">This shows the inventory item name in our database and the receipt progress in storage units.</div>
+            </div>
+            <div class="scan-detail-card">
+              <div class="scan-detail-label">Put Away Location</div>
+              <div id="scanLocationMain" class="scan-detail-main">--</div>
+              <div id="scanLocationMeta" class="scan-meta mt-1">The suggested shelf location for the selected item appears here.</div>
+            </div>
+          </div>
           <div id="scanConflictNote" class="scan-conflict" aria-live="polite"></div>
           <div id="scanCandidates" class="scan-candidates"></div>
+          <div id="scanCreatePanel" class="scan-create-panel" hidden>
+            <div>
+              <div class="scan-detail-label">New Internal Item</div>
+              <div class="scan-meta">Use this only when the scanned product belongs on this order but does not exist as an internal inventory item yet.</div>
+            </div>
+            <div class="row g-3">
+              <div class="col-lg-5">
+                <label class="small text-uppercase fw-semibold text-muted mb-1" for="scanCreateNameInput">Internal Item Name</label>
+                <input id="scanCreateNameInput" type="text" class="form-control form-control-sm" placeholder="Create a new inventory name" />
+              </div>
+              <div class="col-lg-3">
+                <label class="small text-uppercase fw-semibold text-muted mb-1" for="scanCreateCategoryInput">Category</label>
+                <input id="scanCreateCategoryInput" type="text" class="form-control form-control-sm" placeholder="Optional" />
+              </div>
+              <div class="col-lg-2">
+                <label class="small text-uppercase fw-semibold text-muted mb-1" for="scanCreateUnitInput">Unit</label>
+                <input id="scanCreateUnitInput" type="text" class="form-control form-control-sm" placeholder="each" />
+              </div>
+              <div class="col-lg-2">
+                <label class="small text-uppercase fw-semibold text-muted mb-1" for="scanCreateLocationInput">Location</label>
+                <input id="scanCreateLocationInput" type="text" class="form-control form-control-sm" placeholder="A1" />
+              </div>
+            </div>
+            <div>
+              <button id="scanCreateItemBtn" type="button" class="btn btn-sm btn-outline-primary"><i class="fa-solid fa-plus me-1"></i>Create Item + Add To Order</button>
+            </div>
+          </div>
 
           <div class="scan-actions">
-            <button id="scanApplyBtn" type="button" class="btn btn-sm btn-primary" disabled><i class="fa-solid fa-truck-ramp-box me-1"></i>Apply Receipt</button>
+            <button id="scanApplyBtn" type="button" class="btn btn-sm btn-primary" disabled><i class="fa-solid fa-truck-ramp-box me-1"></i>Receive Only</button>
+            <button id="scanApplyAndPutawayBtn" type="button" class="btn btn-sm btn-success" disabled><i class="fa-solid fa-boxes-packing me-1"></i>Receive + Queue Put Away</button>
             <button id="scanClearBtn" type="button" class="btn btn-sm btn-outline-secondary"><i class="fa-solid fa-xmark me-1"></i>Clear Scan</button>
           </div>
         </div>
@@ -255,12 +328,11 @@
             <thead>
               <tr class="small text-uppercase text-muted">
                 <th>Item</th>
-                <th>Category</th>
-                <th>To Order (Units)</th>
-                <th>Order In</th>
-                <th>Units/Order</th>
-                <th>Ordered (Order Unit)</th>
-                <th>Received (Order Unit)</th>
+                <th>Location</th>
+                <th>Ordered</th>
+                <th>Received</th>
+                <th>Remaining</th>
+                <th>Ordered As</th>
                 <th>Status</th>
                 <th>Notes</th>
               </tr>
@@ -328,6 +400,7 @@
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
     <script src="assets/auth.js?v=20260218f"></script>
+    <script src="assets/inventory-quantity-controls.js"></script>
     <script>
       var statusPill = document.getElementById("statusPill");
       var orderSelect = document.getElementById("orderSelect");
@@ -338,17 +411,35 @@
       var refreshBtn = document.getElementById("refreshBtn");
       var saveBtn = document.getElementById("saveBtn");
       var saveAndPutawayBtn = document.getElementById("saveAndPutawayBtn");
+      var finalizeBtn = document.getElementById("finalizeBtn");
+      var receivingActorInput = document.getElementById("receivingActorInput");
+      var receivingActorMeta = document.getElementById("receivingActorMeta");
+      var putawayActorInput = document.getElementById("putawayActorInput");
+      var putawayActorMeta = document.getElementById("putawayActorMeta");
       var scanBarcodeInput = document.getElementById("scanBarcodeInput");
       var scanFindBtn = document.getElementById("scanFindBtn");
       var scanReceivedQtyInput = document.getElementById("scanReceivedQtyInput");
       var scanSummaryMain = document.getElementById("scanSummaryMain");
       var scanSummaryMeta = document.getElementById("scanSummaryMeta");
+      var scanLookupName = document.getElementById("scanLookupName");
+      var scanLookupSource = document.getElementById("scanLookupSource");
+      var scanInternalName = document.getElementById("scanInternalName");
+      var scanInternalMeta = document.getElementById("scanInternalMeta");
+      var scanLocationMain = document.getElementById("scanLocationMain");
+      var scanLocationMeta = document.getElementById("scanLocationMeta");
       var scanBindCheckbox = document.getElementById("scanBindCheckbox");
       var scanBindLabel = document.getElementById("scanBindLabel");
       var scanLookupMeta = document.getElementById("scanLookupMeta");
       var scanConflictNote = document.getElementById("scanConflictNote");
       var scanCandidates = document.getElementById("scanCandidates");
+      var scanCreatePanel = document.getElementById("scanCreatePanel");
+      var scanCreateNameInput = document.getElementById("scanCreateNameInput");
+      var scanCreateCategoryInput = document.getElementById("scanCreateCategoryInput");
+      var scanCreateUnitInput = document.getElementById("scanCreateUnitInput");
+      var scanCreateLocationInput = document.getElementById("scanCreateLocationInput");
+      var scanCreateItemBtn = document.getElementById("scanCreateItemBtn");
       var scanApplyBtn = document.getElementById("scanApplyBtn");
+      var scanApplyAndPutawayBtn = document.getElementById("scanApplyAndPutawayBtn");
       var scanClearBtn = document.getElementById("scanClearBtn");
       var scanStateBadge = document.getElementById("scanStateBadge");
 
@@ -371,6 +462,7 @@
       var highlightedItemId = null;
       var scanState = createEmptyScanState();
       var putawayStateByKey = {};
+      var currentAuthUser = null;
 
       function resolveApiBase() {
         var queryValue = new URLSearchParams(window.location.search).get("api");
@@ -382,6 +474,29 @@
 
       function apiUrl(path) {
         return API_BASE + (path.charAt(0) === "/" ? path : "/" + path);
+      }
+
+      function applyCurrentUserUi(user) {
+        currentAuthUser = user && user.username ? user : null;
+        var displayName = currentAuthUser ? currentAuthUser.username : "";
+        if (receivingActorInput) receivingActorInput.value = displayName;
+        if (putawayActorInput) putawayActorInput.value = displayName;
+      }
+
+      async function ensureCurrentUser() {
+        if (currentAuthUser && currentAuthUser.username) return currentAuthUser;
+        if (window.retreatAuthUser && window.retreatAuthUser.username) {
+          applyCurrentUserUi(window.retreatAuthUser);
+          return currentAuthUser;
+        }
+        var response = await fetch(apiUrl("/api/auth/me"), {
+          method: "GET",
+          credentials: "include",
+        });
+        if (!response.ok) throw new Error(await parseApiError(response));
+        var payload = await response.json();
+        applyCurrentUserUi(payload);
+        return currentAuthUser;
       }
 
       function getRequestedOrderId() {
@@ -411,6 +526,16 @@
         return String(source || "") + ":" + String(orderId || "");
       }
 
+      function buildOrderRowKey(row) {
+        return [
+          String(row && row.orderId || 0),
+          String(row && row.orderDomain || ""),
+          String(row && row.itemType || ""),
+          String(row && row.itemEntityId || 0),
+          String(row && row.sourceShoppingListItemId || 0),
+        ].join(":");
+      }
+
       function orderDomainLabel(order) {
         if (order && order.domain === "FOOD") return "Food";
         return "Non-Food";
@@ -425,7 +550,7 @@
       }
 
       function getPutawayStateKey(row) {
-        return buildOrderKey(row.orderSource, row.orderItemId);
+        return buildOrderRowKey(row);
       }
 
       function getPendingPutawayQty(row) {
@@ -451,7 +576,7 @@
         var locationValue = existing && Object.prototype.hasOwnProperty.call(existing, "location")
           ? existing.location
           : (row.currentLocation || "");
-        row.putawaySelected = pendingQty > 0 ? (hasSelected ? Boolean(existing.selected) : true) : false;
+        row.putawaySelected = pendingQty > 0 ? (hasSelected ? Boolean(existing.selected) : false) : false;
         row.putawayQty = pendingQty > 0
           ? (hasQuantity ? Math.min(asNonNegativeNumber(existing.quantity), pendingQty) : pendingQty)
           : 0;
@@ -499,6 +624,10 @@
         return String(Math.round(num * 100) / 100);
       }
 
+      function renderIntegerStepperInput(options) {
+        return window.InventoryQuantityControls.renderInput(options);
+      }
+
       function normalizePurchaseUnit(value) {
         var raw = String(value || "").trim().toLowerCase();
         if (!raw || raw === "unit" || raw === "units" || raw === "each" || raw === "ea") return "unit";
@@ -513,6 +642,7 @@
           normalizedBarcode: "",
           lookupName: "",
           lookupCategory: "",
+          lookupImageUrl: "",
           lookupSource: "",
           candidates: [],
           selectedItemId: null,
@@ -583,11 +713,23 @@
         return Math.max(0, asNonNegativeNumber(row.orderedPurchaseQty) - asNonNegativeNumber(row.receivedPurchaseQty));
       }
 
+      function remainingUnitQty(row) {
+        return Math.max(0, asNonNegativeNumber(row.orderedQty) - asNonNegativeNumber(row.receivedQty));
+      }
+
       function describePurchaseUnit(row) {
         return row.purchaseUnit || "unit";
       }
 
       function formatOrderUnitLine(row) {
+        return (
+          formatQty(row.orderedQty) + " " + (row.unit || "units") + " ordered | " +
+          formatQty(row.receivedQty) + " " + (row.unit || "units") + " received | " +
+          formatQty(remainingUnitQty(row)) + " " + (row.unit || "units") + " open"
+        );
+      }
+
+      function formatPurchaseHelperLine(row) {
         var orderUnit = describePurchaseUnit(row);
         var remaining = remainingPurchaseQty(row);
         return (
@@ -612,6 +754,13 @@
         if (!payload) return "";
         if (payload.lookup && payload.lookup.category) return String(payload.lookup.category);
         if (payload.existing_item && payload.existing_item.category) return String(payload.existing_item.category);
+        return "";
+      }
+
+      function getLookupImageUrl(payload) {
+        if (!payload) return "";
+        if (payload.lookup && payload.lookup.image_url) return String(payload.lookup.image_url);
+        if (payload.existing_item && payload.existing_item.image_url) return String(payload.existing_item.image_url);
         return "";
       }
 
@@ -692,8 +841,8 @@
             addCandidate(row, 90, "Category hint");
           }
 
-          if (row.orderedPurchaseQty > 0) addCandidate(row, 18, "Ordered for receipt");
-          if (remainingPurchaseQty(row) > 0) addCandidate(row, 26 + Math.min(remainingPurchaseQty(row), 20), "Still open");
+          if (row.orderedQty > 0) addCandidate(row, 18, "Ordered for receipt");
+          if (remainingUnitQty(row) > 0) addCandidate(row, 26 + Math.min(remainingUnitQty(row), 20), "Still open");
           if (row.status === "RECEIVED") addCandidate(row, -18, "Already fully received");
         });
 
@@ -712,8 +861,8 @@
             if (b.score !== a.score) return b.score - a.score;
             var rowA = getRowByItemId(a.itemId);
             var rowB = getRowByItemId(b.itemId);
-            var openA = rowA ? remainingPurchaseQty(rowA) : 0;
-            var openB = rowB ? remainingPurchaseQty(rowB) : 0;
+            var openA = rowA ? remainingUnitQty(rowA) : 0;
+            var openB = rowB ? remainingUnitQty(rowB) : 0;
             if (openB !== openA) return openB - openA;
             return String((rowA && rowA.name) || "").localeCompare(String((rowB && rowB.name) || ""));
           });
@@ -753,13 +902,13 @@
           scanSummaryMeta.textContent = "Manual receipt editing is enabled for this order. Barcode scanning is available on non-food orders only.";
         } else if (selectedRow) {
           scanSummaryMain.textContent = selectedRow.name;
-          scanSummaryMeta.textContent = formatOrderUnitLine(selectedRow);
+          scanSummaryMeta.textContent = formatPurchaseHelperLine(selectedRow);
         } else if (scanState.candidates.length) {
           scanSummaryMain.textContent = "Choose the matching order line";
           scanSummaryMeta.textContent = "Candidates are limited to " + activeOrderName + ".";
         } else {
           scanSummaryMain.textContent = "Scan against " + activeOrderName;
-          scanSummaryMeta.textContent = "Received quantity will be added in the order unit for the selected line.";
+          scanSummaryMeta.textContent = "Received quantity will be entered in the original storage unit for the selected line.";
         }
 
         var lookupBits = [];
@@ -795,6 +944,59 @@
         scanConflictNote.textContent = conflictText;
         scanConflictNote.classList.toggle("visible", !!conflictText);
 
+        if (!scanState.normalizedBarcode) {
+          scanLookupName.textContent = "No barcode scanned yet.";
+          scanLookupSource.textContent = "Industry lookup details will appear here when available.";
+        } else if (scanState.lookupName) {
+          scanLookupName.textContent = scanState.lookupName;
+          scanLookupSource.textContent = scanState.lookupSource
+            ? "Lookup source: " + scanState.lookupSource + "."
+            : "Matched product description from the scanned barcode.";
+        } else {
+          scanLookupName.textContent = "No industry description found for this barcode.";
+          scanLookupSource.textContent = "You can still match the barcode to an order line or create a new internal item.";
+        }
+
+        if (selectedRow) {
+          scanInternalName.textContent = selectedRow.name;
+          scanInternalMeta.textContent = formatOrderUnitLine(selectedRow) + " | " + formatPurchaseHelperLine(selectedRow);
+          scanLocationMain.textContent = selectedRow.currentLocation || "No location assigned";
+          scanLocationMeta.textContent = selectedRow.currentLocation
+            ? "Put this item away at " + selectedRow.currentLocation + "."
+            : "This item does not have a storage location yet. Enter one in putaway if needed.";
+        } else if (scanState.candidates.length) {
+          scanInternalName.textContent = "Choose the matching internal item";
+          scanInternalMeta.textContent = "Candidate matches are limited to the active order.";
+          scanLocationMain.textContent = "--";
+          scanLocationMeta.textContent = "Location appears after you choose an order line.";
+        } else {
+          scanInternalName.textContent = "No internal order line selected";
+          scanInternalMeta.textContent = canScan
+            ? "If the scanned product is not represented in the current inventory list, create a new internal item below."
+            : "Barcode scanning is not enabled for this order.";
+          scanLocationMain.textContent = "--";
+          scanLocationMeta.textContent = "Location appears after you choose or create an internal item.";
+        }
+
+        scanCreatePanel.hidden = !(
+          activeOrder &&
+          canScan &&
+          scanState.normalizedBarcode &&
+          !selectedRow &&
+          !scanState.candidates.length
+        );
+        if (!scanCreatePanel.hidden) {
+          if (!String(scanCreateNameInput.value || "").trim() && scanState.lookupName) {
+            scanCreateNameInput.value = scanState.lookupName;
+          }
+          if (!String(scanCreateCategoryInput.value || "").trim() && scanState.lookupCategory) {
+            scanCreateCategoryInput.value = scanState.lookupCategory;
+          }
+          if (!String(scanCreateUnitInput.value || "").trim()) {
+            scanCreateUnitInput.value = "each";
+          }
+        }
+
         if (!activeOrder) {
           scanCandidates.innerHTML = '<div class="scan-empty">Select the order being received before scanning.</div>';
         } else if (!canScan) {
@@ -815,6 +1017,7 @@
                   '<div class="scan-candidate-reason">' + escapeHtml(reason) + '</div>' +
                   '<div class="scan-candidate-meta">' +
                     '<span>' + escapeHtml(formatOrderUnitLine(row)) + '</span>' +
+                    '<span>' + escapeHtml(row.currentLocation || "No location") + '</span>' +
                   '</div>' +
                 '</div>' +
                 '<span class="status-chip ' + statusClass(row.status) + '">' + escapeHtml(statusLabel(row.status)) + '</span>' +
@@ -824,6 +1027,8 @@
         }
 
         scanApplyBtn.disabled = !activeOrder || !canScan || !selectedRow || asNonNegativeNumber(scanReceivedQtyInput.value) <= 0;
+        scanApplyAndPutawayBtn.disabled = scanApplyBtn.disabled;
+        scanCreateItemBtn.disabled = scanCreatePanel.hidden || !String(scanCreateNameInput.value || "").trim();
       }
 
       function resetScanState(options) {
@@ -832,6 +1037,12 @@
         if (!opts.preserveBarcodeInput) scanBarcodeInput.value = "";
         if (!opts.preserveQty) scanReceivedQtyInput.value = "1";
         if (!opts.preserveBindChoice) scanBindCheckbox.checked = true;
+        if (!opts.preserveCreateInputs) {
+          scanCreateNameInput.value = "";
+          scanCreateCategoryInput.value = "";
+          scanCreateUnitInput.value = "";
+          scanCreateLocationInput.value = "";
+        }
         if (!opts.preserveHighlight) highlightedItemId = null;
         renderScanPanel();
       }
@@ -893,10 +1104,15 @@
         var lookupPayload = await lookupBarcode(normalized).catch(function () { return null; });
         scanState.lookupName = getLookupName(lookupPayload);
         scanState.lookupCategory = getLookupCategory(lookupPayload);
+        scanState.lookupImageUrl = getLookupImageUrl(lookupPayload);
         scanState.lookupSource = lookupPayload && lookupPayload.lookup && lookupPayload.lookup.source ? String(lookupPayload.lookup.source) : "";
         scanState.candidates = buildScanCandidates(normalized, lookupPayload);
         scanState.mode = scanState.candidates.length ? "choose" : "warn";
         if (scanState.existingConflictItemId) scanBindCheckbox.checked = false;
+        scanCreateNameInput.value = scanState.lookupName || "";
+        scanCreateCategoryInput.value = scanState.lookupCategory || "";
+        if (!String(scanCreateUnitInput.value || "").trim()) scanCreateUnitInput.value = "each";
+        scanCreateLocationInput.value = "";
         renderScanPanel();
 
         if (scanState.candidates.length === 1 || (scanState.candidates.length && scanState.candidates[0].exactBarcode)) {
@@ -906,7 +1122,26 @@
         }
       }
 
-      async function applyScannedReceipt() {
+      function syncReceivedPurchaseQty(row) {
+        if (row.purchaseUnit === "unit") {
+          row.receivedPurchaseQty = asNonNegativeNumber(row.receivedQty);
+        } else {
+          row.receivedPurchaseQty = row.unitsPerPurchase > 0
+            ? Math.round((asNonNegativeNumber(row.receivedQty) / row.unitsPerPurchase) * 1000) / 1000
+            : asNonNegativeNumber(row.receivedQty);
+        }
+      }
+
+      function queueScanPutaway(row, qty) {
+        var nextPending = Math.min(getPendingPutawayQty(row), asNonNegativeNumber(row.putawayQty) + asNonNegativeNumber(qty));
+        row.putawaySelected = nextPending > 0;
+        row.putawayQty = nextPending;
+        row.putawayLocation = normalizeLocationInput(row.putawayLocation || row.currentLocation || "");
+        syncPutawayState(row);
+      }
+
+      async function applyScannedReceipt(options) {
+        var opts = options || {};
         if (!activeOrder || !activeOrder.id) throw new Error("Select the order being received first.");
         if (!activeOrderCanScan()) throw new Error("Barcode scanning is currently available only for non-food orders.");
         if (!scanState.selectedItemId) throw new Error("Choose the matching order line first.");
@@ -932,19 +1167,28 @@
           rememberedBarcode = true;
         }
 
-        row.receivedPurchaseQty = asNonNegativeNumber(row.receivedPurchaseQty + qty);
+        row.receivedQty = asNonNegativeNumber(row.receivedQty + qty);
+        syncReceivedPurchaseQty(row);
         recomputeRow(row);
+        if (opts.queuePutaway) {
+          queueScanPutaway(row, qty);
+        }
         hydratePutawayState(row);
         highlightedItemId = row.itemId;
         renderWorkspaceTables();
+        var overReceiptText = row.overReceivedQty > 0
+          ? " This is " + formatQty(row.overReceivedQty) + " " + (row.unit || "units") + " over the ordered amount."
+          : "";
         setStatus(
-          "Applied " + formatQty(qty) + " " + describePurchaseUnit(row) + " received to \"" + row.name + "\"." +
+          "Queued " + formatQty(qty) + " " + (row.unit || "units") + " received for \"" + row.name + "\"." +
+          (opts.queuePutaway ? " The same quantity is queued for putaway." : "") +
           (rememberedBarcode && movedFromName ? " Barcode moved from \"" + movedFromName + "\"." : "") +
           (rememberedBarcode && !movedFromName ? " Barcode remembered for future scans." : "") +
-          " Save receipts to persist.",
+          overReceiptText +
+          " Save the shipment to persist.",
           "ok"
         );
-        resetScanState({ preserveHighlight: true });
+        resetScanState({ preserveHighlight: true, preserveCreateInputs: true });
         scrollToRow(row.itemId);
         scanBarcodeInput.focus();
       }
@@ -958,8 +1202,9 @@
           if (row.orderedQty > 0) return "ORDERED";
           return "NOT_ORDERED";
         }
-        if (row.toOrderQty <= 0) return "SUFFICIENT";
-        if (row.receivedQty >= row.toOrderQty) return "RECEIVED";
+        var targetQty = row.orderedQty > 0 ? row.orderedQty : row.toOrderQty;
+        if (targetQty <= 0) return "SUFFICIENT";
+        if (row.receivedQty >= targetQty) return "RECEIVED";
         if (row.receivedQty > 0) return "PARTIAL";
         if (row.orderedQty > 0) return "ORDERED";
         return "NOT_ORDERED";
@@ -992,21 +1237,28 @@
 
         if (row.purchaseUnit === "unit") {
           row.unitsPerPurchase = 1;
-          row.orderedQty = asNonNegativeNumber(row.orderedPurchaseQty);
-          row.receivedQty = asNonNegativeNumber(row.receivedPurchaseQty);
-        } else {
-          row.orderedQty = asNonNegativeNumber(row.orderedPurchaseQty * row.unitsPerPurchase);
-          row.receivedQty = asNonNegativeNumber(row.receivedPurchaseQty * row.unitsPerPurchase);
         }
 
-        if (row.receivedQty > row.orderedQty) {
-          row.orderedQty = row.receivedQty;
-          if (row.purchaseUnit === "unit") {
-            row.orderedPurchaseQty = row.receivedQty;
-          } else {
-            row.orderedPurchaseQty = row.unitsPerPurchase > 0 ? row.receivedQty / row.unitsPerPurchase : row.receivedQty;
-          }
+        if (row.orderedQty <= 0 && row.orderedPurchaseQty > 0) {
+          row.orderedQty = row.purchaseUnit === "unit"
+            ? asNonNegativeNumber(row.orderedPurchaseQty)
+            : asNonNegativeNumber(row.orderedPurchaseQty * row.unitsPerPurchase);
         }
+        row.orderedQty = asNonNegativeNumber(row.orderedQty);
+        row.receivedQty = asNonNegativeNumber(row.receivedQty);
+        if (row.receivedQty <= 0 && row.receivedPurchaseQty > 0) {
+          row.receivedQty = row.purchaseUnit === "unit"
+            ? asNonNegativeNumber(row.receivedPurchaseQty)
+            : asNonNegativeNumber(row.receivedPurchaseQty * row.unitsPerPurchase);
+        }
+        if (row.purchaseUnit === "unit") {
+          row.orderedPurchaseQty = asNonNegativeNumber(row.orderedQty);
+        } else if (row.orderedPurchaseQty <= 0 && row.orderedQty > 0) {
+          row.orderedPurchaseQty = row.unitsPerPurchase > 0 ? Math.round((row.orderedQty / row.unitsPerPurchase) * 1000) / 1000 : row.orderedQty;
+        }
+        syncReceivedPurchaseQty(row);
+        row.appliedQty = Math.min(asNonNegativeNumber(row.appliedQty), row.receivedQty);
+        row.overReceivedQty = Math.max(0, Math.round((row.receivedQty - row.orderedQty) * 1000) / 1000);
 
         if (row.orderDomain === "FOOD") {
           row.toOrderQty = row.requiredQty;
@@ -1032,6 +1284,7 @@
           var inventoryItemId = Number(item.inventory_item_id || item.item_id || 0);
           var inventory = inventoryById[inventoryItemId] || null;
           var row = {
+            orderId: Number(activeOrder.id || 0),
             itemId: Number(item.id || 0) || inventoryItemId || Number(item.source_shopping_list_item_id || 0),
             inventoryItemId: orderDomain === "NON_FOOD" ? inventoryItemId : 0,
             orderItemId: Number(item.id || 0),
@@ -1126,12 +1379,35 @@
         });
       }
 
+      function formatWhen(value) {
+        if (!value) return "";
+        return String(value).replace("T", " ");
+      }
+
+      function renderActorMeta() {
+        if (!activeOrder) {
+          if (receivingActorMeta) receivingActorMeta.textContent = "Receipts are recorded under the signed-in user.";
+          if (putawayActorMeta) putawayActorMeta.textContent = "Putaway actions are recorded under the signed-in user.";
+          return;
+        }
+        if (receivingActorMeta) {
+          receivingActorMeta.textContent = activeOrder.received_by_username
+            ? "Recorded on order: " + activeOrder.received_by_username + (activeOrder.received_at ? " on " + formatWhen(activeOrder.received_at) + "." : ".")
+            : "Receipts are recorded under the signed-in user.";
+        }
+        if (putawayActorMeta) {
+          putawayActorMeta.textContent = activeOrder.put_away_by_username
+            ? "Recorded on order: " + activeOrder.put_away_by_username + (activeOrder.put_away_at ? " on " + formatWhen(activeOrder.put_away_at) + "." : ".")
+            : "Putaway actions are recorded under the signed-in user.";
+        }
+      }
+
       function renderTable() {
         var rows = getFilteredRows();
         receivingBody.innerHTML = "";
 
         if (!rows.length) {
-          receivingBody.innerHTML = '<tr><td colspan="9" class="text-muted small">No lines match this filter.</td></tr>';
+          receivingBody.innerHTML = '<tr><td colspan="8" class="text-muted small">No lines match this filter.</td></tr>';
           renderStats();
           return;
         }
@@ -1144,46 +1420,56 @@
           var tdItem = document.createElement("td");
           tdItem.innerHTML =
             '<div class="fw-semibold">' + escapeHtml(row.name) + '</div>' +
-            (row.barcode ? '<div class="text-muted small">' + escapeHtml(row.barcode) + '</div>' : '');
+            (row.barcode ? '<div class="text-muted small">' + escapeHtml(row.barcode) + '</div>' : '') +
+            '<div class="table-helper">' + escapeHtml(row.categoryName || "Uncategorized") + '</div>';
           tr.appendChild(tdItem);
 
-          var tdCategory = document.createElement("td");
-          tdCategory.textContent = row.categoryName || "-";
-          tr.appendChild(tdCategory);
-
-          var tdToOrder = document.createElement("td");
-          tdToOrder.innerHTML = '<span class="fw-semibold">' + escapeHtml(formatQty(row.toOrderQty)) + '</span>';
-          tr.appendChild(tdToOrder);
-
-          var tdPurchaseUnit = document.createElement("td");
-          tdPurchaseUnit.innerHTML =
-            '<select class="form-select form-select-sm purchase-unit-select" data-item-id="' + row.itemId + '" data-field="purchase-unit"' + (row.orderDomain === "FOOD" ? ' disabled' : '') + '>' +
-              '<option value="unit"' + (row.purchaseUnit === "unit" ? " selected" : "") + '>unit</option>' +
-              (row.orderDomain === "FOOD" ? '' : (
-                '<option value="case"' + (row.purchaseUnit === "case" ? " selected" : "") + '>case</option>' +
-                '<option value="pack"' + (row.purchaseUnit === "pack" ? " selected" : "") + '>pack</option>'
-              )) +
-            '</select>';
-          tr.appendChild(tdPurchaseUnit);
-
-          var tdUnitsPerPurchase = document.createElement("td");
-          tdUnitsPerPurchase.innerHTML =
-            '<input type="number" min="0.001" step="0.01" class="form-control form-control-sm qty-input" ' +
-            'data-item-id="' + row.itemId + '" data-field="units-per-purchase" value="' + escapeHtml(formatQty(row.unitsPerPurchase)) + '"' +
-            (row.orderDomain === "FOOD" || row.purchaseUnit === "unit" ? " disabled" : "") + '>';
-          tr.appendChild(tdUnitsPerPurchase);
+          var tdLocation = document.createElement("td");
+          tdLocation.innerHTML = row.currentLocation
+            ? '<span class="location-chip">' + escapeHtml(row.currentLocation) + '</span>'
+            : '<span class="text-muted small">No location</span>';
+          tr.appendChild(tdLocation);
 
           var tdOrderedQty = document.createElement("td");
           tdOrderedQty.innerHTML =
-            '<input type="number" min="0" step="0.01" class="form-control form-control-sm qty-input" data-item-id="' + row.itemId + '" data-field="ordered-purchase" value="' + escapeHtml(formatQty(row.orderedPurchaseQty)) + '">' +
-            '<div class="qty-helper">= ' + escapeHtml(formatQty(row.orderedQty)) + ' ' + escapeHtml(row.unit || "units") + '</div>';
+            '<div class="fw-semibold">' + escapeHtml(formatQty(row.orderedQty)) + ' ' + escapeHtml(row.unit || "units") + '</div>' +
+            '<div class="qty-helper">' + escapeHtml(formatQty(row.orderedPurchaseQty)) + ' ' + escapeHtml(describePurchaseUnit(row)) + '</div>';
           tr.appendChild(tdOrderedQty);
 
           var tdReceivedQty = document.createElement("td");
           tdReceivedQty.innerHTML =
-            '<input type="number" min="0" step="0.01" class="form-control form-control-sm qty-input" data-item-id="' + row.itemId + '" data-field="received-purchase" value="' + escapeHtml(formatQty(row.receivedPurchaseQty)) + '">' +
-            '<div class="qty-helper">= ' + escapeHtml(formatQty(row.receivedQty)) + ' ' + escapeHtml(row.unit || "units") + '</div>';
+            renderIntegerStepperInput({
+              min: "0",
+              step: "1",
+              compact: true,
+              inputClassName: "qty-input",
+              decrementLabel: "Decrease received quantity",
+              incrementLabel: "Increase received quantity",
+              value: formatQty(row.receivedQty),
+              extraAttributes: {
+                "data-item-id": String(row.itemId),
+                "data-field": "received-units",
+              },
+            }) +
+            '<div class="qty-helper">' + escapeHtml(formatQty(row.receivedPurchaseQty)) + ' ' + escapeHtml(describePurchaseUnit(row)) + ' received</div>';
           tr.appendChild(tdReceivedQty);
+
+          var tdRemaining = document.createElement("td");
+          if (row.overReceivedQty > 0) {
+            tdRemaining.innerHTML =
+              '<span class="remaining-chip over">+' + escapeHtml(formatQty(row.overReceivedQty)) + ' over</span>' +
+              '<div class="qty-helper">Ordered ' + escapeHtml(formatQty(row.orderedQty)) + ' ' + escapeHtml(row.unit || "units") + '</div>';
+          } else {
+            tdRemaining.innerHTML =
+              '<span class="remaining-chip">' + escapeHtml(formatQty(remainingUnitQty(row))) + ' ' + escapeHtml(row.unit || "") + '</span>';
+          }
+          tr.appendChild(tdRemaining);
+
+          var tdOrderedAs = document.createElement("td");
+          tdOrderedAs.innerHTML =
+            '<div class="fw-semibold">' + escapeHtml(describePurchaseUnit(row)) + '</div>' +
+            '<div class="table-helper">' + escapeHtml(formatPurchaseHelperLine(row)) + '</div>';
+          tr.appendChild(tdOrderedAs);
 
           var tdStatus = document.createElement("td");
           tdStatus.innerHTML = '<span class="status-chip ' + statusClass(row.status) + '">' + statusLabel(row.status) + '</span>';
@@ -1262,7 +1548,20 @@
           tr.appendChild(tdRemaining);
 
           var tdQty = document.createElement("td");
-          tdQty.innerHTML = '<input type="number" min="0" step="0.01" class="form-control form-control-sm putaway-qty-input" data-item-id="' + row.itemId + '" data-field="putaway-qty" value="' + escapeHtml(formatQty(row.putawayQty)) + '">';
+          tdQty.innerHTML = renderIntegerStepperInput({
+            min: "0",
+            max: formatQty(remaining),
+            step: "1",
+            compact: true,
+            inputClassName: "putaway-qty-input",
+            decrementLabel: "Decrease putaway quantity",
+            incrementLabel: "Increase putaway quantity",
+            value: formatQty(row.putawayQty),
+            extraAttributes: {
+              "data-item-id": String(row.itemId),
+              "data-field": "putaway-qty",
+            },
+          });
           tr.appendChild(tdQty);
 
           var tdLocation = document.createElement("td");
@@ -1277,6 +1576,12 @@
       }
 
       function renderWorkspaceTables() {
+        var hasActiveOrder = !!(activeOrder && activeOrder.id);
+        saveBtn.disabled = !hasActiveOrder;
+        saveAndPutawayBtn.disabled = !hasActiveOrder;
+        finalizeBtn.disabled = !hasActiveOrder;
+        applyPutawayBtn.disabled = !hasActiveOrder;
+        renderActorMeta();
         renderTable();
         renderPutawayTable();
       }
@@ -1352,6 +1657,7 @@
         renderOrderSelect();
         orderNameInput.value = activeOrder.name || "";
         orderNotesInput.value = activeOrder.notes || "";
+        renderActorMeta();
         buildOrderRows();
         renderWorkspaceTables();
         resetScanState();
@@ -1363,6 +1669,7 @@
           orderSelect.innerHTML = '<option value="">No orders found</option>';
           activeOrder = null;
           orderRows = [];
+          renderActorMeta();
           renderWorkspaceTables();
           resetScanState();
           updatePageUrl(null);
@@ -1406,6 +1713,7 @@
       async function saveReceipts(options) {
         var opts = options || {};
         if (!activeOrder || !activeOrder.id) throw new Error("No active order selected.");
+        await ensureCurrentUser();
         if (!opts.quiet) setStatus("Saving receipt updates...", "info");
         var path = "/api/orders/" + activeOrder.id;
         var response = await fetch(apiUrl(path), {
@@ -1415,6 +1723,8 @@
           body: JSON.stringify({
             name: String(orderNameInput.value || "").trim(),
             notes: String(orderNotesInput.value || "").trim() || null,
+            expectedWorkflowStage: "RECEIVING",
+            workflowStage: "RECEIVING",
             items: collectPayloadItems(),
           }),
         });
@@ -1424,12 +1734,9 @@
         activeOrder.orderDomain = activeOrder.orderDomain || activeOrder.domain || "NON_FOOD";
         activeOrder.orderKey = buildOrderKey(activeOrder.orderSource, activeOrder.id);
         await fetchOrderList();
-        var reloadMode = await reloadActiveOrderAfterListRefresh();
+        await reloadActiveOrderAfterListRefresh();
         if (!opts.quiet) {
-          var saveMessage = reloadMode === "same"
-            ? "Receipt updates saved."
-            : "Receipt updates saved. Completed orders were moved out of the receiving queue.";
-          setStatus(saveMessage, "ok");
+          setStatus("Receipt progress saved. This order stays in Receiving until you finalize it.", "ok");
         }
         return activeOrder;
       }
@@ -1437,11 +1744,12 @@
       async function applyPutawaySelections(options) {
         var opts = options || {};
         if (!activeOrder || !activeOrder.id) throw new Error("No active order selected.");
+        await ensureCurrentUser();
         var startingOrderId = Number(activeOrder.id);
         if (!opts.skipSave) {
           await saveReceipts({ quiet: true });
           if (!activeOrder || Number(activeOrder.id) !== startingOrderId) {
-            throw new Error("This order completed while saving receipts and moved out of the receiving queue.");
+            throw new Error("This order is no longer active in the receiving queue.");
           }
         }
 
@@ -1475,15 +1783,111 @@
         activeOrder.orderDomain = activeOrder.orderDomain || activeOrder.domain || "NON_FOOD";
         activeOrder.orderKey = buildOrderKey(activeOrder.orderSource, activeOrder.id);
         await fetchOrderList();
-        var reloadMode = await reloadActiveOrderAfterListRefresh();
+        await reloadActiveOrderAfterListRefresh();
         var putawayMessage =
           "Putaway applied for " + formatQty(payload.applied_quantity_total || 0) +
           " units across " + formatQty(payload.applied_item_count || 0) + " line(s).";
-        if (reloadMode !== "same") {
-          putawayMessage += " The completed order moved out of the receiving queue.";
-        }
+        putawayMessage += " Finalize the order when everything has arrived and been shelved.";
         setStatus(putawayMessage, "ok");
         return payload;
+      }
+
+      async function finalizeActiveOrder() {
+        if (!activeOrder || !activeOrder.id) throw new Error("No active order selected.");
+        await ensureCurrentUser();
+        var startingOrderId = Number(activeOrder.id);
+        var hasQueuedPutaway = getPendingPutawayRows().some(function (row) {
+          return row.putawaySelected && asNonNegativeNumber(row.putawayQty) > 0;
+        });
+        if (hasQueuedPutaway) {
+          await applyPutawaySelections();
+        } else {
+          await saveReceipts({ quiet: true });
+        }
+        if (!activeOrder || Number(activeOrder.id) !== startingOrderId) {
+          throw new Error("This order is no longer active in the receiving queue.");
+        }
+        setStatus("Finalizing order...", "info");
+        var response = await fetch(apiUrl("/api/orders/" + activeOrder.id + "/finalize-receiving"), {
+          method: "POST",
+          credentials: "include",
+        });
+        if (!response.ok) throw new Error(await parseApiError(response));
+        await response.json();
+        await fetchOrderList();
+        await reloadActiveOrderAfterListRefresh();
+        setStatus("Order finalized and moved out of the receiving queue.", "ok");
+      }
+
+      async function createDraftInventoryItemFromScan() {
+        if (!activeOrder || !activeOrder.id) throw new Error("Select the order being received first.");
+        if (!activeOrderCanScan()) throw new Error("Create-from-scan is currently available only for non-food orders.");
+        if (!scanState.normalizedBarcode) throw new Error("Scan the barcode before creating a new item.");
+        var itemName = String(scanCreateNameInput.value || "").trim();
+        if (!itemName) throw new Error("Enter the new internal item name.");
+        var unit = String(scanCreateUnitInput.value || "").trim() || "each";
+        var location = normalizeLocationInput(scanCreateLocationInput.value || "");
+        var response = await fetch(apiUrl("/api/inventory/order-draft-item"), {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            itemName: itemName,
+            category: String(scanCreateCategoryInput.value || "").trim() || null,
+            unit: unit,
+            barcode: scanState.normalizedBarcode,
+            location: location || null,
+            imageUrl: scanState.lookupImageUrl || null,
+            notes: "Created during receiving from barcode " + scanState.normalizedBarcode,
+          }),
+        });
+        if (!response.ok) throw new Error(await parseApiError(response));
+        var createdItem = await response.json();
+        inventoryRows = inventoryRows.filter(function (row) {
+          return Number(row.id) !== Number(createdItem.id);
+        });
+        inventoryRows.unshift(createdItem);
+        var createdRow = {
+          orderId: Number(activeOrder.id || 0),
+          itemId: Number(createdItem.id),
+          inventoryItemId: Number(createdItem.id),
+          orderItemId: 0,
+          orderSource: "shared",
+          orderDomain: "NON_FOOD",
+          itemType: "STANDALONE_INVENTORY",
+          itemEntityId: Number(createdItem.id),
+          sourceShoppingListItemId: 0,
+          name: createdItem.item_name || itemName,
+          barcode: createdItem.barcode || scanState.normalizedBarcode,
+          barcodes: Array.isArray(createdItem.barcodes) ? createdItem.barcodes.slice() : collectBarcodes(createdItem.barcode || scanState.normalizedBarcode, []),
+          categoryName: createdItem.category || String(scanCreateCategoryInput.value || "").trim(),
+          unit: createdItem.unit || unit,
+          requiredQty: 0,
+          currentStock: asNonNegativeNumber(createdItem.quantity),
+          orderedQty: 0,
+          receivedQty: 0,
+          appliedQty: 0,
+          purchaseUnit: "unit",
+          unitsPerPurchase: 1,
+          orderedPurchaseQty: 0,
+          receivedPurchaseQty: 0,
+          currentLocation: normalizeLocationInput(createdItem.location || location),
+          putawaySelected: false,
+          putawayQty: 0,
+          putawayLocation: normalizeLocationInput(createdItem.location || location),
+          orderUrlOverride: createdItem.order_url || "",
+          notes: createdItem.notes || "",
+          toOrderQty: 0,
+          status: "NOT_ORDERED",
+        };
+        recomputeRow(createdRow);
+        hydratePutawayState(createdRow);
+        orderRows.push(createdRow);
+        orderRows.sort(function (a, b) {
+          return String(a.name || "").localeCompare(String(b.name || ""));
+        });
+        selectScanCandidate(createdRow.itemId);
+        setStatus("Created \"" + createdRow.name + "\" and added it to this order. Review it and apply the receipt next.", "ok");
       }
 
       async function refreshAll(options) {
@@ -1491,12 +1895,14 @@
         var previousKey = preserveOrder && activeOrder ? String(activeOrder.orderKey || buildOrderKey(activeOrder.orderSource, activeOrder.id)) : null;
         var requestedId = getRequestedOrderId();
         setStatus("Loading receive / put away workspace...", "info");
+        await ensureCurrentUser();
         await fetchInventory();
         await fetchOrderList();
         if (!orderList.length) {
           orderSelect.innerHTML = '<option value="">No orders found</option>';
           activeOrder = null;
           orderRows = [];
+          renderActorMeta();
           renderWorkspaceTables();
           resetScanState();
           updatePageUrl(null);
@@ -1554,32 +1960,9 @@
         if (!row) return;
 
         var field = target.getAttribute("data-field") || "";
-        if (field === "purchase-unit" && target instanceof HTMLSelectElement) {
-          row.purchaseUnit = normalizePurchaseUnit(target.value);
-          recomputeRow(row);
-          hydratePutawayState(row);
-          renderWorkspaceTables();
-          renderScanPanel();
-          return;
-        }
-        if (field === "units-per-purchase" && target instanceof HTMLInputElement) {
-          row.unitsPerPurchase = asNonNegativeNumber(target.value);
-          recomputeRow(row);
-          hydratePutawayState(row);
-          renderWorkspaceTables();
-          renderScanPanel();
-          return;
-        }
-        if (field === "ordered-purchase" && target instanceof HTMLInputElement) {
-          row.orderedPurchaseQty = asNonNegativeNumber(target.value);
-          recomputeRow(row);
-          hydratePutawayState(row);
-          renderWorkspaceTables();
-          renderScanPanel();
-          return;
-        }
-        if (field === "received-purchase" && target instanceof HTMLInputElement) {
-          row.receivedPurchaseQty = asNonNegativeNumber(target.value);
+        if (field === "received-units" && target instanceof HTMLInputElement) {
+          row.receivedQty = asNonNegativeNumber(target.value);
+          syncReceivedPurchaseQty(row);
           recomputeRow(row);
           hydratePutawayState(row);
           renderWorkspaceTables();
@@ -1666,9 +2049,31 @@
       });
 
       scanApplyBtn.addEventListener("click", function () {
-        void applyScannedReceipt().catch(function (error) {
+        void applyScannedReceipt({ queuePutaway: false }).catch(function (error) {
           setStatus(error instanceof Error ? error.message : "Could not apply scanned receipt.", "err");
           scanState.mode = "warn";
+          renderScanPanel();
+        });
+      });
+
+      scanApplyAndPutawayBtn.addEventListener("click", function () {
+        void applyScannedReceipt({ queuePutaway: true }).catch(function (error) {
+          setStatus(error instanceof Error ? error.message : "Could not queue scanned receipt for putaway.", "err");
+          scanState.mode = "warn";
+          renderScanPanel();
+        });
+      });
+
+      scanCreateItemBtn.addEventListener("click", function () {
+        void createDraftInventoryItemFromScan().catch(function (error) {
+          setStatus(error instanceof Error ? error.message : "Could not create the scanned inventory item.", "err");
+          scanState.mode = "warn";
+          renderScanPanel();
+        });
+      });
+
+      [scanCreateNameInput, scanCreateCategoryInput, scanCreateUnitInput, scanCreateLocationInput].forEach(function (input) {
+        input.addEventListener("input", function () {
           renderScanPanel();
         });
       });
@@ -1700,6 +2105,12 @@
       applyPutawayBtn.addEventListener("click", function () {
         void applyPutawaySelections().catch(function (error) {
           setStatus(error instanceof Error ? error.message : "Could not apply putaway.", "err");
+        });
+      });
+
+      finalizeBtn.addEventListener("click", function () {
+        void finalizeActiveOrder().catch(function (error) {
+          setStatus(error instanceof Error ? error.message : "Could not finalize the order.", "err");
         });
       });
 

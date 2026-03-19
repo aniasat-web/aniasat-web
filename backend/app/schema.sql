@@ -82,6 +82,14 @@ CREATE TABLE IF NOT EXISTS auth_sessions (
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
+CREATE TABLE IF NOT EXISTS app_settings (
+    setting_key TEXT PRIMARY KEY,
+    setting_value TEXT,
+    updated_by_user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
 CREATE TABLE IF NOT EXISTS retreats (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL,
@@ -274,6 +282,10 @@ CREATE TABLE IF NOT EXISTS inventory_orders (
     ordered_at TEXT,
     received_by_user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
     received_at TEXT,
+    put_away_by_user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    put_away_at TEXT,
+    completed_by_user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    completed_at TEXT,
     created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
     deleted_at TEXT
@@ -363,6 +375,7 @@ CREATE TABLE IF NOT EXISTS inventory_movements (
     location TEXT,
     reason TEXT,
     user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    actor_name TEXT,
     created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 

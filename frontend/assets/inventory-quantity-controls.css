@@ -1,0 +1,73 @@
+.inventory-stepper {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  width: 100%;
+}
+
+.inventory-stepper--compact {
+  gap: 0.2rem;
+}
+
+.inventory-stepper--inline {
+  display: inline-flex;
+  width: auto;
+}
+
+.inventory-stepper-btn {
+  width: 1.95rem;
+  min-width: 1.95rem;
+  height: 1.95rem;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.7rem;
+  font-weight: 800;
+  line-height: 1;
+  flex: 0 0 auto;
+}
+
+.inventory-stepper--compact .inventory-stepper-btn {
+  width: 1.5rem;
+  min-width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 0.5rem;
+  font-size: 0.72rem;
+}
+
+.inventory-stepper-input {
+  min-width: 0;
+  flex: 1 1 auto;
+  width: auto !important;
+  max-width: none !important;
+  text-align: center !important;
+  font-variant-numeric: tabular-nums;
+}
+
+.inventory-stepper--compact .inventory-stepper-input {
+  padding-left: 0.25rem;
+  padding-right: 0.25rem;
+}
+
+.inventory-stepper-input::-webkit-outer-spin-button,
+.inventory-stepper-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.inventory-stepper-input[type="number"] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
+.inventory-stepper-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+@media (max-width: 575.98px) {
+  .inventory-stepper {
+    gap: 0.3rem;
+  }
+}

@@ -5,6 +5,7 @@
   const PUBLIC_PAGES = new Set([
     "/kitchen-service-view.html",
     "/kitchen-test-view.html",
+    "/inventory-remove.html",
     "/about.html",
     "/about-sri-m.html",
     "/sacred-grove.html",

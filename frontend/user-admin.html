@@ -176,7 +176,7 @@
                 <li><a class="dropdown-item" href="inventory-orders.html"><i class="fa-solid fa-list-check me-2"></i> Orders Planning</a></li>
                 <li><a class="dropdown-item" href="inventory-purchasing.html"><i class="fa-solid fa-cart-shopping me-2"></i> Purchasing</a></li>
                 <li><a class="dropdown-item" href="inventory-receiving.html"><i class="fa-solid fa-truck-ramp-box me-2"></i> Receive / Put Away</a></li>
-                <li><a class="dropdown-item" href="inventory-remove.html"><i class="fa-solid fa-minus me-2"></i> Remove Inventory</a></li>
+                <li><a class="dropdown-item" href="inventory-remove.html"><i class="fa-solid fa-minus me-2"></i> Withdraw Inventory</a></li>
               </ul>
             </li>
 
@@ -224,6 +224,31 @@
             <div class="stat-card">
               <span id="statUsers">0</span>
               <small>Users</small>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="card p-4 mb-4">
+        <div class="d-flex align-items-center justify-content-between mb-3">
+          <h2 class="h5 fw-bold mb-0"><i class="fa-solid fa-key me-2 text-primary"></i>Volunteer Withdraw Access</h2>
+          <span id="withdrawAccessStatus" class="status-pill info">Loading...</span>
+        </div>
+        <p class="text-muted mb-3">
+          This shared code lets volunteers use <a href="inventory-remove.html">Withdraw Inventory</a> without having their own login.
+          Admins can type their own code here or generate one, then save it anytime.
+        </p>
+        <div class="row g-3 align-items-end">
+          <div class="col-lg-6">
+            <label class="form-label fw-bold small text-muted text-uppercase" for="withdrawAccessCode">Shared Access Code</label>
+            <input id="withdrawAccessCode" type="text" class="form-control" placeholder="Enter a shared code" autocomplete="off" />
+            <div id="withdrawAccessMeta" class="form-text">Loading current setting...</div>
+          </div>
+          <div class="col-lg-6">
+            <div class="d-flex flex-wrap gap-2">
+              <button id="saveWithdrawAccessBtn" type="button" class="btn btn-primary">Save Code</button>
+              <button id="generateWithdrawAccessBtn" type="button" class="btn btn-outline-secondary">Generate Code</button>
+              <button id="disableWithdrawAccessBtn" type="button" class="btn btn-outline-danger">Disable Guest Access</button>
             </div>
           </div>
         </div>
@@ -303,6 +328,12 @@
       const usersBody = document.getElementById("usersBody");
       const tableStatus = document.getElementById("tableStatus");
       const createStatus = document.getElementById("createStatus");
+      const withdrawAccessStatus = document.getElementById("withdrawAccessStatus");
+      const withdrawAccessCode = document.getElementById("withdrawAccessCode");
+      const withdrawAccessMeta = document.getElementById("withdrawAccessMeta");
+      const saveWithdrawAccessBtn = document.getElementById("saveWithdrawAccessBtn");
+      const generateWithdrawAccessBtn = document.getElementById("generateWithdrawAccessBtn");
+      const disableWithdrawAccessBtn = document.getElementById("disableWithdrawAccessBtn");
 
       const createForm = document.getElementById("createForm");
       const newUsername = document.getElementById("newUsername");
@@ -318,6 +349,126 @@
         if (!el) return;
         el.className = `status-pill ${kind}`;
         el.textContent = message;
+      }
+
+      async function readErrorDetail(res) {
+        const text = await res.text();
+        if (!text) return `HTTP ${res.status}`;
+        try {
+          const parsed = JSON.parse(text);
+          if (parsed && parsed.detail) return parsed.detail;
+        } catch (_error) {}
+        return text;
+      }
+
+      function formatDateTime(value) {
+        if (!value) return "";
+        try {
+          return new Date(value).toLocaleString();
+        } catch (_error) {
+          return String(value);
+        }
+      }
+
+      function describeWithdrawAccessSource(source) {
+        if (source === "admin") return "Saved in the admin panel and currently active.";
+        if (source === "admin_disabled") return "Guest withdraw access is disabled in the admin panel.";
+        if (source === "environment") return "Using the server default code. Saving here will replace it.";
+        return "Guest withdraw access is currently disabled.";
+      }
+
+      function setWithdrawAccessButtonsDisabled(disabled) {
+        saveWithdrawAccessBtn.disabled = disabled;
+        generateWithdrawAccessBtn.disabled = disabled;
+        disableWithdrawAccessBtn.disabled = disabled;
+        withdrawAccessCode.disabled = disabled;
+      }
+
+      function generateWithdrawAccessCode() {
+        const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+        const values = new Uint32Array(8);
+        window.crypto.getRandomValues(values);
+        const chars = Array.from(values, (value) => alphabet[value % alphabet.length]);
+        return `${chars.slice(0, 4).join("")}-${chars.slice(4, 8).join("")}`;
+      }
+
+      function renderWithdrawAccessSettings(payload) {
+        const accessCode = payload && typeof payload.accessCode === "string" ? payload.accessCode : "";
+        withdrawAccessCode.value = accessCode;
+        const sourceDescription = describeWithdrawAccessSource(payload ? payload.source : "none");
+        const updatedBits = [];
+        if (payload && payload.updatedAt) {
+          updatedBits.push(`Last changed ${formatDateTime(payload.updatedAt)}.`);
+        }
+        if (payload && payload.updatedByUsername) {
+          updatedBits.push(`Changed by ${payload.updatedByUsername}.`);
+        }
+        withdrawAccessMeta.textContent = [sourceDescription].concat(updatedBits).join(" ");
+        if (payload && payload.guestAccessEnabled) {
+          setPill(withdrawAccessStatus, "ok", "Guest access enabled.");
+        } else {
+          setPill(withdrawAccessStatus, "info", "Guest access disabled.");
+        }
+      }
+
+      async function loadWithdrawAccessSettings() {
+        setPill(withdrawAccessStatus, "info", "Loading...");
+        try {
+          const res = await fetch(apiUrl("/api/admin/inventory-withdraw-access"), {
+            credentials: "include",
+          });
+          if (!res.ok) {
+            throw new Error(await readErrorDetail(res));
+          }
+          const payload = await res.json();
+          renderWithdrawAccessSettings(payload);
+        } catch (error) {
+          const msg = error instanceof Error ? error.message : String(error);
+          setPill(withdrawAccessStatus, "err", msg);
+          withdrawAccessMeta.textContent = "Could not load the current volunteer withdraw access setting.";
+        }
+      }
+
+      async function saveWithdrawAccessSettings(options = {}) {
+        const disable = Boolean(options.disable);
+        const accessCode = disable ? "" : (withdrawAccessCode.value || "").trim();
+        if (!disable && !accessCode) {
+          setPill(withdrawAccessStatus, "err", "Enter a code first.");
+          withdrawAccessCode.focus();
+          return;
+        }
+
+        setWithdrawAccessButtonsDisabled(true);
+        setPill(withdrawAccessStatus, "info", disable ? "Disabling..." : "Saving...");
+        try {
+          const methods = ["POST", "PUT", "PATCH"];
+          let res = null;
+          for (const method of methods) {
+            const attempt = await fetch(apiUrl("/api/admin/inventory-withdraw-access"), {
+              method,
+              credentials: "include",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ accessCode }),
+            });
+            if (attempt.status === 405) {
+              res = attempt;
+              continue;
+            }
+            res = attempt;
+            break;
+          }
+          if (!res || !res.ok) {
+            throw new Error(await readErrorDetail(res));
+          }
+          const payload = await res.json();
+          renderWithdrawAccessSettings(payload);
+          setPill(withdrawAccessStatus, payload.guestAccessEnabled ? "ok" : "info", disable ? "Guest access disabled." : "Code saved.");
+        } catch (error) {
+          const msg = error instanceof Error ? error.message : String(error);
+          setPill(withdrawAccessStatus, "err", msg);
+        } finally {
+          setWithdrawAccessButtonsDisabled(false);
+        }
       }
 
       function renderUsers(users) {
@@ -406,13 +557,7 @@
                 body: JSON.stringify(payload),
               });
               if (!res.ok) {
-                const text = await res.text();
-                let detail = text;
-                try {
-                  const parsed = JSON.parse(text);
-                  if (parsed && parsed.detail) detail = parsed.detail;
-                } catch (_error) {}
-                throw new Error(detail || `HTTP ${res.status}`);
+                throw new Error(await readErrorDetail(res));
               }
               if (includePassword && newPass) {
                 passInput.value = "";
@@ -457,13 +602,7 @@
                 throw new Error(`Delete endpoint not available (HTTP 405) at ${apiUrl(`/api/auth/users/${user.id}`)}.`);
               }
               if (!res.ok) {
-                const text = await res.text();
-                let detail = text;
-                try {
-                  const parsed = JSON.parse(text);
-                  if (parsed && parsed.detail) detail = parsed.detail;
-                } catch (_error) {}
-                throw new Error(detail || `HTTP ${res.status}`);
+                throw new Error(await readErrorDetail(res));
               }
 
               let deleted = null;
@@ -517,8 +656,7 @@
             credentials: "include",
           });
           if (!res.ok) {
-            const text = await res.text();
-            throw new Error(text || `HTTP ${res.status}`);
+            throw new Error(await readErrorDetail(res));
           }
           const users = await res.json();
           renderUsers(Array.isArray(users) ? users : []);
@@ -546,13 +684,7 @@
             body: JSON.stringify(payload),
           });
           if (!res.ok) {
-            const text = await res.text();
-            let detail = text;
-            try {
-              const parsed = JSON.parse(text);
-              if (parsed && parsed.detail) detail = parsed.detail;
-            } catch (_error) {}
-            throw new Error(detail || `HTTP ${res.status}`);
+            throw new Error(await readErrorDetail(res));
           }
           let created = null;
           try {
@@ -576,6 +708,28 @@
         }
       });
 
+      saveWithdrawAccessBtn.addEventListener("click", () => {
+        void saveWithdrawAccessSettings();
+      });
+
+      generateWithdrawAccessBtn.addEventListener("click", () => {
+        withdrawAccessCode.value = generateWithdrawAccessCode();
+        setPill(withdrawAccessStatus, "info", "New code generated locally. Save to apply it.");
+      });
+
+      disableWithdrawAccessBtn.addEventListener("click", () => {
+        const confirmed = window.confirm("Disable guest withdraw access? Volunteers without logins will no longer be able to use Withdraw Inventory.");
+        if (!confirmed) return;
+        void saveWithdrawAccessSettings({ disable: true });
+      });
+
+      withdrawAccessCode.addEventListener("keydown", (event) => {
+        if (event.key !== "Enter") return;
+        event.preventDefault();
+        void saveWithdrawAccessSettings();
+      });
+
+      void loadWithdrawAccessSettings();
       void loadUsers();
     </script>
   </body>

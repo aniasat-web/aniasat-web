@@ -1308,6 +1308,41 @@ def init_db(_allow_malformed_recovery: bool = True) -> None:
             if shopping_item_source_columns and "dish_name" not in shopping_item_source_columns:
                 conn.execute("ALTER TABLE shopping_list_item_sources ADD COLUMN dish_name TEXT")
 
+            if not table_exists(conn, "app_settings"):
+                conn.execute(
+                    """
+                    CREATE TABLE app_settings (
+                        setting_key TEXT PRIMARY KEY,
+                        setting_value TEXT,
+                        updated_by_user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+                        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                        updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+                    )
+                    """
+                )
+            else:
+                app_settings_columns = table_columns(conn, "app_settings")
+                if app_settings_columns and "updated_by_user_id" not in app_settings_columns:
+                    conn.execute("ALTER TABLE app_settings ADD COLUMN updated_by_user_id INTEGER REFERENCES users(id) ON DELETE SET NULL")
+                if app_settings_columns and "created_at" not in app_settings_columns:
+                    conn.execute("ALTER TABLE app_settings ADD COLUMN created_at TEXT")
+                    conn.execute(
+                        """
+                        UPDATE app_settings
+                        SET created_at = CURRENT_TIMESTAMP
+                        WHERE created_at IS NULL OR trim(COALESCE(created_at, '')) = ''
+                        """
+                    )
+                if app_settings_columns and "updated_at" not in app_settings_columns:
+                    conn.execute("ALTER TABLE app_settings ADD COLUMN updated_at TEXT")
+                    conn.execute(
+                        """
+                        UPDATE app_settings
+                        SET updated_at = CURRENT_TIMESTAMP
+                        WHERE updated_at IS NULL OR trim(COALESCE(updated_at, '')) = ''
+                        """
+                    )
+
             standalone_inventory_columns = table_columns(conn, "standalone_inventory")
             if standalone_inventory_columns and "barcode" not in standalone_inventory_columns:
                 conn.execute("ALTER TABLE standalone_inventory ADD COLUMN barcode TEXT")
@@ -1405,6 +1440,17 @@ def init_db(_allow_malformed_recovery: bool = True) -> None:
                     """
                 )
 
+            if table_exists(conn, "inventory_orders"):
+                inventory_order_columns = table_columns(conn, "inventory_orders")
+                if inventory_order_columns and "put_away_by_user_id" not in inventory_order_columns:
+                    conn.execute("ALTER TABLE inventory_orders ADD COLUMN put_away_by_user_id INTEGER REFERENCES users(id) ON DELETE SET NULL")
+                if inventory_order_columns and "put_away_at" not in inventory_order_columns:
+                    conn.execute("ALTER TABLE inventory_orders ADD COLUMN put_away_at TEXT")
+                if inventory_order_columns and "completed_by_user_id" not in inventory_order_columns:
+                    conn.execute("ALTER TABLE inventory_orders ADD COLUMN completed_by_user_id INTEGER REFERENCES users(id) ON DELETE SET NULL")
+                if inventory_order_columns and "completed_at" not in inventory_order_columns:
+                    conn.execute("ALTER TABLE inventory_orders ADD COLUMN completed_at TEXT")
+
             if table_exists(conn, "inventory_order_items"):
                 inventory_order_item_columns = table_columns(conn, "inventory_order_items")
                 if inventory_order_item_columns and "order_url_snapshot" not in inventory_order_item_columns:
@@ -1454,6 +1500,54 @@ def init_db(_allow_malformed_recovery: bool = True) -> None:
                 )
                 migrate_legacy_non_food_order_tables_to_shared(conn)
             migrate_inventory_order_workflow_stage(conn)
+            if table_exists(conn, "inventory_movements"):
+                inventory_movement_columns = table_columns(conn, "inventory_movements")
+                if inventory_movement_columns and "actor_name" not in inventory_movement_columns:
+                    conn.execute("ALTER TABLE inventory_movements ADD COLUMN actor_name TEXT")
+                conn.execute(
+                    """
+                    UPDATE inventory_movements
+                    SET actor_name = COALESCE(
+                        actor_name,
+                        (
+                            SELECT username
+                            FROM users
+                            WHERE users.id = inventory_movements.user_id
+                        )
+                    )
+                    WHERE actor_name IS NULL
+                      AND user_id IS NOT NULL
+                    """
+                )
+            if table_exists(conn, "inventory_orders"):
+                conn.execute(
+                    """
+                    UPDATE inventory_orders
+                    SET put_away_at = COALESCE(put_away_at, received_at, ordered_at, updated_at),
+                        put_away_by_user_id = COALESCE(put_away_by_user_id, received_by_user_id, ordered_by_user_id)
+                    WHERE EXISTS (
+                        SELECT 1
+                        FROM inventory_order_items ioi
+                        WHERE ioi.order_id = inventory_orders.id
+                          AND COALESCE(ioi.applied_quantity, 0) > 0
+                    )
+                      AND (put_away_at IS NULL OR put_away_by_user_id IS NULL)
+                    """
+                )
+                conn.execute(
+                    """
+                    UPDATE inventory_orders
+                    SET completed_at = COALESCE(completed_at, updated_at, put_away_at, received_at, ordered_at),
+                        completed_by_user_id = COALESCE(
+                            completed_by_user_id,
+                            put_away_by_user_id,
+                            received_by_user_id,
+                            ordered_by_user_id
+                        )
+                    WHERE workflow_stage = 'COMPLETE'
+                      AND (completed_at IS NULL OR completed_by_user_id IS NULL)
+                    """
+                )
 
             retreat_inventory_item_columns = table_columns(conn, "retreat_inventory_items")
             if retreat_inventory_item_columns and "shelf_location" not in retreat_inventory_item_columns:

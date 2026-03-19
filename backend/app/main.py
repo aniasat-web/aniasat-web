@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import secrets
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Annotated
@@ -173,11 +174,15 @@ OPENAI_API_BASE_ENV = "RETREAT_OPS_OPENAI_API_BASE"
 OPENAI_INGREDIENT_DUP_MODEL_ENV = "RETREAT_OPS_INGREDIENT_DUP_MODEL"
 DEFAULT_OPENAI_API_BASE = "https://api.openai.com/v1"
 DEFAULT_INGREDIENT_DUP_MODEL = "gpt-5-mini"
+INVENTORY_WITHDRAW_ACCESS_CODE_ENV = "RETREAT_OPS_INVENTORY_WITHDRAW_ACCESS_CODE"
+APP_SETTING_INVENTORY_WITHDRAW_ACCESS_CODE = "inventory_withdraw_access_code"
 
 PUBLIC_API_PATHS = {
     "/api/health",
     "/api/auth/login",
     "/api/auth/bootstrap-status",
+    "/api/inventory/withdraw-search",
+    "/api/inventory/withdraw-complete",
 }
 
 PUBLIC_API_GET_PREFIXES = (
@@ -186,6 +191,7 @@ PUBLIC_API_GET_PREFIXES = (
 
 PUBLIC_API_GET_PATHS = {
     "/api/service-snapshots/latest",
+    "/api/inventory/withdraw-config",
 }
 
 HEADCOUNT_PROFILES = {"retreat", "test"}
@@ -371,6 +377,28 @@ class StandaloneInventoryMergePayload(BaseModel):
     target_item_id: int = Field(gt=0)
 
 
+class InventoryWithdrawSearchPayload(BaseModel):
+    query: str = Field(min_length=1)
+    accessCode: str | None = None
+    limit: int = Field(default=12, ge=1, le=50)
+
+
+class InventoryWithdrawItemInput(BaseModel):
+    itemId: int = Field(gt=0)
+    quantity: float = Field(gt=0)
+
+
+class InventoryWithdrawCompletePayload(BaseModel):
+    withdrawnBy: str | None = None
+    accessCode: str | None = None
+    reason: str | None = None
+    items: list[InventoryWithdrawItemInput] = Field(default_factory=list)
+
+
+class AdminInventoryWithdrawAccessPayload(BaseModel):
+    accessCode: str | None = Field(default=None, max_length=128)
+
+
 class InventoryOrderItemInput(BaseModel):
     itemType: Literal["INGREDIENT", "STANDALONE_INVENTORY"]
     itemId: int = Field(gt=0)
@@ -406,6 +434,7 @@ class InventoryOrderUpdate(BaseModel):
     name: str | None = None
     sourceType: Literal["SHOPPING_LIST", "NON_FOOD_PLAN", "MANUAL", "LEGACY"] | None = None
     sourceId: int | None = Field(default=None, gt=0)
+    expectedWorkflowStage: Literal["PLANNING", "PURCHASING", "RECEIVING", "COMPLETE"] | None = None
     workflowStage: Literal["PLANNING", "PURCHASING", "RECEIVING", "COMPLETE"] | None = None
     supplierName: str | None = None
     notes: str | None = None
@@ -428,6 +457,9 @@ class StandaloneInventoryOrderDraftItemCreate(BaseModel):
     itemName: str = Field(min_length=1)
     category: str | None = None
     unit: str | None = None
+    barcode: str | None = None
+    location: str | None = None
+    imageUrl: str | None = None
     orderUrl: str | None = None
     notes: str | None = None
 
@@ -898,6 +930,54 @@ def auth_delete_user(
         return response
 
     return {**deleted_payload, "self_deleted": False}
+
+
+@app.get("/api/admin/inventory-withdraw-access")
+def admin_get_inventory_withdraw_access(
+    _user: Annotated[AuthUser, Depends(require_roles(ROLE_ADMIN))],
+) -> dict[str, Any]:
+    with get_connection() as conn:
+        state = resolve_inventory_withdraw_access_state(conn)
+        conn.commit()
+    return {
+        "accessCode": state.get("access_code"),
+        "guestAccessEnabled": bool(state.get("guest_access_enabled")),
+        "source": state.get("source"),
+        "updatedAt": state.get("updated_at"),
+        "updatedByUserId": state.get("updated_by_user_id"),
+        "updatedByUsername": state.get("updated_by_username"),
+    }
+
+
+@app.put("/api/admin/inventory-withdraw-access")
+@app.post("/api/admin/inventory-withdraw-access")
+@app.patch("/api/admin/inventory-withdraw-access")
+def admin_update_inventory_withdraw_access(
+    payload: AdminInventoryWithdrawAccessPayload,
+    user: Annotated[AuthUser, Depends(require_roles(ROLE_ADMIN))],
+) -> dict[str, Any]:
+    normalized_code = normalize_optional_text(payload.accessCode)
+    if normalized_code and len(normalized_code) < 4:
+        raise HTTPException(status_code=400, detail="Access code must be at least 4 characters.")
+
+    with get_connection() as conn:
+        save_app_setting(
+            conn,
+            setting_key=APP_SETTING_INVENTORY_WITHDRAW_ACCESS_CODE,
+            setting_value=normalized_code or "",
+            updated_by_user_id=user.id,
+        )
+        conn.commit()
+        state = resolve_inventory_withdraw_access_state(conn)
+
+    return {
+        "accessCode": state.get("access_code"),
+        "guestAccessEnabled": bool(state.get("guest_access_enabled")),
+        "source": state.get("source"),
+        "updatedAt": state.get("updated_at"),
+        "updatedByUserId": state.get("updated_by_user_id"),
+        "updatedByUsername": state.get("updated_by_username"),
+    }
 
 
 def resolve_openai_api_base() -> str:
@@ -4279,6 +4359,154 @@ def normalize_required_text(value: Any, *, field_name: str) -> str:
     return text
 
 
+def load_app_setting(conn: Any, setting_key: str) -> Any | None:
+    if not table_exists(conn, "app_settings"):
+        return None
+    return conn.execute(
+        """
+        SELECT
+            app_settings.setting_key,
+            app_settings.setting_value,
+            app_settings.updated_by_user_id,
+            app_settings.created_at,
+            app_settings.updated_at,
+            users.username AS updated_by_username
+        FROM app_settings
+        LEFT JOIN users
+          ON users.id = app_settings.updated_by_user_id
+        WHERE app_settings.setting_key = ?
+        """,
+        (setting_key,),
+    ).fetchone()
+
+
+def save_app_setting(
+    conn: Any,
+    *,
+    setting_key: str,
+    setting_value: str | None,
+    updated_by_user_id: int | None = None,
+) -> None:
+    existing = load_app_setting(conn, setting_key)
+    normalized_value = setting_value if setting_value is not None else None
+    if existing:
+        conn.execute(
+            """
+            UPDATE app_settings
+            SET setting_value = ?,
+                updated_by_user_id = ?,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE setting_key = ?
+            """,
+            (normalized_value, updated_by_user_id, setting_key),
+        )
+        return
+
+    conn.execute(
+        """
+        INSERT INTO app_settings(
+            setting_key,
+            setting_value,
+            updated_by_user_id,
+            created_at,
+            updated_at
+        )
+        VALUES (?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+        """,
+        (setting_key, normalized_value, updated_by_user_id),
+    )
+
+
+def resolve_inventory_withdraw_access_state(conn: Any) -> dict[str, Any]:
+    row = load_app_setting(conn, APP_SETTING_INVENTORY_WITHDRAW_ACCESS_CODE)
+    if row is not None:
+        access_code = str(row["setting_value"] or "").strip() or None
+        return {
+            "access_code": access_code,
+            "guest_access_enabled": bool(access_code),
+            "source": "admin" if access_code else "admin_disabled",
+            "updated_at": row["updated_at"],
+            "updated_by_user_id": int(row["updated_by_user_id"]) if row["updated_by_user_id"] is not None else None,
+            "updated_by_username": normalize_optional_text(row["updated_by_username"]),
+        }
+
+    configured = str(os.getenv(INVENTORY_WITHDRAW_ACCESS_CODE_ENV) or "").strip() or None
+    return {
+        "access_code": configured,
+        "guest_access_enabled": bool(configured),
+        "source": "environment" if configured else "none",
+        "updated_at": None,
+        "updated_by_user_id": None,
+        "updated_by_username": None,
+    }
+
+
+def get_inventory_withdraw_access_code(conn: Any) -> str | None:
+    return resolve_inventory_withdraw_access_state(conn).get("access_code")
+
+
+def load_optional_session_user(conn: Any, request: Request) -> AuthUser | None:
+    existing = get_request_user(request)
+    if existing:
+        return existing
+    raw_token = request.cookies.get(SESSION_COOKIE_NAME)
+    if not raw_token:
+        return None
+    return authenticate_session_token(conn, raw_token)
+
+
+def load_inventory_withdraw_actor(
+    conn: Any,
+    request: Request,
+    *,
+    access_code: str | None = None,
+    withdrawn_by: str | None = None,
+) -> tuple[AuthUser | None, str]:
+    user = load_optional_session_user(conn, request)
+    if user:
+        if user.role not in {ROLE_VIEWER, ROLE_PLANNER, ROLE_ADMIN}:
+            raise HTTPException(status_code=403, detail="This account cannot withdraw inventory.")
+        return user, user.username
+
+    configured_code = get_inventory_withdraw_access_code(conn)
+    if not configured_code:
+        raise HTTPException(
+            status_code=403,
+            detail="Guest withdraw access is not configured. Sign in or ask an admin to set the access code.",
+        )
+
+    provided_code = normalize_required_text(access_code, field_name="Access code")
+    if not secrets.compare_digest(provided_code, configured_code):
+        raise HTTPException(status_code=403, detail="Invalid withdraw access code.")
+
+    return None, normalize_required_text(withdrawn_by, field_name="Withdrawn by")
+
+
+def authorize_inventory_withdraw_access(
+    conn: Any,
+    request: Request,
+    *,
+    access_code: str | None = None,
+) -> AuthUser | None:
+    user = load_optional_session_user(conn, request)
+    if user:
+        if user.role not in {ROLE_VIEWER, ROLE_PLANNER, ROLE_ADMIN}:
+            raise HTTPException(status_code=403, detail="This account cannot withdraw inventory.")
+        return user
+
+    configured_code = get_inventory_withdraw_access_code(conn)
+    if not configured_code:
+        raise HTTPException(
+            status_code=403,
+            detail="Guest withdraw access is not configured. Sign in or ask an admin to set the access code.",
+        )
+
+    provided_code = normalize_required_text(access_code, field_name="Access code")
+    if not secrets.compare_digest(provided_code, configured_code):
+        raise HTTPException(status_code=403, detail="Invalid withdraw access code.")
+    return None
+
+
 def normalize_storage_grid_location(value: Any) -> str:
     text = normalize_required_text(value, field_name="Storage location")
     match = STORAGE_GRID_LOCATION_RE.fullmatch(text)
@@ -6651,6 +6879,36 @@ def query_standalone_inventory_rows(
     return format_standalone_inventory_rows(conn, rows)
 
 
+def query_standalone_inventory_withdraw_matches(
+    conn: Any,
+    *,
+    query: str,
+    limit: int = 12,
+) -> list[dict[str, Any]]:
+    normalized_query = normalize_required_text(query, field_name="Query")
+    bounded_limit = max(1, min(int(limit), 50))
+    matches: list[dict[str, Any]] = []
+    seen_item_ids: set[int] = set()
+
+    barcode_candidate = re.sub(r"\D+", "", normalized_query)
+    if INVENTORY_BARCODE_RE.fullmatch(barcode_candidate):
+        exact_row = find_standalone_inventory_item_by_barcode(conn, barcode_candidate)
+        if exact_row is not None:
+            exact_payload = format_standalone_inventory_rows(conn, [exact_row])[0]
+            matches.append(exact_payload)
+            seen_item_ids.add(int(exact_payload["id"]))
+
+    for payload in query_standalone_inventory_rows(conn, search=normalized_query, limit=bounded_limit):
+        item_id = int(payload["id"])
+        if item_id in seen_item_ids:
+            continue
+        matches.append(payload)
+        seen_item_ids.add(item_id)
+        if len(matches) >= bounded_limit:
+            break
+    return matches
+
+
 def as_non_negative_quantity(value: Any) -> float:
     try:
         numeric = float(value)
@@ -6729,6 +6987,67 @@ def default_inventory_order_workflow_stage(domain: Any) -> str:
     return "RECEIVING" if normalized_domain == "FOOD" else "PLANNING"
 
 
+def inventory_order_workspace_label(workflow_stage: str) -> str:
+    labels = {
+        "PLANNING": "Planning",
+        "PURCHASING": "Purchasing",
+        "RECEIVING": "Receiving",
+        "COMPLETE": "Completed Orders",
+    }
+    return labels.get(str(workflow_stage or "").strip().upper(), "Order")
+
+
+def resolve_inventory_order_update_workflow_stage(
+    payload: InventoryOrderUpdate,
+    *,
+    current_stage: str,
+    domain: Any,
+) -> str:
+    expected_stage = normalize_inventory_order_workflow_stage(payload.expectedWorkflowStage)
+    if expected_stage is None:
+        raise HTTPException(status_code=400, detail="expectedWorkflowStage is required when updating an order.")
+
+    if current_stage == "COMPLETE":
+        raise HTTPException(status_code=409, detail="Completed orders are read-only.")
+
+    if expected_stage != current_stage:
+        workspace = inventory_order_workspace_label(current_stage)
+        raise HTTPException(
+            status_code=409,
+            detail=f"Order is currently in {current_stage}. Reload the {workspace} page to continue.",
+        )
+
+    requested_stage = (
+        normalize_inventory_order_workflow_stage(payload.workflowStage)
+        if payload.workflowStage is not None
+        else current_stage
+    ) or default_inventory_order_workflow_stage(domain)
+    if requested_stage == current_stage:
+        return requested_stage
+
+    if current_stage == "PLANNING" and requested_stage == "PURCHASING":
+        return requested_stage
+    if current_stage == "PURCHASING" and requested_stage == "RECEIVING":
+        return requested_stage
+    if current_stage == "RECEIVING" and requested_stage == "COMPLETE":
+        raise HTTPException(
+            status_code=400,
+            detail="Use finalize-receiving to move a receiving order to COMPLETE.",
+        )
+
+    if current_stage == "RECEIVING":
+        raise HTTPException(
+            status_code=400,
+            detail="Receiving orders can only stay in RECEIVING until finalized.",
+        )
+
+    next_stage = "PURCHASING" if current_stage == "PLANNING" else "RECEIVING"
+    raise HTTPException(
+        status_code=400,
+        detail=f"Orders in {current_stage} can only stay in {current_stage} or move to {next_stage}.",
+    )
+
+
 def format_inventory_order_row(row: Any) -> dict[str, Any]:
     workflow_stage = normalize_inventory_order_workflow_stage(row["workflow_stage"])
     if workflow_stage is None:
@@ -6744,10 +7063,19 @@ def format_inventory_order_row(row: Any) -> dict[str, Any]:
         "supplier_name": normalize_optional_text(row["supplier_name"]),
         "notes": normalize_optional_text(row["notes"]),
         "created_by_user_id": int(row["created_by_user_id"]) if row["created_by_user_id"] is not None else None,
+        "created_by_username": normalize_optional_text(row["created_by_username"]),
         "ordered_by_user_id": int(row["ordered_by_user_id"]) if row["ordered_by_user_id"] is not None else None,
+        "ordered_by_username": normalize_optional_text(row["ordered_by_username"]),
         "ordered_at": row["ordered_at"],
         "received_by_user_id": int(row["received_by_user_id"]) if row["received_by_user_id"] is not None else None,
+        "received_by_username": normalize_optional_text(row["received_by_username"]),
         "received_at": row["received_at"],
+        "put_away_by_user_id": int(row["put_away_by_user_id"]) if row["put_away_by_user_id"] is not None else None,
+        "put_away_by_username": normalize_optional_text(row["put_away_by_username"]),
+        "put_away_at": row["put_away_at"],
+        "completed_by_user_id": int(row["completed_by_user_id"]) if row["completed_by_user_id"] is not None else None,
+        "completed_by_username": normalize_optional_text(row["completed_by_username"]),
+        "completed_at": row["completed_at"],
         "created_at": row["created_at"],
         "updated_at": row["updated_at"],
     }
@@ -7123,7 +7451,13 @@ def refresh_inventory_order_status(conn: Any, order_id: int, *, actor_user_id: i
     now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
     existing = conn.execute(
         """
-        SELECT ordered_at, ordered_by_user_id, received_at, received_by_user_id
+        SELECT
+            ordered_at,
+            ordered_by_user_id,
+            received_at,
+            received_by_user_id,
+            put_away_at,
+            put_away_by_user_id
         FROM inventory_orders
         WHERE id = ? AND deleted_at IS NULL
         """,
@@ -7134,19 +7468,38 @@ def refresh_inventory_order_status(conn: Any, order_id: int, *, actor_user_id: i
 
     any_ordered = any(as_non_negative_quantity(item.get("ordered_quantity")) > 0 for item in items)
     any_received = any(as_non_negative_quantity(item.get("received_quantity")) > 0 for item in items)
+    any_put_away = any(as_non_negative_quantity(item.get("applied_quantity")) > 0 for item in items)
 
     ordered_at = existing["ordered_at"]
     ordered_by_user_id = existing["ordered_by_user_id"]
     received_at = existing["received_at"]
     received_by_user_id = existing["received_by_user_id"]
+    put_away_at = existing["put_away_at"]
+    put_away_by_user_id = existing["put_away_by_user_id"]
+
+    if not any_ordered:
+        ordered_at = None
+        ordered_by_user_id = None
 
     if any_ordered and not ordered_at:
         ordered_at = now
         ordered_by_user_id = actor_user_id
 
+    if not any_received:
+        received_at = None
+        received_by_user_id = None
+
     if any_received and not received_at:
         received_at = now
         received_by_user_id = actor_user_id
+
+    if not any_put_away:
+        put_away_at = None
+        put_away_by_user_id = None
+
+    if any_put_away and not put_away_at:
+        put_away_at = now
+        put_away_by_user_id = actor_user_id
 
     conn.execute(
         """
@@ -7156,32 +7509,53 @@ def refresh_inventory_order_status(conn: Any, order_id: int, *, actor_user_id: i
             ordered_by_user_id = ?,
             received_at = ?,
             received_by_user_id = ?,
+            put_away_at = ?,
+            put_away_by_user_id = ?,
             updated_at = CURRENT_TIMESTAMP
         WHERE id = ?
         """,
-        (status, ordered_at, ordered_by_user_id, received_at, received_by_user_id, order_id),
+        (
+            status,
+            ordered_at,
+            ordered_by_user_id,
+            received_at,
+            received_by_user_id,
+            put_away_at,
+            put_away_by_user_id,
+            order_id,
+        ),
     )
     return status
 
 
-def finalize_inventory_order_workflow_stage_if_complete(conn: Any, order_id: int) -> dict[str, Any]:
+def finalize_inventory_order_receiving(conn: Any, order_id: int, *, actor_user_id: int) -> dict[str, Any]:
     detail = load_inventory_order_detail(conn, order_id)
     current_stage = normalize_inventory_order_workflow_stage(detail.get("workflow_stage")) or default_inventory_order_workflow_stage(
         detail.get("domain")
     )
     if current_stage != "RECEIVING":
-        return detail
+        raise HTTPException(status_code=400, detail="Only receiving-stage orders can be finalized here.")
     if detail.get("status") != "RECEIVED" or not detail.get("fully_put_away"):
-        return detail
+        raise HTTPException(
+            status_code=400,
+            detail="Finalize is available only after the order is fully received and fully put away.",
+        )
+    if detail.get("received_by_user_id") is None:
+        raise HTTPException(status_code=400, detail="Capture receipt ownership before finalizing this order.")
+    if detail.get("put_away_by_user_id") is None:
+        raise HTTPException(status_code=400, detail="Capture putaway ownership before finalizing this order.")
+    now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
 
     conn.execute(
         """
         UPDATE inventory_orders
         SET workflow_stage = 'COMPLETE',
+            completed_by_user_id = ?,
+            completed_at = ?,
             updated_at = CURRENT_TIMESTAMP
         WHERE id = ?
         """,
-        (order_id,),
+        (actor_user_id, now, order_id),
     )
     return load_inventory_order_detail(conn, order_id)
 
@@ -7449,7 +7823,7 @@ def upsert_inventory_order_items(
                     created_at,
                     updated_at
                 )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
                 """,
                 (
                     order_id,
@@ -7497,25 +7871,44 @@ def load_inventory_order_detail(conn: Any, order_id: int) -> dict[str, Any]:
     row = conn.execute(
         """
         SELECT
-            id,
-            domain,
-            source_type,
-            source_id,
-            name,
-            status,
-            workflow_stage,
-            supplier_name,
-            notes,
-            created_by_user_id,
-            ordered_by_user_id,
-            ordered_at,
-            received_by_user_id,
-            received_at,
-            created_at,
-            updated_at
-        FROM inventory_orders
-        WHERE id = ?
-          AND deleted_at IS NULL
+            io.id,
+            io.domain,
+            io.source_type,
+            io.source_id,
+            io.name,
+            io.status,
+            io.workflow_stage,
+            io.supplier_name,
+            io.notes,
+            io.created_by_user_id,
+            creator.username AS created_by_username,
+            io.ordered_by_user_id,
+            ordered_user.username AS ordered_by_username,
+            io.ordered_at,
+            io.received_by_user_id,
+            received_user.username AS received_by_username,
+            io.received_at,
+            io.put_away_by_user_id,
+            putaway_user.username AS put_away_by_username,
+            io.put_away_at,
+            io.completed_by_user_id,
+            completed_user.username AS completed_by_username,
+            io.completed_at,
+            io.created_at,
+            io.updated_at
+        FROM inventory_orders io
+        LEFT JOIN users creator
+          ON creator.id = io.created_by_user_id
+        LEFT JOIN users ordered_user
+          ON ordered_user.id = io.ordered_by_user_id
+        LEFT JOIN users received_user
+          ON received_user.id = io.received_by_user_id
+        LEFT JOIN users putaway_user
+          ON putaway_user.id = io.put_away_by_user_id
+        LEFT JOIN users completed_user
+          ON completed_user.id = io.completed_by_user_id
+        WHERE io.id = ?
+          AND io.deleted_at IS NULL
         """,
         (order_id,),
     ).fetchone()
@@ -7603,6 +7996,7 @@ def record_inventory_movement(
     location: str | None = None,
     reason: str | None = None,
     user_id: int | None = None,
+    actor_name: str | None = None,
 ) -> None:
     conn.execute(
         """
@@ -7618,9 +8012,10 @@ def record_inventory_movement(
             location,
             reason,
             user_id,
+            actor_name,
             created_at
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
         """,
         (
             normalize_inventory_order_domain(domain),
@@ -7634,6 +8029,7 @@ def record_inventory_movement(
             normalize_optional_storage_grid_location(location),
             normalize_optional_text(reason),
             user_id,
+            normalize_optional_text(actor_name),
         ),
     )
 
@@ -8306,6 +8702,149 @@ def list_inventory(
         return query_standalone_inventory_rows(conn, category=category, search=search)
 
 
+@app.get("/api/inventory/withdraw-config")
+def get_inventory_withdraw_config() -> dict[str, Any]:
+    with get_connection() as conn:
+        state = resolve_inventory_withdraw_access_state(conn)
+        conn.commit()
+    return {
+        "guest_access_enabled": bool(state.get("guest_access_enabled")),
+        "access_code_required_for_guests": True,
+    }
+
+
+@app.post("/api/inventory/withdraw-search")
+def search_inventory_withdraw_candidates(
+    payload: InventoryWithdrawSearchPayload,
+    request: Request,
+) -> dict[str, Any]:
+    with get_connection() as conn:
+        actor_user = authorize_inventory_withdraw_access(
+            conn,
+            request,
+            access_code=payload.accessCode,
+        )
+        items = query_standalone_inventory_withdraw_matches(conn, query=payload.query, limit=payload.limit)
+        conn.commit()
+
+    return {
+        "query": normalize_required_text(payload.query, field_name="Query"),
+        "items": items,
+        "actor": {
+            "mode": "user" if actor_user else "guest",
+            "name": actor_user.username if actor_user else None,
+            "role": actor_user.role if actor_user else None,
+        },
+    }
+
+
+@app.post("/api/inventory/withdraw-complete")
+def complete_inventory_withdrawal(
+    payload: InventoryWithdrawCompletePayload,
+    request: Request,
+) -> dict[str, Any]:
+    if not payload.items:
+        raise HTTPException(status_code=400, detail="Add at least one item before completing the withdrawal.")
+
+    requested_by_item_id: dict[int, float] = {}
+    for item in payload.items:
+        item_id = int(item.itemId)
+        if item_id in requested_by_item_id:
+            raise HTTPException(status_code=400, detail=f"Item {item_id} is duplicated in this withdrawal.")
+        requested_by_item_id[item_id] = rounded_quantity(item.quantity)
+
+    reason = normalize_optional_text(payload.reason)
+    requested_item_ids = sorted(requested_by_item_id.keys())
+    placeholders = ", ".join("?" for _ in requested_item_ids)
+
+    with get_connection() as conn:
+        actor_user, actor_name = load_inventory_withdraw_actor(
+            conn,
+            request,
+            access_code=payload.accessCode,
+            withdrawn_by=payload.withdrawnBy,
+        )
+
+        rows = conn.execute(
+            f"""
+            SELECT *
+            FROM standalone_inventory
+            WHERE id IN ({placeholders})
+            """,
+            tuple(requested_item_ids),
+        ).fetchall()
+        rows_by_id = {int(row["id"]): row for row in rows}
+        missing_ids = [item_id for item_id in requested_item_ids if item_id not in rows_by_id]
+        if missing_ids:
+            raise HTTPException(status_code=404, detail=f"Inventory item(s) not found: {', '.join(str(item_id) for item_id in missing_ids)}")
+
+        results: list[dict[str, Any]] = []
+        total_quantity = 0.0
+        for item_id in requested_item_ids:
+            row = rows_by_id[item_id]
+            quantity_before = rounded_quantity(row["quantity"])
+            quantity_requested = requested_by_item_id[item_id]
+            if quantity_requested <= 0:
+                raise HTTPException(status_code=400, detail=f"Withdrawal quantity must be greater than zero for item {item_id}.")
+            if quantity_requested > quantity_before:
+                raise HTTPException(
+                    status_code=400,
+                    detail=(
+                        f'Insufficient inventory for "{row["item_name"]}": '
+                        f"{quantity_before:g} available, {quantity_requested:g} requested."
+                    ),
+                )
+
+            quantity_after = round(quantity_before - quantity_requested, 3)
+            conn.execute(
+                """
+                UPDATE standalone_inventory
+                SET quantity = ?, updated_at = CURRENT_TIMESTAMP
+                WHERE id = ?
+                """,
+                (quantity_after, item_id),
+            )
+            record_inventory_movement(
+                conn,
+                domain="NON_FOOD",
+                item_type="STANDALONE_INVENTORY",
+                item_id=item_id,
+                order_id=None,
+                order_item_id=None,
+                movement_type="OUT",
+                quantity_delta=-quantity_requested,
+                unit=normalize_optional_text(row["unit"]) or "each",
+                location=normalize_optional_storage_grid_location(row["location"]) if normalize_optional_text(row["location"]) else None,
+                reason=reason,
+                user_id=actor_user.id if actor_user else None,
+                actor_name=actor_name,
+            )
+            total_quantity += quantity_requested
+            results.append(
+                {
+                    "item_id": item_id,
+                    "item_name": row["item_name"],
+                    "quantity_withdrawn": quantity_requested,
+                    "quantity_before": quantity_before,
+                    "quantity_after": quantity_after,
+                    "unit": normalize_optional_text(row["unit"]) or "each",
+                    "category": normalize_inventory_category(row["category"]),
+                    "location": normalize_optional_text(row["location"]),
+                }
+            )
+
+        conn.commit()
+
+    return {
+        "status": "ok",
+        "withdrawn_by": actor_name,
+        "line_count": len(results),
+        "total_quantity": round(total_quantity, 3),
+        "reason": reason,
+        "items": results,
+    }
+
+
 @app.post("/api/inventory/order-draft-item", status_code=201)
 def create_inventory_order_draft_item(
     payload: StandaloneInventoryOrderDraftItemCreate,
@@ -8315,6 +8854,9 @@ def create_inventory_order_draft_item(
     category = normalize_inventory_category(payload.category)
     unit = normalize_optional_text(payload.unit) or "each"
     unit = normalize_required_text(unit, field_name="Unit")
+    primary_barcode, barcodes = build_inventory_barcode_payload(payload.barcode)
+    location = normalize_storage_grid_location(normalize_optional_text(payload.location))
+    image_url = normalize_optional_text(payload.imageUrl)
     order_url = normalize_optional_text(payload.orderUrl)
     notes = normalize_optional_text(payload.notes)
     now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
@@ -8336,19 +8878,29 @@ def create_inventory_order_draft_item(
                 created_at,
                 updated_at
             )
-            VALUES (?, NULL, 0, ?, ?, NULL, NULL, ?, ?, 'order-draft', ?, ?)
+            VALUES (?, ?, 0, ?, ?, ?, ?, ?, ?, 'order-draft', ?, ?)
             RETURNING *
             """,
             (
                 item_name,
+                primary_barcode,
                 unit,
                 category,
+                location,
+                image_url,
                 notes,
                 order_url,
                 now,
                 now,
             ),
         ).fetchone()
+        sync_standalone_inventory_item_barcodes(
+            conn,
+            item_id=int(row["id"]),
+            primary_barcode=primary_barcode,
+            barcodes=barcodes,
+        )
+        row = conn.execute("SELECT * FROM standalone_inventory WHERE id = ?", (int(row["id"]),)).fetchone()
         payload_row = format_standalone_inventory_rows(conn, [row])[0]
         conn.commit()
 
@@ -8394,25 +8946,44 @@ def list_inventory_orders(
         rows = conn.execute(
             f"""
             SELECT
-                id,
-                domain,
-                source_type,
-                source_id,
-                name,
-                status,
-                workflow_stage,
-                supplier_name,
-                notes,
-                created_by_user_id,
-                ordered_by_user_id,
-                ordered_at,
-                received_by_user_id,
-                received_at,
-                created_at,
-                updated_at
-            FROM inventory_orders
+                io.id,
+                io.domain,
+                io.source_type,
+                io.source_id,
+                io.name,
+                io.status,
+                io.workflow_stage,
+                io.supplier_name,
+                io.notes,
+                io.created_by_user_id,
+                creator.username AS created_by_username,
+                io.ordered_by_user_id,
+                ordered_user.username AS ordered_by_username,
+                io.ordered_at,
+                io.received_by_user_id,
+                received_user.username AS received_by_username,
+                io.received_at,
+                io.put_away_by_user_id,
+                putaway_user.username AS put_away_by_username,
+                io.put_away_at,
+                io.completed_by_user_id,
+                completed_user.username AS completed_by_username,
+                io.completed_at,
+                io.created_at,
+                io.updated_at
+            FROM inventory_orders io
+            LEFT JOIN users creator
+              ON creator.id = io.created_by_user_id
+            LEFT JOIN users ordered_user
+              ON ordered_user.id = io.ordered_by_user_id
+            LEFT JOIN users received_user
+              ON received_user.id = io.received_by_user_id
+            LEFT JOIN users putaway_user
+              ON putaway_user.id = io.put_away_by_user_id
+            LEFT JOIN users completed_user
+              ON completed_user.id = io.completed_by_user_id
             {where_sql}
-            ORDER BY updated_at DESC, id DESC
+            ORDER BY io.updated_at DESC, io.id DESC
             """,
             tuple(params),
         ).fetchall()
@@ -8520,8 +9091,8 @@ def update_inventory_order(
     payload: InventoryOrderUpdate,
     user: Annotated[AuthUser, Depends(require_roles(ROLE_PLANNER, ROLE_ADMIN))],
 ) -> dict[str, Any]:
-    fields = payload.model_fields_set
-    if not fields:
+    fields = set(payload.model_fields_set)
+    if not fields or fields <= {"expectedWorkflowStage"}:
         raise HTTPException(status_code=400, detail="Provide at least one field to update.")
 
     updates: list[str] = []
@@ -8539,6 +9110,15 @@ def update_inventory_order(
         if not existing:
             raise HTTPException(status_code=404, detail="Inventory order not found")
 
+        current_stage = normalize_inventory_order_workflow_stage(existing["workflow_stage"]) or default_inventory_order_workflow_stage(
+            existing["domain"]
+        )
+        next_workflow_stage = resolve_inventory_order_update_workflow_stage(
+            payload,
+            current_stage=current_stage,
+            domain=existing["domain"],
+        )
+
         if "name" in fields:
             clean_name = normalize_optional_text(payload.name)
             if not clean_name:
@@ -8553,10 +9133,7 @@ def update_inventory_order(
             params.append(normalize_optional_text(payload.notes))
         if "workflowStage" in fields:
             updates.append("workflow_stage = ?")
-            params.append(
-                normalize_inventory_order_workflow_stage(payload.workflowStage)
-                or default_inventory_order_workflow_stage(existing["domain"])
-            )
+            params.append(next_workflow_stage)
 
         if "sourceType" in fields or "sourceId" in fields:
             next_source_type = (
@@ -8604,7 +9181,19 @@ def update_inventory_order(
             )
 
         refresh_inventory_order_status(conn, order_id, actor_user_id=user.id)
-        detail = finalize_inventory_order_workflow_stage_if_complete(conn, order_id)
+        detail = load_inventory_order_detail(conn, order_id)
+        conn.commit()
+    return detail
+
+
+@app.post("/api/orders/{order_id}/finalize-receiving")
+def finalize_inventory_order_receiving_route(
+    order_id: int,
+    user: Annotated[AuthUser, Depends(require_roles(ROLE_PLANNER, ROLE_ADMIN))],
+) -> dict[str, Any]:
+    with get_connection() as conn:
+        refresh_inventory_order_status(conn, order_id, actor_user_id=user.id)
+        detail = finalize_inventory_order_receiving(conn, order_id, actor_user_id=user.id)
         conn.commit()
     return detail
 
@@ -8840,6 +9429,7 @@ def putaway_inventory_order_items(
                 location=location_override,
                 reason=reason,
                 user_id=user.id,
+                actor_name=user.username,
             )
 
             applied_quantity_total += delta
@@ -8856,7 +9446,7 @@ def putaway_inventory_order_items(
             )
 
         refresh_inventory_order_status(conn, order_id, actor_user_id=user.id)
-        detail = finalize_inventory_order_workflow_stage_if_complete(conn, order_id)
+        detail = load_inventory_order_detail(conn, order_id)
         conn.commit()
 
     return {

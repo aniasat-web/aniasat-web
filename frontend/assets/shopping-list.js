@@ -55,6 +55,7 @@
       const MASS_ORDERED_UNIT_OPTIONS = ["kg", "lb", "oz", "bag", "box", "case", "each"];
       const VOLUME_ORDERED_UNIT_OPTIONS = ["l", "gal", "qt", "fl oz", "jug", "bottle", "case", "each"];
       const COUNT_ORDERED_UNIT_OPTIONS = ["each", "bag", "box", "case", "can", "packet", "bottle", "jug"];
+      const ALWAYS_AVAILABLE_ORDERED_UNITS = ["kg", "l"];
 
       function resolveApiBase() {
         const queryValue = new URLSearchParams(window.location.search).get("api");
@@ -765,22 +766,11 @@
         } else if (Object.prototype.hasOwnProperty.call(VOLUME_UNITS_TO_ML, normalizedBaseUnit)) {
           options = VOLUME_ORDERED_UNIT_OPTIONS;
         }
-        const merged = [...options];
+        const merged = [...ALWAYS_AVAILABLE_ORDERED_UNITS, ...options];
         if (normalizedSelectedUnit && !merged.includes(normalizedSelectedUnit)) {
           merged.unshift(normalizedSelectedUnit);
         }
         return Array.from(new Set(merged.filter(Boolean)));
-      }
-
-      function orderedUnitLabel(unit) {
-        const normalized = normalizeUnit(unit);
-        if (normalized === "kg") {
-          return "kilograms";
-        }
-        if (normalized === "l") {
-          return "liters";
-        }
-        return unit;
       }
 
       function resolveOrderedEditorState(item) {
@@ -873,7 +863,7 @@
         unitOptions.forEach((unitOption) => {
           const option = document.createElement("option");
           option.value = unitOption;
-          option.textContent = orderedUnitLabel(unitOption);
+          option.textContent = unitOption;
           if (unitOption === editorState.unit) {
             option.selected = true;
           }

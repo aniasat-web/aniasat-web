@@ -52,8 +52,8 @@
         gal: 3785.411784,
       };
       const METRIC_ORDERED_UNITS = new Set(["g", "kg", "ml", "l"]);
-      const MASS_ORDERED_UNIT_OPTIONS = ["lb", "oz", "bag", "box", "case", "each"];
-      const VOLUME_ORDERED_UNIT_OPTIONS = ["gal", "qt", "fl oz", "jug", "bottle", "case", "each"];
+      const MASS_ORDERED_UNIT_OPTIONS = ["kg", "lb", "oz", "bag", "box", "case", "each"];
+      const VOLUME_ORDERED_UNIT_OPTIONS = ["l", "gal", "qt", "fl oz", "jug", "bottle", "case", "each"];
       const COUNT_ORDERED_UNIT_OPTIONS = ["each", "bag", "box", "case", "can", "packet", "bottle", "jug"];
 
       function resolveApiBase() {

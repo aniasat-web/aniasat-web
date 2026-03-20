@@ -42,6 +42,24 @@
         max-width: 720px;
       }
 
+      .workflow-start {
+        display: grid;
+        gap: 0.3rem;
+        margin-top: 0.35rem;
+      }
+
+      .workflow-start-title {
+        font-size: 1.35rem;
+        font-weight: 800;
+        line-height: 1.1;
+        color: #2f241d;
+      }
+
+      .workflow-start-note {
+        max-width: 62ch;
+        color: #6b5a4d;
+      }
+
       .scanner-field {
         font-size: 1.08rem;
         font-weight: 700;
@@ -131,6 +149,10 @@
 
       .section-lead {
         max-width: 62ch;
+      }
+
+      .completion-section.is-blocked {
+        opacity: 0.72;
       }
 
       .empty-state {
@@ -224,13 +246,13 @@
     </nav>
 
     <main class="inventory-shell">
-      <div class="d-flex flex-wrap align-items-center gap-3 mb-4">
+      <div class="d-flex flex-wrap align-items-start gap-3 mb-4">
         <div class="flex-grow-1 hero-copy">
           <h1 class="fw-bold mb-2"><i class="fa-solid fa-arrow-up-from-bracket fa-rotate-90 me-2" style="color: var(--ui-danger-700);"></i>Withdraw Inventory</h1>
-          <p class="text-muted mb-0">
-            Scan a barcode or search by item name, review the item details, add the quantity needed, then complete the withdrawal as one session.
-            Signed-in users are captured automatically; volunteers can use the shared withdraw access code and enter their name.
-          </p>
+          <div class="workflow-start">
+            <div class="workflow-start-title">Scan an Item to Start</div>
+            <p class="workflow-start-note mb-0">Use a barcode scanner or search by item name. Choose the correct inventory row, then add the quantity to the withdrawal queue.</p>
+          </div>
         </div>
         <span id="statusPill" class="status-pill info">Loading...</span>
       </div>
@@ -238,36 +260,8 @@
       <section class="soft-card p-4 mb-4">
         <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-3">
           <div>
-            <h2 class="h4 mb-1 fw-bold"><i class="fa-solid fa-user-check me-2 text-success"></i>Withdrawal Session</h2>
-            <p class="text-muted mb-0 section-lead">Every completed session records who withdrew the items and why the supplies were taken from storage.</p>
-          </div>
-          <span class="summary-chip" id="sessionModeChip">Checking access</span>
-        </div>
-        <div id="sessionAlert" class="alert alert-warning d-none mb-3" role="alert"></div>
-        <div class="row g-3 align-items-end">
-          <div class="col-lg-4">
-            <label for="withdrawnByInput" class="form-label fw-semibold">Withdrawn By</label>
-            <input id="withdrawnByInput" type="text" class="form-control" placeholder="Volunteer name" autocomplete="name" />
-            <div class="form-text" id="withdrawnByHelp">Required before completing a guest withdrawal.</div>
-          </div>
-          <div class="col-lg-3" id="accessCodeField">
-            <label for="accessCodeInput" class="form-label fw-semibold">Guest Access Code</label>
-            <input id="accessCodeInput" type="password" class="form-control" placeholder="Shared code" autocomplete="one-time-code" />
-            <div class="form-text">Signed-in users do not need this.</div>
-          </div>
-          <div class="col-lg-5">
-            <label for="reasonInput" class="form-label fw-semibold">Retreat / Reason</label>
-            <input id="reasonInput" type="text" class="form-control" placeholder="Spring retreat towels, meditation hall setup, cleaning supplies" />
-            <div class="form-text">Saved on every movement written by this session.</div>
-          </div>
-        </div>
-      </section>
-
-      <section class="soft-card p-4 mb-4">
-        <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-3">
-          <div>
-            <h2 class="h4 mb-1 fw-bold"><i class="fa-solid fa-magnifying-glass me-2 text-primary"></i>Find Item</h2>
-            <p class="text-muted mb-0 section-lead">Use a barcode scanner into the search field or type part of the item name. Barcode matches are prioritized automatically.</p>
+            <h2 class="h4 mb-1 fw-bold"><i class="fa-solid fa-magnifying-glass me-2 text-primary"></i>Scan or Search</h2>
+            <p class="text-muted mb-0 section-lead">Barcode scans and name searches both work here.</p>
           </div>
           <button id="clearSearchBtn" type="button" class="btn btn-outline-secondary btn-sm">Clear Search</button>
         </div>
@@ -288,11 +282,11 @@
             <div class="d-flex align-items-center justify-content-between gap-3 mb-3">
               <div>
                 <h2 class="h5 mb-1 fw-bold">Matches</h2>
-                <p class="text-muted mb-0 small">Choose the exact inventory row to withdraw from.</p>
+                <p class="text-muted mb-0 small">Choose the exact inventory row.</p>
               </div>
               <span class="summary-chip" id="resultsCountChip">0 results</span>
             </div>
-            <div id="resultsEmpty" class="empty-state small">No search yet. Scan a barcode or search by item name to begin.</div>
+            <div id="resultsEmpty" class="empty-state small">Scan an item to start. Matching inventory rows will show here.</div>
             <div id="resultsList" class="result-list d-grid gap-2"></div>
           </div>
         </div>
@@ -300,12 +294,12 @@
           <div class="soft-card p-4 selected-item-card">
             <div class="d-flex align-items-center justify-content-between gap-3 mb-3">
               <div>
-                <h2 class="h5 mb-1 fw-bold">Selected Item</h2>
-                <p class="text-muted mb-0 small">Review the item details, then enter the quantity to withdraw.</p>
+                <h2 class="h5 mb-1 fw-bold">Item to Withdraw</h2>
+                <p class="text-muted mb-0 small">Choose a row, then set the quantity.</p>
               </div>
               <span class="summary-chip" id="selectedQueuedChip">Queued: 0</span>
             </div>
-            <div id="selectedEmpty" class="empty-state">Choose an item from the search results to continue.</div>
+            <div id="selectedEmpty" class="empty-state">Scan or search above, then choose the correct inventory row.</div>
             <div id="selectedCard" class="d-none">
               <div class="row g-4">
                 <div class="col-md-4">
@@ -349,7 +343,7 @@
                       <button id="addToSessionBtn" type="button" class="btn btn-danger"><i class="fa-solid fa-layer-group me-1"></i>Add To Session</button>
                     </div>
                   </div>
-                  <div class="form-text mt-2" id="selectedHelpText">You can queue multiple items, then commit the withdrawal once at the end.</div>
+                  <div class="form-text mt-2" id="selectedHelpText">Add the quantity to the withdrawal queue below.</div>
                 </div>
               </div>
             </div>
@@ -361,11 +355,11 @@
         <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-3">
           <div>
             <h2 class="h4 mb-1 fw-bold"><i class="fa-solid fa-list-check me-2 text-danger"></i>Withdrawal Queue</h2>
-            <p class="text-muted mb-0 section-lead">Review everything in this session before inventory is actually decremented.</p>
+            <p class="text-muted mb-0 section-lead">Items added above appear here.</p>
           </div>
           <span class="summary-chip" id="queueSummaryChip">0 lines queued</span>
         </div>
-        <div id="queueEmpty" class="empty-state mb-3">No items added yet. Search for an item, choose the quantity, and add it to this session.</div>
+        <div id="queueEmpty" class="empty-state mb-3">No items queued yet. Scan and add items above first.</div>
         <div id="queueTableWrap" class="table-responsive d-none">
           <table class="table queue-table align-middle">
             <thead>
@@ -380,20 +374,13 @@
             <tbody id="queueTableBody"></tbody>
           </table>
         </div>
-        <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
-          <div class="text-muted small" id="queueTotalsText">0 total units planned for withdrawal.</div>
-          <div class="d-flex flex-wrap gap-2">
-            <button id="clearQueueBtn" type="button" class="btn btn-outline-secondary">Clear Queue</button>
-            <button id="completeWithdrawalBtn" type="button" class="btn btn-danger"><i class="fa-solid fa-check me-1"></i>Withdrawal Complete</button>
-          </div>
-        </div>
       </section>
 
-      <section class="soft-card p-4">
+      <section class="soft-card p-4 mb-4">
         <div class="d-flex align-items-center justify-content-between gap-3 mb-3">
           <div>
             <h2 class="h5 mb-1 fw-bold">Last Completed Session</h2>
-            <p class="text-muted mb-0 small">This summary updates after each successful withdrawal submission.</p>
+            <p class="text-muted mb-0 small">Updated after each completed withdrawal.</p>
           </div>
         </div>
         <div id="lastCompletedEmpty" class="empty-state">No withdrawal has been completed from this browser session yet.</div>
@@ -417,6 +404,41 @@
             </div>
           </div>
           <div id="lastCompletedItems" class="small text-muted"></div>
+        </div>
+      </section>
+
+      <section id="completionSection" class="soft-card p-4 completion-section is-blocked">
+        <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-3">
+          <div>
+            <h2 class="h4 mb-1 fw-bold"><i class="fa-solid fa-user-check me-2 text-success"></i>Complete Withdrawal</h2>
+            <p class="text-muted mb-0 section-lead">Record who took the items, then finish the withdrawal.</p>
+          </div>
+          <span class="summary-chip" id="sessionModeChip">Checking access</span>
+        </div>
+        <div id="sessionAlert" class="alert alert-warning d-none mb-3" role="alert"></div>
+        <div class="row g-3 align-items-end mb-3">
+          <div class="col-lg-4">
+            <label for="withdrawnByInput" class="form-label fw-semibold">Withdrawn By</label>
+            <input id="withdrawnByInput" type="text" class="form-control" placeholder="Volunteer name" autocomplete="name" />
+            <div class="form-text" id="withdrawnByHelp">Required before completing a guest withdrawal.</div>
+          </div>
+          <div class="col-lg-3" id="accessCodeField">
+            <label for="accessCodeInput" class="form-label fw-semibold">Guest Access Code</label>
+            <input id="accessCodeInput" type="password" class="form-control" placeholder="Shared code" autocomplete="one-time-code" />
+            <div class="form-text">Signed-in users do not need this.</div>
+          </div>
+          <div class="col-lg-5">
+            <label for="reasonInput" class="form-label fw-semibold">Retreat / Reason</label>
+            <input id="reasonInput" type="text" class="form-control" placeholder="Spring retreat towels, meditation hall setup, cleaning supplies" />
+            <div class="form-text">Saved on every movement from this withdrawal.</div>
+          </div>
+        </div>
+        <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
+          <div class="text-muted small" id="queueTotalsText">0 total units planned for withdrawal.</div>
+          <div class="d-flex flex-wrap gap-2">
+            <button id="clearQueueBtn" type="button" class="btn btn-outline-secondary">Clear Queue</button>
+            <button id="completeWithdrawalBtn" type="button" class="btn btn-danger"><i class="fa-solid fa-check me-1"></i>Withdrawal Complete</button>
+          </div>
         </div>
       </section>
     </main>
@@ -461,6 +483,7 @@
       const queueTotalsText = document.getElementById("queueTotalsText");
       const clearQueueBtn = document.getElementById("clearQueueBtn");
       const completeWithdrawalBtn = document.getElementById("completeWithdrawalBtn");
+      const completionSection = document.getElementById("completionSection");
       const lastCompletedEmpty = document.getElementById("lastCompletedEmpty");
       const lastCompletedCard = document.getElementById("lastCompletedCard");
       const lastCompletedBy = document.getElementById("lastCompletedBy");
@@ -742,7 +765,7 @@
           selectedHelpText.textContent = "All available stock for this row is already queued in the current session.";
         } else {
           addToSessionBtn.disabled = !isInteractionAllowed();
-          selectedHelpText.textContent = "Add the quantity needed to the queue. Inventory is not decremented until completion.";
+          selectedHelpText.textContent = "Add the quantity to the queue below. Inventory updates when the withdrawal is completed.";
         }
       }
 
@@ -754,6 +777,7 @@
         queueTotalsText.textContent = `${formatQuantity(totalQuantity)} total units planned for withdrawal.`;
         clearQueueBtn.disabled = state.queue.length === 0;
         completeWithdrawalBtn.disabled = !isInteractionAllowed() || state.queue.length === 0;
+        completionSection.classList.toggle("is-blocked", state.queue.length === 0);
 
         queueTableBody.replaceChildren();
         if (!state.queue.length) {
@@ -1028,7 +1052,7 @@
         state.selectedItemId = null;
         selectedQuantityInput.value = "1";
         renderResults();
-        setStatus("Search cleared.", "info");
+        setStatus("Search cleared. Scan an item to start.", "info");
         searchInput.focus();
       }
 
@@ -1052,7 +1076,7 @@
           renderResults();
           renderQueue();
           renderLastCompleted();
-          setStatus("Ready to withdraw inventory.", "ok");
+          setStatus("Ready. Scan an item to start.", "ok");
           searchInput.focus();
         } catch (error) {
           updateAccessUi();

@@ -287,6 +287,10 @@
         background: linear-gradient(180deg, #fff9ef, #fff4e7);
       }
 
+      .item-row.row-highlight td {
+        background: linear-gradient(180deg, #fff6dd, #ffefc2) !important;
+      }
+
       .item-name {
         font-weight: 700;
         color: #1f2937;
@@ -914,6 +918,14 @@
         });
       }
 
+      function renderStatusFilters() {
+        if (!statusFilters) return;
+        Array.from(statusFilters.querySelectorAll(".filter-pill")).forEach(function (node) {
+          var status = node.dataset.status || "all";
+          node.classList.toggle("active", status === activeStatus);
+        });
+      }
+
       function renderHeaderDetails() {
         if (!activeOrder) {
           currentOrderName.innerHTML = '<i class="fa-solid fa-list-check"></i><span>No order selected</span>';
@@ -1333,6 +1345,21 @@
         return orderRows.find(function (row) { return row.itemId === itemId; }) || null;
       }
 
+      function highlightOrderRow(itemId) {
+        var selector = 'tr.item-row[data-item-id="' + String(itemId) + '"]';
+        var rowNode = orderBody.querySelector(selector);
+        if (!rowNode) return;
+        rowNode.classList.add("row-highlight");
+        try {
+          rowNode.scrollIntoView({ block: "center", behavior: "smooth" });
+        } catch (_error) {
+          rowNode.scrollIntoView();
+        }
+        window.setTimeout(function () {
+          rowNode.classList.remove("row-highlight");
+        }, 2200);
+      }
+
       async function fetchInventory() {
         var response = await fetch(apiUrl("/api/inventory"), { credentials: "include" });
         if (!response.ok) throw new Error(await parseApiError(response));
@@ -1707,15 +1734,30 @@
         renderNewItemCategoryOptions();
 
         var row = makeRowFromInventory(created, null);
+        row.includedInOrder = true;
         row.requiredQty = requiredQty;
         recomputeRow(row);
         orderRows.push(row);
         orderRows.sort(function (a, b) {
           return String(a.name || "").localeCompare(String(b.name || ""));
         });
+        activeScope = "order";
+        activeStatus = "all";
+        activeCategories.clear();
+        renderScopeFilters();
+        renderStatusFilters();
+        renderCategoryFilterPills();
         renderTable();
 
         await saveChanges({ silent: true });
+        activeScope = "order";
+        activeStatus = "all";
+        activeCategories.clear();
+        renderScopeFilters();
+        renderStatusFilters();
+        renderCategoryFilterPills();
+        renderTable();
+        highlightOrderRow(created.id);
 
         newItemName.value = "";
         newItemCategory.value = "";
@@ -1725,7 +1767,7 @@
         newItemNotes.value = "";
         if (newItemModal) newItemModal.hide();
 
-        setStatus("New item added and saved to this order.", "ok");
+        setStatus("New item added to this order and created in full inventory with quantity 0.", "ok");
       }
 
       categoryFilters.addEventListener("click", function (event) {
@@ -1766,10 +1808,7 @@
         var pill = target.closest(".filter-pill");
         if (!(pill instanceof HTMLElement)) return;
         activeStatus = pill.dataset.status || "all";
-        Array.from(statusFilters.querySelectorAll(".filter-pill")).forEach(function (node) {
-          node.classList.remove("active");
-        });
-        pill.classList.add("active");
+        renderStatusFilters();
         renderTable();
       });
 

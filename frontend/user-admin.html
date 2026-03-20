@@ -256,6 +256,57 @@
 
       <section class="card p-4 mb-4">
         <div class="d-flex align-items-center justify-content-between mb-3">
+          <h2 class="h5 fw-bold mb-0"><i class="fa-solid fa-utensils me-2 text-primary"></i>Kitchen Shared Access</h2>
+        </div>
+        <p class="text-muted mb-3">
+          Manage separate shared codes for volunteers using <a href="kitchen-test-view.html">Kitchen -&gt; Testing View</a>
+          and <a href="kitchen-service-view.html">Kitchen -&gt; Retreat View</a> without personal logins.
+          Saving or disabling a code signs out existing guest sessions for that page.
+        </p>
+        <div class="row g-4">
+          <div class="col-lg-6">
+            <div class="border rounded-4 p-3 h-100 bg-light-subtle">
+              <div class="d-flex align-items-center justify-content-between mb-2">
+                <h3 class="h6 fw-bold mb-0"><i class="fa-solid fa-vial me-2 text-warning"></i>Testing View</h3>
+                <span id="testingAccessStatus" class="status-pill info">Loading...</span>
+              </div>
+              <p class="text-muted small mb-3">
+                Use this shared code for recipe testers reviewing dishes and building test cook sheets.
+              </p>
+              <label class="form-label fw-bold small text-muted text-uppercase" for="testingAccessCode">Shared Access Code</label>
+              <input id="testingAccessCode" type="text" class="form-control mb-2" placeholder="Enter a shared code" autocomplete="off" />
+              <div id="testingAccessMeta" class="form-text mb-3">Loading current setting...</div>
+              <div class="d-flex flex-wrap gap-2">
+                <button id="saveTestingAccessBtn" type="button" class="btn btn-primary">Save Code</button>
+                <button id="generateTestingAccessBtn" type="button" class="btn btn-outline-secondary">Generate Code</button>
+                <button id="disableTestingAccessBtn" type="button" class="btn btn-outline-danger">Disable</button>
+              </div>
+            </div>
+          </div>
+          <div class="col-lg-6">
+            <div class="border rounded-4 p-3 h-100 bg-light-subtle">
+              <div class="d-flex align-items-center justify-content-between mb-2">
+                <h3 class="h6 fw-bold mb-0"><i class="fa-solid fa-fire-burner me-2 text-danger"></i>Retreat View</h3>
+                <span id="retreatViewAccessStatus" class="status-pill info">Loading...</span>
+              </div>
+              <p class="text-muted small mb-3">
+                Use this shared code for kitchen volunteers opening live retreat prep and cooking sheets during service.
+              </p>
+              <label class="form-label fw-bold small text-muted text-uppercase" for="retreatViewAccessCode">Shared Access Code</label>
+              <input id="retreatViewAccessCode" type="text" class="form-control mb-2" placeholder="Enter a shared code" autocomplete="off" />
+              <div id="retreatViewAccessMeta" class="form-text mb-3">Loading current setting...</div>
+              <div class="d-flex flex-wrap gap-2">
+                <button id="saveRetreatViewAccessBtn" type="button" class="btn btn-primary">Save Code</button>
+                <button id="generateRetreatViewAccessBtn" type="button" class="btn btn-outline-secondary">Generate Code</button>
+                <button id="disableRetreatViewAccessBtn" type="button" class="btn btn-outline-danger">Disable</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="card p-4 mb-4">
+        <div class="d-flex align-items-center justify-content-between mb-3">
           <h2 class="h5 fw-bold mb-0"><i class="fa-solid fa-user-plus me-2 text-primary"></i>Create User</h2>
           <span id="createStatus" class="status-pill info">Ready.</span>
         </div>
@@ -334,6 +385,18 @@
       const saveWithdrawAccessBtn = document.getElementById("saveWithdrawAccessBtn");
       const generateWithdrawAccessBtn = document.getElementById("generateWithdrawAccessBtn");
       const disableWithdrawAccessBtn = document.getElementById("disableWithdrawAccessBtn");
+      const testingAccessStatus = document.getElementById("testingAccessStatus");
+      const testingAccessCode = document.getElementById("testingAccessCode");
+      const testingAccessMeta = document.getElementById("testingAccessMeta");
+      const saveTestingAccessBtn = document.getElementById("saveTestingAccessBtn");
+      const generateTestingAccessBtn = document.getElementById("generateTestingAccessBtn");
+      const disableTestingAccessBtn = document.getElementById("disableTestingAccessBtn");
+      const retreatViewAccessStatus = document.getElementById("retreatViewAccessStatus");
+      const retreatViewAccessCode = document.getElementById("retreatViewAccessCode");
+      const retreatViewAccessMeta = document.getElementById("retreatViewAccessMeta");
+      const saveRetreatViewAccessBtn = document.getElementById("saveRetreatViewAccessBtn");
+      const generateRetreatViewAccessBtn = document.getElementById("generateRetreatViewAccessBtn");
+      const disableRetreatViewAccessBtn = document.getElementById("disableRetreatViewAccessBtn");
 
       const createForm = document.getElementById("createForm");
       const newUsername = document.getElementById("newUsername");
@@ -384,7 +447,7 @@
         withdrawAccessCode.disabled = disabled;
       }
 
-      function generateWithdrawAccessCode() {
+      function generateSharedAccessCode() {
         const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
         const values = new Uint32Array(8);
         window.crypto.getRandomValues(values);
@@ -470,6 +533,132 @@
           setWithdrawAccessButtonsDisabled(false);
         }
       }
+
+      function describeKitchenAccessSource(source, label) {
+        if (source === "admin") return `Saved in the admin panel and currently active for ${label}.`;
+        if (source === "admin_disabled") return `${label} shared access is disabled in the admin panel.`;
+        return `${label} shared access is currently disabled.`;
+      }
+
+      function setKitchenAccessButtonsDisabled(config, disabled) {
+        config.saveBtn.disabled = disabled;
+        config.generateBtn.disabled = disabled;
+        config.disableBtn.disabled = disabled;
+        config.codeInput.disabled = disabled;
+      }
+
+      function renderKitchenAccessSettings(config, payload) {
+        const accessCode = payload && typeof payload.accessCode === "string" ? payload.accessCode : "";
+        config.codeInput.value = accessCode;
+        const sourceDescription = describeKitchenAccessSource(payload ? payload.source : "none", config.label);
+        const updatedBits = [];
+        if (payload && payload.updatedAt) {
+          updatedBits.push(`Last changed ${formatDateTime(payload.updatedAt)}.`);
+        }
+        if (payload && payload.updatedByUsername) {
+          updatedBits.push(`Changed by ${payload.updatedByUsername}.`);
+        }
+        if (payload && payload.guestSessionHours) {
+          updatedBits.push(`Guest sessions last about ${payload.guestSessionHours} hour${payload.guestSessionHours === 1 ? "" : "s"}.`);
+        }
+        config.metaEl.textContent = [sourceDescription].concat(updatedBits).join(" ");
+        if (payload && payload.guestAccessEnabled) {
+          setPill(config.statusEl, "ok", `${config.shortLabel} code enabled.`);
+        } else {
+          setPill(config.statusEl, "info", `${config.shortLabel} code disabled.`);
+        }
+      }
+
+      async function loadKitchenAccessSettings(config) {
+        setPill(config.statusEl, "info", "Loading...");
+        try {
+          const res = await fetch(apiUrl(config.endpoint), {
+            credentials: "include",
+          });
+          if (!res.ok) {
+            throw new Error(await readErrorDetail(res));
+          }
+          const payload = await res.json();
+          renderKitchenAccessSettings(config, payload);
+        } catch (error) {
+          const msg = error instanceof Error ? error.message : String(error);
+          setPill(config.statusEl, "err", msg);
+          config.metaEl.textContent = `Could not load the current ${config.label.toLowerCase()} setting.`;
+        }
+      }
+
+      async function saveKitchenAccessSettings(config, options = {}) {
+        const disable = Boolean(options.disable);
+        const accessCode = disable ? "" : (config.codeInput.value || "").trim();
+        if (!disable && !accessCode) {
+          setPill(config.statusEl, "err", "Enter a code first.");
+          config.codeInput.focus();
+          return;
+        }
+
+        setKitchenAccessButtonsDisabled(config, true);
+        setPill(config.statusEl, "info", disable ? "Disabling..." : "Saving...");
+        try {
+          const methods = ["POST", "PUT", "PATCH"];
+          let res = null;
+          for (const method of methods) {
+            const attempt = await fetch(apiUrl(config.endpoint), {
+              method,
+              credentials: "include",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ accessCode }),
+            });
+            if (attempt.status === 405) {
+              res = attempt;
+              continue;
+            }
+            res = attempt;
+            break;
+          }
+          if (!res || !res.ok) {
+            throw new Error(await readErrorDetail(res));
+          }
+          const payload = await res.json();
+          renderKitchenAccessSettings(config, payload);
+          setPill(
+            config.statusEl,
+            payload.guestAccessEnabled ? "ok" : "info",
+            disable ? `${config.shortLabel} code disabled.` : "Code saved.",
+          );
+        } catch (error) {
+          const msg = error instanceof Error ? error.message : String(error);
+          setPill(config.statusEl, "err", msg);
+        } finally {
+          setKitchenAccessButtonsDisabled(config, false);
+        }
+      }
+
+      const kitchenAccessControllers = [
+        {
+          label: "Testing View",
+          shortLabel: "Testing",
+          endpoint: "/api/admin/kitchen-access/testing",
+          statusEl: testingAccessStatus,
+          codeInput: testingAccessCode,
+          metaEl: testingAccessMeta,
+          saveBtn: saveTestingAccessBtn,
+          generateBtn: generateTestingAccessBtn,
+          disableBtn: disableTestingAccessBtn,
+          disableConfirm: "Disable shared testing access? Volunteers without logins will no longer be able to use Kitchen -> Testing View.",
+        },
+        {
+          label: "Retreat View",
+          shortLabel: "Retreat View",
+          endpoint: "/api/admin/kitchen-access/retreat-view",
+          statusEl: retreatViewAccessStatus,
+          codeInput: retreatViewAccessCode,
+          metaEl: retreatViewAccessMeta,
+          saveBtn: saveRetreatViewAccessBtn,
+          generateBtn: generateRetreatViewAccessBtn,
+          disableBtn: disableRetreatViewAccessBtn,
+          disableConfirm: "Disable shared retreat-view access? Volunteers without logins will no longer be able to use Kitchen -> Retreat View.",
+        },
+      ];
 
       function renderUsers(users) {
         usersBody.innerHTML = "";
@@ -713,7 +902,7 @@
       });
 
       generateWithdrawAccessBtn.addEventListener("click", () => {
-        withdrawAccessCode.value = generateWithdrawAccessCode();
+        withdrawAccessCode.value = generateSharedAccessCode();
         setPill(withdrawAccessStatus, "info", "New code generated locally. Save to apply it.");
       });
 
@@ -729,7 +918,33 @@
         void saveWithdrawAccessSettings();
       });
 
+      kitchenAccessControllers.forEach((config) => {
+        config.saveBtn.addEventListener("click", () => {
+          void saveKitchenAccessSettings(config);
+        });
+
+        config.generateBtn.addEventListener("click", () => {
+          config.codeInput.value = generateSharedAccessCode();
+          setPill(config.statusEl, "info", "New code generated locally. Save to apply it.");
+        });
+
+        config.disableBtn.addEventListener("click", () => {
+          const confirmed = window.confirm(config.disableConfirm);
+          if (!confirmed) return;
+          void saveKitchenAccessSettings(config, { disable: true });
+        });
+
+        config.codeInput.addEventListener("keydown", (event) => {
+          if (event.key !== "Enter") return;
+          event.preventDefault();
+          void saveKitchenAccessSettings(config);
+        });
+      });
+
       void loadWithdrawAccessSettings();
+      kitchenAccessControllers.forEach((config) => {
+        void loadKitchenAccessSettings(config);
+      });
       void loadUsers();
     </script>
   </body>

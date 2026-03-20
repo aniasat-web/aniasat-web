@@ -324,6 +324,7 @@
     </main>
 
     <script src="assets/auth.js?v=20260218f"></script>
+    <script src="assets/kitchen-access.js?v=20260320a"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
     <script>
       const MEAL_ORDER = ["Breakfast", "Lunch", "Evening Chai", "Dinner"];
@@ -341,6 +342,7 @@
       let mealRecords = [];
       let activeMealKey = null;
       let activeDay = null;
+      let kitchenAccessPromise = null;
       const ingredientMetaByKey = new Map();
       const ingredientSpecificConversions = new Map();
       let ingredientMetaLoaded = false;
@@ -438,6 +440,17 @@
         document.querySelectorAll('a[href*="kitchen-test-view.html"]').forEach((link) => {
           link.href = testingHref;
         });
+      }
+
+      function ensureKitchenPageAccess() {
+        if (!kitchenAccessPromise) {
+          kitchenAccessPromise = window.kitchenGuestAccess.ensurePageAccess({
+            scope: "retreat-view",
+            title: "Retreat View Access Required",
+            description: "Use the shared retreat-view code or sign in with a kitchen account to open live prep and cooking sheets.",
+          });
+        }
+        return kitchenAccessPromise;
       }
 
       function normalizeUnit(unit) {
@@ -1057,6 +1070,7 @@
       }
 
       async function render() {
+        await ensureKitchenPageAccess();
         try {
           await ensureIngredientMetadataLoaded();
           const latest = planId

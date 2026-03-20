@@ -14,12 +14,21 @@ ROLE_PLANNER = "planner"
 ROLE_ADMIN = "admin"
 ALLOWED_ROLES = {ROLE_VIEWER, ROLE_PLANNER, ROLE_ADMIN}
 
+GUEST_SCOPE_KITCHEN_TESTING = "kitchen_testing"
+GUEST_SCOPE_KITCHEN_RETREAT_VIEW = "kitchen_retreat_view"
+ALLOWED_GUEST_SESSION_SCOPES = {
+    GUEST_SCOPE_KITCHEN_TESTING,
+    GUEST_SCOPE_KITCHEN_RETREAT_VIEW,
+}
+
 SESSION_COOKIE_NAME = "retreat_ops_session"
 DEFAULT_SESSION_HOURS = 24 * 14
+DEFAULT_GUEST_SESSION_HOURS = 24
 
 BOOTSTRAP_ADMIN_USERNAME_ENV = "RETREAT_OPS_BOOTSTRAP_ADMIN_USERNAME"
 BOOTSTRAP_ADMIN_PASSWORD_ENV = "RETREAT_OPS_BOOTSTRAP_ADMIN_PASSWORD"
 SESSION_HOURS_ENV = "RETREAT_OPS_SESSION_HOURS"
+GUEST_SESSION_HOURS_ENV = "RETREAT_OPS_GUEST_SESSION_HOURS"
 COOKIE_SECURE_ENV = "RETREAT_OPS_COOKIE_SECURE"
 COOKIE_SECURE_DISABLED = {"0", "false", "off", "no"}
 
@@ -45,6 +54,15 @@ def session_hours() -> int:
         parsed = int(raw)
     except ValueError:
         return DEFAULT_SESSION_HOURS
+    return max(1, parsed)
+
+
+def guest_session_hours() -> int:
+    raw = os.getenv(GUEST_SESSION_HOURS_ENV, str(DEFAULT_GUEST_SESSION_HOURS)).strip()
+    try:
+        parsed = int(raw)
+    except ValueError:
+        return DEFAULT_GUEST_SESSION_HOURS
     return max(1, parsed)
 
 
@@ -87,8 +105,26 @@ def hash_session_token(raw_token: str) -> str:
     return hashlib.sha256(raw_token.encode("utf-8")).hexdigest()
 
 
+def normalize_guest_session_scope(scope: str) -> str:
+    value = str(scope or "").strip().lower()
+    if value not in ALLOWED_GUEST_SESSION_SCOPES:
+        raise ValueError(
+            f"Unknown guest session scope '{scope}'. Allowed scopes: {', '.join(sorted(ALLOWED_GUEST_SESSION_SCOPES))}"
+        )
+    return value
+
+
+def guest_session_cookie_name(scope: str) -> str:
+    normalized = normalize_guest_session_scope(scope)
+    return f"retreat_ops_guest_{normalized}"
+
+
 def cleanup_expired_sessions(conn: Any) -> None:
     conn.execute("DELETE FROM auth_sessions WHERE expires_at <= ?", (int(time.time()),))
+
+
+def cleanup_expired_guest_sessions(conn: Any) -> None:
+    conn.execute("DELETE FROM guest_access_sessions WHERE expires_at <= ?", (int(time.time()),))
 
 
 def ensure_bootstrap_admin(conn: Any) -> bool:
@@ -239,6 +275,23 @@ def create_session(conn: Any, user_id: int) -> str:
     return raw_token
 
 
+def create_guest_session(conn: Any, scope: str) -> str:
+    normalized_scope = normalize_guest_session_scope(scope)
+    raw_token = secrets.token_urlsafe(48)
+    token_hash = hash_session_token(raw_token)
+    now = int(time.time())
+    expires_at = now + guest_session_hours() * 3600
+
+    conn.execute(
+        """
+        INSERT INTO guest_access_sessions(scope, token_hash, expires_at)
+        VALUES (?, ?, ?)
+        """,
+        (normalized_scope, token_hash, expires_at),
+    )
+    return raw_token
+
+
 def authenticate_session_token(conn: Any, raw_token: str) -> AuthUser | None:
     if not raw_token:
         return None
@@ -279,10 +332,57 @@ def authenticate_session_token(conn: Any, raw_token: str) -> AuthUser | None:
     )
 
 
+def authenticate_guest_session_token(conn: Any, raw_token: str | None, *, scope: str) -> bool:
+    if not raw_token:
+        return False
+
+    normalized_scope = normalize_guest_session_scope(scope)
+    cleanup_expired_guest_sessions(conn)
+
+    row = conn.execute(
+        """
+        SELECT id
+        FROM guest_access_sessions
+        WHERE scope = ?
+          AND token_hash = ?
+          AND expires_at > ?
+        LIMIT 1
+        """,
+        (normalized_scope, hash_session_token(raw_token), int(time.time())),
+    ).fetchone()
+    if not row:
+        return False
+
+    conn.execute(
+        "UPDATE guest_access_sessions SET last_seen_at = CURRENT_TIMESTAMP WHERE id = ?",
+        (row["id"],),
+    )
+    return True
+
+
 def delete_session(conn: Any, raw_token: str | None) -> None:
     if not raw_token:
         return
     conn.execute("DELETE FROM auth_sessions WHERE token_hash = ?", (hash_session_token(raw_token),))
+
+
+def delete_guest_session(conn: Any, raw_token: str | None, *, scope: str | None = None) -> None:
+    if not raw_token:
+        return
+    if scope is None:
+        conn.execute("DELETE FROM guest_access_sessions WHERE token_hash = ?", (hash_session_token(raw_token),))
+        return
+    conn.execute(
+        "DELETE FROM guest_access_sessions WHERE token_hash = ? AND scope = ?",
+        (hash_session_token(raw_token), normalize_guest_session_scope(scope)),
+    )
+
+
+def delete_guest_sessions_for_scope(conn: Any, scope: str) -> None:
+    conn.execute(
+        "DELETE FROM guest_access_sessions WHERE scope = ?",
+        (normalize_guest_session_scope(scope),),
+    )
 
 
 def list_users(conn: Any) -> list[dict[str, Any]]:

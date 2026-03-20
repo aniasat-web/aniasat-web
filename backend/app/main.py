@@ -22,19 +22,27 @@ from pydantic import BaseModel, Field
 from .auth import (
     BOOTSTRAP_ADMIN_PASSWORD_ENV,
     BOOTSTRAP_ADMIN_USERNAME_ENV,
+    GUEST_SCOPE_KITCHEN_RETREAT_VIEW,
+    GUEST_SCOPE_KITCHEN_TESTING,
     ROLE_ADMIN,
     ROLE_PLANNER,
     ROLE_VIEWER,
     SESSION_COOKIE_NAME,
     AuthUser,
     authenticate_credentials,
+    authenticate_guest_session_token,
     authenticate_session_token,
     cookie_secure_enabled,
     create_session,
+    create_guest_session,
     create_user,
     default_route_for_role,
+    delete_guest_session,
+    delete_guest_sessions_for_scope,
     delete_session,
     ensure_bootstrap_admin,
+    guest_session_cookie_name,
+    guest_session_hours,
     hash_session_token,
     has_any_users,
     list_users,
@@ -176,6 +184,10 @@ DEFAULT_OPENAI_API_BASE = "https://api.openai.com/v1"
 DEFAULT_INGREDIENT_DUP_MODEL = "gpt-5-mini"
 INVENTORY_WITHDRAW_ACCESS_CODE_ENV = "RETREAT_OPS_INVENTORY_WITHDRAW_ACCESS_CODE"
 APP_SETTING_INVENTORY_WITHDRAW_ACCESS_CODE = "inventory_withdraw_access_code"
+APP_SETTING_KITCHEN_TESTING_ACCESS_CODE = "kitchen_testing_access_code"
+APP_SETTING_KITCHEN_RETREAT_VIEW_ACCESS_CODE = "kitchen_retreat_view_access_code"
+KITCHEN_ACCESS_SCOPE_TESTING = "testing"
+KITCHEN_ACCESS_SCOPE_RETREAT_VIEW = "retreat-view"
 
 PUBLIC_API_PATHS = {
     "/api/health",
@@ -185,13 +197,28 @@ PUBLIC_API_PATHS = {
     "/api/inventory/withdraw-complete",
 }
 
+PUBLIC_API_PREFIXES = (
+    "/api/kitchen-access/",
+)
+
 PUBLIC_API_GET_PREFIXES = (
-    "/api/service-snapshots/by-plan/",
 )
 
 PUBLIC_API_GET_PATHS = {
-    "/api/service-snapshots/latest",
     "/api/inventory/withdraw-config",
+}
+
+KITCHEN_ACCESS_SCOPE_CONFIG = {
+    KITCHEN_ACCESS_SCOPE_TESTING: {
+        "setting_key": APP_SETTING_KITCHEN_TESTING_ACCESS_CODE,
+        "guest_session_scope": GUEST_SCOPE_KITCHEN_TESTING,
+        "label": "Kitchen Testing View",
+    },
+    KITCHEN_ACCESS_SCOPE_RETREAT_VIEW: {
+        "setting_key": APP_SETTING_KITCHEN_RETREAT_VIEW_ACCESS_CODE,
+        "guest_session_scope": GUEST_SCOPE_KITCHEN_RETREAT_VIEW,
+        "label": "Kitchen Retreat View",
+    },
 }
 
 HEADCOUNT_PROFILES = {"retreat", "test"}
@@ -397,6 +424,14 @@ class InventoryWithdrawCompletePayload(BaseModel):
 
 class AdminInventoryWithdrawAccessPayload(BaseModel):
     accessCode: str | None = Field(default=None, max_length=128)
+
+
+class AdminSharedAccessCodePayload(BaseModel):
+    accessCode: str | None = Field(default=None, max_length=128)
+
+
+class KitchenGuestAccessLoginPayload(BaseModel):
+    accessCode: str = Field(min_length=1, max_length=128)
 
 
 class InventoryOrderItemInput(BaseModel):
@@ -670,32 +705,94 @@ def require_roles(*allowed_roles: str):
     return dependency
 
 
+def resolve_kitchen_access_scope(scope_slug: str) -> dict[str, str]:
+    normalized = str(scope_slug or "").strip().lower()
+    details = KITCHEN_ACCESS_SCOPE_CONFIG.get(normalized)
+    if not details:
+        raise HTTPException(status_code=404, detail="Kitchen access scope not found.")
+    return {
+        "scope": normalized,
+        "setting_key": str(details["setting_key"]),
+        "guest_session_scope": str(details["guest_session_scope"]),
+        "label": str(details["label"]),
+    }
+
+
+def kitchen_guest_access_scope_for_request(method: str, path: str) -> str | None:
+    if method not in {"GET", "HEAD"}:
+        return None
+    if path == "/api/retreat-plans" or path == "/api/recipes/full" or path.startswith("/api/retreat-plans/"):
+        return KITCHEN_ACCESS_SCOPE_TESTING
+    if (
+        path in {"/api/service-snapshots/latest", "/api/ingredients", "/api/unit-conversions"}
+        or path.startswith("/api/service-snapshots/by-plan/")
+    ):
+        return KITCHEN_ACCESS_SCOPE_RETREAT_VIEW
+    return None
+
+
+def load_optional_kitchen_guest_access(conn: Any, request: Request, scope_slug: str) -> bool:
+    details = resolve_kitchen_access_scope(scope_slug)
+    raw_token = request.cookies.get(guest_session_cookie_name(details["guest_session_scope"]))
+    return authenticate_guest_session_token(conn, raw_token, scope=details["guest_session_scope"])
+
+
+def set_kitchen_guest_access_cookie(response: Response, scope_slug: str, token: str) -> None:
+    details = resolve_kitchen_access_scope(scope_slug)
+    response.set_cookie(
+        key=guest_session_cookie_name(details["guest_session_scope"]),
+        value=token,
+        httponly=True,
+        secure=cookie_secure_enabled(),
+        samesite="lax",
+        path="/",
+    )
+
+
+def clear_kitchen_guest_access_cookie(response: Response, scope_slug: str) -> None:
+    details = resolve_kitchen_access_scope(scope_slug)
+    response.delete_cookie(guest_session_cookie_name(details["guest_session_scope"]), path="/")
+
+
 @app.middleware("http")
 async def api_auth_middleware(request: Request, call_next):
     path = request.url.path
     if not path.startswith("/api"):
         return await call_next(request)
 
-    if request.method == "OPTIONS" or path in PUBLIC_API_PATHS:
+    if (
+        request.method == "OPTIONS"
+        or path in PUBLIC_API_PATHS
+        or any(path.startswith(prefix) for prefix in PUBLIC_API_PREFIXES)
+    ):
         return await call_next(request)
+
+    guest_scope_slug = kitchen_guest_access_scope_for_request(request.method, path)
 
     if request.method in {"GET", "HEAD"}:
         if path in PUBLIC_API_GET_PATHS or any(path.startswith(prefix) for prefix in PUBLIC_API_GET_PREFIXES):
             return await call_next(request)
 
     raw_token = request.cookies.get(SESSION_COOKIE_NAME)
-    if not raw_token:
-        return JSONResponse(status_code=401, content={"detail": "Authentication required"})
+    auth_detail = "Authentication required"
 
     with get_connection() as conn:
-        user = authenticate_session_token(conn, raw_token)
+        if raw_token:
+            user = authenticate_session_token(conn, raw_token)
+            if user:
+                conn.commit()
+                request.state.auth_user = user
+                return await call_next(request)
+            auth_detail = "Session expired. Please log in again."
+
+        if guest_scope_slug and load_optional_kitchen_guest_access(conn, request, guest_scope_slug):
+            conn.commit()
+            request.state.kitchen_guest_scope = guest_scope_slug
+            return await call_next(request)
+
         conn.commit()
 
-    if not user:
-        return JSONResponse(status_code=401, content={"detail": "Session expired. Please log in again."})
-
-    request.state.auth_user = user
-    return await call_next(request)
+    return JSONResponse(status_code=401, content={"detail": auth_detail})
 
 
 @app.get("/api/health")
@@ -769,6 +866,99 @@ def auth_me(request: Request) -> dict[str, Any]:
         "is_active": user.is_active,
         "default_path": default_route_for_role(user.role),
     }
+
+
+@app.get("/api/kitchen-access/{scope_slug}")
+def kitchen_guest_access_status(
+    scope_slug: str,
+    request: Request,
+    response: Response,
+) -> dict[str, Any]:
+    details = resolve_kitchen_access_scope(scope_slug)
+    cookie_name = guest_session_cookie_name(details["guest_session_scope"])
+
+    with get_connection() as conn:
+        user = load_optional_session_user(conn, request)
+        session_mode = "user" if user and user.role in {ROLE_VIEWER, ROLE_PLANNER, ROLE_ADMIN} else "none"
+        guest_authorized = False
+        if session_mode == "none":
+            raw_guest_token = request.cookies.get(cookie_name)
+            guest_authorized = authenticate_guest_session_token(
+                conn,
+                raw_guest_token,
+                scope=details["guest_session_scope"],
+            )
+            if raw_guest_token and not guest_authorized:
+                clear_kitchen_guest_access_cookie(response, scope_slug)
+            if guest_authorized:
+                session_mode = "guest"
+        state = resolve_kitchen_guest_access_state(conn, scope_slug)
+        conn.commit()
+
+    return {
+        "scope": details["scope"],
+        "label": details["label"],
+        "authorized": session_mode in {"user", "guest"},
+        "sessionMode": session_mode,
+        "guestAccessEnabled": bool(state["guest_access_enabled"]),
+        "guestSessionHours": guest_session_hours(),
+    }
+
+
+@app.post("/api/kitchen-access/{scope_slug}/login")
+def kitchen_guest_access_login(
+    scope_slug: str,
+    payload: KitchenGuestAccessLoginPayload,
+    request: Request,
+    response: Response,
+) -> dict[str, Any]:
+    details = resolve_kitchen_access_scope(scope_slug)
+
+    with get_connection() as conn:
+        user = load_optional_session_user(conn, request)
+        if user and user.role in {ROLE_VIEWER, ROLE_PLANNER, ROLE_ADMIN}:
+            conn.commit()
+            return {
+                "scope": details["scope"],
+                "label": details["label"],
+                "authorized": True,
+                "sessionMode": "user",
+                "guestSessionHours": guest_session_hours(),
+            }
+
+        configured_code = get_kitchen_guest_access_code(conn, scope_slug)
+        if not configured_code:
+            raise HTTPException(
+                status_code=403,
+                detail="Guest kitchen access is not configured. Ask an admin to set a shared code.",
+            )
+
+        provided_code = normalize_required_text(payload.accessCode, field_name="Access code")
+        if not secrets.compare_digest(provided_code, configured_code):
+            raise HTTPException(status_code=403, detail="Invalid access code.")
+
+        token = create_guest_session(conn, details["guest_session_scope"])
+        conn.commit()
+
+    set_kitchen_guest_access_cookie(response, scope_slug, token)
+    return {
+        "scope": details["scope"],
+        "label": details["label"],
+        "authorized": True,
+        "sessionMode": "guest",
+        "guestSessionHours": guest_session_hours(),
+    }
+
+
+@app.post("/api/kitchen-access/{scope_slug}/logout")
+def kitchen_guest_access_logout(scope_slug: str, request: Request, response: Response) -> dict[str, Any]:
+    details = resolve_kitchen_access_scope(scope_slug)
+    raw_token = request.cookies.get(guest_session_cookie_name(details["guest_session_scope"]))
+    with get_connection() as conn:
+        delete_guest_session(conn, raw_token, scope=details["guest_session_scope"])
+        conn.commit()
+    clear_kitchen_guest_access_cookie(response, scope_slug)
+    return {"status": "ok", "scope": details["scope"]}
 
 
 @app.post("/api/auth/change-password")
@@ -977,6 +1167,65 @@ def admin_update_inventory_withdraw_access(
         "updatedAt": state.get("updated_at"),
         "updatedByUserId": state.get("updated_by_user_id"),
         "updatedByUsername": state.get("updated_by_username"),
+    }
+
+
+@app.get("/api/admin/kitchen-access/{scope_slug}")
+def admin_get_kitchen_access(
+    scope_slug: str,
+    _user: Annotated[AuthUser, Depends(require_roles(ROLE_ADMIN))],
+) -> dict[str, Any]:
+    details = resolve_kitchen_access_scope(scope_slug)
+    with get_connection() as conn:
+        state = resolve_kitchen_guest_access_state(conn, scope_slug)
+        conn.commit()
+    return {
+        "scope": details["scope"],
+        "label": details["label"],
+        "accessCode": state.get("access_code"),
+        "guestAccessEnabled": bool(state.get("guest_access_enabled")),
+        "source": state.get("source"),
+        "updatedAt": state.get("updated_at"),
+        "updatedByUserId": state.get("updated_by_user_id"),
+        "updatedByUsername": state.get("updated_by_username"),
+        "guestSessionHours": guest_session_hours(),
+    }
+
+
+@app.put("/api/admin/kitchen-access/{scope_slug}")
+@app.post("/api/admin/kitchen-access/{scope_slug}")
+@app.patch("/api/admin/kitchen-access/{scope_slug}")
+def admin_update_kitchen_access(
+    scope_slug: str,
+    payload: AdminSharedAccessCodePayload,
+    user: Annotated[AuthUser, Depends(require_roles(ROLE_ADMIN))],
+) -> dict[str, Any]:
+    details = resolve_kitchen_access_scope(scope_slug)
+    normalized_code = normalize_optional_text(payload.accessCode)
+    if normalized_code and len(normalized_code) < 4:
+        raise HTTPException(status_code=400, detail="Access code must be at least 4 characters.")
+
+    with get_connection() as conn:
+        save_app_setting(
+            conn,
+            setting_key=details["setting_key"],
+            setting_value=normalized_code or "",
+            updated_by_user_id=user.id,
+        )
+        delete_guest_sessions_for_scope(conn, details["guest_session_scope"])
+        conn.commit()
+        state = resolve_kitchen_guest_access_state(conn, scope_slug)
+
+    return {
+        "scope": details["scope"],
+        "label": details["label"],
+        "accessCode": state.get("access_code"),
+        "guestAccessEnabled": bool(state.get("guest_access_enabled")),
+        "source": state.get("source"),
+        "updatedAt": state.get("updated_at"),
+        "updatedByUserId": state.get("updated_by_user_id"),
+        "updatedByUsername": state.get("updated_by_username"),
+        "guestSessionHours": guest_session_hours(),
     }
 
 
@@ -4417,8 +4666,13 @@ def save_app_setting(
     )
 
 
-def resolve_inventory_withdraw_access_state(conn: Any) -> dict[str, Any]:
-    row = load_app_setting(conn, APP_SETTING_INVENTORY_WITHDRAW_ACCESS_CODE)
+def resolve_shared_access_state(
+    conn: Any,
+    *,
+    setting_key: str,
+    environment_value: str | None = None,
+) -> dict[str, Any]:
+    row = load_app_setting(conn, setting_key)
     if row is not None:
         access_code = str(row["setting_value"] or "").strip() or None
         return {
@@ -4430,7 +4684,7 @@ def resolve_inventory_withdraw_access_state(conn: Any) -> dict[str, Any]:
             "updated_by_username": normalize_optional_text(row["updated_by_username"]),
         }
 
-    configured = str(os.getenv(INVENTORY_WITHDRAW_ACCESS_CODE_ENV) or "").strip() or None
+    configured = str(environment_value or "").strip() or None
     return {
         "access_code": configured,
         "guest_access_enabled": bool(configured),
@@ -4441,8 +4695,25 @@ def resolve_inventory_withdraw_access_state(conn: Any) -> dict[str, Any]:
     }
 
 
+def resolve_inventory_withdraw_access_state(conn: Any) -> dict[str, Any]:
+    return resolve_shared_access_state(
+        conn,
+        setting_key=APP_SETTING_INVENTORY_WITHDRAW_ACCESS_CODE,
+        environment_value=os.getenv(INVENTORY_WITHDRAW_ACCESS_CODE_ENV),
+    )
+
+
 def get_inventory_withdraw_access_code(conn: Any) -> str | None:
     return resolve_inventory_withdraw_access_state(conn).get("access_code")
+
+
+def resolve_kitchen_guest_access_state(conn: Any, scope_slug: str) -> dict[str, Any]:
+    details = resolve_kitchen_access_scope(scope_slug)
+    return resolve_shared_access_state(conn, setting_key=details["setting_key"])
+
+
+def get_kitchen_guest_access_code(conn: Any, scope_slug: str) -> str | None:
+    return resolve_kitchen_guest_access_state(conn, scope_slug).get("access_code")
 
 
 def load_optional_session_user(conn: Any, request: Request) -> AuthUser | None:
@@ -8855,7 +9126,7 @@ def create_inventory_order_draft_item(
     unit = normalize_optional_text(payload.unit) or "each"
     unit = normalize_required_text(unit, field_name="Unit")
     primary_barcode, barcodes = build_inventory_barcode_payload(payload.barcode)
-    location = normalize_storage_grid_location(normalize_optional_text(payload.location))
+    location = normalize_optional_storage_grid_location(payload.location)
     image_url = normalize_optional_text(payload.imageUrl)
     order_url = normalize_optional_text(payload.orderUrl)
     notes = normalize_optional_text(payload.notes)

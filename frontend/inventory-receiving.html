@@ -14,17 +14,283 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
     <link rel="stylesheet" href="assets/header-theme.css" />
     <style>
-      body { font-family: "Plus Jakarta Sans", sans-serif; }
+      :root {
+        --workflow-border: #dbe6dc;
+        --workflow-ink: #233027;
+        --workflow-muted: #66756a;
+        --workflow-primary: #26604b;
+        --workflow-primary-strong: #1d4f3d;
+        --workflow-warm: #b7791f;
+      }
+
+      body.inventory-receiving-page {
+        font-family: "Plus Jakarta Sans", sans-serif;
+        color: var(--workflow-ink);
+        background:
+          radial-gradient(circle at top right, rgba(38, 96, 75, 0.12), transparent 32%),
+          linear-gradient(180deg, #f8fbf6 0%, #f2f5ef 100%);
+        padding-top: 70px;
+      }
+
       h1, h2, h3, .navbar-brand { font-family: "Instrument Serif", serif; }
-      .inventory-shell { max-width: 1140px; margin: 0 auto; padding: 1.4rem 1rem 2rem; }
-      .soft-card { border: 1px solid var(--ui-border); border-radius: var(--ui-radius-md); background: rgba(255, 255, 255, 0.9); box-shadow: var(--ui-shadow-sm); }
-      .table-wrap { max-height: 520px; overflow: auto; }
-      .sticky-head thead th { position: sticky; top: 0; z-index: 2; background: #fff; }
+
+      body.inventory-receiving-page .navbar {
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(10px);
+        border-bottom: 1px solid var(--workflow-border);
+        box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+      }
+
+      body.inventory-receiving-page .navbar-brand {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-size: 1.35rem;
+        font-weight: 600 !important;
+        color: var(--workflow-primary) !important;
+      }
+
+      body.inventory-receiving-page .navbar .nav-link {
+        color: var(--workflow-muted);
+        letter-spacing: 0.02em;
+      }
+
+      body.inventory-receiving-page .navbar .nav-link:hover {
+        color: var(--workflow-primary);
+      }
+
+      body.inventory-receiving-page .inventory-shell {
+        max-width: 1320px;
+        margin: 0 auto;
+        padding: 1.4rem 1rem 2rem;
+        display: grid;
+        gap: 1rem;
+      }
+
+      body.inventory-receiving-page .soft-card {
+        border: 1px solid var(--workflow-border);
+        border-radius: 1rem;
+        background: rgba(255, 254, 251, 0.94);
+        box-shadow: 0 12px 28px rgba(15, 23, 42, 0.06);
+      }
+
+      .table-lane-guide {
+        display: grid;
+        border: 1px solid #dfe7e1;
+        border-radius: 0.95rem;
+        overflow: hidden;
+        margin-bottom: 0.7rem;
+      }
+
+      .receiving-lane-guide {
+        grid-template-columns: 650px minmax(600px, 1fr);
+      }
+
+      .putaway-lane-guide {
+        grid-template-columns: 760px minmax(320px, 1fr);
+      }
+
+      .lane-guide-block {
+        display: flex;
+        align-items: center;
+        gap: 0.55rem;
+        padding: 0.6rem 0.85rem;
+        font-size: 0.72rem;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+      }
+
+      .lane-guide-context {
+        background: linear-gradient(90deg, rgba(245, 241, 233, 0.98), rgba(252, 249, 243, 0.98));
+        color: #6b5a3a;
+      }
+
+      .lane-guide-action {
+        background: linear-gradient(90deg, rgba(222, 241, 228, 0.98), rgba(239, 248, 241, 0.98));
+        color: #1e5139;
+        border-left: 3px solid #aec7b5;
+      }
+
+      .lane-guide-icon {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 1.45rem;
+        height: 1.45rem;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.72);
+        font-size: 0.72rem;
+      }
+
+      .table-wrap,
+      .putaway-table-wrap {
+        overflow: auto;
+        border-radius: 1rem;
+        border: 1px solid #e2e8f0;
+        background: linear-gradient(180deg, rgba(255, 255, 255, 0.95), rgba(246, 249, 246, 0.96));
+      }
+
+      .table-wrap { max-height: 520px; }
+      .putaway-table-wrap { max-height: 420px; }
+
+      .workflow-table {
+        margin-bottom: 0;
+      }
+
+      .receiving-table {
+        min-width: 1260px;
+      }
+
+      .putaway-table {
+        min-width: 1100px;
+      }
+
+      .sticky-head thead th {
+        position: sticky;
+        top: 0;
+        z-index: 3;
+        background: rgba(247, 250, 248, 0.94);
+        backdrop-filter: blur(6px);
+        border-bottom: 2px solid #d7e2db;
+        white-space: normal;
+        padding-top: 0.68rem;
+        padding-bottom: 0.68rem;
+      }
+
+      .workflow-table td,
+      .workflow-table th {
+        vertical-align: middle;
+      }
+
+      .table-head-label {
+        display: inline-flex;
+        flex-direction: column;
+        align-items: flex-start;
+        justify-content: center;
+        gap: 0.08rem;
+        min-height: 1.85rem;
+      }
+
+      .table-head-label.single-line {
+        min-height: auto;
+      }
+
+      .table-head-label.centered {
+        align-items: center;
+      }
+
+      .table-head-line {
+        display: block;
+        font-size: 0.74rem;
+        line-height: 1.02;
+        font-weight: 700;
+        letter-spacing: 0.01em;
+        color: #304439;
+      }
+
+      .context-head {
+        background: linear-gradient(180deg, rgba(244, 239, 229, 0.98), rgba(250, 247, 240, 0.98)) !important;
+        box-shadow: inset 0 -1px 0 #ddd5c8;
+      }
+
+      .action-head {
+        background: linear-gradient(180deg, rgba(214, 238, 221, 0.99), rgba(231, 246, 236, 0.99)) !important;
+        box-shadow: inset 0 -1px 0 #bfd7c7;
+      }
+
+      .context-end {
+        border-right: 4px solid #d8d0bf;
+      }
+
+      .action-start {
+        border-left: 3px solid #b7ccbd !important;
+      }
+
+      .item-row td {
+        padding-top: 0.54rem;
+        padding-bottom: 0.54rem;
+      }
+
+      .context-cell {
+        background-image: linear-gradient(180deg, rgba(249, 246, 240, 0.92), rgba(255, 255, 255, 0.96));
+      }
+
+      .item-row:nth-of-type(even) td.context-cell {
+        background-image: linear-gradient(180deg, rgba(243, 238, 229, 0.96), rgba(252, 250, 245, 0.98));
+      }
+
+      .item-row:hover td.context-cell {
+        background: linear-gradient(180deg, #fff7eb, #fffdf8);
+      }
+
+      .action-cell {
+        background-image: linear-gradient(180deg, rgba(212, 236, 219, 0.82), rgba(232, 246, 236, 0.56));
+      }
+
+      .item-row:nth-of-type(even) td.action-cell {
+        background-image: linear-gradient(180deg, rgba(206, 231, 214, 0.86), rgba(226, 242, 231, 0.58));
+      }
+
+      .item-row:hover td.action-cell {
+        background: linear-gradient(180deg, #e7f7eb, #d7ecde);
+      }
+
+      .item-name {
+        display: block;
+        font-weight: 700;
+        color: #20342a;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .item-col {
+        width: 250px;
+        max-width: 250px;
+      }
+
+      .location-col {
+        width: 132px;
+        max-width: 132px;
+      }
+
+      .ordered-col,
+      .ordered-as-col,
+      .received-col,
+      .putaway-received-col,
+      .putaway-applied-col,
+      .remaining-col,
+      .putaway-qty-col {
+        width: 140px;
+        max-width: 140px;
+      }
+
+      .status-col {
+        width: 114px;
+        max-width: 114px;
+      }
+
+      .notes-col {
+        width: 240px;
+        min-width: 240px;
+      }
+
+      .category-col {
+        width: 160px;
+        max-width: 160px;
+      }
+
+      .select-col {
+        width: 92px;
+        max-width: 92px;
+      }
+
       .stat-value { font-size: 1.7rem; font-weight: 800; font-variant-numeric: tabular-nums; }
       .qty-input { width: 104px; font-size: 0.82rem; padding: 0.25rem 0.4rem; text-align: center; }
       .purchase-unit-select { width: 88px; font-size: 0.78rem; padding: 0.2rem 0.35rem; }
-      .qty-helper { font-size: 0.68rem; color: var(--ui-muted); line-height: 1.1; margin-top: 0.15rem; }
-      .table-helper { font-size: 0.72rem; color: var(--ui-muted); line-height: 1.3; margin-top: 0.18rem; }
+      .qty-helper { font-size: 0.68rem; color: var(--workflow-muted); line-height: 1.1; margin-top: 0.15rem; }
+      .table-helper { font-size: 0.72rem; color: var(--workflow-muted); line-height: 1.3; margin-top: 0.18rem; }
       .location-chip { display: inline-flex; align-items: center; border-radius: 999px; padding: 0.16rem 0.55rem; font-size: 0.72rem; font-weight: 700; background: #f0fdf4; border: 1px solid #86efac; color: #166534; }
       .status-chip { font-size: 0.66rem; font-weight: 700; border-radius: 999px; padding: 0.15rem 0.5rem; border: 1px solid var(--ui-border); display: inline-flex; }
       .status-chip.not-ordered { background: #fff7ed; color: #9a3412; border-color: #fdba74; }
@@ -34,7 +300,6 @@
       .status-chip.sufficient { background: #f5f5f4; color: #57534e; border-color: #d6d3d1; }
       .filter-pill { display: inline-flex; align-items: center; padding: 0.3rem 0.7rem; border-radius: 999px; font-size: 0.75rem; font-weight: 600; border: 1px solid var(--ui-border); background: #fff; cursor: pointer; }
       .filter-pill:hover, .filter-pill.active { border-color: var(--ui-primary-300); background: var(--ui-primary-100); color: var(--ui-primary-700); }
-      .putaway-table-wrap { max-height: 420px; overflow: auto; }
       .putaway-qty-input { width: 104px; font-size: 0.82rem; padding: 0.25rem 0.4rem; text-align: center; }
       .putaway-location-input { width: 96px; font-size: 0.82rem; text-transform: uppercase; }
       .remaining-chip { display: inline-flex; align-items: center; border-radius: 999px; padding: 0.15rem 0.55rem; font-size: 0.72rem; font-weight: 700; background: #eff6ff; border: 1px solid #bfdbfe; color: #1d4ed8; }
@@ -72,15 +337,262 @@
       .scan-create-panel { display: grid; gap: 0.7rem; border: 1px dashed #b7d3c7; border-radius: 0.95rem; background: rgba(255, 255, 255, 0.76); padding: 0.9rem; }
       .scan-create-panel[hidden] { display: none; }
       .scan-target-row td { box-shadow: inset 0 0 0 9999px rgba(13, 148, 136, 0.10); }
+      .order-selection-gate { padding: 0; margin: 0 0 0.85rem; background: none; border: 0; box-shadow: none; }
+      .order-selection-gate.is-waiting,
+      .order-selection-gate.is-active { background: none; border: 0; box-shadow: none; }
+      .order-selection-title { font-size: 1.4rem; font-weight: 800; color: #1c1917; line-height: 1.1; margin: 0; }
+      .order-selection-note { margin-top: 0.32rem; font-size: 0.84rem; line-height: 1.4; color: #57534e; max-width: 62ch; }
+      .order-selection-select { min-height: 48px; font-size: 0.98rem; border-width: 2px; }
+      .order-refresh-btn { min-width: 48px; height: 48px; padding-inline: 0.75rem; }
+      .workspace-card.is-blocked { opacity: 0.56; }
+      .workspace-card.is-blocked .table-wrap,
+      .workspace-card.is-blocked .putaway-table-wrap,
+      .workspace-card.is-blocked .scan-shell { pointer-events: none; }
+
+      .action-cell .qty-input,
+      .action-cell .putaway-qty-input,
+      .action-cell .putaway-location-input,
+      .action-cell .notes-input {
+        background: #f4fbf5 !important;
+        border-color: #bad4c0;
+      }
+
+      .action-cell .qty-input:focus,
+      .action-cell .putaway-qty-input:focus,
+      .action-cell .putaway-location-input:focus,
+      .action-cell .notes-input:focus {
+        border-color: #7eb18c;
+        box-shadow: 0 0 0 0.18rem rgba(38, 96, 75, 0.12);
+      }
+
+      .putaway-check {
+        accent-color: var(--workflow-primary);
+      }
+
+      @media (max-width: 1199.98px) {
+        .receiving-lane-guide {
+          grid-template-columns: 580px minmax(500px, 1fr);
+        }
+
+        .putaway-lane-guide {
+          grid-template-columns: 680px minmax(280px, 1fr);
+        }
+
+        .receiving-table {
+          min-width: 1180px;
+        }
+
+        .putaway-table {
+          min-width: 1040px;
+        }
+
+        .item-col {
+          width: 230px;
+          max-width: 230px;
+        }
+
+        .notes-col {
+          width: 220px;
+          min-width: 220px;
+        }
+      }
+
       @media (max-width: 991.98px) {
+        .receiving-lane-guide,
+        .putaway-lane-guide,
         .scan-grid { grid-template-columns: 1fr; }
         .scan-detail-grid { grid-template-columns: 1fr; }
+
+        body.inventory-receiving-page .inventory-shell {
+          padding: 1.15rem 0.9rem 1.7rem;
+          gap: 0.9rem;
+        }
+
+        body.inventory-receiving-page .inventory-shell > section.soft-card {
+          padding: 1.15rem !important;
+        }
+
+        .lane-guide-action {
+          border-left: 0;
+          border-top: 3px solid #aec7b5;
+        }
+
+        .receiving-table {
+          min-width: 1080px;
+        }
+
+        .putaway-table {
+          min-width: 960px;
+        }
+
+        .item-col {
+          width: 220px;
+          max-width: 220px;
+        }
+
+        .location-col {
+          width: 124px;
+          max-width: 124px;
+        }
+
+        .ordered-col,
+        .ordered-as-col,
+        .received-col,
+        .putaway-received-col,
+        .putaway-applied-col,
+        .remaining-col,
+        .putaway-qty-col {
+          width: 132px;
+          max-width: 132px;
+        }
+
+        .status-col {
+          width: 108px;
+          max-width: 108px;
+        }
+
+        .category-col {
+          width: 148px;
+          max-width: 148px;
+        }
+
+        .notes-col {
+          width: 210px;
+          min-width: 210px;
+        }
+
+        .order-selection-title {
+          font-size: 1.28rem;
+        }
+
+        .order-selection-note,
+        .scan-note {
+          max-width: none;
+        }
+
+        .order-selection-select {
+          min-height: 44px;
+          font-size: 0.94rem;
+        }
+
+        .order-refresh-btn {
+          min-width: 44px;
+          height: 44px;
+          padding-inline: 0.65rem;
+        }
+
+        .table-wrap,
+        .putaway-table-wrap {
+          max-height: none;
+        }
+      }
+
+      @media (max-width: 767.98px) {
+        body.inventory-receiving-page .inventory-shell {
+          padding: 1rem 0.75rem 1.45rem;
+          gap: 0.82rem;
+        }
+
+        body.inventory-receiving-page .inventory-shell > section.soft-card {
+          padding: 1rem !important;
+          border-radius: 0.9rem;
+        }
+
+        .receiving-table {
+          min-width: 980px;
+        }
+
+        .putaway-table {
+          min-width: 860px;
+        }
+
+        .item-col {
+          width: 205px;
+          max-width: 205px;
+        }
+
+        .location-col {
+          width: 116px;
+          max-width: 116px;
+        }
+
+        .ordered-col,
+        .ordered-as-col,
+        .received-col,
+        .putaway-received-col,
+        .putaway-applied-col,
+        .remaining-col,
+        .putaway-qty-col {
+          width: 124px;
+          max-width: 124px;
+        }
+
+        .category-col {
+          width: 136px;
+          max-width: 136px;
+        }
+
+        .status-col {
+          width: 102px;
+          max-width: 102px;
+        }
+
+        .notes-col {
+          width: 190px;
+          min-width: 190px;
+        }
+
+        .qty-input,
+        .putaway-qty-input {
+          width: 96px;
+        }
+
+        .putaway-location-input {
+          width: 84px;
+        }
+      }
+
+      @media (max-width: 575.98px) {
+        body.inventory-receiving-page .inventory-shell > section.soft-card {
+          padding: 0.95rem !important;
+        }
+
+        .table-lane-guide {
+          margin-bottom: 0.55rem;
+        }
+
+        .table-head-line {
+          font-size: 0.7rem;
+        }
+
+        .receiving-table {
+          min-width: 920px;
+        }
+
+        .putaway-table {
+          min-width: 810px;
+        }
+
+        .item-col {
+          width: 190px;
+          max-width: 190px;
+        }
+
+        .notes-col {
+          width: 176px;
+          min-width: 176px;
+        }
+
+        .qty-helper,
+        .table-helper {
+          font-size: 0.66rem;
+        }
       }
     </style>
     <link rel="stylesheet" href="assets/ui-theme.css" />
     <link rel="stylesheet" href="assets/inventory-quantity-controls.css" />
   </head>
-  <body>
+  <body class="inventory-receiving-page">
     <nav class="navbar navbar-expand-lg navbar-light fixed-top">
       <div class="container">
         <a class="navbar-brand" href="index.html">
@@ -182,18 +694,29 @@
       </section>
 
       <section class="soft-card p-4 mb-4">
-        <div class="row g-3 align-items-end">
-          <div class="col-lg-4">
-            <label class="small text-uppercase fw-semibold text-muted mb-1" for="orderSelect">Active Order</label>
-            <select id="orderSelect" class="form-select form-select-sm"></select>
+        <div id="orderSelectionGate" class="order-selection-gate is-waiting mb-3">
+          <div id="orderSelectionGateTitle" class="order-selection-title">Select an Order to Start</div>
+          <div id="orderSelectionGateNote" class="order-selection-note">Choose the exact order that is physically arriving. Until then, the scan, receiving, and put away sections stay inactive.</div>
+        </div>
+
+        <div class="row g-3">
+          <div class="col-lg-8">
+            <div class="d-flex align-items-end gap-2">
+              <div class="flex-grow-1">
+                <label class="small text-uppercase fw-semibold text-muted mb-1" for="orderSelect">Order</label>
+                <select id="orderSelect" class="form-select order-selection-select"></select>
+              </div>
+              <button id="refreshBtn" type="button" class="btn btn-outline-secondary order-refresh-btn" title="Refresh orders" aria-label="Refresh orders">
+                <i class="fa-solid fa-arrows-rotate"></i>
+              </button>
+            </div>
           </div>
-          <div class="col-lg-4">
-            <label class="small text-uppercase fw-semibold text-muted mb-1" for="orderNameInput">Order Name</label>
-            <input id="orderNameInput" type="text" class="form-control form-control-sm" placeholder="Inventory Order" />
-          </div>
-          <div class="col-lg-4">
-            <label class="small text-uppercase fw-semibold text-muted mb-1" for="orderNotesInput">Order Notes</label>
-            <input id="orderNotesInput" type="text" class="form-control form-control-sm" placeholder="Optional notes" />
+        </div>
+
+        <div class="row g-3 mt-1">
+          <div class="col-lg-8">
+            <label class="small text-uppercase fw-semibold text-muted mb-1" for="orderNotesInput">Notes</label>
+            <input id="orderNotesInput" type="text" class="form-control form-control-sm" placeholder="Select an order first" disabled />
           </div>
         </div>
 
@@ -206,33 +729,14 @@
           <button type="button" class="filter-pill" data-status="NOT_ORDERED">Not Ordered</button>
         </div>
 
-        <div class="d-flex flex-wrap gap-2 mt-3">
-          <button id="refreshBtn" type="button" class="btn btn-sm btn-outline-secondary"><i class="fa-solid fa-arrows-rotate me-1"></i>Refresh</button>
-          <button id="saveBtn" type="button" class="btn btn-sm btn-primary"><i class="fa-solid fa-floppy-disk me-1"></i>Save Receipt Progress</button>
-          <button id="saveAndPutawayBtn" type="button" class="btn btn-sm btn-success"><i class="fa-solid fa-boxes-packing me-1"></i>Save Shipment</button>
-          <button id="finalizeBtn" type="button" class="btn btn-sm btn-warning"><i class="fa-solid fa-circle-check me-1"></i>Finalize Order</button>
-        </div>
-        <div class="small text-muted mt-2">Select the placed order that is physically arriving now. Scan and review one shipment at a time, save partial progress as shipments land, and finalize only after the order is fully received and fully put away.</div>
-        <div class="row g-3 mt-1">
-          <div class="col-lg-4">
-            <label class="small text-uppercase fw-semibold text-muted mb-1" for="receivingActorInput">Receiving By</label>
-            <input id="receivingActorInput" type="text" class="form-control form-control-sm" placeholder="Signed-in user" readonly />
-            <div id="receivingActorMeta" class="small text-muted mt-2">Receipts are recorded under the signed-in user.</div>
-          </div>
-          <div class="col-lg-4">
-            <label class="small text-uppercase fw-semibold text-muted mb-1" for="putawayActorInput">Put Away By</label>
-            <input id="putawayActorInput" type="text" class="form-control form-control-sm" placeholder="Signed-in user" readonly />
-            <div id="putawayActorMeta" class="small text-muted mt-2">Putaway actions are recorded under the signed-in user.</div>
-          </div>
-        </div>
       </section>
 
-      <section class="soft-card scan-card p-4 mb-4">
+      <section id="scanWorkspaceCard" class="soft-card scan-card p-4 mb-4 workspace-card">
         <div class="scan-shell">
           <div class="scan-header">
             <div>
               <h2 class="h5 mb-1"><i class="fa-solid fa-barcode me-2 text-success"></i>Scan To Match</h2>
-              <p class="scan-note mb-0">Choose the order that is arriving, then scan items. Scans are matched against that active order first, even if orders are received out of placement sequence.</p>
+              <p class="scan-note mb-0">Scan items from the selected order. Each scan updates receipt progress and updates full inventory right away.</p>
             </div>
             <span id="scanStateBadge" class="scan-badge idle">Awaiting scan</span>
           </div>
@@ -315,26 +819,34 @@
           </div>
 
           <div class="scan-actions">
-            <button id="scanApplyBtn" type="button" class="btn btn-sm btn-primary" disabled><i class="fa-solid fa-truck-ramp-box me-1"></i>Receive Only</button>
-            <button id="scanApplyAndPutawayBtn" type="button" class="btn btn-sm btn-success" disabled><i class="fa-solid fa-boxes-packing me-1"></i>Receive + Queue Put Away</button>
             <button id="scanClearBtn" type="button" class="btn btn-sm btn-outline-secondary"><i class="fa-solid fa-xmark me-1"></i>Clear Scan</button>
           </div>
         </div>
       </section>
 
-      <section class="soft-card p-4 mb-4">
+      <section id="receivingTableCard" class="soft-card p-4 mb-4 workspace-card">
+        <div class="table-lane-guide receiving-lane-guide" aria-hidden="true">
+          <div class="lane-guide-block lane-guide-context">
+            <span class="lane-guide-icon"><i class="fa-solid fa-clipboard-list"></i></span>
+            <span>Order Context</span>
+          </div>
+          <div class="lane-guide-block lane-guide-action">
+            <span class="lane-guide-icon"><i class="fa-solid fa-truck-ramp-box"></i></span>
+            <span>Receiver Updates</span>
+          </div>
+        </div>
         <div class="table-wrap">
-          <table class="table table-sm align-middle sticky-head">
+          <table class="workflow-table receiving-table table table-sm align-middle sticky-head">
             <thead>
-              <tr class="small text-uppercase text-muted">
-                <th>Item</th>
-                <th>Location</th>
-                <th>Ordered</th>
-                <th>Received</th>
-                <th>Remaining</th>
-                <th>Ordered As</th>
-                <th>Status</th>
-                <th>Notes</th>
+              <tr>
+                <th class="item-col context-head"><span class="table-head-label single-line"><span class="table-head-line">Item</span></span></th>
+                <th class="location-col context-head"><span class="table-head-label single-line"><span class="table-head-line">Location</span></span></th>
+                <th class="ordered-col context-head"><span class="table-head-label"><span class="table-head-line">Units</span><span class="table-head-line">Ordered</span></span></th>
+                <th class="ordered-as-col context-head context-end"><span class="table-head-label"><span class="table-head-line">Ordered</span><span class="table-head-line">As</span></span></th>
+                <th class="received-col action-head action-start"><span class="table-head-label"><span class="table-head-line">Units</span><span class="table-head-line">Received</span></span></th>
+                <th class="remaining-col action-head"><span class="table-head-label"><span class="table-head-line">Still</span><span class="table-head-line">Pending</span></span></th>
+                <th class="status-col action-head"><span class="table-head-label single-line"><span class="table-head-line">Status</span></span></th>
+                <th class="notes-col action-head"><span class="table-head-label single-line"><span class="table-head-line">Receiver Notes</span></span></th>
               </tr>
             </thead>
             <tbody id="receivingBody"></tbody>
@@ -342,7 +854,7 @@
         </div>
       </section>
 
-      <section class="soft-card p-4">
+      <section id="putawayWorkspaceCard" class="soft-card p-4 workspace-card">
         <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-3">
           <div>
             <h2 class="h5 mb-1"><i class="fa-solid fa-boxes-packing me-2 text-success"></i>Put Away To Inventory</h2>
@@ -378,22 +890,53 @@
           </div>
         </section>
 
+        <div class="table-lane-guide putaway-lane-guide" aria-hidden="true">
+          <div class="lane-guide-block lane-guide-context">
+            <span class="lane-guide-icon"><i class="fa-solid fa-box-open"></i></span>
+            <span>Receipt Context</span>
+          </div>
+          <div class="lane-guide-block lane-guide-action">
+            <span class="lane-guide-icon"><i class="fa-solid fa-boxes-packing"></i></span>
+            <span>Shelving Actions</span>
+          </div>
+        </div>
         <div class="putaway-table-wrap">
-          <table class="table table-sm align-middle sticky-head">
+          <table class="workflow-table putaway-table table table-sm align-middle sticky-head">
             <thead>
-              <tr class="small text-uppercase text-muted">
-                <th><input id="toggleAllPutawayRows" type="checkbox" class="form-check-input" checked /></th>
-                <th>Item</th>
-                <th>Category</th>
-                <th>Received</th>
-                <th>Already Put Away</th>
-                <th>Remaining</th>
-                <th>Put Away Qty</th>
-                <th>Location</th>
+              <tr>
+                <th class="item-col context-head"><span class="table-head-label single-line"><span class="table-head-line">Item</span></span></th>
+                <th class="category-col context-head"><span class="table-head-label single-line"><span class="table-head-line">Category</span></span></th>
+                <th class="putaway-received-col context-head"><span class="table-head-label"><span class="table-head-line">Units</span><span class="table-head-line">Received</span></span></th>
+                <th class="putaway-applied-col context-head"><span class="table-head-label"><span class="table-head-line">Already</span><span class="table-head-line">Shelved</span></span></th>
+                <th class="remaining-col context-head context-end"><span class="table-head-label"><span class="table-head-line">Still</span><span class="table-head-line">Pending</span></span></th>
+                <th class="select-col action-head action-start text-center">
+                  <div class="d-flex flex-column align-items-center gap-1">
+                    <span class="table-head-label single-line centered"><span class="table-head-line">Select</span></span>
+                    <input id="toggleAllPutawayRows" type="checkbox" class="form-check-input putaway-check" checked />
+                  </div>
+                </th>
+                <th class="putaway-qty-col action-head"><span class="table-head-label"><span class="table-head-line">Put Away</span><span class="table-head-line">Qty</span></span></th>
+                <th class="location-col action-head"><span class="table-head-label single-line"><span class="table-head-line">Location</span></span></th>
               </tr>
             </thead>
             <tbody id="putawayBody"></tbody>
           </table>
+        </div>
+
+        <div class="row g-3 mt-4 align-items-end">
+          <div class="col-lg-6">
+            <label class="small text-uppercase fw-semibold text-muted mb-1" for="activityActorInput">Received and Put Away By</label>
+            <input id="activityActorInput" type="text" class="form-control form-control-sm" placeholder="Signed-in user" readonly />
+            <div id="activityActorMeta" class="small text-muted mt-2">Receipt and putaway actions are recorded under the signed-in user.</div>
+          </div>
+          <div class="col-lg-6">
+            <div class="small text-muted mb-2">Save Progress if more of this order is still coming. Finalize Order when the order is complete.</div>
+            <div class="d-flex flex-wrap gap-2 justify-content-lg-end">
+              <button id="scanApplyBtn" type="button" class="btn btn-sm btn-success" disabled><i class="fa-solid fa-boxes-packing me-1"></i>Received + Put Away</button>
+              <button id="saveBtn" type="button" class="btn btn-sm btn-primary"><i class="fa-solid fa-floppy-disk me-1"></i>Save Progress</button>
+              <button id="finalizeBtn" type="button" class="btn btn-sm btn-warning"><i class="fa-solid fa-circle-check me-1"></i>Finalize Order</button>
+            </div>
+          </div>
         </div>
       </section>
     </main>
@@ -404,18 +947,20 @@
     <script>
       var statusPill = document.getElementById("statusPill");
       var orderSelect = document.getElementById("orderSelect");
-      var orderNameInput = document.getElementById("orderNameInput");
       var orderNotesInput = document.getElementById("orderNotesInput");
+      var orderSelectionGate = document.getElementById("orderSelectionGate");
+      var orderSelectionGateTitle = document.getElementById("orderSelectionGateTitle");
+      var orderSelectionGateNote = document.getElementById("orderSelectionGateNote");
+      var scanWorkspaceCard = document.getElementById("scanWorkspaceCard");
+      var receivingTableCard = document.getElementById("receivingTableCard");
+      var putawayWorkspaceCard = document.getElementById("putawayWorkspaceCard");
       var receivingBody = document.getElementById("receivingBody");
       var statusFilters = document.getElementById("statusFilters");
       var refreshBtn = document.getElementById("refreshBtn");
       var saveBtn = document.getElementById("saveBtn");
-      var saveAndPutawayBtn = document.getElementById("saveAndPutawayBtn");
       var finalizeBtn = document.getElementById("finalizeBtn");
-      var receivingActorInput = document.getElementById("receivingActorInput");
-      var receivingActorMeta = document.getElementById("receivingActorMeta");
-      var putawayActorInput = document.getElementById("putawayActorInput");
-      var putawayActorMeta = document.getElementById("putawayActorMeta");
+      var activityActorInput = document.getElementById("activityActorInput");
+      var activityActorMeta = document.getElementById("activityActorMeta");
       var scanBarcodeInput = document.getElementById("scanBarcodeInput");
       var scanFindBtn = document.getElementById("scanFindBtn");
       var scanReceivedQtyInput = document.getElementById("scanReceivedQtyInput");
@@ -439,7 +984,6 @@
       var scanCreateLocationInput = document.getElementById("scanCreateLocationInput");
       var scanCreateItemBtn = document.getElementById("scanCreateItemBtn");
       var scanApplyBtn = document.getElementById("scanApplyBtn");
-      var scanApplyAndPutawayBtn = document.getElementById("scanApplyAndPutawayBtn");
       var scanClearBtn = document.getElementById("scanClearBtn");
       var scanStateBadge = document.getElementById("scanStateBadge");
 
@@ -479,8 +1023,7 @@
       function applyCurrentUserUi(user) {
         currentAuthUser = user && user.username ? user : null;
         var displayName = currentAuthUser ? currentAuthUser.username : "";
-        if (receivingActorInput) receivingActorInput.value = displayName;
-        if (putawayActorInput) putawayActorInput.value = displayName;
+        if (activityActorInput) activityActorInput.value = displayName;
       }
 
       async function ensureCurrentUser() {
@@ -534,6 +1077,38 @@
           String(row && row.itemEntityId || 0),
           String(row && row.sourceShoppingListItemId || 0),
         ].join(":");
+      }
+
+      function lastWorkedOrderStorageKey() {
+        if (!currentAuthUser || !currentAuthUser.username) return "";
+        return [
+          "retreat_ops",
+          "inventory_receiving",
+          "last_order_key",
+          API_BASE,
+          String(currentAuthUser.username || "").trim().toLowerCase(),
+        ].join("::");
+      }
+
+      function getSavedLastWorkedOrderKey() {
+        try {
+          var storageKey = lastWorkedOrderStorageKey();
+          return storageKey ? String(window.localStorage.getItem(storageKey) || "") : "";
+        } catch (_error) {
+          return "";
+        }
+      }
+
+      function saveLastWorkedOrderKey(orderKey) {
+        try {
+          var storageKey = lastWorkedOrderStorageKey();
+          if (!storageKey) return;
+          if (orderKey) {
+            window.localStorage.setItem(storageKey, String(orderKey));
+          } else {
+            window.localStorage.removeItem(storageKey);
+          }
+        } catch (_error) {}
       }
 
       function orderDomainLabel(order) {
@@ -1027,7 +1602,6 @@
         }
 
         scanApplyBtn.disabled = !activeOrder || !canScan || !selectedRow || asNonNegativeNumber(scanReceivedQtyInput.value) <= 0;
-        scanApplyAndPutawayBtn.disabled = scanApplyBtn.disabled;
         scanCreateItemBtn.disabled = scanCreatePanel.hidden || !String(scanCreateNameInput.value || "").trim();
       }
 
@@ -1140,8 +1714,49 @@
         syncPutawayState(row);
       }
 
-      async function applyScannedReceipt(options) {
+      function getRowByPutawayKey(rowKey) {
+        return orderRows.find(function (row) {
+          return getPutawayStateKey(row) === rowKey;
+        }) || null;
+      }
+
+      async function persistPutawayItems(selectedItems, options) {
         var opts = options || {};
+        if (!activeOrder || !activeOrder.id) throw new Error("No active order selected.");
+        if (!selectedItems.length) throw new Error(opts.emptyError || "Select at least one pending line to put away.");
+
+        setStatus(opts.pendingStatus || "Applying putaway updates...", "info");
+        var path = "/api/orders/" + activeOrder.id + "/putaway";
+        var response = await fetch(apiUrl(path), {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ items: selectedItems }),
+        });
+        if (!response.ok) throw new Error(await parseApiError(response));
+        var payload = await response.json();
+        activeOrder = payload.order || activeOrder;
+        activeOrder.orderSource = "shared";
+        activeOrder.orderDomain = activeOrder.orderDomain || activeOrder.domain || "NON_FOOD";
+        activeOrder.orderKey = buildOrderKey(activeOrder.orderSource, activeOrder.id);
+        await fetchInventory();
+        await fetchOrderList();
+        await reloadActiveOrderAfterListRefresh();
+
+        var successMessage = typeof opts.successMessage === "function"
+          ? opts.successMessage(payload)
+          : opts.successMessage;
+        if (!successMessage) {
+          successMessage =
+            "Putaway applied for " + formatQty(payload.applied_quantity_total || 0) +
+            " units across " + formatQty(payload.applied_item_count || 0) + " line(s)." +
+            " Finalize the order when everything has arrived and been shelved.";
+        }
+        setStatus(successMessage, "ok");
+        return payload;
+      }
+
+      async function applyScannedReceipt() {
         if (!activeOrder || !activeOrder.id) throw new Error("Select the order being received first.");
         if (!activeOrderCanScan()) throw new Error("Barcode scanning is currently available only for non-food orders.");
         if (!scanState.selectedItemId) throw new Error("Choose the matching order line first.");
@@ -1149,6 +1764,9 @@
         if (qty <= 0) throw new Error("Received quantity must be greater than zero.");
         var row = getRowByItemId(scanState.selectedItemId);
         if (!row) throw new Error("Selected order line is no longer available.");
+        var rowKey = getPutawayStateKey(row);
+        var rowName = row.name;
+        var rowUnit = row.unit || "units";
         var movedFromName = scanState.existingConflictItemId && scanState.existingConflictItemId !== row.itemId
           ? scanState.existingConflictName
           : "";
@@ -1170,26 +1788,51 @@
         row.receivedQty = asNonNegativeNumber(row.receivedQty + qty);
         syncReceivedPurchaseQty(row);
         recomputeRow(row);
-        if (opts.queuePutaway) {
-          queueScanPutaway(row, qty);
-        }
+        queueScanPutaway(row, qty);
         hydratePutawayState(row);
         highlightedItemId = row.itemId;
         renderWorkspaceTables();
         var overReceiptText = row.overReceivedQty > 0
-          ? " This is " + formatQty(row.overReceivedQty) + " " + (row.unit || "units") + " over the ordered amount."
+          ? " This is " + formatQty(row.overReceivedQty) + " " + rowUnit + " over the ordered amount."
           : "";
-        setStatus(
-          "Queued " + formatQty(qty) + " " + (row.unit || "units") + " received for \"" + row.name + "\"." +
-          (opts.queuePutaway ? " The same quantity is queued for putaway." : "") +
-          (rememberedBarcode && movedFromName ? " Barcode moved from \"" + movedFromName + "\"." : "") +
-          (rememberedBarcode && !movedFromName ? " Barcode remembered for future scans." : "") +
-          overReceiptText +
-          " Save the shipment to persist.",
-          "ok"
+        await saveReceipts({ quiet: true });
+        var persistedRow = getRowByPutawayKey(rowKey);
+        if (!persistedRow || !persistedRow.orderItemId) {
+          throw new Error("The scanned order line could not be reloaded after saving.");
+        }
+        var putawayQuantity = Math.min(
+          asNonNegativeNumber(persistedRow.putawayQty),
+          getPendingPutawayQty(persistedRow)
+        );
+        if (putawayQuantity <= 0) {
+          putawayQuantity = Math.min(qty, getPendingPutawayQty(persistedRow));
+        }
+        if (putawayQuantity <= 0) {
+          throw new Error("There is no remaining quantity available to put away for the scanned line.");
+        }
+
+        await persistPutawayItems(
+          [{
+            orderItemId: persistedRow.orderItemId,
+            quantity: putawayQuantity,
+            location: normalizeLocationInput(persistedRow.putawayLocation) || null,
+            reason: String(putawayReason.value || "").trim() || "Scanned receive + put away",
+          }],
+          {
+            pendingStatus: "Updating full inventory...",
+            successMessage: function () {
+              return (
+                "Received and put away " + formatQty(qty) + " " + rowUnit + ' for "' + rowName + '".' +
+                " Full inventory updated." +
+                (rememberedBarcode && movedFromName ? ' Barcode moved from "' + movedFromName + '".' : "") +
+                (rememberedBarcode && !movedFromName ? " Barcode remembered for future scans." : "") +
+                overReceiptText
+              );
+            },
+          }
         );
         resetScanState({ preserveHighlight: true, preserveCreateInputs: true });
-        scrollToRow(row.itemId);
+        scrollToRow(persistedRow.itemId);
         scanBarcodeInput.focus();
       }
 
@@ -1346,6 +1989,13 @@
       }
 
       function renderStats() {
+        if (!activeOrder) {
+          statOrdered.textContent = "--";
+          statPending.textContent = "--";
+          statReceived.textContent = "--";
+          return;
+        }
+
         var orderedCount = 0;
         var pendingCount = 0;
         var receivedCount = 0;
@@ -1366,10 +2016,15 @@
         if (!orderList.length) {
           var noneOption = document.createElement("option");
           noneOption.value = "";
-          noneOption.textContent = "No orders";
+          noneOption.textContent = "No orders available";
           orderSelect.appendChild(noneOption);
           return;
         }
+        var startOption = document.createElement("option");
+        startOption.value = "";
+        startOption.textContent = "Select an Order to Start";
+        startOption.selected = !activeOrder || !activeOrder.id;
+        orderSelect.appendChild(startOption);
         orderList.forEach(function (order) {
           var option = document.createElement("option");
           option.value = String(order.key);
@@ -1384,27 +2039,72 @@
         return String(value).replace("T", " ");
       }
 
+      function renderOrderSelectionState() {
+        var hasActiveOrder = !!(activeOrder && activeOrder.id);
+        var activeOrderName = hasActiveOrder ? (activeOrder.name || ("Order #" + activeOrder.id)) : "";
+
+        if (orderSelectionGate) {
+          orderSelectionGate.classList.toggle("is-waiting", !hasActiveOrder);
+          orderSelectionGate.classList.toggle("is-active", hasActiveOrder);
+        }
+        if (orderSelectionGateTitle) {
+          orderSelectionGateTitle.textContent = hasActiveOrder ? activeOrderName : "Select an Order to Start";
+        }
+        if (orderSelectionGateNote) {
+          orderSelectionGateNote.textContent = hasActiveOrder
+            ? "Scanning, receiving, and put away now apply only to this order. Double-check it before continuing."
+            : "Choose the exact order that is physically arriving. Until then, the scan, receiving, and put away sections stay inactive.";
+        }
+        if (orderNotesInput) {
+          orderNotesInput.disabled = !hasActiveOrder;
+          orderNotesInput.placeholder = hasActiveOrder ? "Optional notes" : "Select an order first";
+        }
+        [scanWorkspaceCard, receivingTableCard, putawayWorkspaceCard].forEach(function (node) {
+          if (!node) return;
+          node.classList.toggle("is-blocked", !hasActiveOrder);
+        });
+      }
+
+      function clearActiveOrderSelection(options) {
+        var opts = options || {};
+        activeOrder = null;
+        orderRows = [];
+        highlightedItemId = null;
+        if (orderNotesInput) orderNotesInput.value = "";
+        if (opts.clearRemembered) saveLastWorkedOrderKey("");
+        updatePageUrl(null);
+        renderOrderSelect();
+        renderOrderSelectionState();
+        renderActorMeta();
+        renderWorkspaceTables();
+        resetScanState();
+      }
+
       function renderActorMeta() {
         if (!activeOrder) {
-          if (receivingActorMeta) receivingActorMeta.textContent = "Receipts are recorded under the signed-in user.";
-          if (putawayActorMeta) putawayActorMeta.textContent = "Putaway actions are recorded under the signed-in user.";
+          if (activityActorMeta) activityActorMeta.textContent = "Receipt and putaway actions are recorded under the signed-in user.";
           return;
         }
-        if (receivingActorMeta) {
-          receivingActorMeta.textContent = activeOrder.received_by_username
-            ? "Recorded on order: " + activeOrder.received_by_username + (activeOrder.received_at ? " on " + formatWhen(activeOrder.received_at) + "." : ".")
-            : "Receipts are recorded under the signed-in user.";
-        }
-        if (putawayActorMeta) {
-          putawayActorMeta.textContent = activeOrder.put_away_by_username
-            ? "Recorded on order: " + activeOrder.put_away_by_username + (activeOrder.put_away_at ? " on " + formatWhen(activeOrder.put_away_at) + "." : ".")
-            : "Putaway actions are recorded under the signed-in user.";
+        if (activityActorMeta) {
+          var receivedText = activeOrder.received_by_username
+            ? "Received: " + activeOrder.received_by_username + (activeOrder.received_at ? " on " + formatWhen(activeOrder.received_at) + "." : ".")
+            : "Receipt will be recorded under the signed-in user.";
+          var putawayText = activeOrder.put_away_by_username
+            ? " Put away: " + activeOrder.put_away_by_username + (activeOrder.put_away_at ? " on " + formatWhen(activeOrder.put_away_at) + "." : ".")
+            : " Put away will be recorded under the signed-in user.";
+          activityActorMeta.textContent = receivedText + putawayText;
         }
       }
 
       function renderTable() {
         var rows = getFilteredRows();
         receivingBody.innerHTML = "";
+
+        if (!activeOrder) {
+          receivingBody.innerHTML = '<tr><td colspan="8" class="text-muted small">Select an order to start receiving against the correct shipment.</td></tr>';
+          renderStats();
+          return;
+        }
 
         if (!rows.length) {
           receivingBody.innerHTML = '<tr><td colspan="8" class="text-muted small">No lines match this filter.</td></tr>';
@@ -1415,28 +2115,39 @@
         rows.forEach(function (row) {
           var tr = document.createElement("tr");
           tr.dataset.itemId = String(row.itemId);
-          if (highlightedItemId === row.itemId) tr.className = "scan-target-row";
+          tr.className = highlightedItemId === row.itemId ? "item-row scan-target-row" : "item-row";
 
           var tdItem = document.createElement("td");
+          tdItem.className = "item-col context-cell";
           tdItem.innerHTML =
-            '<div class="fw-semibold">' + escapeHtml(row.name) + '</div>' +
+            '<div class="item-name">' + escapeHtml(row.name) + '</div>' +
             (row.barcode ? '<div class="text-muted small">' + escapeHtml(row.barcode) + '</div>' : '') +
             '<div class="table-helper">' + escapeHtml(row.categoryName || "Uncategorized") + '</div>';
           tr.appendChild(tdItem);
 
           var tdLocation = document.createElement("td");
+          tdLocation.className = "location-col context-cell";
           tdLocation.innerHTML = row.currentLocation
             ? '<span class="location-chip">' + escapeHtml(row.currentLocation) + '</span>'
             : '<span class="text-muted small">No location</span>';
           tr.appendChild(tdLocation);
 
           var tdOrderedQty = document.createElement("td");
+          tdOrderedQty.className = "ordered-col context-cell";
           tdOrderedQty.innerHTML =
             '<div class="fw-semibold">' + escapeHtml(formatQty(row.orderedQty)) + ' ' + escapeHtml(row.unit || "units") + '</div>' +
             '<div class="qty-helper">' + escapeHtml(formatQty(row.orderedPurchaseQty)) + ' ' + escapeHtml(describePurchaseUnit(row)) + '</div>';
           tr.appendChild(tdOrderedQty);
 
+          var tdOrderedAs = document.createElement("td");
+          tdOrderedAs.className = "ordered-as-col context-cell context-end";
+          tdOrderedAs.innerHTML =
+            '<div class="fw-semibold">' + escapeHtml(describePurchaseUnit(row)) + '</div>' +
+            '<div class="table-helper">' + escapeHtml(formatPurchaseHelperLine(row)) + '</div>';
+          tr.appendChild(tdOrderedAs);
+
           var tdReceivedQty = document.createElement("td");
+          tdReceivedQty.className = "received-col action-cell action-start";
           tdReceivedQty.innerHTML =
             renderIntegerStepperInput({
               min: "0",
@@ -1455,6 +2166,7 @@
           tr.appendChild(tdReceivedQty);
 
           var tdRemaining = document.createElement("td");
+          tdRemaining.className = "remaining-col action-cell";
           if (row.overReceivedQty > 0) {
             tdRemaining.innerHTML =
               '<span class="remaining-chip over">+' + escapeHtml(formatQty(row.overReceivedQty)) + ' over</span>' +
@@ -1465,19 +2177,15 @@
           }
           tr.appendChild(tdRemaining);
 
-          var tdOrderedAs = document.createElement("td");
-          tdOrderedAs.innerHTML =
-            '<div class="fw-semibold">' + escapeHtml(describePurchaseUnit(row)) + '</div>' +
-            '<div class="table-helper">' + escapeHtml(formatPurchaseHelperLine(row)) + '</div>';
-          tr.appendChild(tdOrderedAs);
-
           var tdStatus = document.createElement("td");
+          tdStatus.className = "status-col action-cell";
           tdStatus.innerHTML = '<span class="status-chip ' + statusClass(row.status) + '">' + statusLabel(row.status) + '</span>';
           tr.appendChild(tdStatus);
 
           var tdNotes = document.createElement("td");
+          tdNotes.className = "notes-col action-cell";
           tdNotes.innerHTML =
-            '<input type="text" class="form-control form-control-sm" data-item-id="' + row.itemId + '" data-field="notes" value="' + escapeHtml(row.notes || '') + '" placeholder="Optional notes">';
+            '<input type="text" class="form-control form-control-sm notes-input" data-item-id="' + row.itemId + '" data-field="notes" value="' + escapeHtml(row.notes || '') + '" placeholder="Optional notes">';
           tr.appendChild(tdNotes);
 
           receivingBody.appendChild(tr);
@@ -1493,6 +2201,13 @@
       }
 
       function renderPutawayStats(rows) {
+        if (!activeOrder) {
+          statPutawayLines.textContent = "--";
+          statPutawayPending.textContent = "--";
+          statPutawaySelected.textContent = "--";
+          return;
+        }
+
         var pendingQty = 0;
         var selectedQty = 0;
         rows.forEach(function (row) {
@@ -1511,6 +2226,13 @@
         var rows = getPendingPutawayRows();
         putawayBody.innerHTML = "";
 
+        if (!activeOrder) {
+          toggleAllPutawayRows.checked = false;
+          putawayBody.innerHTML = '<tr><td colspan="8" class="text-muted small">Select an order to start put away.</td></tr>';
+          renderPutawayStats([]);
+          return;
+        }
+
         if (!rows.length) {
           toggleAllPutawayRows.checked = false;
           putawayBody.innerHTML = '<tr><td colspan="8" class="text-muted small">No pending putaway lines for this order.</td></tr>';
@@ -1522,32 +2244,40 @@
           var remaining = getPendingPutawayQty(row);
           var tr = document.createElement("tr");
           tr.dataset.itemId = String(row.itemId);
-
-          var tdSelect = document.createElement("td");
-          tdSelect.innerHTML = '<input type="checkbox" class="form-check-input" data-item-id="' + row.itemId + '" data-field="putaway-selected"' + (row.putawaySelected ? ' checked' : '') + '>';
-          tr.appendChild(tdSelect);
+          tr.className = "item-row";
 
           var tdItem = document.createElement("td");
-          tdItem.innerHTML = '<div class="fw-semibold">' + escapeHtml(row.name) + '</div>';
+          tdItem.className = "item-col context-cell";
+          tdItem.innerHTML = '<div class="item-name">' + escapeHtml(row.name) + '</div>';
           tr.appendChild(tdItem);
 
           var tdCategory = document.createElement("td");
+          tdCategory.className = "category-col context-cell";
           tdCategory.textContent = row.categoryName || "-";
           tr.appendChild(tdCategory);
 
           var tdReceived = document.createElement("td");
+          tdReceived.className = "putaway-received-col context-cell";
           tdReceived.textContent = formatQty(row.receivedQty) + " " + (row.unit || "");
           tr.appendChild(tdReceived);
 
           var tdApplied = document.createElement("td");
+          tdApplied.className = "putaway-applied-col context-cell";
           tdApplied.textContent = formatQty(row.appliedQty) + " " + (row.unit || "");
           tr.appendChild(tdApplied);
 
           var tdRemaining = document.createElement("td");
+          tdRemaining.className = "remaining-col context-cell context-end";
           tdRemaining.innerHTML = '<span class="remaining-chip">' + escapeHtml(formatQty(remaining)) + ' ' + escapeHtml(row.unit || '') + '</span>';
           tr.appendChild(tdRemaining);
 
+          var tdSelect = document.createElement("td");
+          tdSelect.className = "select-col action-cell action-start text-center";
+          tdSelect.innerHTML = '<input type="checkbox" class="form-check-input putaway-check" data-item-id="' + row.itemId + '" data-field="putaway-selected"' + (row.putawaySelected ? ' checked' : '') + '>';
+          tr.appendChild(tdSelect);
+
           var tdQty = document.createElement("td");
+          tdQty.className = "putaway-qty-col action-cell";
           tdQty.innerHTML = renderIntegerStepperInput({
             min: "0",
             max: formatQty(remaining),
@@ -1565,6 +2295,7 @@
           tr.appendChild(tdQty);
 
           var tdLocation = document.createElement("td");
+          tdLocation.className = "location-col action-cell";
           tdLocation.innerHTML = '<input type="text" class="form-control form-control-sm putaway-location-input" data-item-id="' + row.itemId + '" data-field="putaway-location" value="' + escapeHtml(row.putawayLocation || '') + '" placeholder="A1">';
           tr.appendChild(tdLocation);
 
@@ -1578,9 +2309,9 @@
       function renderWorkspaceTables() {
         var hasActiveOrder = !!(activeOrder && activeOrder.id);
         saveBtn.disabled = !hasActiveOrder;
-        saveAndPutawayBtn.disabled = !hasActiveOrder;
         finalizeBtn.disabled = !hasActiveOrder;
         applyPutawayBtn.disabled = !hasActiveOrder;
+        renderOrderSelectionState();
         renderActorMeta();
         renderTable();
         renderPutawayTable();
@@ -1653,10 +2384,11 @@
         var summary = orderList.find(function (order) { return order.key === orderKey; }) || null;
         if (!summary) throw new Error("Order not found.");
         activeOrder = await fetchOrderDetail(summary);
+        saveLastWorkedOrderKey(summary.key);
         updatePageUrl(activeOrder.id);
         renderOrderSelect();
-        orderNameInput.value = activeOrder.name || "";
         orderNotesInput.value = activeOrder.notes || "";
+        renderOrderSelectionState();
         renderActorMeta();
         buildOrderRows();
         renderWorkspaceTables();
@@ -1666,20 +2398,18 @@
       async function reloadActiveOrderAfterListRefresh() {
         var activeKey = activeOrder ? String(activeOrder.orderKey || buildOrderKey(activeOrder.orderSource, activeOrder.id)) : null;
         if (!orderList.length) {
-          orderSelect.innerHTML = '<option value="">No orders found</option>';
-          activeOrder = null;
-          orderRows = [];
-          renderActorMeta();
-          renderWorkspaceTables();
-          resetScanState();
-          updatePageUrl(null);
+          clearActiveOrderSelection({ clearRemembered: true });
           return "cleared";
         }
 
         var nextKey = activeKey && orderList.some(function (order) {
           return String(order.key) === activeKey;
-        }) ? activeKey : String(orderList[0].key);
-        var mode = activeKey && nextKey === activeKey ? "same" : "switched";
+        }) ? activeKey : null;
+        if (!nextKey) {
+          clearActiveOrderSelection({ clearRemembered: true });
+          return "cleared";
+        }
+        var mode = "same";
         await loadOrderByKey(nextKey);
         return mode;
       }
@@ -1721,7 +2451,7 @@
           credentials: "include",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            name: String(orderNameInput.value || "").trim(),
+            name: String((activeOrder && activeOrder.name) || "").trim() || ("Order #" + activeOrder.id),
             notes: String(orderNotesInput.value || "").trim() || null,
             expectedWorkflowStage: "RECEIVING",
             workflowStage: "RECEIVING",
@@ -1766,30 +2496,9 @@
           return item.quantity > 0;
         });
 
-        if (!selectedItems.length) throw new Error("Select at least one pending line to put away.");
-
-        setStatus(opts.skipSave ? "Applying putaway updates..." : "Saving and applying putaway updates...", "info");
-        var path = "/api/orders/" + activeOrder.id + "/putaway";
-        var response = await fetch(apiUrl(path), {
-          method: "POST",
-          credentials: "include",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ items: selectedItems }),
+        return persistPutawayItems(selectedItems, {
+          pendingStatus: opts.skipSave ? "Applying putaway updates..." : "Saving and applying putaway updates...",
         });
-        if (!response.ok) throw new Error(await parseApiError(response));
-        var payload = await response.json();
-        activeOrder = payload.order || activeOrder;
-        activeOrder.orderSource = "shared";
-        activeOrder.orderDomain = activeOrder.orderDomain || activeOrder.domain || "NON_FOOD";
-        activeOrder.orderKey = buildOrderKey(activeOrder.orderSource, activeOrder.id);
-        await fetchOrderList();
-        await reloadActiveOrderAfterListRefresh();
-        var putawayMessage =
-          "Putaway applied for " + formatQty(payload.applied_quantity_total || 0) +
-          " units across " + formatQty(payload.applied_item_count || 0) + " line(s).";
-        putawayMessage += " Finalize the order when everything has arrived and been shelved.";
-        setStatus(putawayMessage, "ok");
-        return payload;
       }
 
       async function finalizeActiveOrder() {
@@ -1893,19 +2602,15 @@
       async function refreshAll(options) {
         var preserveOrder = !options || options.preserveOrder !== false;
         var previousKey = preserveOrder && activeOrder ? String(activeOrder.orderKey || buildOrderKey(activeOrder.orderSource, activeOrder.id)) : null;
+        var rememberedKey = "";
         var requestedId = getRequestedOrderId();
         setStatus("Loading receive / put away workspace...", "info");
         await ensureCurrentUser();
+        rememberedKey = preserveOrder ? "" : getSavedLastWorkedOrderKey();
         await fetchInventory();
         await fetchOrderList();
         if (!orderList.length) {
-          orderSelect.innerHTML = '<option value="">No orders found</option>';
-          activeOrder = null;
-          orderRows = [];
-          renderActorMeta();
-          renderWorkspaceTables();
-          resetScanState();
-          updatePageUrl(null);
+          clearActiveOrderSelection({ clearRemembered: true });
           setStatus("No orders available yet.", "ok");
           return;
         }
@@ -1920,8 +2625,16 @@
         if (!targetKey && previousKey && orderList.some(function (order) { return String(order.key) === previousKey; })) {
           targetKey = previousKey;
         }
+        if (!targetKey && rememberedKey && orderList.some(function (order) { return String(order.key) === rememberedKey; })) {
+          targetKey = rememberedKey;
+        }
+        if (!targetKey && rememberedKey) {
+          saveLastWorkedOrderKey("");
+        }
         if (!targetKey) {
-          targetKey = String(orderList[0].key);
+          clearActiveOrderSelection();
+          setStatus("Select an order to start receiving.", "ok");
+          return;
         }
         await loadOrderByKey(targetKey);
         renderScanPanel();
@@ -1930,7 +2643,11 @@
 
       orderSelect.addEventListener("change", function () {
         var selectedKey = String(orderSelect.value || "");
-        if (!selectedKey) return;
+        if (!selectedKey) {
+          clearActiveOrderSelection();
+          setStatus("Select an order to start receiving.", "info");
+          return;
+        }
         void loadOrderByKey(selectedKey).catch(function (error) {
           setStatus(error instanceof Error ? error.message : "Could not load order.", "err");
         }).finally(function () {
@@ -2049,16 +2766,8 @@
       });
 
       scanApplyBtn.addEventListener("click", function () {
-        void applyScannedReceipt({ queuePutaway: false }).catch(function (error) {
-          setStatus(error instanceof Error ? error.message : "Could not apply scanned receipt.", "err");
-          scanState.mode = "warn";
-          renderScanPanel();
-        });
-      });
-
-      scanApplyAndPutawayBtn.addEventListener("click", function () {
-        void applyScannedReceipt({ queuePutaway: true }).catch(function (error) {
-          setStatus(error instanceof Error ? error.message : "Could not queue scanned receipt for putaway.", "err");
+        void applyScannedReceipt().catch(function (error) {
+          setStatus(error instanceof Error ? error.message : "Could not receive the scanned item.", "err");
           scanState.mode = "warn";
           renderScanPanel();
         });
@@ -2093,12 +2802,6 @@
       saveBtn.addEventListener("click", function () {
         void saveReceipts().catch(function (error) {
           setStatus(error instanceof Error ? error.message : "Could not save receipt updates.", "err");
-        });
-      });
-
-      saveAndPutawayBtn.addEventListener("click", function () {
-        void applyPutawaySelections().catch(function (error) {
-          setStatus(error instanceof Error ? error.message : "Could not save and apply putaway.", "err");
         });
       });
 

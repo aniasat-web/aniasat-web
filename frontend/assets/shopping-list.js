@@ -772,6 +772,17 @@
         return Array.from(new Set(merged.filter(Boolean)));
       }
 
+      function orderedUnitLabel(unit) {
+        const normalized = normalizeUnit(unit);
+        if (normalized === "kg") {
+          return "kilograms";
+        }
+        if (normalized === "l") {
+          return "liters";
+        }
+        return unit;
+      }
+
       function resolveOrderedEditorState(item) {
         const hasStoredQty = item?.ordered_qty != null && Number.isFinite(Number(item.ordered_qty));
         const storedUnit = normalizeUnit(item?.ordered_unit || "");
@@ -862,7 +873,7 @@
         unitOptions.forEach((unitOption) => {
           const option = document.createElement("option");
           option.value = unitOption;
-          option.textContent = unitOption;
+          option.textContent = orderedUnitLabel(unitOption);
           if (unitOption === editorState.unit) {
             option.selected = true;
           }

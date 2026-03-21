@@ -298,12 +298,28 @@
         border-radius: 0.75rem;
         margin-bottom: 1rem;
       }
+      .start-card-title {
+        font-size: 1.2rem;
+        font-weight: 800;
+        color: #1f2937;
+        margin-bottom: 0.75rem;
+      }
+      .workflow-disabled {
+        opacity: 0.68;
+      }
+      .workflow-disabled .btn,
+      .workflow-disabled input,
+      .workflow-disabled select,
+      .workflow-disabled .form-check-input {
+        pointer-events: none;
+      }
       @media print {
         @page {
           margin: 12mm;
         }
         nav.navbar,
         .hero-actions,
+        #retreatStartCard,
         .picker-card,
         .meta-bar,
         .display-recipes-bar {
@@ -442,7 +458,7 @@
         <div class="d-flex flex-wrap align-items-center gap-3">
           <div class="flex-grow-1">
             <h1 class="fw-bold h4 mb-1" id="retreatTitle"><i class="fa-solid fa-vial text-success me-2"></i>Testing View</h1>
-            <p class="text-secondary mb-0 small" id="retreatSubtitle">Loading retreat menu...</p>
+            <p class="text-secondary mb-0 small" id="retreatSubtitle">Select a retreat to load its menu and begin testing recipes.</p>
           </div>
           <div class="d-flex flex-wrap gap-2 hero-actions">
             <button class="btn btn-primary btn-sm fw-bold" id="reloadData" type="button"><i class="fa-solid fa-arrows-rotate me-1"></i> Reload</button>
@@ -450,6 +466,13 @@
             <a class="btn btn-outline-secondary btn-sm fw-bold" id="openKitchenViewBtn" href="kitchen-service-view.html"><i class="fa-solid fa-fire-burner me-1"></i> Retreat View</a>
           </div>
         </div>
+      </section>
+
+      <section class="card p-4 mb-3" id="retreatStartCard">
+        <div class="start-card-title">Select a Retreat to Start</div>
+        <select id="retreatPlanSelect" class="form-select" aria-label="Select a retreat to start">
+          <option value="">Select a retreat to start</option>
+        </select>
       </section>
 
       <div class="display-recipes-bar" id="displayRecipesBar" style="display:none;">
@@ -501,10 +524,12 @@
       const TEST_SERVES_DEFAULT = 4;
       const API_BASE = resolveApiBase();
       const params = new URLSearchParams(window.location.search);
-      const planIdParam = Number(params.get("plan") || 0);
+      const requestedPlanId = Number(params.get("plan") || 0);
 
       const retreatTitle = document.getElementById("retreatTitle");
       const retreatSubtitle = document.getElementById("retreatSubtitle");
+      const retreatPlanSelect = document.getElementById("retreatPlanSelect");
+      const retreatSelectionHelp = document.getElementById("retreatSelectionHelp");
       const reloadData = document.getElementById("reloadData");
       const printSheet = document.getElementById("printSheet");
       const backToPlanner = document.getElementById("backToPlanner");
@@ -522,9 +547,12 @@
       const displayRecipesBtn = document.getElementById("displayRecipesBtn");
       const editSelectionBtn = document.getElementById("editSelectionBtn");
       const pickerCard = document.getElementById("pickerCard");
+      const testSheetCard = document.getElementById("testSheetCard");
 
       const initialServes = Number(params.get("test_serves") || TEST_SERVES_DEFAULT);
 
+      let retreatPlans = [];
+      let selectedPlanId = requestedPlanId > 0 ? requestedPlanId : null;
       let retreatPlan = null;
       let recipeByName = new Map();
       let menuOptions = [];
@@ -541,6 +569,75 @@
 
       function apiUrl(path) {
         return `${API_BASE}${path.startsWith("/") ? path : `/${path}`}`;
+      }
+
+      function syncPlanQueryParam(planId) {
+        try {
+          const url = new URL(window.location.href);
+          if (planId) {
+            url.searchParams.set("plan", String(planId));
+          } else {
+            url.searchParams.delete("plan");
+          }
+          if (API_BASE !== window.location.origin) {
+            url.searchParams.set("api", API_BASE);
+          }
+          window.history.replaceState({}, "", url.pathname + url.search);
+        } catch (_error) {}
+      }
+
+      function setRetreatSelectionHelp(message) {
+        if (retreatSelectionHelp) {
+          retreatSelectionHelp.textContent = message;
+        }
+      }
+
+      function formatRetreatOptionLabel(plan) {
+        const name = String(plan?.name || "").trim() || "Untitled Retreat";
+        const startDate = String(plan?.start_date || "").trim();
+        return startDate ? `${name} (${startDate})` : name;
+      }
+
+      function renderRetreatPlanOptions() {
+        if (!retreatPlanSelect) return;
+        retreatPlanSelect.innerHTML = "";
+
+        const defaultOption = document.createElement("option");
+        defaultOption.value = "";
+        defaultOption.textContent = retreatPlans.length ? "Select a retreat to start" : "No retreat plans found";
+        defaultOption.selected = !selectedPlanId;
+        retreatPlanSelect.appendChild(defaultOption);
+
+        retreatPlans.forEach((plan) => {
+          const option = document.createElement("option");
+          option.value = String(plan.id);
+          option.textContent = formatRetreatOptionLabel(plan);
+          if (selectedPlanId && Number(plan.id) === Number(selectedPlanId)) {
+            option.selected = true;
+          }
+          retreatPlanSelect.appendChild(option);
+        });
+
+        retreatPlanSelect.disabled = !retreatPlans.length;
+      }
+
+      function hasActiveRetreatPlan() {
+        return Boolean(retreatPlan && retreatPlan.id && selectedPlanId);
+      }
+
+      function setTestingControlsEnabled(enabled) {
+        const hasPlan = Boolean(enabled);
+        pickerCard.classList.toggle("workflow-disabled", !hasPlan);
+        testSheetCard.classList.toggle("workflow-disabled", !hasPlan);
+        testServesSelect.disabled = !hasPlan;
+        selectAllDishesBtn.disabled = !hasPlan || !menuOptions.length;
+        clearAllDishesBtn.disabled = !hasPlan;
+        printSheet.disabled = !hasPlan;
+        if (openKitchenViewBtn) {
+          openKitchenViewBtn.classList.toggle("disabled", !hasPlan);
+          openKitchenViewBtn.setAttribute("aria-disabled", hasPlan ? "false" : "true");
+          openKitchenViewBtn.tabIndex = hasPlan ? 0 : -1;
+        }
       }
 
       function normalizeRecipeKey(name) {
@@ -836,6 +933,11 @@
 
       function renderDishSelector() {
         dishSelector.innerHTML = "";
+        if (!retreatPlan) {
+          dishSelector.innerHTML = '<div class="col"><div class="empty">Select a retreat to load its menu.</div></div>';
+          selectedDishCount.textContent = "0";
+          return;
+        }
         if (!menuOptions.length) {
           dishSelector.innerHTML = '<div class="col"><div class="empty">No dishes found in this retreat menu.</div></div>';
           selectedDishCount.textContent = "0";
@@ -965,6 +1067,12 @@
 
       function renderTestSheet() {
         metaBar.innerHTML = "";
+        if (!retreatPlan) {
+          metaBar.appendChild(createMetaChip("Retreat: not selected"));
+          showEmpty("Select a retreat to start recipe testing.");
+          return;
+        }
+        metaBar.appendChild(createMetaChip(retreatPlan.name || "Untitled Retreat"));
         metaBar.appendChild(createMetaChip(`Selected: ${selectedDishKeys.size}`));
         metaBar.appendChild(createMetaChip(`Test Serves: ${Number(testServesSelect.value || 4)}`));
 
@@ -1008,35 +1116,38 @@
         });
       }
 
-      async function fetchRetreatPlan() {
-        if (planIdParam > 0) {
-          const response = await fetch(apiUrl(`/api/retreat-plans/${planIdParam}`));
-          if (response.status === 404) {
-            return null;
-          }
-          if (!response.ok) {
-            throw new Error(`HTTP ${response.status}`);
-          }
-          return response.json();
+      async function fetchRetreatPlans() {
+        const response = await fetch(apiUrl("/api/retreat-plans"));
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`);
         }
+        const plans = await response.json();
+        if (!Array.isArray(plans)) {
+          return [];
+        }
+        return [...plans].sort((a, b) => {
+          const da = String(a?.start_date || "");
+          const db = String(b?.start_date || "");
+          if (da !== db) {
+            return da.localeCompare(db);
+          }
+          return String(a?.name || "").localeCompare(String(b?.name || ""));
+        });
+      }
 
-        const listResponse = await fetch(apiUrl("/api/retreat-plans"));
-        if (!listResponse.ok) {
-          throw new Error(`HTTP ${listResponse.status}`);
-        }
-        const plans = await listResponse.json();
-        if (!Array.isArray(plans) || !plans.length) {
+      async function fetchRetreatPlan(planId) {
+        const numericPlanId = Number(planId || 0);
+        if (numericPlanId <= 0) {
           return null;
         }
-        const fallbackPlanId = Number(plans[0].id || 0);
-        if (!fallbackPlanId) {
+        const response = await fetch(apiUrl(`/api/retreat-plans/${numericPlanId}`));
+        if (response.status === 404) {
           return null;
         }
-        const detailResponse = await fetch(apiUrl(`/api/retreat-plans/${fallbackPlanId}`));
-        if (!detailResponse.ok) {
-          throw new Error(`HTTP ${detailResponse.status}`);
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`);
         }
-        return detailResponse.json();
+        return response.json();
       }
 
       async function fetchRecipesFull() {
@@ -1088,6 +1199,22 @@
         });
       }
 
+      async function ensureRecipesLoaded() {
+        if (recipeByName.size) {
+          return;
+        }
+        const recipes = await fetchRecipesFull();
+        recipeByName = new Map();
+        if (Array.isArray(recipes)) {
+          recipes.forEach((recipe) => {
+            const key = normalizeRecipeKey(recipe?.name);
+            if (key) {
+              recipeByName.set(key, recipe);
+            }
+          });
+        }
+      }
+
       function syncNavigationLinks() {
         const plannerUrl = new URL("retreat-planner-sample.html", window.location.href);
         plannerUrl.searchParams.set("api", API_BASE);
@@ -1128,30 +1255,49 @@
         return kitchenAccessPromise;
       }
 
-      async function loadData() {
-        await ensureKitchenPageAccess();
+      function resetTestingView(message) {
+        retreatPlan = null;
+        menuOptions = [];
+        selectedDishKeys = new Set();
+        pickerCard.classList.remove("collapsed");
+        retreatTitle.textContent = "Testing View";
+        retreatSubtitle.textContent = message;
+        syncNavigationLinks();
+        renderDishSelector();
+        updateDisplayRecipesBar();
+        renderTestSheet();
+        setTestingControlsEnabled(false);
+      }
+
+      async function loadSelectedRetreatPlan(planId) {
+        selectedPlanId = Number(planId || 0) > 0 ? Number(planId) : null;
+        syncPlanQueryParam(selectedPlanId);
+        renderRetreatPlanOptions();
+
+        if (!selectedPlanId) {
+          setRetreatSelectionHelp(
+            retreatPlans.length
+              ? "Choose the retreat you want to test. The menu loads after selection."
+              : "No retreat plans found yet."
+          );
+          resetTestingView("Select a retreat to load its menu and begin testing recipes.");
+          return;
+        }
+
+        retreatSubtitle.textContent = "Loading retreat menu...";
+        setRetreatSelectionHelp("Loading retreat menu...");
+        setTestingControlsEnabled(false);
+
         try {
-          retreatSubtitle.textContent = "Loading retreat menu...";
-          const [plan, recipes] = await Promise.all([fetchRetreatPlan(), fetchRecipesFull()]);
+          await ensureRecipesLoaded();
+          const plan = await fetchRetreatPlan(selectedPlanId);
           if (!plan) {
-            retreatTitle.textContent = "Testing View";
-            retreatSubtitle.textContent = "No saved retreat menu found.";
-            dishSelector.innerHTML = '<div class="col"><div class="empty">Create a retreat plan first.</div></div>';
-            showEmpty("No retreat plan available to test.");
+            setRetreatSelectionHelp("That retreat could not be loaded.");
+            resetTestingView("That retreat could not be loaded. Choose another retreat.");
             return;
           }
 
           retreatPlan = plan;
-          recipeByName = new Map();
-          if (Array.isArray(recipes)) {
-            recipes.forEach((recipe) => {
-              const key = normalizeRecipeKey(recipe?.name);
-              if (key) {
-                recipeByName.set(key, recipe);
-              }
-            });
-          }
-
           menuOptions = buildMenuOptions(plan);
           selectedDishKeys = new Set();
           pickerCard.classList.remove("collapsed");
@@ -1160,24 +1306,72 @@
           retreatSubtitle.textContent = plan.updated_at
             ? `Menu updated ${formatLocalDateTime(plan.updated_at)}.`
             : "Select dishes to build a test cook sheet.";
+          setRetreatSelectionHelp("Retreat menu loaded. Select dishes to build a test cook sheet.");
 
           syncNavigationLinks();
           renderDishSelector();
+          setTestingControlsEnabled(true);
           updateDisplayRecipesBar();
           renderTestSheet();
         } catch (error) {
-          retreatTitle.textContent = "Testing View";
-          retreatSubtitle.textContent = "Could not load test menu.";
-          dishSelector.innerHTML = '<div class="col"><div class="empty">Could not load retreat menu.</div></div>';
+          setRetreatSelectionHelp("Could not load the selected retreat.");
+          resetTestingView("Could not load the selected retreat menu.");
+          showEmpty("Could not load the selected retreat from the API. Verify backend is running.");
+        }
+      }
+
+      async function loadData(options = {}) {
+        await ensureKitchenPageAccess();
+        try {
+          retreatSubtitle.textContent = "Loading retreat options...";
+          retreatPlans = await fetchRetreatPlans();
+          const stillExists = selectedPlanId
+            ? retreatPlans.some((plan) => Number(plan.id) === Number(selectedPlanId))
+            : false;
+          if (!stillExists) {
+            selectedPlanId = null;
+          }
+          renderRetreatPlanOptions();
+
+          const initialPlanId = selectedPlanId || null;
+          if (initialPlanId) {
+            await loadSelectedRetreatPlan(initialPlanId);
+            return;
+          }
+
+          if (retreatPlans.length) {
+            setRetreatSelectionHelp("Choose the retreat you want to test. The menu loads after selection.");
+            resetTestingView("Select a retreat to load its menu and begin testing recipes.");
+          } else {
+            setRetreatSelectionHelp("No retreat plans found yet.");
+            resetTestingView("No saved retreat menu found.");
+            dishSelector.innerHTML = '<div class="col"><div class="empty">Create a retreat plan first.</div></div>';
+            showEmpty("No retreat plan available to test.");
+          }
+        } catch (error) {
+          retreatPlans = [];
+          renderRetreatPlanOptions();
+          setRetreatSelectionHelp("Could not load retreat options.");
+          resetTestingView("Could not load retreat options.");
+          dishSelector.innerHTML = '<div class="col"><div class="empty">Could not load retreat options.</div></div>';
           showEmpty("Could not load data from API. Verify backend is running.");
         }
       }
 
       function updateDisplayRecipesBar() {
+        const hasPlan = hasActiveRetreatPlan();
         const hasSelection = selectedDishKeys.size > 0;
-        displayRecipesBtn.disabled = !hasSelection;
+        displayRecipesBtn.disabled = !hasPlan || !hasSelection;
+        selectAllDishesBtn.disabled = !hasPlan || !menuOptions.length;
+        clearAllDishesBtn.disabled = !hasPlan;
+        testServesSelect.disabled = !hasPlan;
 
-        if (hasSelection) {
+        if (!hasPlan) {
+          displayRecipesBtn.innerHTML = '<i class="fa-solid fa-utensils me-1"></i> Get Recipes';
+          if (selectionInstructions) {
+            selectionInstructions.innerHTML = "Step 1: Select a retreat. Step 2: Select dishes. Step 3: Click <strong>Get Recipes</strong>.";
+          }
+        } else if (hasSelection) {
           displayRecipesBtn.innerHTML = `<i class="fa-solid fa-utensils me-1"></i> Get Recipes (${selectedDishKeys.size})`;
           if (selectionInstructions) {
             selectionInstructions.innerHTML = "Ready to view. Click <strong>Get Recipes</strong> to collapse this panel.";
@@ -1189,7 +1383,7 @@
           }
         }
 
-        if (pickerCard.classList.contains("collapsed")) {
+        if (hasPlan && pickerCard.classList.contains("collapsed")) {
           displayRecipesBar.style.display = "";
           editSelectionBtn.style.display = "";
         } else {
@@ -1215,6 +1409,10 @@
         pickerCard.classList.remove("collapsed");
         updateDisplayRecipesBar();
         pickerCard.scrollIntoView({ behavior: "smooth", block: "start" });
+      });
+
+      retreatPlanSelect.addEventListener("change", () => {
+        void loadSelectedRetreatPlan(retreatPlanSelect.value);
       });
 
       dishSelector.addEventListener("change", (event) => {

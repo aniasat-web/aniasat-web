@@ -7,6 +7,7 @@
 
   function getNumericAttr(input, name, fallback) {
     var raw = input.getAttribute(name);
+    if (raw == null || raw === "") return fallback;
     var parsed = Number(raw);
     return Number.isFinite(parsed) ? parsed : fallback;
   }

@@ -193,6 +193,79 @@
         text-transform: uppercase; padding: 0.25rem 0.6rem;
       }
 
+      .print-subhead { display: none; }
+
+      .print-summary {
+        color: var(--muted);
+        font-size: 0.88rem;
+      }
+
+      .print-output {
+        display: none;
+      }
+
+      .print-sheet-header {
+        display: grid;
+        gap: 0.2rem;
+        margin-bottom: 0.85rem;
+      }
+
+      .print-sheet-title {
+        font-family: "Instrument Serif", serif;
+        font-size: 1.35rem;
+        font-weight: 700;
+        color: var(--ink);
+      }
+
+      .print-sheet-note {
+        color: var(--muted);
+        font-size: 0.9rem;
+      }
+
+      .print-filter-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0.85rem;
+      }
+
+      .print-filter-card {
+        border: 1px solid var(--border);
+        border-radius: 0.85rem;
+        padding: 0.85rem;
+        background: #fff;
+      }
+
+      .print-filter-toolbar {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.45rem;
+        margin-bottom: 0.55rem;
+      }
+
+      .print-filter-toolbar .btn {
+        padding-top: 0.2rem;
+        padding-bottom: 0.2rem;
+      }
+
+      .print-checklist {
+        display: grid;
+        gap: 0.5rem;
+        max-height: 220px;
+        overflow: auto;
+      }
+
+      .print-check-item {
+        display: flex;
+        align-items: center;
+        gap: 0.55rem;
+        font-size: 0.95rem;
+      }
+
+      body.print-mode .recipe-content { display: block !important; }
+      body.print-mode .recipe-tabs { display: none !important; }
+      body.print-mode .view-section { display: block !important; }
+      body.print-mode .expand-icon { display: none !important; }
+
       /* Empty state */
       .empty {
         background: var(--surface); border: 1px dashed #d6d3d1; border-radius: 1rem;
@@ -204,16 +277,211 @@
         .meal-title { flex-direction: column; align-items: flex-start; }
         .recipe-header { flex-direction: column; align-items: flex-start; }
         .recipe-meta { flex-wrap: wrap; }
+        .print-filter-grid { grid-template-columns: 1fr; }
       }
 
       /* Print */
       @media print {
-        nav.navbar, .meta-bar, #dayTabs, #mealTabs, .hero-gradient { display: none !important; }
-        body { background: #fff; padding-top: 0 !important; }
-        .meal-section { display: none !important; }
-        .meal-section.active { display: block !important; }
-        .recipe-card { box-shadow: none; page-break-inside: avoid; }
-        .card { box-shadow: none; }
+        nav.navbar,
+        .kitchen-subnav,
+        .hero-actions,
+        #dayTabs,
+        #mealTabs,
+        .meta-bar,
+        #printPickerModal,
+        .modal-backdrop {
+          display: none !important;
+        }
+        html,
+        body {
+          background: #fff !important;
+        }
+        body {
+          background: #fff;
+          color: #000;
+          padding-top: 0 !important;
+          font-size: 11pt;
+          line-height: 1.45;
+        }
+        main.container,
+        .container {
+          max-width: 100% !important;
+          width: 100% !important;
+          padding-left: 0 !important;
+          padding-right: 0 !important;
+        }
+        main.container {
+          padding-top: 0 !important;
+          padding-bottom: 0 !important;
+        }
+        .card {
+          box-shadow: none !important;
+          border: 1px solid #cfcfcf !important;
+          background: #fff !important;
+        }
+        .hero-gradient {
+          background: #fff !important;
+          border: none !important;
+          margin-bottom: 4mm !important;
+          padding: 0 0 0.4rem !important;
+        }
+        body.print-mode main {
+          display: none !important;
+        }
+        body.print-mode .print-output {
+          display: block !important;
+          padding: 0 14mm !important;
+          box-sizing: border-box !important;
+          width: 100% !important;
+        }
+        .print-page-table {
+          width: 100%;
+          border-collapse: collapse;
+          border: none;
+        }
+        .print-page-margin-top {
+          height: 18mm;
+          padding: 0;
+          border: none;
+        }
+        .print-page-content {
+          padding: 0;
+          border: none;
+          vertical-align: top;
+        }
+        #retreatTitle {
+          font-size: 16pt;
+        }
+        #retreatSubtitle {
+          color: #4b5563 !important;
+        }
+        body:not(.print-mode) .meal-section {
+          display: none !important;
+          margin-bottom: 5mm;
+        }
+        body:not(.print-mode) .meal-section.active,
+        body.print-mode .print-output .meal-section {
+          display: block !important;
+        }
+        .print-sheet-header {
+          border-bottom: 1px solid #cfcfcf;
+          padding-bottom: 3mm;
+          margin-bottom: 4mm;
+        }
+        .print-sheet-title {
+          font-size: 16pt;
+          color: #111827 !important;
+        }
+        .print-sheet-note {
+          color: #4b5563 !important;
+          font-size: 9pt;
+        }
+        .meal-title {
+          border: 1px solid #bfbfbf !important;
+          border-left: 3px solid #000 !important;
+          background: #fff !important;
+          box-shadow: none !important;
+          margin-bottom: 3mm;
+          padding: 0.65rem 0.75rem;
+          break-inside: avoid-page;
+          page-break-inside: avoid;
+          break-after: avoid-page;
+          page-break-after: avoid;
+        }
+        .meal-title h2 {
+          font-size: 1.02rem;
+        }
+        .recipe-count {
+          background: #fff !important;
+          color: #111827 !important;
+          border: 1px solid #bfbfbf;
+        }
+        .recipe-card {
+          overflow: visible !important;
+          border: 1px solid #d5d5d5 !important;
+          margin-bottom: 10mm;
+        }
+        .recipe-header {
+          align-items: flex-start;
+          padding: 0.65rem 0.75rem;
+          break-after: avoid-page;
+          page-break-after: avoid;
+        }
+        .recipe-header h3 {
+          font-size: 1rem;
+        }
+        .recipe-meta {
+          flex-wrap: wrap;
+        }
+        .expand-icon {
+          display: none !important;
+        }
+        .recipe-content {
+          display: block !important;
+          padding: 0.55rem 0.75rem 0.75rem;
+        }
+        .recipe-tabs {
+          display: none !important;
+        }
+        .view-section {
+          display: block !important;
+        }
+        .view-section + .view-section {
+          margin-top: 0.7rem;
+        }
+        .print-subhead {
+          display: block !important;
+          margin-bottom: 0.25rem;
+          color: #4b5563;
+          font-weight: 700;
+          font-size: 0.88rem;
+        }
+        .ingredients-list li {
+          display: grid;
+          grid-template-columns: minmax(0, 1fr) max-content;
+          align-items: flex-start;
+          column-gap: 0.5rem;
+          row-gap: 0.15rem;
+          padding: 0.22rem 0;
+          border-color: #d9d9d9;
+          break-inside: avoid-page;
+          page-break-inside: avoid;
+        }
+        .ingredient-name {
+          min-width: 0;
+          padding-right: 0.25rem;
+          overflow-wrap: anywhere;
+        }
+        .ingredient-qty {
+          min-width: 5.25rem;
+          max-width: 100%;
+          padding-left: 0.35rem;
+          text-align: right;
+          white-space: nowrap;
+          overflow: visible !important;
+        }
+        .steps-list li {
+          background: #fff !important;
+          border: 1px solid #d9d9d9;
+          margin-bottom: 2.6mm;
+          padding: 0.55rem 0.65rem 0.55rem 2.4rem;
+          break-inside: avoid-page;
+          page-break-inside: avoid;
+        }
+        .steps-list li::before {
+          top: 0.5rem;
+          left: 0.55rem;
+          width: 1.3rem;
+          height: 1.3rem;
+          font-size: 0.78rem;
+          background: #111827 !important;
+        }
+      }
+      @page {
+        margin-top: 18mm;
+        margin-bottom: 18mm;
+        margin-left: 18mm;
+        margin-right: 18mm;
       }
     </style>
     <link rel="stylesheet" href="assets/ui-theme.css" />
@@ -310,7 +578,7 @@
           </div>
           <div class="d-flex flex-wrap gap-2">
             <button class="btn btn-primary btn-sm fw-bold" id="reloadData" type="button"><i class="fa-solid fa-arrows-rotate me-1"></i> Reload</button>
-            <button class="btn btn-outline-secondary btn-sm fw-bold" id="printMeal" type="button"><i class="fa-solid fa-print me-1"></i> Print Meal</button>
+            <button class="btn btn-outline-secondary btn-sm fw-bold" id="printMeal" type="button"><i class="fa-solid fa-print me-1"></i> Print Recipes</button>
           </div>
         </div>
       </section>
@@ -323,7 +591,51 @@
       </div>
     </main>
 
-    <script src="assets/auth.js?v=20260218f"></script>
+    <section id="printOutput" class="print-output" aria-hidden="true"></section>
+
+    <div class="modal fade" id="printPickerModal" tabindex="-1" aria-labelledby="printPickerLabel" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h2 class="modal-title fs-5" id="printPickerLabel">Print Retreat Recipes</h2>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <div class="print-filter-grid">
+              <div class="print-filter-card">
+                <div class="d-flex align-items-center justify-content-between gap-2 mb-2">
+                  <label class="form-label fw-bold small text-uppercase text-muted mb-0">Days</label>
+                  <div class="print-filter-toolbar">
+                    <button type="button" class="btn btn-sm btn-light border" id="selectAllPrintDays">All</button>
+                    <button type="button" class="btn btn-sm btn-light border" id="clearPrintDays">Clear</button>
+                  </div>
+                </div>
+                <div id="printDayChecklist" class="print-checklist"></div>
+              </div>
+              <div class="print-filter-card">
+                <div class="d-flex align-items-center justify-content-between gap-2 mb-2">
+                  <label class="form-label fw-bold small text-uppercase text-muted mb-0">Meals</label>
+                  <div class="print-filter-toolbar">
+                    <button type="button" class="btn btn-sm btn-light border" id="selectAllPrintMeals">All</button>
+                    <button type="button" class="btn btn-sm btn-light border" id="clearPrintMeals">Clear</button>
+                  </div>
+                </div>
+                <div id="printMealChecklist" class="print-checklist"></div>
+              </div>
+            </div>
+            <div class="print-summary mt-3" id="printSummary">
+              Choose one or more days and one or more meals. The print layout expands all recipes and includes both ingredients and instructions.
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-light border" data-bs-dismiss="modal">Cancel</button>
+            <button type="button" class="btn btn-primary" id="confirmPrintMeal"><i class="fa-solid fa-print me-1"></i> Print Selected Sections</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script src="assets/auth.js?v=20260326a"></script>
     <script src="assets/kitchen-access.js?v=20260320a"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
     <script>
@@ -335,13 +647,25 @@
       const mealTabs = document.getElementById("mealTabs");
       const metaBar = document.getElementById("metaBar");
       const mealSections = document.getElementById("mealSections");
+      const printOutput = document.getElementById("printOutput");
       const reloadData = document.getElementById("reloadData");
       const printMeal = document.getElementById("printMeal");
+      const printPickerModal = document.getElementById("printPickerModal");
+      const printDayChecklist = document.getElementById("printDayChecklist");
+      const printMealChecklist = document.getElementById("printMealChecklist");
+      const printSummary = document.getElementById("printSummary");
+      const confirmPrintMeal = document.getElementById("confirmPrintMeal");
+      const selectAllPrintDays = document.getElementById("selectAllPrintDays");
+      const clearPrintDays = document.getElementById("clearPrintDays");
+      const selectAllPrintMeals = document.getElementById("selectAllPrintMeals");
+      const clearPrintMeals = document.getElementById("clearPrintMeals");
 
       let payload = null;
       let mealRecords = [];
       let activeMealKey = null;
       let activeDay = null;
+      let printModal = null;
+      let printTargetMealKeys = [];
       let kitchenAccessPromise = null;
       const ingredientMetaByKey = new Map();
       const ingredientSpecificConversions = new Map();
@@ -458,6 +782,11 @@
         return UNIT_ALIASES[value] || value;
       }
 
+      function displayUnitLabel(unit) {
+        const normalized = normalizeUnit(unit);
+        return normalized === "l" ? "L" : normalized;
+      }
+
       function normalizeIngredientKey(name) {
         return String(name || "").trim().toLowerCase().replace(/\s+/g, " ");
       }
@@ -548,7 +877,7 @@
         if (!forceSingleDecimal) {
           value = value.replace(/\.0+$/, "").replace(/(\.\d*?)0+$/, "$1");
         }
-        return `${value} ${unit}`;
+        return `${value} ${displayUnitLabel(unit)}`;
       }
 
       async function ensureIngredientMetadataLoaded() {
@@ -821,6 +1150,7 @@
       }
 
       function showEmpty(message) {
+        clearPrintTargets();
         payload = null;
         mealRecords = [];
         activeDay = null;
@@ -832,6 +1162,9 @@
         metaBar.innerHTML = "";
         mealSections.innerHTML = `<div class=\"empty\">${message}</div>`;
         printMeal.disabled = true;
+        if (confirmPrintMeal) {
+          confirmPrintMeal.disabled = true;
+        }
       }
 
       function createMetaChip(text) {
@@ -917,20 +1250,28 @@
 
         const ingredientsView = document.createElement("div");
         ingredientsView.className = "view-section ingredients-view active";
+        const ingredientsPrintLabel = document.createElement("div");
+        ingredientsPrintLabel.className = "print-subhead";
+        ingredientsPrintLabel.textContent = "Ingredients";
         const ingredientsList = document.createElement("ul");
         ingredientsList.className = "ingredients-list";
         dish.ingredients.forEach((item) => {
           ingredientsList.appendChild(createIngredientRow(item));
         });
+        ingredientsView.appendChild(ingredientsPrintLabel);
         ingredientsView.appendChild(ingredientsList);
 
         const stepsView = document.createElement("div");
         stepsView.className = "view-section steps-view";
+        const stepsPrintLabel = document.createElement("div");
+        stepsPrintLabel.className = "print-subhead";
+        stepsPrintLabel.textContent = "Instructions";
         const stepsList = document.createElement("ol");
         stepsList.className = "steps-list";
         dish.steps.forEach((step, index) => {
           stepsList.appendChild(createStepRow(step, index));
         });
+        stepsView.appendChild(stepsPrintLabel);
         stepsView.appendChild(stepsList);
 
         content.appendChild(tabs);
@@ -1046,6 +1387,255 @@
         showMeal(nextMealKey);
       }
 
+      function mealRecordByKey(mealKey) {
+        return mealRecords.find((record) => record.key === mealKey) || null;
+      }
+
+      function uniquePrintDays() {
+        return [...new Set(mealRecords.map((record) => Number(record.day || 0)).filter((day) => day > 0))]
+          .sort((a, b) => a - b);
+      }
+
+      function uniquePrintMealNames() {
+        return [...new Set(mealRecords.map((record) => String(record.mealName || "").trim()).filter(Boolean))]
+          .sort((a, b) => {
+            const orderDiff = mealOrderValue(a) - mealOrderValue(b);
+            if (orderDiff !== 0) {
+              return orderDiff;
+            }
+            return a.localeCompare(b);
+          });
+      }
+
+      function renderPrintChecklist(container, entries, isSelected, labelForValue) {
+        if (!container) {
+          return;
+        }
+        container.innerHTML = "";
+        entries.forEach((value, index) => {
+          const row = document.createElement("label");
+          row.className = "print-check-item";
+
+          const checkbox = document.createElement("input");
+          checkbox.type = "checkbox";
+          checkbox.className = "form-check-input mt-0";
+          checkbox.value = String(value);
+          checkbox.checked = Boolean(isSelected(value));
+          checkbox.dataset.printValue = String(value);
+          checkbox.id = `${container.id}_${index}`;
+
+          const text = document.createElement("span");
+          text.textContent = labelForValue(value);
+
+          row.appendChild(checkbox);
+          row.appendChild(text);
+          container.appendChild(row);
+        });
+      }
+
+      function checkedValuesFromChecklist(container) {
+        if (!container) {
+          return [];
+        }
+        return Array.from(container.querySelectorAll('input[type="checkbox"]:checked'))
+          .map((input) => String(input.value || "").trim())
+          .filter(Boolean);
+      }
+
+      function setChecklistValues(container, wantedValues) {
+        if (!container) {
+          return;
+        }
+        const wanted = new Set((wantedValues || []).map((value) => String(value)));
+        container.querySelectorAll('input[type="checkbox"]').forEach((input) => {
+          input.checked = wanted.has(String(input.value || ""));
+        });
+      }
+
+      function selectedPrintDays() {
+        return checkedValuesFromChecklist(printDayChecklist)
+          .map((value) => Number(value))
+          .filter((value) => Number.isFinite(value) && value > 0);
+      }
+
+      function selectedPrintMealNames() {
+        return checkedValuesFromChecklist(printMealChecklist);
+      }
+
+      function matchingPrintRecords(days = selectedPrintDays(), meals = selectedPrintMealNames()) {
+        const daySet = new Set(days.map((value) => Number(value)));
+        const mealSet = new Set(meals.map((value) => String(value)));
+        return mealRecords.filter((record) => daySet.has(Number(record.day)) && mealSet.has(String(record.mealName)));
+      }
+
+      function updatePrintSummary() {
+        if (!printSummary) {
+          return;
+        }
+        const days = selectedPrintDays();
+        const meals = selectedPrintMealNames();
+        const matches = matchingPrintRecords(days, meals);
+        if (!days.length || !meals.length) {
+          printSummary.textContent = "Choose at least one day and one meal to print.";
+          if (confirmPrintMeal) {
+            confirmPrintMeal.disabled = true;
+          }
+          return;
+        }
+        if (!matches.length) {
+          printSummary.textContent = "No meal sections match the current day and meal selection.";
+          if (confirmPrintMeal) {
+            confirmPrintMeal.disabled = true;
+          }
+          return;
+        }
+        const labels = matches.map((record) => `Day ${record.day} ${record.mealName}`);
+        const preview = labels.length <= 4
+          ? labels.join(", ")
+          : `${labels.slice(0, 4).join(", ")}, +${labels.length - 4} more`;
+        printSummary.textContent = `Printing ${matches.length} section${matches.length === 1 ? "" : "s"}: ${preview}. Recipes will be fully expanded with ingredients and instructions.`;
+        if (confirmPrintMeal) {
+          confirmPrintMeal.disabled = false;
+        }
+      }
+
+      function populatePrintPicker() {
+        if (!mealRecords.length) {
+          return;
+        }
+        const activeRecord = mealRecordByKey(activeMealKey) || mealRecords[0];
+        renderPrintChecklist(
+          printDayChecklist,
+          uniquePrintDays(),
+          (value) => Number(value) === Number(activeRecord.day),
+          (value) => `Day ${value}`
+        );
+        renderPrintChecklist(
+          printMealChecklist,
+          uniquePrintMealNames(),
+          (value) => String(value) === String(activeRecord.mealName),
+          (value) => value
+        );
+        updatePrintSummary();
+      }
+
+      function clearPrintTargets() {
+        printTargetMealKeys = [];
+        document.body.classList.remove("print-mode");
+        if (printOutput) {
+          printOutput.innerHTML = "";
+          printOutput.setAttribute("aria-hidden", "true");
+        }
+      }
+
+      function buildPrintOutput(records) {
+        if (!printOutput || !records.length) {
+          return false;
+        }
+        clearPrintTargets();
+
+        // Table wrapper so thead repeats as top margin on every printed page
+        const table = document.createElement("table");
+        table.className = "print-page-table";
+
+        const thead = document.createElement("thead");
+        const theadTr = document.createElement("tr");
+        const theadTd = document.createElement("td");
+        theadTd.className = "print-page-margin-top";
+        theadTr.appendChild(theadTd);
+        thead.appendChild(theadTr);
+        table.appendChild(thead);
+
+        const tbody = document.createElement("tbody");
+        const tbodyTr = document.createElement("tr");
+        const tbodyTd = document.createElement("td");
+        tbodyTd.className = "print-page-content";
+
+        const header = document.createElement("div");
+        header.className = "print-sheet-header";
+
+        const title = document.createElement("div");
+        title.className = "print-sheet-title";
+        title.textContent = payload?.retreatName ? `${payload.retreatName} Recipes` : "Retreat Recipes";
+
+        const subtitle = document.createElement("div");
+        subtitle.className = "print-sheet-note";
+        const sectionsLabel = records.map((record) => `Day ${record.day} ${record.mealName}`).join(" · ");
+        subtitle.textContent = sectionsLabel;
+
+        const meta = document.createElement("div");
+        meta.className = "print-sheet-note";
+        meta.textContent = retreatSubtitle?.textContent || "";
+
+        header.appendChild(title);
+        header.appendChild(subtitle);
+        if (meta.textContent) {
+          header.appendChild(meta);
+        }
+        tbodyTd.appendChild(header);
+
+        records.forEach((record) => {
+          const clone = record.section.cloneNode(true);
+          clone.querySelectorAll(".recipe-card").forEach((card) => {
+            card.classList.add("expanded");
+            card.classList.remove("collapsed");
+          });
+          clone.querySelectorAll(".view-section").forEach((section) => {
+            section.classList.add("active");
+          });
+          tbodyTd.appendChild(clone);
+        });
+
+        tbodyTr.appendChild(tbodyTd);
+        tbody.appendChild(tbodyTr);
+        table.appendChild(tbody);
+        printOutput.appendChild(table);
+
+        printTargetMealKeys = records.map((record) => record.key);
+        printOutput.setAttribute("aria-hidden", "false");
+        document.body.classList.add("print-mode");
+        return true;
+      }
+
+      function openPrintPicker() {
+        if (!mealRecords.length) {
+          return;
+        }
+        populatePrintPicker();
+        if (!printModal && printPickerModal && window.bootstrap?.Modal) {
+          printModal = new window.bootstrap.Modal(printPickerModal);
+        }
+        if (printModal) {
+          printModal.show();
+        }
+      }
+
+      function printSelectedMealFromPicker() {
+        const days = selectedPrintDays();
+        const meals = selectedPrintMealNames();
+        const records = matchingPrintRecords(days, meals);
+        if (!records.length) {
+          updatePrintSummary();
+          return;
+        }
+        const firstRecord = records[0];
+        if (firstRecord) {
+          showDay(firstRecord.day, firstRecord.key);
+        }
+        if (!buildPrintOutput(records)) {
+          return;
+        }
+        if (printModal) {
+          printModal.hide();
+          return;
+        }
+        window.requestAnimationFrame(() => {
+          window.setTimeout(() => {
+            window.print();
+          }, 80);
+        });
+      }
+
       function toggleRecipeCard(card) {
         const isExpanded = card.classList.contains("expanded");
         card.classList.toggle("expanded", !isExpanded);
@@ -1072,6 +1662,7 @@
       async function render() {
         await ensureKitchenPageAccess();
         try {
+          clearPrintTargets();
           await ensureIngredientMetadataLoaded();
           const latest = planId
             ? await fetchPayloadByPlanId(planId)
@@ -1126,16 +1717,19 @@
           const nextMealRecord = mealRecords.find((record) => record.key === nextMealKey) || mealRecords[0];
           showDay(nextMealRecord.day, nextMealKey);
           printMeal.disabled = false;
+          if (confirmPrintMeal) {
+            confirmPrintMeal.disabled = false;
+          }
         } catch (error) {
           showEmpty("Could not load data from API. Verify backend is running on port 8000.");
         }
       }
 
       function printActiveMeal() {
-        if (!activeMealKey) {
+        if (!mealRecords.length) {
           return;
         }
-        window.print();
+        openPrintPicker();
       }
 
       dayTabs.addEventListener("click", (event) => {
@@ -1180,6 +1774,70 @@
         void render();
       });
       printMeal.addEventListener("click", printActiveMeal);
+      if (printDayChecklist) {
+        printDayChecklist.addEventListener("change", () => {
+          updatePrintSummary();
+        });
+      }
+      if (printMealChecklist) {
+        printMealChecklist.addEventListener("change", () => {
+          updatePrintSummary();
+        });
+      }
+      if (selectAllPrintDays) {
+        selectAllPrintDays.addEventListener("click", () => {
+          setChecklistValues(printDayChecklist, uniquePrintDays());
+          updatePrintSummary();
+        });
+      }
+      if (clearPrintDays) {
+        clearPrintDays.addEventListener("click", () => {
+          setChecklistValues(printDayChecklist, []);
+          updatePrintSummary();
+        });
+      }
+      if (selectAllPrintMeals) {
+        selectAllPrintMeals.addEventListener("click", () => {
+          setChecklistValues(printMealChecklist, uniquePrintMealNames());
+          updatePrintSummary();
+        });
+      }
+      if (clearPrintMeals) {
+        clearPrintMeals.addEventListener("click", () => {
+          setChecklistValues(printMealChecklist, []);
+          updatePrintSummary();
+        });
+      }
+      if (confirmPrintMeal) {
+        confirmPrintMeal.addEventListener("click", printSelectedMealFromPicker);
+      }
+      if (printPickerModal) {
+        printPickerModal.addEventListener("hidden.bs.modal", () => {
+          if (document.body.classList.contains("print-mode")) {
+            window.requestAnimationFrame(() => {
+              window.setTimeout(() => {
+                window.print();
+              }, 80);
+            });
+          }
+        });
+      }
+      window.addEventListener("afterprint", () => {
+        clearPrintTargets();
+      });
+      if (window.matchMedia) {
+        const printMediaQuery = window.matchMedia("print");
+        const cleanupAfterPrintMediaChange = (event) => {
+          if (!event.matches) {
+            clearPrintTargets();
+          }
+        };
+        if (typeof printMediaQuery.addEventListener === "function") {
+          printMediaQuery.addEventListener("change", cleanupAfterPrintMediaChange);
+        } else if (typeof printMediaQuery.addListener === "function") {
+          printMediaQuery.addListener(cleanupAfterPrintMediaChange);
+        }
+      }
 
       void render();
     </script>

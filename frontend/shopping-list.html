@@ -199,13 +199,6 @@
         color: #64748b;
       }
 
-      .split-now-btn {
-        font-size: 0.68rem;
-        line-height: 1.2;
-        padding: 0.12rem 0.45rem;
-        border-radius: 999px;
-      }
-
       .partial-buy-badge {
         font-size: 0.67rem;
         letter-spacing: 0.01em;
@@ -274,6 +267,10 @@
         vertical-align: middle;
       }
 
+      .item-row td {
+        vertical-align: top;
+      }
+
       .inventory-editor {
         display: inline-flex;
         align-items: center;
@@ -286,6 +283,55 @@
 
       .inventory-editor select {
         min-width: 92px;
+      }
+
+      .allocation-stack {
+        display: grid;
+        gap: 0.38rem;
+      }
+
+      .allocation-line {
+        display: flex;
+        align-items: center;
+        gap: 0.35rem;
+      }
+
+      .allocation-line .form-control {
+        width: 84px;
+        text-align: right;
+      }
+
+      .allocation-line .form-select {
+        min-width: 92px;
+        flex: 1 1 auto;
+      }
+
+      .allocation-icon-btn {
+        width: 28px;
+        height: 28px;
+        padding: 0;
+        border-radius: 999px;
+        border: 1px solid #cad8cf;
+        background: #ffffff;
+        color: #5b6c60;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        flex: 0 0 auto;
+        transition: all 120ms ease;
+      }
+
+      .allocation-remove {
+        color: #6b7280;
+      }
+
+      .allocation-toggle-stack {
+        justify-items: center;
+      }
+
+      .allocation-line-center {
+        justify-content: center;
+        min-height: 30px;
       }
 
       .category-row td {
@@ -708,22 +754,6 @@
         text-underline-offset: 2px;
       }
 
-      body.shopping-page .split-now-btn {
-        border-color: #d1d5db;
-        color: #475569;
-        background: #ffffff;
-      }
-
-      body.shopping-page .split-now-btn:hover {
-        border-color: #94a3b8;
-        color: #1e293b;
-        background: #f8fafc;
-      }
-
-      body.shopping-page .split-now-btn:disabled {
-        opacity: 0.58;
-      }
-
       body.shopping-page .inventory-editor input {
         width: 88px;
         text-align: right;
@@ -731,6 +761,25 @@
 
       body.shopping-page .inventory-editor select {
         min-width: 92px;
+      }
+
+      body.shopping-page .allocation-line .form-control,
+      body.shopping-page .allocation-line .form-select {
+        background: #f4fbf5 !important;
+        border-color: #bad4c0;
+      }
+
+      body.shopping-page .allocation-line .form-control:focus,
+      body.shopping-page .allocation-line .form-select:focus {
+        border-color: #7eb18c;
+        box-shadow: 0 0 0 0.18rem rgba(38, 96, 75, 0.12);
+      }
+
+      body.shopping-page .allocation-icon-btn:hover,
+      body.shopping-page .allocation-icon-btn:focus {
+        border-color: #94a3b8;
+        background: #f8fafc;
+        color: #1e293b;
       }
 
       body.shopping-page .category-heading {
@@ -770,7 +819,7 @@
       }
 
       body.shopping-page .shopping-col-source {
-        width: 160px;
+        width: 220px;
       }
 
       body.shopping-page .shopping-col-toggle {
@@ -1137,8 +1186,8 @@
       </section>
     </main>
 
-    <script src="assets/auth.js?v=20260218f" defer></script>
+    <script src="assets/auth.js?v=20260326a" defer></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js" defer></script>
-    <script src="assets/shopping-list.js?v=20260320c" defer></script>
+    <script src="assets/shopping-list.js?v=20260326e" defer></script>
   </body>
 </html>

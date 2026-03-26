@@ -1,0 +1,1169 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Ingredients by Retreat</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+    <link rel="stylesheet" href="assets/header-theme.css" />
+    <style>
+      :root {
+        --bg: #f6f5ef;
+        --ink: #253127;
+        --muted: #6b7280;
+        --border: #dde4d7;
+        --surface: #fffef9;
+        --primary: #25604a;
+        --primary-deep: #1f513f;
+        --accent: #b7791f;
+        --accent-soft: #fff1cf;
+      }
+
+      body {
+        font-family: "Plus Jakarta Sans", sans-serif;
+        background:
+          radial-gradient(circle at top right, rgba(37, 96, 74, 0.12), transparent 28%),
+          linear-gradient(180deg, #faf9f3 0%, #f3f1e8 100%);
+        color: var(--ink);
+        padding-top: 70px;
+      }
+
+      h1, h2, h3, .navbar-brand {
+        font-family: "Instrument Serif", serif;
+      }
+
+      .navbar {
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(10px);
+        border-bottom: 1px solid var(--border);
+        box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+      }
+
+      .navbar-brand {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-size: 1.35rem;
+        font-weight: 600 !important;
+        color: var(--primary) !important;
+      }
+
+      .navbar .nav-link {
+        color: var(--muted);
+        letter-spacing: 0.02em;
+      }
+
+      .navbar .nav-link:hover {
+        color: var(--primary);
+      }
+
+      .navbar .nav-link.active {
+        color: var(--ink) !important;
+      }
+
+      .brand-logo {
+        width: 48px;
+        height: 48px;
+        object-fit: contain;
+        flex-shrink: 0;
+      }
+
+      .kitchen-subnav {
+        border-bottom: 1px solid rgba(31, 41, 55, 0.08);
+        background: rgba(255, 255, 255, 0.78);
+        backdrop-filter: blur(8px);
+      }
+
+      .kitchen-tab {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        white-space: nowrap;
+        text-decoration: none;
+        color: #516157;
+        border: 1px solid transparent;
+        border-radius: 999px;
+        padding: 0.5rem 0.9rem;
+        font-size: 0.84rem;
+        font-weight: 700;
+      }
+
+      .kitchen-tab:hover {
+        color: var(--primary);
+        background: rgba(37, 96, 74, 0.08);
+      }
+
+      .kitchen-tab.active {
+        color: #fff;
+        background: linear-gradient(135deg, var(--primary) 0%, #1d4f3d 100%);
+      }
+
+      .page-shell {
+        max-width: 1180px;
+        margin: 0 auto;
+        padding: 1.5rem 1rem 2rem;
+      }
+
+      .card-shell {
+        background: rgba(255, 254, 249, 0.94);
+        border: 1px solid var(--border);
+        border-radius: 1.15rem;
+        box-shadow: 0 14px 28px rgba(15, 23, 42, 0.06);
+      }
+
+      .hero-card {
+        overflow: hidden;
+        background:
+          linear-gradient(135deg, rgba(255, 248, 220, 0.9) 0%, rgba(225, 239, 228, 0.95) 56%, rgba(215, 235, 227, 0.9) 100%);
+        border-color: #d9e5da;
+      }
+
+      .hero-card .eyebrow {
+        font-size: 0.76rem;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        font-weight: 800;
+        color: var(--primary);
+      }
+
+      .hero-card p {
+        color: #55635a;
+      }
+
+      .hero-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.6rem;
+      }
+
+      .metric-grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 0.75rem;
+      }
+
+      .metric-card {
+        border: 1px solid #dde6db;
+        border-radius: 1rem;
+        padding: 0.9rem 1rem;
+        background: rgba(255, 255, 255, 0.9);
+      }
+
+      .metric-card .label {
+        font-size: 0.74rem;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        font-weight: 800;
+        color: #66756a;
+      }
+
+      .metric-card .value {
+        font-size: 1.5rem;
+        font-weight: 800;
+        color: #1f2937;
+        line-height: 1.1;
+      }
+
+      .selection-card {
+        border-color: #d9e5da;
+        background: linear-gradient(135deg, rgba(255, 255, 252, 0.97), rgba(242, 247, 242, 0.95));
+      }
+
+      .selection-gate {
+        display: grid;
+        gap: 0.35rem;
+        margin-bottom: 1rem;
+      }
+
+      .selection-gate.is-active .selection-title {
+        color: #14532d;
+      }
+
+      .selection-gate.is-active .selection-note {
+        color: #3f5b49;
+      }
+
+      .selection-title {
+        font-size: 1.45rem;
+        font-weight: 800;
+        color: #1c1917;
+        line-height: 1.08;
+        margin: 0;
+      }
+
+      .selection-note {
+        margin: 0;
+        font-size: 0.9rem;
+        line-height: 1.45;
+        color: #57534e;
+        max-width: 68ch;
+      }
+
+      .selection-layout {
+        max-width: 760px;
+      }
+
+      .selection-main {
+        display: grid;
+        gap: 0.9rem;
+      }
+
+      .selection-label {
+        display: block;
+        font-size: 0.74rem;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        font-weight: 800;
+        color: #66756a;
+      }
+
+      .selection-select-row {
+        display: flex;
+        align-items: stretch;
+        gap: 0.7rem;
+      }
+
+      .selection-select {
+        min-height: 58px;
+        font-size: 1.04rem;
+        font-weight: 700;
+        border-width: 2px;
+        border-color: #c7d8cb;
+        background: rgba(255, 255, 255, 0.98);
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8);
+      }
+
+      .selection-select:focus {
+        border-color: #4f8a6b;
+        box-shadow: 0 0 0 0.22rem rgba(37, 96, 74, 0.14);
+      }
+
+      .selection-refresh-btn {
+        min-width: 58px;
+        height: 58px;
+        padding-inline: 1rem;
+        border-width: 2px;
+      }
+
+      .tier-shell {
+        display: grid;
+        gap: 0.45rem;
+      }
+
+      .tier-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.55rem;
+      }
+
+      .tier-pill {
+        border: 1px solid #d5ded3;
+        background: #fff;
+        color: #516157;
+        border-radius: 999px;
+        padding: 0.55rem 0.9rem;
+        font-size: 0.84rem;
+        font-weight: 800;
+        letter-spacing: 0.01em;
+        transition: transform 140ms ease, background 140ms ease, border-color 140ms ease;
+      }
+
+      .tier-pill:hover {
+        transform: translateY(-1px);
+        border-color: #b7c6b7;
+      }
+
+      .tier-pill.active {
+        color: #fff;
+        border-color: transparent;
+      }
+
+      .tier-pill[data-tier="bulk"].active {
+        background: linear-gradient(135deg, #8b5e34 0%, #6f4724 100%);
+      }
+
+      .tier-pill[data-tier="fresh"].active {
+        background: linear-gradient(135deg, #2f855a 0%, #256b49 100%);
+      }
+
+      .tier-pill[data-tier="daily"].active {
+        background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+      }
+
+      .helper-note {
+        font-size: 0.9rem;
+        color: var(--muted);
+      }
+
+      .status-banner {
+        border-radius: 1rem;
+        padding: 0.85rem 1rem;
+        font-size: 0.92rem;
+        border: 1px solid transparent;
+      }
+
+      .status-banner.info {
+        background: #eef6f1;
+        border-color: #c9dfcf;
+        color: #29513b;
+      }
+
+      .status-banner.warn {
+        background: #fff6dd;
+        border-color: #f0d898;
+        color: #8b5e14;
+      }
+
+      .status-banner.err {
+        background: #fef2f2;
+        border-color: #fecaca;
+        color: #991b1b;
+      }
+
+      .section-head {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.75rem;
+        align-items: end;
+        justify-content: space-between;
+        margin-bottom: 0.9rem;
+      }
+
+      .section-head p {
+        color: var(--muted);
+      }
+
+      .category-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0.9rem;
+      }
+
+      .category-card {
+        border: 1px solid #dfe6dc;
+        border-radius: 1rem;
+        overflow: hidden;
+        background: rgba(255, 255, 255, 0.96);
+      }
+
+      .category-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.75rem;
+        padding: 0.9rem 1rem;
+        border-bottom: 1px solid #ebf0ea;
+        background: linear-gradient(180deg, rgba(244, 248, 244, 0.9), rgba(255, 255, 255, 0.97));
+      }
+
+      .category-head h2 {
+        margin: 0;
+        font-size: 1.28rem;
+        color: #1f2937;
+      }
+
+      .category-count {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 2.5rem;
+        border-radius: 999px;
+        padding: 0.28rem 0.72rem;
+        font-size: 0.78rem;
+        font-weight: 800;
+        color: var(--primary);
+        background: rgba(37, 96, 74, 0.12);
+      }
+
+      .ingredient-list {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+      }
+
+      .ingredient-row {
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr) auto;
+        gap: 0.8rem;
+        align-items: start;
+        padding: 0.75rem 1rem;
+        border-bottom: 1px solid #edf1eb;
+      }
+
+      .ingredient-row:last-child {
+        border-bottom: none;
+      }
+
+      .ingredient-check {
+        width: 1rem;
+        height: 1rem;
+        border-radius: 0.25rem;
+        border: 1.5px solid #b7c6b7;
+        margin-top: 0.12rem;
+        background: #fff;
+      }
+
+      .ingredient-name {
+        font-weight: 700;
+        color: #253127;
+      }
+
+      .ingredient-meta {
+        margin-top: 0.18rem;
+        font-size: 0.78rem;
+        color: #6b7280;
+      }
+
+      .ingredient-qty {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        white-space: nowrap;
+        min-width: 5.5rem;
+        text-align: center;
+        border-radius: 999px;
+        padding: 0.35rem 0.78rem;
+        font-size: 0.82rem;
+        font-weight: 800;
+        color: #20352a;
+        background: #eef5ef;
+        border: 1px solid #cfdecf;
+      }
+
+      .empty-state {
+        border: 1px dashed #cfd8cf;
+        border-radius: 1rem;
+        padding: 2rem 1.25rem;
+        text-align: center;
+        color: #6b7280;
+        background: rgba(255, 255, 255, 0.72);
+      }
+
+      @media (max-width: 991.98px) {
+        .metric-grid {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .category-grid {
+          grid-template-columns: 1fr;
+        }
+      }
+
+      @media (max-width: 575.98px) {
+        .page-shell {
+          padding-left: 0.75rem;
+          padding-right: 0.75rem;
+        }
+
+        .selection-title {
+          font-size: 1.25rem;
+        }
+
+        .selection-select-row {
+          flex-direction: column;
+        }
+
+        .selection-refresh-btn {
+          width: 100%;
+        }
+
+        .metric-grid {
+          grid-template-columns: 1fr;
+        }
+
+        .ingredient-row {
+          grid-template-columns: auto minmax(0, 1fr);
+        }
+
+        .ingredient-qty {
+          grid-column: 2;
+          justify-self: start;
+        }
+      }
+
+      @media print {
+        @page {
+          margin: 12mm;
+        }
+
+        nav.navbar,
+        .kitchen-subnav,
+        .hero-actions,
+        #filterCard,
+        #statusBanner.info {
+          display: none !important;
+        }
+
+        body {
+          background: #fff;
+          color: #000;
+          padding-top: 0 !important;
+          font-size: 11pt;
+        }
+
+        .page-shell {
+          max-width: 100% !important;
+          width: 100% !important;
+          padding: 0 !important;
+        }
+
+        .card-shell,
+        .category-card {
+          box-shadow: none !important;
+          break-inside: avoid-page;
+          page-break-inside: avoid;
+        }
+
+        .hero-card,
+        .metric-card,
+        .category-card {
+          background: #fff !important;
+        }
+
+        .metric-grid {
+          grid-template-columns: repeat(4, minmax(0, 1fr));
+        }
+
+        .category-grid {
+          grid-template-columns: 1fr;
+          gap: 0.5rem;
+        }
+
+        .ingredient-row {
+          padding-top: 0.42rem;
+          padding-bottom: 0.42rem;
+        }
+
+        .ingredient-qty {
+          color: #000;
+          background: #fff;
+          border-color: #b7b7b7;
+        }
+      }
+    </style>
+    <link rel="stylesheet" href="assets/ui-theme.css" />
+  </head>
+  <body>
+    <nav class="navbar navbar-expand-lg navbar-light fixed-top">
+      <div class="container">
+        <a class="navbar-brand" href="index.html">
+          <img class="brand-logo" src="assets/blossom-mark.png" alt="Blossom logo" />
+          <span>Blossom Foundation</span>
+        </a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarContent">
+          <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarContent">
+          <ul class="navbar-nav ms-auto mb-2 mb-lg-0 fw-semibold small text-uppercase">
+            <li class="nav-item">
+              <a class="nav-link" href="index.html"><i class="fa-solid fa-house me-1"></i> Home</a>
+            </li>
+            <li class="nav-item dropdown">
+              <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false"><i class="fa-solid fa-utensils me-1"></i> Kitchen</a>
+              <ul class="dropdown-menu">
+                <li><a class="dropdown-item" href="retreat-planner-sample.html"><i class="fa-solid fa-calendar-days me-2"></i> Planner</a></li>
+                <li><a class="dropdown-item" href="shopping-list.html"><i class="fa-solid fa-cart-shopping me-2"></i> Shopping</a></li>
+                <li><a class="dropdown-item" href="kitchen-service-view.html"><i class="fa-solid fa-fire-burner me-2"></i> Retreat View</a></li>
+                <li><a class="dropdown-item" href="kitchen-test-view.html"><i class="fa-solid fa-vial me-2"></i> Testing View</a></li>
+                <li><a class="dropdown-item" data-kitchen-link="ingredients-by-retreat" href="ingredients-by-retreat.html"><i class="fa-solid fa-basket-shopping me-2"></i> Ingredients by Retreat</a></li>
+                <li><a class="dropdown-item" href="recipe-admin.html"><i class="fa-solid fa-book me-2"></i> Recipes</a></li>
+                <li><a class="dropdown-item" href="ingredient-admin.html"><i class="fa-solid fa-carrot me-2"></i> Ingredients</a></li>
+              </ul>
+            </li>
+            <li class="nav-item dropdown">
+              <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false"><i class="fa-solid fa-boxes-stacked me-1"></i> Inventory</a>
+              <ul class="dropdown-menu">
+                <li><a class="dropdown-item" href="inventory-home.html"><i class="fa-solid fa-warehouse me-2"></i> Inventory Home</a></li>
+                <li><a class="dropdown-item" href="inventory-baseline.html"><i class="fa-solid fa-barcode me-2"></i> Baseline Scan</a></li>
+                <li><a class="dropdown-item" href="inventory.html?full=1"><i class="fa-solid fa-clipboard-list me-2"></i> Full Inventory</a></li>
+                <li><a class="dropdown-item" href="inventory-orders.html"><i class="fa-solid fa-list-check me-2"></i> Orders Planning</a></li>
+                <li><a class="dropdown-item" href="inventory-purchasing.html"><i class="fa-solid fa-cart-shopping me-2"></i> Purchasing</a></li>
+                <li><a class="dropdown-item" href="inventory-receiving.html"><i class="fa-solid fa-truck-ramp-box me-2"></i> Receive / Put Away</a></li>
+                <li><a class="dropdown-item" href="inventory-remove.html"><i class="fa-solid fa-minus me-2"></i> Withdraw Inventory</a></li>
+              </ul>
+            </li>
+            <li class="nav-item dropdown">
+              <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false"><i class="fa-solid fa-seedling me-1"></i> About</a>
+              <ul class="dropdown-menu">
+                <li><a class="dropdown-item" href="about.html"><i class="fa-solid fa-heart me-2"></i> About &amp; Mission</a></li>
+                <li><a class="dropdown-item" href="about-sri-m.html"><i class="fa-solid fa-user me-2"></i> About Sri M</a></li>
+                <li><a class="dropdown-item" href="sacred-grove.html"><i class="fa-solid fa-tree me-2"></i> Sacred Grove</a></li>
+                <li><a class="dropdown-item" href="faq.html"><i class="fa-solid fa-circle-question me-2"></i> FAQ</a></li>
+              </ul>
+            </li>
+            <li class="nav-item dropdown">
+              <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false"><i class="fa-solid fa-hand-holding-heart me-1"></i> Volunteer</a>
+              <ul class="dropdown-menu">
+                <li><a class="dropdown-item" href="volunteer.html"><i class="fa-solid fa-hands-helping me-2"></i> How to Volunteer</a></li>
+                <li><a class="dropdown-item" href="volunteer-contact.html"><i class="fa-solid fa-envelope me-2"></i> Contact Us</a></li>
+              </ul>
+            </li>
+            <li class="nav-item dropdown">
+              <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false"><i class="fa-solid fa-gear me-1"></i> Admin</a>
+              <ul class="dropdown-menu">
+                <li><a class="dropdown-item" href="user-admin.html"><i class="fa-solid fa-users-gear me-2"></i> Users</a></li>
+              </ul>
+            </li>
+            <li class="nav-item d-flex align-items-center">
+              <span class="nav-link text-muted d-none" id="authUserLabel"></span>
+            </li>
+            <li class="nav-item d-flex align-items-center ms-lg-2">
+              <button class="btn btn-sm btn-outline-secondary d-none" id="logoutBtn" type="button">Logout</button>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </nav>
+
+    <nav class="kitchen-subnav" aria-label="Kitchen section">
+      <div class="container d-flex flex-nowrap gap-2 py-2 overflow-auto">
+        <a href="retreat-planner-sample.html" class="kitchen-tab"><i class="fa-solid fa-calendar-days me-1"></i> Planning View</a>
+        <a href="kitchen-service-view.html" class="kitchen-tab"><i class="fa-solid fa-fire-burner me-1"></i> Retreat View</a>
+        <a href="kitchen-test-view.html" class="kitchen-tab"><i class="fa-solid fa-vial me-1"></i> Testing View</a>
+        <a href="ingredients-by-retreat.html" class="kitchen-tab active" data-kitchen-tab="ingredients-by-retreat"><i class="fa-solid fa-basket-shopping me-1"></i> Ingredients by Retreat</a>
+        <a href="recipe-admin.html" class="kitchen-tab"><i class="fa-solid fa-book me-1"></i> Recipes</a>
+        <a href="ingredient-admin.html" class="kitchen-tab"><i class="fa-solid fa-carrot me-1"></i> Ingredients</a>
+        <a href="shopping-list.html" class="kitchen-tab"><i class="fa-solid fa-cart-shopping me-1"></i> Shopping List</a>
+      </div>
+    </nav>
+
+    <main class="page-shell">
+      <section class="card-shell hero-card p-4 mb-3">
+        <div class="d-flex flex-wrap align-items-center gap-3 justify-content-between">
+          <div class="flex-grow-1">
+            <div class="eyebrow mb-2">Kitchen Prep View</div>
+            <h1 class="h3 fw-bold mb-2" id="pageTitle"><i class="fa-solid fa-basket-shopping me-2" style="color: var(--accent);"></i>Ingredients by Retreat</h1>
+            <p class="mb-0" id="pageSubtitle">Select a retreat and tier to see the ingredient pull list grouped by category for volunteer prep.</p>
+          </div>
+          <div class="hero-actions">
+            <button class="btn btn-outline-secondary btn-sm fw-bold" id="printBtn" type="button"><i class="fa-solid fa-print me-1"></i> Print</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="card-shell selection-card p-4 mb-3" id="filterCard">
+        <div id="selectionGate" class="selection-gate is-waiting">
+          <h2 id="selectionTitle" class="selection-title">Select a Retreat to Start</h2>
+          <p id="selectionNote" class="selection-note">Choose the retreat that is about to begin. Once selected, volunteers can use this pull list to gather staged ingredients by category before kitchen service starts.</p>
+        </div>
+
+        <div class="selection-layout">
+          <div class="selection-main">
+            <div>
+              <label for="retreatPlanSelect" class="selection-label mb-2">Retreat</label>
+              <div class="selection-select-row">
+                <select id="retreatPlanSelect" class="form-select selection-select" aria-label="Select retreat">
+                  <option value="">Select a retreat</option>
+                </select>
+                <button class="btn btn-outline-secondary selection-refresh-btn" id="reloadBtn" type="button" title="Refresh retreats" aria-label="Refresh retreats">
+                  <i class="fa-solid fa-arrows-rotate"></i>
+                </button>
+              </div>
+            </div>
+
+            <div class="tier-shell">
+              <div class="selection-label">Pull List Tier</div>
+              <div class="tier-row" id="tierRow" role="group" aria-label="Ingredient tier">
+                <button class="tier-pill active" data-tier="bulk" type="button">Bulk</button>
+                <button class="tier-pill" data-tier="fresh" type="button">Fresh</button>
+                <button class="tier-pill" data-tier="daily" type="button">Daily</button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <p class="helper-note mt-3 mb-0">Use this list to gather retreat ingredients from the dedicated retreat storage area before kitchen service begins.</p>
+      </section>
+
+      <div class="metric-grid mb-3" id="metricGrid">
+        <div class="metric-card">
+          <div class="label">Tier</div>
+          <div class="value" id="metricTier">Bulk</div>
+        </div>
+        <div class="metric-card">
+          <div class="label">Categories</div>
+          <div class="value" id="metricCategories">0</div>
+        </div>
+        <div class="metric-card">
+          <div class="label">Ingredients</div>
+          <div class="value" id="metricItems">0</div>
+        </div>
+        <div class="metric-card">
+          <div class="label">Retreat</div>
+          <div class="value" id="metricRetreat">None</div>
+        </div>
+      </div>
+
+      <div class="status-banner info mb-3" id="statusBanner">Select a retreat to load the pull list.</div>
+
+      <section class="card-shell p-4" id="resultsCard">
+        <div class="section-head">
+          <div>
+            <h2 class="h4 fw-bold mb-1">Pull List</h2>
+            <p class="mb-0" id="resultsDescription">Ingredients are grouped by ingredient category for the selected retreat and tier.</p>
+          </div>
+        </div>
+        <div id="categoriesContainer" class="category-grid">
+          <div class="empty-state">Select a retreat to build the ingredient pull list.</div>
+        </div>
+      </section>
+    </main>
+
+    <script src="assets/auth.js?v=20260326a"></script>
+    <script src="assets/kitchen-access.js?v=20260320a"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+      const TIERS = ["bulk", "fresh", "daily"];
+      const API_BASE = resolveApiBase();
+      const params = new URLSearchParams(window.location.search);
+      const requestedPlanId = Number(params.get("plan") || 0);
+      const requestedTier = String(params.get("tier") || "bulk").trim().toLowerCase();
+
+      const pageTitle = document.getElementById("pageTitle");
+      const pageSubtitle = document.getElementById("pageSubtitle");
+      const selectionGate = document.getElementById("selectionGate");
+      const selectionTitle = document.getElementById("selectionTitle");
+      const selectionNote = document.getElementById("selectionNote");
+      const retreatPlanSelect = document.getElementById("retreatPlanSelect");
+      const reloadBtn = document.getElementById("reloadBtn");
+      const printBtn = document.getElementById("printBtn");
+      const tierButtons = Array.from(document.querySelectorAll(".tier-pill[data-tier]"));
+      const statusBanner = document.getElementById("statusBanner");
+      const resultsDescription = document.getElementById("resultsDescription");
+      const categoriesContainer = document.getElementById("categoriesContainer");
+      const metricTier = document.getElementById("metricTier");
+      const metricCategories = document.getElementById("metricCategories");
+      const metricItems = document.getElementById("metricItems");
+      const metricRetreat = document.getElementById("metricRetreat");
+
+      let kitchenAccessPromise = null;
+      let retreatPlans = [];
+      let selectedPlanId = requestedPlanId > 0 ? requestedPlanId : null;
+      let activeTier = TIERS.includes(requestedTier) ? requestedTier : "bulk";
+      let activeDetail = null;
+
+      function resolveApiBase() {
+        const queryValue = new URLSearchParams(window.location.search).get("api");
+        const base = queryValue && queryValue.trim() ? queryValue.trim() : window.location.origin;
+        return base.replace(/\/+$/, "");
+      }
+
+      function apiUrl(path) {
+        return `${API_BASE}${path.startsWith("/") ? path : `/${path}`}`;
+      }
+
+      function formatTierLabel(tier) {
+        const normalized = String(tier || "").trim().toLowerCase();
+        if (!normalized) {
+          return "Bulk";
+        }
+        return normalized.charAt(0).toUpperCase() + normalized.slice(1);
+      }
+
+      function formatRetreatOptionLabel(plan) {
+        const name = String(plan?.name || "").trim() || "Untitled Retreat";
+        const startDate = String(plan?.start_date || "").trim();
+        return startDate ? `${name} (${startDate})` : name;
+      }
+
+      function formatLocalDate(value) {
+        const raw = String(value || "").trim();
+        if (!raw) {
+          return "";
+        }
+        const parsed = new Date(raw);
+        if (Number.isNaN(parsed.getTime())) {
+          return raw;
+        }
+        return parsed.toLocaleDateString(undefined, {
+          year: "numeric",
+          month: "short",
+          day: "numeric",
+        });
+      }
+
+      function formatQty(value, unit) {
+        const numeric = Number(value);
+        let cleanUnit = String(unit || "").trim().toLowerCase();
+        if (!Number.isFinite(numeric) || !cleanUnit) {
+          return "—";
+        }
+
+        function displayUnitLabel(unitValue) {
+          return unitValue === "l" ? "L" : unitValue;
+        }
+
+        let displayValue = numeric;
+        if (cleanUnit === "g" && numeric >= 1000) {
+          displayValue = numeric / 1000;
+          cleanUnit = "kg";
+        } else if (cleanUnit === "ml" && numeric >= 1000) {
+          displayValue = numeric / 1000;
+          cleanUnit = "l";
+        }
+
+        if (cleanUnit === "kg" || cleanUnit === "l") {
+          const roundedLarge = displayValue.toFixed(1).replace(/\.0$/, "");
+          return `${roundedLarge} ${displayUnitLabel(cleanUnit)}`;
+        }
+
+        if (Math.abs(displayValue - Math.round(displayValue)) < 1e-9) {
+          return `${Math.round(displayValue)} ${displayUnitLabel(cleanUnit)}`;
+        }
+        if (displayValue >= 10) {
+          return `${displayValue.toFixed(1).replace(/\.0$/, "")} ${displayUnitLabel(cleanUnit)}`;
+        }
+        return `${displayValue.toFixed(2).replace(/0+$/, "").replace(/\.$/, "")} ${displayUnitLabel(cleanUnit)}`;
+      }
+
+      function setStatus(message, tone) {
+        statusBanner.textContent = message;
+        statusBanner.className = `status-banner mb-3 ${tone || "info"}`;
+      }
+
+      function syncQueryParams() {
+        try {
+          const url = new URL(window.location.href);
+          if (selectedPlanId) {
+            url.searchParams.set("plan", String(selectedPlanId));
+          } else {
+            url.searchParams.delete("plan");
+          }
+          url.searchParams.set("tier", activeTier);
+          if (API_BASE !== window.location.origin) {
+            url.searchParams.set("api", API_BASE);
+          }
+          window.history.replaceState({}, "", `${url.pathname}${url.search}`);
+        } catch (_error) {}
+      }
+
+      function setMetricValue(node, value) {
+        if (node) {
+          node.textContent = String(value);
+        }
+      }
+
+      function getSelectedPlan() {
+        return retreatPlans.find((plan) => Number(plan.id) === Number(selectedPlanId)) || null;
+      }
+
+      function syncSelectionGate(detail) {
+        const selectedPlan = detail?.retreat_plan || getSelectedPlan();
+        const hasSelection = Boolean(selectedPlan);
+        const retreatName = String(selectedPlan?.name || "").trim();
+        const startDate = selectedPlan?.start_date ? formatLocalDate(selectedPlan.start_date) : "";
+
+        selectionGate.classList.toggle("is-active", hasSelection);
+        selectionGate.classList.toggle("is-waiting", !hasSelection);
+
+        if (!hasSelection) {
+          selectionTitle.textContent = "Select a Retreat to Start";
+          selectionNote.textContent = "Choose the retreat that is about to begin. Once selected, volunteers can use this pull list to gather staged ingredients by category before kitchen service starts.";
+          return;
+        }
+
+        selectionTitle.textContent = retreatName ? `Selected Retreat: ${retreatName}` : "Retreat Selected";
+        selectionNote.textContent = startDate
+          ? `${formatTierLabel(activeTier)} ingredients for ${startDate}. Volunteers can use this list to stage retreat items before kitchen prep begins.`
+          : `${formatTierLabel(activeTier)} ingredients are shown for the selected retreat. Volunteers can use this list to stage retreat items before kitchen prep begins.`;
+      }
+
+      function renderPageTitle(titleText) {
+        pageTitle.textContent = "";
+        const icon = document.createElement("i");
+        icon.className = "fa-solid fa-basket-shopping me-2";
+        icon.style.color = "var(--accent)";
+        pageTitle.appendChild(icon);
+        pageTitle.appendChild(document.createTextNode(titleText));
+      }
+
+      function setPageSummary(detail) {
+        syncSelectionGate(detail);
+        const selectedPlan = detail?.retreat_plan || getSelectedPlan();
+        const retreatName = selectedPlan?.name || "None";
+        setMetricValue(metricTier, formatTierLabel(activeTier));
+        setMetricValue(metricCategories, Number(detail?.category_count || 0));
+        setMetricValue(metricItems, Number(detail?.item_count || 0));
+        setMetricValue(metricRetreat, retreatName);
+
+        if (!detail) {
+          const selectedStartDate = selectedPlan?.start_date ? formatLocalDate(selectedPlan.start_date) : "";
+          renderPageTitle(selectedPlan ? `${retreatName} - Ingredients by Retreat` : "Ingredients by Retreat");
+          pageSubtitle.textContent = selectedPlan
+            ? (selectedStartDate
+              ? `${formatTierLabel(activeTier)} pull list for ${selectedStartDate}.`
+              : `${formatTierLabel(activeTier)} pull list for volunteer prep.`)
+            : "Select a retreat and tier to see the ingredient pull list grouped by category for volunteer prep.";
+          resultsDescription.textContent = "Ingredients are grouped by ingredient category for the selected retreat and tier.";
+          return;
+        }
+
+        const startDate = formatLocalDate(detail.retreat_plan?.start_date);
+        renderPageTitle(`${retreatName} - Ingredients by Retreat`);
+        pageSubtitle.textContent = startDate
+          ? `${formatTierLabel(activeTier)} pull list for ${startDate}.`
+          : `${formatTierLabel(activeTier)} pull list for volunteer prep.`;
+        resultsDescription.textContent = `${Number(detail.item_count || 0)} ingredient line${Number(detail.item_count || 0) === 1 ? "" : "s"} grouped across ${Number(detail.category_count || 0)} categor${Number(detail.category_count || 0) === 1 ? "y" : "ies"}.`;
+      }
+
+      function renderRetreatPlanOptions() {
+        retreatPlanSelect.innerHTML = "";
+
+        const defaultOption = document.createElement("option");
+        defaultOption.value = "";
+        defaultOption.textContent = retreatPlans.length ? "Select a retreat" : "No retreat plans found";
+        defaultOption.selected = !selectedPlanId;
+        retreatPlanSelect.appendChild(defaultOption);
+
+        retreatPlans.forEach((plan) => {
+          const option = document.createElement("option");
+          option.value = String(plan.id);
+          option.textContent = formatRetreatOptionLabel(plan);
+          if (selectedPlanId && Number(plan.id) === Number(selectedPlanId)) {
+            option.selected = true;
+          }
+          retreatPlanSelect.appendChild(option);
+        });
+      }
+
+      function renderTierButtons() {
+        tierButtons.forEach((button) => {
+          const tier = String(button.dataset.tier || "").trim().toLowerCase();
+          button.classList.toggle("active", tier === activeTier);
+        });
+      }
+
+      function showEmpty(message) {
+        categoriesContainer.innerHTML = "";
+        const empty = document.createElement("div");
+        empty.className = "empty-state";
+        empty.textContent = message;
+        categoriesContainer.appendChild(empty);
+      }
+
+      function renderCategories(detail) {
+        const categories = Array.isArray(detail?.categories) ? detail.categories : [];
+        if (!categories.length) {
+          showEmpty(`No ${formatTierLabel(activeTier).toLowerCase()} ingredients were found for this retreat.`);
+          return;
+        }
+
+        categoriesContainer.innerHTML = "";
+        categories.forEach((category) => {
+          const card = document.createElement("section");
+          card.className = "category-card";
+
+          const head = document.createElement("div");
+          head.className = "category-head";
+          const title = document.createElement("h2");
+          title.textContent = String(category.category || "Uncategorized");
+          const count = document.createElement("span");
+          count.className = "category-count";
+          count.textContent = String(Number(category.item_count || 0));
+          head.appendChild(title);
+          head.appendChild(count);
+          card.appendChild(head);
+
+          const list = document.createElement("ul");
+          list.className = "ingredient-list";
+
+          const items = Array.isArray(category.items) ? category.items : [];
+          items.forEach((item) => {
+            const row = document.createElement("li");
+            row.className = "ingredient-row";
+            const check = document.createElement("span");
+            check.className = "ingredient-check";
+            check.setAttribute("aria-hidden", "true");
+
+            const body = document.createElement("div");
+            const name = document.createElement("div");
+            name.className = "ingredient-name";
+            name.textContent = String(item.ingredient_name || "Unknown ingredient");
+            const meta = document.createElement("div");
+            meta.className = "ingredient-meta";
+            meta.textContent = String(category.category || "Uncategorized");
+            body.appendChild(name);
+            body.appendChild(meta);
+
+            const qty = document.createElement("span");
+            qty.className = "ingredient-qty";
+            qty.textContent = formatQty(item.required_qty, item.required_unit);
+
+            row.appendChild(check);
+            row.appendChild(body);
+            row.appendChild(qty);
+            list.appendChild(row);
+          });
+
+          card.appendChild(list);
+          categoriesContainer.appendChild(card);
+        });
+      }
+
+      async function parseApiError(response) {
+        const raw = await response.text();
+        if (!raw) {
+          return `HTTP ${response.status}`;
+        }
+        try {
+          const parsed = JSON.parse(raw);
+          if (parsed && typeof parsed.detail === "string") {
+            return parsed.detail;
+          }
+        } catch (_error) {}
+        return raw;
+      }
+
+      async function fetchRetreatPlans() {
+        const response = await fetch(apiUrl("/api/retreat-plans"), {
+          method: "GET",
+          credentials: "include",
+        });
+        if (!response.ok) {
+          throw new Error(await parseApiError(response));
+        }
+        const payload = await response.json();
+        const plans = Array.isArray(payload) ? payload : [];
+        return plans.sort((a, b) => {
+          const aDate = String(a?.start_date || "");
+          const bDate = String(b?.start_date || "");
+          if (aDate !== bDate) {
+            return aDate.localeCompare(bDate);
+          }
+          return String(a?.name || "").localeCompare(String(b?.name || ""));
+        });
+      }
+
+      async function fetchIngredientsByRetreat(planId, tier) {
+        const response = await fetch(apiUrl(`/api/retreat-plans/${encodeURIComponent(planId)}/ingredients-by-retreat?tier=${encodeURIComponent(tier)}`), {
+          method: "GET",
+          credentials: "include",
+        });
+        if (!response.ok) {
+          throw new Error(await parseApiError(response));
+        }
+        return response.json();
+      }
+
+      function ensureKitchenPageAccess() {
+        if (!kitchenAccessPromise) {
+          kitchenAccessPromise = window.kitchenGuestAccess.ensurePageAccess({
+            scope: "testing",
+            title: "Ingredients by Retreat Access Required",
+            description: "Use the shared testing code or sign in with a kitchen account to view retreat ingredient pull lists.",
+          });
+        }
+        return kitchenAccessPromise;
+      }
+
+      async function loadSelectedRetreatPlan(planId) {
+        selectedPlanId = Number(planId || 0) > 0 ? Number(planId) : null;
+        activeDetail = null;
+        syncQueryParams();
+        renderRetreatPlanOptions();
+        renderTierButtons();
+        setPageSummary(null);
+
+        if (!selectedPlanId) {
+          setStatus("Select a retreat to load the pull list.", "info");
+          showEmpty("Select a retreat to build the ingredient pull list.");
+          return;
+        }
+
+        setStatus(`Loading ${formatTierLabel(activeTier).toLowerCase()} ingredients...`, "info");
+        showEmpty("Loading ingredient pull list...");
+
+        try {
+          const detail = await fetchIngredientsByRetreat(selectedPlanId, activeTier);
+          activeDetail = detail;
+          setPageSummary(detail);
+          renderCategories(detail);
+
+          const missingRecipes = Array.isArray(detail?.missing_recipes) ? detail.missing_recipes : [];
+          if (missingRecipes.length) {
+            setStatus(`Loaded with ${missingRecipes.length} missing recipe${missingRecipes.length === 1 ? "" : "s"}: ${missingRecipes.join(", ")}`, "warn");
+          } else if (Number(detail?.item_count || 0) > 0) {
+            setStatus(`Loaded ${Number(detail.item_count)} ingredient line${Number(detail.item_count) === 1 ? "" : "s"} across ${Number(detail.category_count || 0)} categor${Number(detail.category_count || 0) === 1 ? "y" : "ies"}.`, "info");
+          } else {
+            setStatus(`No ${formatTierLabel(activeTier).toLowerCase()} ingredients were found for this retreat.`, "info");
+          }
+        } catch (error) {
+          setPageSummary(null);
+          setStatus(error instanceof Error ? error.message : String(error), "err");
+          showEmpty("Could not load the selected retreat from the API.");
+        }
+      }
+
+      async function loadPage() {
+        await ensureKitchenPageAccess();
+        try {
+          setStatus("Loading retreat options...", "info");
+          retreatPlans = await fetchRetreatPlans();
+          const selectedStillExists = !selectedPlanId || retreatPlans.some((plan) => Number(plan.id) === Number(selectedPlanId));
+          if (!selectedStillExists) {
+            selectedPlanId = null;
+          }
+          renderRetreatPlanOptions();
+          renderTierButtons();
+          if (selectedPlanId) {
+            await loadSelectedRetreatPlan(selectedPlanId);
+          } else {
+            setPageSummary(null);
+            if (retreatPlans.length) {
+              syncQueryParams();
+              setStatus("Select a retreat to load the pull list.", "info");
+              showEmpty("Select a retreat to build the ingredient pull list.");
+            } else {
+              setStatus("No retreat plans are available yet.", "warn");
+              showEmpty("No retreat plans are available yet.");
+            }
+          }
+        } catch (error) {
+          setPageSummary(null);
+          renderRetreatPlanOptions();
+          renderTierButtons();
+          setStatus(error instanceof Error ? error.message : String(error), "err");
+          showEmpty("Could not load retreat options.");
+        }
+      }
+
+      retreatPlanSelect.addEventListener("change", () => {
+        void loadSelectedRetreatPlan(retreatPlanSelect.value);
+      });
+
+      tierButtons.forEach((button) => {
+        button.addEventListener("click", () => {
+          const nextTier = String(button.dataset.tier || "").trim().toLowerCase();
+          if (!TIERS.includes(nextTier) || nextTier === activeTier) {
+            return;
+          }
+          activeTier = nextTier;
+          renderTierButtons();
+          if (selectedPlanId) {
+            void loadSelectedRetreatPlan(selectedPlanId);
+          } else {
+            syncQueryParams();
+            setPageSummary(null);
+            setStatus("Select a retreat to load the pull list.", "info");
+          }
+        });
+      });
+
+      reloadBtn.addEventListener("click", () => {
+        void loadPage();
+      });
+
+      printBtn.addEventListener("click", () => {
+        window.print();
+      });
+
+      void loadPage();
+    </script>
+  </body>
+</html>

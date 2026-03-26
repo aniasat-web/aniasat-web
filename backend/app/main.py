@@ -615,6 +615,15 @@ class ShoppingListGeneratePayload(BaseModel):
     includeZeroToBuy: bool = False
 
 
+class ShoppingListItemVendorAllocationInput(BaseModel):
+    id: int | None = Field(default=None, gt=0)
+    vendorId: int | None = Field(default=None, ge=1)
+    allocatedQty: float = Field(default=0, ge=0)
+    allocatedUnit: str | None = None
+    ordered: bool = False
+    received: bool = False
+
+
 class ShoppingListItemUpdatePayload(BaseModel):
     vendorId: int | None = Field(default=None, ge=1)
     inStockQty: float | None = Field(default=None, ge=0)
@@ -623,6 +632,7 @@ class ShoppingListItemUpdatePayload(BaseModel):
     ordered: bool | None = None
     received: bool | None = None
     notes: str | None = None
+    vendorAllocations: list[ShoppingListItemVendorAllocationInput] | None = None
 
 
 class ShoppingListUpdatePayload(BaseModel):
@@ -1939,79 +1949,173 @@ def update_shopping_list_item(
         to_buy_unit = required_unit
 
         vendor_id = item_row["vendor_id"]
-        if "vendorId" in fields:
-            vendor_id = payload.vendorId
-            if vendor_id is not None:
-                vendor_exists = conn.execute(
-                    "SELECT id FROM vendors WHERE id = ?",
-                    (vendor_id,),
-                ).fetchone()
-                if not vendor_exists:
-                    raise HTTPException(status_code=400, detail="Vendor not found")
-
+        now_iso = datetime.now(timezone.utc).isoformat()
         ordered = bool(item_row["ordered"])
         received = bool(item_row["received"])
-
-        if "orderedQty" in fields:
-            if payload.orderedQty is None:
-                ordered_qty = None
-            else:
-                ordered_qty = float(payload.orderedQty)
-                if ordered_qty < 0:
-                    raise HTTPException(status_code=400, detail="Amount ordered must be non-negative.")
-                ordered_qty = round(ordered_qty, 4)
-            if ordered_qty is not None and ordered_qty > 0 and not received:
-                ordered = True
-
-        if "orderedUnit" in fields:
-            ordered_unit = normalize_unit(str(payload.orderedUnit or "").strip()) or None
-
-        if "ordered" in fields:
-            ordered = bool(payload.ordered)
-            if not ordered:
-                received = False
-
-        if "received" in fields:
-            received = bool(payload.received)
-            if received:
-                ordered = True
-
-        now_iso = datetime.now(timezone.utc).isoformat()
         ordered_at = item_row["ordered_at"]
         received_at = item_row["received_at"]
+        normalized_vendor_allocations: list[dict[str, Any]] | None = None
 
-        if ordered and not bool(item_row["ordered"]):
-            ordered_at = now_iso
-        if not ordered:
-            ordered_at = None
+        if "vendorAllocations" in fields:
+            existing_allocations = load_shopping_list_item_vendor_allocations_by_item_id(conn, [item_id]).get(item_id, [])
+            existing_allocations_by_id = {
+                int(entry["id"]): entry
+                for entry in existing_allocations
+                if entry.get("id") is not None
+            }
+            base_allocation_unit = (
+                normalize_unit(str(to_buy_unit or required_unit or "").strip())
+                or normalize_unit(str(item_row["ordered_unit"] or "").strip())
+                or "each"
+            )
+            seen_vendor_keys: set[int] = set()
+            normalized_vendor_allocations = []
+            raw_allocations = payload.vendorAllocations or []
+            for index, entry in enumerate(raw_allocations):
+                allocation_id = int(entry.id) if entry.id is not None else None
+                existing_allocation = (
+                    existing_allocations_by_id.get(allocation_id)
+                    if allocation_id is not None
+                    else None
+                )
+                if allocation_id is not None and not existing_allocation:
+                    raise HTTPException(status_code=400, detail="Vendor allocation not found for this item.")
 
-        if received and not bool(item_row["received"]):
-            received_at = now_iso
-        if not received:
-            received_at = None
+                next_vendor_id = int(entry.vendorId) if entry.vendorId is not None else None
+                if next_vendor_id is not None:
+                    vendor_exists = conn.execute(
+                        "SELECT id FROM vendors WHERE id = ?",
+                        (next_vendor_id,),
+                    ).fetchone()
+                    if not vendor_exists:
+                        raise HTTPException(status_code=400, detail="Vendor not found")
 
-        default_ordered_qty, default_ordered_unit = preferred_ordered_quantity_and_unit(
-            to_buy_qty or required_qty or 0.0,
-            to_buy_unit or required_unit,
-            preferred_unit=ordered_unit,
-        )
+                if next_vendor_id is not None and next_vendor_id in seen_vendor_keys:
+                    raise HTTPException(status_code=400, detail="Each shopping item source can appear only once.")
 
-        if not ordered and not received:
-            ordered_qty = None
-        if ordered and (ordered_qty is None or ordered_qty <= 0):
-            ordered_qty = default_ordered_qty
-        if ordered_qty is not None and ordered_qty <= 0:
-            ordered_qty = None
-        if received and (ordered_qty is None or ordered_qty <= 0):
-            ordered_qty = default_ordered_qty
-        if ordered_qty is not None and ordered_qty > 0 and not ordered_unit:
-            ordered_unit = default_ordered_unit or to_buy_unit or required_unit
+                next_allocated_qty = round(float(entry.allocatedQty or 0.0), 4)
+                if next_allocated_qty < 0:
+                    raise HTTPException(status_code=400, detail="Source amount must be non-negative.")
+                next_allocated_unit = (
+                    normalize_unit(str(entry.allocatedUnit or "").strip())
+                    or base_allocation_unit
+                )
+                next_ordered = bool(entry.ordered)
+                next_received = bool(entry.received)
+                if next_received:
+                    next_ordered = True
+                if (next_ordered or next_received) and next_allocated_qty <= 0:
+                    raise HTTPException(status_code=400, detail="Ordered or received source lines need an amount.")
+
+                existing_ordered = bool(existing_allocation["ordered"]) if existing_allocation else False
+                existing_received = bool(existing_allocation["received"]) if existing_allocation else False
+                next_ordered_at = existing_allocation["ordered_at"] if existing_ordered and existing_allocation else None
+                next_received_at = existing_allocation["received_at"] if existing_received and existing_allocation else None
+                if next_ordered and not existing_ordered:
+                    next_ordered_at = now_iso
+                if not next_ordered:
+                    next_ordered_at = None
+                    next_received = False
+                    next_received_at = None
+                if next_received and not existing_received:
+                    next_received_at = now_iso
+                if not next_received:
+                    next_received_at = None
+
+                normalized_vendor_allocations.append(
+                    {
+                        "vendor_id": next_vendor_id,
+                        "allocated_qty": next_allocated_qty,
+                        "allocated_unit": next_allocated_unit,
+                        "ordered": next_ordered,
+                        "ordered_at": next_ordered_at,
+                        "received": next_received,
+                        "received_at": next_received_at,
+                        "sort_order": index,
+                    }
+                )
+                if next_vendor_id is not None:
+                    seen_vendor_keys.add(next_vendor_id)
+
+            allocation_summary = summarize_shopping_vendor_allocations(
+                normalized_vendor_allocations,
+                preferred_unit=normalize_unit(str(required_unit or to_buy_unit or "").strip()) or None,
+            )
+            vendor_id = allocation_summary["vendor_id"]
+            ordered_qty = allocation_summary["ordered_qty"]
+            ordered_unit = allocation_summary["ordered_unit"]
+            ordered = bool(allocation_summary["ordered"])
+            ordered_at = allocation_summary["ordered_at"]
+            received = bool(allocation_summary["received"])
+            received_at = allocation_summary["received_at"]
+            status = allocation_summary["status"]
+        else:
+            if "vendorId" in fields:
+                vendor_id = payload.vendorId
+                if vendor_id is not None:
+                    vendor_exists = conn.execute(
+                        "SELECT id FROM vendors WHERE id = ?",
+                        (vendor_id,),
+                    ).fetchone()
+                    if not vendor_exists:
+                        raise HTTPException(status_code=400, detail="Vendor not found")
+
+            if "orderedQty" in fields:
+                if payload.orderedQty is None:
+                    ordered_qty = None
+                else:
+                    ordered_qty = float(payload.orderedQty)
+                    if ordered_qty < 0:
+                        raise HTTPException(status_code=400, detail="Amount ordered must be non-negative.")
+                    ordered_qty = round(ordered_qty, 4)
+                if ordered_qty is not None and ordered_qty > 0 and not received:
+                    ordered = True
+
+            if "orderedUnit" in fields:
+                ordered_unit = normalize_unit(str(payload.orderedUnit or "").strip()) or None
+
+            if "ordered" in fields:
+                ordered = bool(payload.ordered)
+                if not ordered:
+                    received = False
+
+            if "received" in fields:
+                received = bool(payload.received)
+                if received:
+                    ordered = True
+
+            if ordered and not bool(item_row["ordered"]):
+                ordered_at = now_iso
+            if not ordered:
+                ordered_at = None
+
+            if received and not bool(item_row["received"]):
+                received_at = now_iso
+            if not received:
+                received_at = None
+
+            default_ordered_qty, default_ordered_unit = preferred_ordered_quantity_and_unit(
+                to_buy_qty or required_qty or 0.0,
+                to_buy_unit or required_unit,
+                preferred_unit=ordered_unit,
+            )
+
+            if not ordered and not received:
+                ordered_qty = None
+            if ordered and (ordered_qty is None or ordered_qty <= 0):
+                ordered_qty = default_ordered_qty
+            if ordered_qty is not None and ordered_qty <= 0:
+                ordered_qty = None
+            if received and (ordered_qty is None or ordered_qty <= 0):
+                ordered_qty = default_ordered_qty
+            if ordered_qty is not None and ordered_qty > 0 and not ordered_unit:
+                ordered_unit = default_ordered_unit or to_buy_unit or required_unit
+            status = derive_shopping_item_status(ordered=ordered, received=received)
 
         notes = item_row["notes"]
         if "notes" in fields:
             notes = payload.notes.strip() if payload.notes and payload.notes.strip() else None
 
-        status = derive_shopping_item_status(ordered=ordered, received=received)
         conn.execute(
             """
             UPDATE shopping_list_items
@@ -2048,6 +2152,8 @@ def update_shopping_list_item(
                 shopping_list_id,
             ),
         )
+        if normalized_vendor_allocations is not None:
+            replace_shopping_item_vendor_allocations(conn, item_id, normalized_vendor_allocations)
 
         refresh_shopping_list_status(conn, shopping_list_id)
         sync_food_inventory_orders_for_shopping_list(conn, shopping_list_id, actor_user_id=user.id)
@@ -2394,21 +2500,7 @@ def list_retreat_plans() -> list[dict[str, Any]]:
     return [dict(r) for r in rows]
 
 
-@app.get("/api/retreat-plans/{plan_id}")
-def get_retreat_plan(plan_id: int) -> dict[str, Any]:
-    with get_connection() as conn:
-        row = conn.execute(
-            """
-            SELECT id, name, start_date, day_count, default_people, plan_json, created_at, updated_at
-            FROM retreat_plans
-            WHERE id = ?
-            """,
-            (plan_id,),
-        ).fetchone()
-
-    if not row:
-        raise HTTPException(status_code=404, detail="Retreat plan not found")
-
+def hydrate_retreat_plan_payload(row: Any) -> dict[str, Any]:
     payload = json.loads(row["plan_json"]) if row["plan_json"] else {}
     if not isinstance(payload, dict):
         payload = {}
@@ -2448,6 +2540,128 @@ def get_retreat_plan(plan_id: int) -> dict[str, Any]:
     payload["created_at"] = row["created_at"]
     payload["updated_at"] = row["updated_at"]
     return payload
+
+
+@app.get("/api/retreat-plans/{plan_id}")
+def get_retreat_plan(plan_id: int) -> dict[str, Any]:
+    with get_connection() as conn:
+        row = conn.execute(
+            """
+            SELECT id, name, start_date, day_count, default_people, plan_json, created_at, updated_at
+            FROM retreat_plans
+            WHERE id = ?
+            """,
+            (plan_id,),
+        ).fetchone()
+
+    if not row:
+        raise HTTPException(status_code=404, detail="Retreat plan not found")
+
+    return hydrate_retreat_plan_payload(row)
+
+
+@app.get("/api/retreat-plans/{plan_id}/ingredients-by-retreat")
+def get_retreat_plan_ingredients_by_retreat(
+    plan_id: int,
+    tier: Literal["bulk", "fresh", "daily"] = Query(default="bulk"),
+) -> dict[str, Any]:
+    with get_connection() as conn:
+        row = conn.execute(
+            """
+            SELECT id, name, start_date, day_count, default_people, plan_json, created_at, updated_at
+            FROM retreat_plans
+            WHERE id = ?
+            """,
+            (plan_id,),
+        ).fetchone()
+        if not row:
+            raise HTTPException(status_code=404, detail="Retreat plan not found")
+
+        plan_payload = hydrate_retreat_plan_payload(row)
+        aggregate, missing_recipes, _dish_breakdown = build_required_ingredients_from_plan(
+            conn,
+            plan_payload=plan_payload,
+            profile="retreat",
+            purchase_tiers=resolve_purchase_tiers_for_shopping(tier, None),
+        )
+
+        category_by_ingredient_id: dict[int, str | None] = {}
+        ingredient_ids = sorted({int(entry["ingredient_id"]) for entry in aggregate.values()})
+        if ingredient_ids:
+            placeholders = ",".join("?" for _ in ingredient_ids)
+            category_rows = conn.execute(
+                f"SELECT id, category FROM ingredients WHERE id IN ({placeholders})",
+                tuple(ingredient_ids),
+            ).fetchall()
+            category_by_ingredient_id = {
+                int(category_row["id"]): (
+                    str(category_row["category"]).strip() if category_row["category"] is not None else None
+                )
+                for category_row in category_rows
+            }
+
+    items_by_category: dict[str, list[dict[str, Any]]] = {}
+    ingredient_name_counts: dict[str, int] = {}
+    for entry in aggregate.values():
+        ingredient_name = str(entry["ingredient_name"] or "").strip() or "Unknown ingredient"
+        ingredient_name_counts[ingredient_name.lower()] = ingredient_name_counts.get(ingredient_name.lower(), 0) + 1
+
+    for entry in aggregate.values():
+        ingredient_id = int(entry["ingredient_id"])
+        ingredient_name = str(entry["ingredient_name"] or "").strip() or "Unknown ingredient"
+        required_unit = str(entry["canonical_unit"] or "").strip()
+        if ingredient_name_counts.get(ingredient_name.lower(), 0) > 1 and required_unit:
+            ingredient_name = f"{ingredient_name} ({required_unit})"
+
+        category_name = (
+            str(category_by_ingredient_id.get(ingredient_id) or "").strip()
+            or "Uncategorized"
+        )
+        items_by_category.setdefault(category_name, []).append(
+            {
+                "ingredient_id": ingredient_id,
+                "ingredient_name": ingredient_name,
+                "ingredient_category": category_name,
+                "required_qty": round(float(entry["required_qty"]), 4),
+                "required_unit": required_unit,
+            }
+        )
+
+    def category_sort_key(name: str) -> tuple[int, str]:
+        return (1, "") if name == "Uncategorized" else (0, name.lower())
+
+    categories: list[dict[str, Any]] = []
+    total_items = 0
+    for category_name in sorted(items_by_category.keys(), key=category_sort_key):
+        category_items = sorted(
+            items_by_category[category_name],
+            key=lambda item: (
+                str(item["ingredient_name"]).lower(),
+                int(item["ingredient_id"]),
+            ),
+        )
+        total_items += len(category_items)
+        categories.append(
+            {
+                "category": category_name,
+                "item_count": len(category_items),
+                "items": category_items,
+            }
+        )
+
+    return {
+        "retreat_plan": {
+            "id": int(plan_payload["id"]),
+            "name": plan_payload["name"],
+            "start_date": plan_payload.get("startDate"),
+            "updated_at": plan_payload.get("updated_at"),
+        },
+        "tier": tier,
+        "item_count": total_items,
+        "category_count": len(categories),
+        "missing_recipes": sorted(missing_recipes),
+        "categories": categories,
+    }
 
 
 @app.post("/api/retreat-plans")
@@ -3297,6 +3511,209 @@ def derive_shopping_item_status(ordered: bool, received: bool) -> str:
     return "open"
 
 
+def shopping_vendor_allocations_supported(conn: Any) -> bool:
+    return table_exists(conn, "shopping_list_item_vendor_allocations")
+
+
+def load_shopping_list_item_vendor_allocations_by_item_id(
+    conn: Any,
+    shopping_list_item_ids: list[int],
+) -> dict[int, list[dict[str, Any]]]:
+    normalized_ids = [int(item_id) for item_id in shopping_list_item_ids if int(item_id) > 0]
+    if not normalized_ids or not shopping_vendor_allocations_supported(conn):
+        return {}
+
+    placeholders = ",".join("?" for _ in normalized_ids)
+    rows = conn.execute(
+        f"""
+        SELECT
+            sliva.id,
+            sliva.shopping_list_item_id,
+            sliva.vendor_id,
+            v.name AS vendor_name,
+            sliva.allocated_qty,
+            sliva.allocated_unit,
+            sliva.ordered,
+            sliva.ordered_at,
+            sliva.received,
+            sliva.received_at,
+            sliva.sort_order
+        FROM shopping_list_item_vendor_allocations sliva
+        LEFT JOIN vendors v ON v.id = sliva.vendor_id
+        WHERE sliva.shopping_list_item_id IN ({placeholders})
+        ORDER BY sliva.shopping_list_item_id, sliva.sort_order, sliva.id
+        """,
+        tuple(normalized_ids),
+    ).fetchall()
+
+    allocations_by_item_id: dict[int, list[dict[str, Any]]] = {}
+    for row in rows:
+        item_id = int(row["shopping_list_item_id"])
+        allocations_by_item_id.setdefault(item_id, []).append(
+            {
+                "id": int(row["id"]),
+                "vendor_id": int(row["vendor_id"]) if row["vendor_id"] is not None else None,
+                "vendor_name": normalize_optional_text(row["vendor_name"]),
+                "allocated_qty": float(row["allocated_qty"] or 0.0),
+                "allocated_unit": normalize_unit(str(row["allocated_unit"] or "").strip()) or None,
+                "ordered": bool(row["ordered"]),
+                "ordered_at": row["ordered_at"],
+                "received": bool(row["received"]),
+                "received_at": row["received_at"],
+                "sort_order": int(row["sort_order"] or 0),
+            }
+        )
+    return allocations_by_item_id
+
+
+def fallback_vendor_allocation_from_item_row(row: Any) -> list[dict[str, Any]]:
+    base_unit = normalize_unit(
+        str(row["ordered_unit"] or row["to_buy_unit"] or row["required_unit"] or "").strip()
+    ) or None
+    if not base_unit:
+        return []
+
+    allocated_qty = rounded_quantity(
+        row["ordered_qty"]
+        if row["ordered_qty"] is not None
+        else row["to_buy_qty"]
+        if row["to_buy_qty"] is not None
+        else row["required_qty"]
+    )
+    if allocated_qty <= 0 and row["vendor_id"] is None and not bool(row["ordered"]) and not bool(row["received"]):
+        return []
+
+    return [
+        {
+            "id": None,
+            "vendor_id": int(row["vendor_id"]) if row["vendor_id"] is not None else None,
+            "vendor_name": normalize_optional_text(row["vendor_name"]),
+            "allocated_qty": allocated_qty,
+            "allocated_unit": base_unit,
+            "ordered": bool(row["ordered"]),
+            "ordered_at": row["ordered_at"],
+            "received": bool(row["received"]),
+            "received_at": row["received_at"],
+            "sort_order": 0,
+        }
+    ]
+
+
+def summarize_shopping_vendor_allocations(
+    allocations: list[dict[str, Any]],
+    *,
+    preferred_unit: str | None,
+) -> dict[str, Any]:
+    rows = [dict(entry) for entry in allocations if isinstance(entry, dict)]
+    if not rows:
+        return {
+            "vendor_id": None,
+            "ordered_qty": None,
+            "ordered_unit": None,
+            "ordered": False,
+            "ordered_at": None,
+            "received": False,
+            "received_at": None,
+            "status": "open",
+        }
+
+    normalized_preferred_unit = normalize_unit(str(preferred_unit or "").strip()) or None
+    vendor_ids = [row.get("vendor_id") for row in rows if row.get("vendor_id") is not None]
+    positive_rows = [
+        row for row in rows
+        if rounded_quantity(row.get("allocated_qty")) > 0 or bool(row.get("ordered")) or bool(row.get("received"))
+    ]
+    ordered_rows = [row for row in rows if bool(row.get("ordered")) or bool(row.get("received"))]
+    received_rows = [row for row in rows if bool(row.get("received"))]
+
+    ordered = bool(ordered_rows)
+    received = bool(positive_rows) and len(received_rows) == len(positive_rows)
+
+    total_qty: float | None = 0.0 if normalized_preferred_unit else None
+    for row in rows:
+        allocated_qty = rounded_quantity(row.get("allocated_qty"))
+        allocated_unit = normalize_unit(str(row.get("allocated_unit") or "").strip()) or None
+        if allocated_qty <= 0:
+            continue
+        if normalized_preferred_unit is None:
+            total_qty = None
+            break
+        converted = convert_quantity_between_units(
+            allocated_qty,
+            allocated_unit,
+            normalized_preferred_unit,
+        )
+        if converted is None:
+            total_qty = None
+            break
+        total_qty += converted
+
+    ordered_at_values = [row.get("ordered_at") for row in ordered_rows if row.get("ordered_at")]
+    received_at_values = [row.get("received_at") for row in received_rows if row.get("received_at")]
+
+    ordered_unit = normalized_preferred_unit
+    ordered_qty: float | None = round(total_qty, 4) if total_qty is not None and total_qty > 0 else None
+    if ordered_qty is None and len(rows) == 1:
+        single_unit = normalize_unit(str(rows[0].get("allocated_unit") or "").strip()) or None
+        single_qty = rounded_quantity(rows[0].get("allocated_qty"))
+        if single_unit and single_qty > 0:
+            ordered_unit = single_unit
+            ordered_qty = single_qty
+
+    return {
+        "vendor_id": vendor_ids[0] if len(vendor_ids) == 1 and len(rows) == 1 else None,
+        "ordered_qty": ordered_qty,
+        "ordered_unit": ordered_unit if ordered_qty is not None else None,
+        "ordered": ordered,
+        "ordered_at": min(ordered_at_values) if ordered_at_values else None,
+        "received": received,
+        "received_at": max(received_at_values) if received and received_at_values else None,
+        "status": derive_shopping_item_status(ordered=ordered, received=received),
+    }
+
+
+def replace_shopping_item_vendor_allocations(
+    conn: Any,
+    shopping_list_item_id: int,
+    allocations: list[dict[str, Any]],
+) -> None:
+    if not shopping_vendor_allocations_supported(conn):
+        return
+    conn.execute(
+        "DELETE FROM shopping_list_item_vendor_allocations WHERE shopping_list_item_id = ?",
+        (shopping_list_item_id,),
+    )
+    for index, allocation in enumerate(allocations):
+        conn.execute(
+            """
+            INSERT INTO shopping_list_item_vendor_allocations(
+                shopping_list_item_id,
+                vendor_id,
+                allocated_qty,
+                allocated_unit,
+                ordered,
+                ordered_at,
+                received,
+                received_at,
+                sort_order,
+                updated_at
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+            """,
+            (
+                shopping_list_item_id,
+                allocation.get("vendor_id"),
+                round(float(allocation.get("allocated_qty") or 0.0), 4),
+                normalize_unit(str(allocation.get("allocated_unit") or "").strip()) or "each",
+                1 if bool(allocation.get("ordered")) else 0,
+                allocation.get("ordered_at"),
+                1 if bool(allocation.get("received")) else 0,
+                allocation.get("received_at"),
+                int(allocation.get("sort_order") if allocation.get("sort_order") is not None else index),
+            ),
+        )
+
+
 def load_existing_shopping_list_item_metadata(
     conn: Any,
     shopping_list_id: int,
@@ -3323,6 +3740,10 @@ def load_existing_shopping_list_item_metadata(
         """,
         (shopping_list_id,),
     ).fetchall()
+    allocation_rows_by_item_id = load_shopping_list_item_vendor_allocations_by_item_id(
+        conn,
+        [int(row["id"]) for row in rows if row["id"] is not None],
+    )
 
     preserved: dict[tuple[int, str], dict[str, Any]] = {}
     duplicate_keys: set[tuple[int, str]] = set()
@@ -3341,6 +3762,8 @@ def load_existing_shopping_list_item_metadata(
         ordered_unit = normalize_unit(str(row["ordered_unit"] or "").strip()) or None
         if ordered_unit in {"g", "kg", "ml", "l"} and row["ordered_qty"] is None and not ordered and not received:
             ordered_unit = None
+        item_id = int(row["id"])
+        vendor_allocations = allocation_rows_by_item_id.get(item_id, [])
         preserved[key] = {
             "vendor_id": int(row["vendor_id"]) if row["vendor_id"] is not None else None,
             "ordered_qty": float(row["ordered_qty"]) if row["ordered_qty"] is not None else None,
@@ -3352,6 +3775,19 @@ def load_existing_shopping_list_item_metadata(
             "received": received,
             "received_at": row["received_at"] if received else None,
             "notes": str(row["notes"] or "").strip() or None,
+            "vendor_allocations": [
+                {
+                    "vendor_id": entry.get("vendor_id"),
+                    "allocated_qty": round(float(entry.get("allocated_qty") or 0.0), 4),
+                    "allocated_unit": normalize_unit(str(entry.get("allocated_unit") or "").strip()) or ordered_unit or required_unit,
+                    "ordered": bool(entry.get("ordered")),
+                    "ordered_at": entry.get("ordered_at") if bool(entry.get("ordered")) else None,
+                    "received": bool(entry.get("received")),
+                    "received_at": entry.get("received_at") if bool(entry.get("received")) else None,
+                    "sort_order": int(entry.get("sort_order") or 0),
+                }
+                for entry in vendor_allocations
+            ],
         }
 
     for key in duplicate_keys:
@@ -3585,8 +4021,37 @@ def materialize_shopping_list(
         in_stock_qty = canonical_qty_to_unit(in_stock_canonical, canonical_unit, row_unit)
         to_buy_qty = canonical_qty_to_unit(to_buy_canonical, canonical_unit, row_unit)
         preserved = existing_metadata_by_key.get((int(ingredient_id), canonical_unit))
+        preserved_vendor_allocations: list[dict[str, Any]] = []
+        if preserved:
+            for allocation in preserved.get("vendor_allocations") or []:
+                allocated_qty = round(float(allocation.get("allocated_qty") or 0.0), 4)
+                allocated_unit = normalize_unit(str(allocation.get("allocated_unit") or "").strip()) or row_unit
+                if allocated_qty > 0 and allocated_unit != row_unit:
+                    converted_qty = convert_quantity_between_units(allocated_qty, allocated_unit, row_unit)
+                    if converted_qty is not None:
+                        allocated_qty = round(converted_qty, 4)
+                        allocated_unit = row_unit
+                preserved_vendor_allocations.append(
+                    {
+                        "vendor_id": allocation.get("vendor_id"),
+                        "allocated_qty": allocated_qty,
+                        "allocated_unit": allocated_unit or row_unit,
+                        "ordered": bool(allocation.get("ordered")),
+                        "ordered_at": allocation.get("ordered_at") if bool(allocation.get("ordered")) else None,
+                        "received": bool(allocation.get("received")),
+                        "received_at": allocation.get("received_at") if bool(allocation.get("received")) else None,
+                        "sort_order": int(allocation.get("sort_order") or len(preserved_vendor_allocations)),
+                    }
+                )
+        allocation_summary = summarize_shopping_vendor_allocations(
+            preserved_vendor_allocations,
+            preferred_unit=row_unit,
+        ) if preserved_vendor_allocations else None
         ordered = bool(preserved["ordered"]) if preserved else False
         received = bool(preserved["received"]) if preserved else False
+        if allocation_summary:
+            ordered = bool(allocation_summary["ordered"])
+            received = bool(allocation_summary["received"])
 
         created_item = conn.execute(
             """
@@ -3624,27 +4089,49 @@ def materialize_shopping_list(
                 round(to_buy_qty, 4),
                 row_unit,
                 (
-                    round(float(preserved["ordered_qty"]), 4)
+                    allocation_summary["ordered_qty"]
+                    if allocation_summary and allocation_summary["ordered_qty"] is not None
+                    else round(float(preserved["ordered_qty"]), 4)
                     if preserved and preserved["ordered_qty"] is not None
                     else None
                 ),
                 (
-                    preserved["ordered_unit"]
+                    allocation_summary["ordered_unit"]
+                    if allocation_summary and allocation_summary["ordered_unit"]
+                    else preserved["ordered_unit"]
                     if preserved and preserved["ordered_unit"]
                     else None
                 ),
-                preserved["vendor_id"] if preserved else None,
+                (
+                    allocation_summary["vendor_id"]
+                    if allocation_summary
+                    else preserved["vendor_id"] if preserved else None
+                ),
                 preserved["owner"] if preserved else None,
                 preserved["pickup_date"] if preserved else None,
                 1 if ordered else 0,
-                preserved["ordered_at"] if preserved and ordered else None,
+                (
+                    allocation_summary["ordered_at"]
+                    if allocation_summary and ordered
+                    else preserved["ordered_at"] if preserved and ordered else None
+                ),
                 1 if received else 0,
-                preserved["received_at"] if preserved and received else None,
-                derive_shopping_item_status(ordered=ordered, received=received),
+                (
+                    allocation_summary["received_at"]
+                    if allocation_summary and received
+                    else preserved["received_at"] if preserved and received else None
+                ),
+                (
+                    allocation_summary["status"]
+                    if allocation_summary
+                    else derive_shopping_item_status(ordered=ordered, received=received)
+                ),
                 preserved["notes"] if preserved else None,
             ),
         ).fetchone()
         shopping_list_item_id = int(created_item["id"])
+        if preserved_vendor_allocations:
+            replace_shopping_item_vendor_allocations(conn, shopping_list_item_id, preserved_vendor_allocations)
 
         for plan_id, plan_dish_breakdown in plan_dish_breakdown_by_plan_id.items():
             dish_required_by_name = plan_dish_breakdown.get(key) or {}
@@ -3795,6 +4282,10 @@ def load_shopping_list_detail(conn: Any, shopping_list_id: int) -> dict[str, Any
 
     source_breakdown_by_item: dict[int, list[dict[str, Any]]] = {}
     top_source_by_item: dict[int, dict[str, Any]] = {}
+    vendor_allocations_by_item_id = load_shopping_list_item_vendor_allocations_by_item_id(
+        conn,
+        [int(row["id"]) for row in item_rows if row["id"] is not None],
+    )
     if item_rows:
         source_table_exists = table_exists(conn, "shopping_list_item_sources")
         if source_table_exists:
@@ -3887,8 +4378,24 @@ def load_shopping_list_detail(conn: Any, shopping_list_id: int) -> dict[str, Any
     ordered_count = 0
     received_count = 0
     for row in item_rows:
-        ordered = bool(row["ordered"])
-        received = bool(row["received"])
+        item_id = int(row["id"])
+        vendor_allocations = vendor_allocations_by_item_id.get(item_id) or fallback_vendor_allocation_from_item_row(row)
+        allocation_summary = summarize_shopping_vendor_allocations(
+            vendor_allocations,
+            preferred_unit=normalize_unit(str(row["required_unit"] or row["to_buy_unit"] or "").strip()) or None,
+        ) if vendor_allocations else {
+            "vendor_id": int(row["vendor_id"]) if row["vendor_id"] is not None else None,
+            "ordered_qty": float(row["ordered_qty"]) if row["ordered_qty"] is not None else None,
+            "ordered_unit": normalize_unit(str(row["ordered_unit"] or "").strip()) or None,
+            "ordered": bool(row["ordered"]),
+            "ordered_at": row["ordered_at"] if bool(row["ordered"]) else None,
+            "received": bool(row["received"]),
+            "received_at": row["received_at"] if bool(row["received"]) else None,
+            "status": row["status"] or derive_shopping_item_status(bool(row["ordered"]), bool(row["received"])),
+        }
+
+        ordered = bool(allocation_summary["ordered"])
+        received = bool(allocation_summary["received"])
         if ordered:
             ordered_count += 1
         if received:
@@ -3903,7 +4410,6 @@ def load_shopping_list_detail(conn: Any, shopping_list_id: int) -> dict[str, Any
             if qualifier and qualifier.lower() not in {"piece", "pieces"}:
                 ingredient_name = f"{ingredient_name} ({qualifier})"
 
-        item_id = int(row["id"])
         source_breakdown = source_breakdown_by_item.get(item_id, [])
         if not source_breakdown and list_row["retreat_plan_id"] is not None:
             fallback_retreat_id = int(list_row["retreat_plan_id"])
@@ -3945,20 +4451,33 @@ def load_shopping_list_detail(conn: Any, shopping_list_id: int) -> dict[str, Any
                 "in_stock_unit": row["in_stock_unit"],
                 "to_buy_qty": float(row["to_buy_qty"]) if row["to_buy_qty"] is not None else None,
                 "to_buy_unit": row["to_buy_unit"],
-                "ordered_qty": float(row["ordered_qty"]) if row["ordered_qty"] is not None else None,
-                "ordered_unit": normalize_unit(str(row["ordered_unit"] or "").strip()) or None,
-                "vendor_id": int(row["vendor_id"]) if row["vendor_id"] is not None else None,
-                "vendor_name": row["vendor_name"],
+                "ordered_qty": allocation_summary["ordered_qty"],
+                "ordered_unit": allocation_summary["ordered_unit"],
+                "vendor_id": allocation_summary["vendor_id"],
+                "vendor_name": (
+                    next(
+                        (
+                            entry.get("vendor_name")
+                            for entry in vendor_allocations
+                            if entry.get("vendor_id") is not None
+                            and entry.get("vendor_id") == allocation_summary["vendor_id"]
+                            and entry.get("vendor_name")
+                        ),
+                        None,
+                    )
+                    or row["vendor_name"]
+                ),
                 "ordered": ordered,
-                "ordered_at": row["ordered_at"],
+                "ordered_at": allocation_summary["ordered_at"],
                 "received": received,
-                "received_at": row["received_at"],
-                "status": row["status"] or derive_shopping_item_status(ordered, received),
+                "received_at": allocation_summary["received_at"],
+                "status": allocation_summary["status"],
                 "owner": row["owner"],
                 "pickup_date": row["pickup_date"],
                 "notes": row["notes"],
                 "source_breakdown": source_breakdown,
                 "top_source": top_source,
+                "vendor_allocations": vendor_allocations,
             }
         )
 
@@ -8408,7 +8927,11 @@ def build_food_inventory_order_name(shopping_list_name: Any, vendor_name: Any) -
     return f"{base_name} - {supplier_label}"
 
 
-def build_food_inventory_order_item_input(row: Any) -> InventoryOrderItemInput | None:
+def build_food_inventory_order_item_input(
+    row: Any,
+    *,
+    source_item_id: int | None = None,
+) -> InventoryOrderItemInput | None:
     required_qty = rounded_quantity(row["required_qty"])
     required_unit = normalize_unit(str(row["required_unit"] or "").strip()) or None
     to_buy_qty = rounded_quantity(row["to_buy_qty"])
@@ -8446,7 +8969,7 @@ def build_food_inventory_order_item_input(row: Any) -> InventoryOrderItemInput |
 
     received_qty = ordered_qty if received and ordered_qty > 0 else 0.0
     notes = normalize_optional_text(row["notes"])
-    source_item_id = int(row["id"])
+    resolved_source_item_id = int(source_item_id) if source_item_id is not None else int(row["id"])
 
     return InventoryOrderItemInput(
         itemType="INGREDIENT",
@@ -8460,7 +8983,7 @@ def build_food_inventory_order_item_input(row: Any) -> InventoryOrderItemInput |
         unitsPerPurchase=1,
         orderedPurchaseQuantity=ordered_qty,
         receivedPurchaseQuantity=received_qty,
-        sourceShoppingListItemId=source_item_id,
+        sourceShoppingListItemId=resolved_source_item_id,
         notes=notes,
     )
 
@@ -8531,24 +9054,58 @@ def sync_food_inventory_orders_for_shopping_list(
         """,
         (shopping_list_id,),
     ).fetchall()
+    vendor_allocations_by_item_id = load_shopping_list_item_vendor_allocations_by_item_id(
+        conn,
+        [int(row["id"]) for row in shopping_rows if row["id"] is not None],
+    )
 
     grouped_rows: dict[int | None, dict[str, Any]] = {}
     for row in shopping_rows:
-        ordered_qty = rounded_quantity(row["ordered_qty"])
-        if not bool(row["ordered"]) and not bool(row["received"]) and ordered_qty <= 0:
-            continue
-        vendor_id = int(row["vendor_id"]) if row["vendor_id"] is not None else None
-        group = grouped_rows.setdefault(
-            vendor_id,
-            {
-                "vendor_id": vendor_id,
-                "vendor_name": normalize_optional_text(row["vendor_name"]),
-                "rows": [],
-            },
-        )
-        if not group["vendor_name"]:
-            group["vendor_name"] = normalize_optional_text(row["vendor_name"])
-        group["rows"].append(row)
+        item_id = int(row["id"])
+        allocation_rows = vendor_allocations_by_item_id.get(item_id, [])
+        effective_rows: list[dict[str, Any]] = []
+        if allocation_rows:
+            for allocation in allocation_rows:
+                effective_rows.append(
+                    {
+                        "id": item_id,
+                        "ingredient_id": int(row["ingredient_id"]),
+                        "required_qty": round(float(allocation.get("allocated_qty") or 0.0), 4),
+                        "required_unit": allocation.get("allocated_unit") or row["required_unit"],
+                        "to_buy_qty": round(float(allocation.get("allocated_qty") or 0.0), 4),
+                        "to_buy_unit": allocation.get("allocated_unit") or row["to_buy_unit"] or row["required_unit"],
+                        "ordered_qty": (
+                            round(float(allocation.get("allocated_qty") or 0.0), 4)
+                            if bool(allocation.get("ordered")) or bool(allocation.get("received"))
+                            else 0.0
+                        ),
+                        "ordered_unit": allocation.get("allocated_unit") or row["ordered_unit"] or row["to_buy_unit"] or row["required_unit"],
+                        "vendor_id": allocation.get("vendor_id"),
+                        "vendor_name": allocation.get("vendor_name"),
+                        "ordered": bool(allocation.get("ordered")),
+                        "received": bool(allocation.get("received")),
+                        "notes": row["notes"],
+                    }
+                )
+        else:
+            effective_rows.append(dict(row))
+
+        for effective_row in effective_rows:
+            ordered_qty = rounded_quantity(effective_row["ordered_qty"])
+            if not bool(effective_row["ordered"]) and not bool(effective_row["received"]) and ordered_qty <= 0:
+                continue
+            vendor_id = int(effective_row["vendor_id"]) if effective_row["vendor_id"] is not None else None
+            group = grouped_rows.setdefault(
+                vendor_id,
+                {
+                    "vendor_id": vendor_id,
+                    "vendor_name": normalize_optional_text(effective_row["vendor_name"]),
+                    "rows": [],
+                },
+            )
+            if not group["vendor_name"]:
+                group["vendor_name"] = normalize_optional_text(effective_row["vendor_name"])
+            group["rows"].append(effective_row)
 
     existing_orders = conn.execute(
         """
@@ -8584,7 +9141,7 @@ def sync_food_inventory_orders_for_shopping_list(
     for group in grouped_rows.values():
         payload_items = [
             payload
-            for payload in (build_food_inventory_order_item_input(row) for row in group["rows"])
+            for payload in (build_food_inventory_order_item_input(row, source_item_id=int(row["id"])) for row in group["rows"])
             if payload is not None
         ]
         if not payload_items:
@@ -8592,18 +9149,8 @@ def sync_food_inventory_orders_for_shopping_list(
 
         group_source_item_ids = {int(item.sourceShoppingListItemId) for item in payload_items if item.sourceShoppingListItemId}
         chosen_order: Any | None = None
-        best_overlap = 0
-        for order_row in existing_orders:
-            order_id = int(order_row["id"])
-            if order_id in used_order_ids:
-                continue
-            overlap = len(group_source_item_ids & existing_source_ids_by_order.get(order_id, set()))
-            if overlap > best_overlap:
-                best_overlap = overlap
-                chosen_order = order_row
-
-        if chosen_order is None:
-            expected_supplier_name = normalize_optional_text(group["vendor_name"])
+        expected_supplier_name = normalize_optional_text(group["vendor_name"])
+        if expected_supplier_name:
             for order_row in existing_orders:
                 order_id = int(order_row["id"])
                 if order_id in used_order_ids:
@@ -8611,6 +9158,17 @@ def sync_food_inventory_orders_for_shopping_list(
                 if normalize_optional_text(order_row["supplier_name"]) == expected_supplier_name:
                     chosen_order = order_row
                     break
+
+        if chosen_order is None:
+            best_overlap = 0
+            for order_row in existing_orders:
+                order_id = int(order_row["id"])
+                if order_id in used_order_ids:
+                    continue
+                overlap = len(group_source_item_ids & existing_source_ids_by_order.get(order_id, set()))
+                if overlap > best_overlap:
+                    best_overlap = overlap
+                    chosen_order = order_row
 
         order_name = build_food_inventory_order_name(shopping_list_row["name"], group["vendor_name"])
         supplier_name = normalize_optional_text(group["vendor_name"])

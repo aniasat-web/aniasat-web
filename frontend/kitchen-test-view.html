@@ -298,6 +298,143 @@
         border-radius: 0.75rem;
         margin-bottom: 1rem;
       }
+      .print-output {
+        display: none;
+      }
+      .print-sheet-header {
+        border-bottom: 1px solid #cfcfcf;
+        padding-bottom: 3mm;
+        margin-bottom: 4mm;
+      }
+      .print-sheet-title {
+        font-family: "Instrument Serif", serif;
+        font-size: 16pt;
+        color: #111827;
+        margin-bottom: 0.08rem;
+      }
+      .print-sheet-note {
+        color: #4b5563;
+        font-size: 9pt;
+      }
+      .print-meal-section {
+        margin-bottom: 5mm;
+      }
+      .print-meal-title {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 0.75rem;
+        border: 1px solid #bfbfbf;
+        border-left: 3px solid #000;
+        background: #fff;
+        margin-bottom: 3mm;
+        padding: 0.65rem 0.75rem;
+      }
+      .print-meal-title h2 {
+        margin: 0;
+        font-size: 1.02rem;
+      }
+      .print-recipe-count {
+        display: inline-flex;
+        align-items: center;
+        border: 1px solid #bfbfbf;
+        border-radius: 999px;
+        background: #fff;
+        color: #111827;
+        padding: 0.25rem 0.7rem;
+        font-size: 0.8rem;
+        font-weight: 700;
+        white-space: nowrap;
+      }
+      .print-recipe {
+        margin-bottom: 12mm;
+        padding-bottom: 8mm;
+        border-bottom: 1px solid #d5d5d5;
+      }
+      .print-recipe:last-child {
+        margin-bottom: 0;
+        padding-bottom: 0;
+        border-bottom: none;
+      }
+      .print-recipe-heading {
+        margin-bottom: 2mm;
+        break-after: avoid-page;
+        page-break-after: avoid;
+      }
+      .print-recipe-title {
+        font-family: "Instrument Serif", serif;
+        font-size: 1rem;
+        font-weight: 700;
+        color: #111827;
+        margin: 0 0 0.18rem;
+      }
+      .print-recipe-meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.35rem;
+      }
+      .print-recipe-badge {
+        display: inline-flex;
+        align-items: center;
+        background: #f1f5f9;
+        color: #64748b;
+        border-radius: 999px;
+        padding: 0.2rem 0.55rem;
+        font-size: 0.78rem;
+        font-weight: 700;
+      }
+      .print-section-label {
+        margin-bottom: 0.25rem;
+        color: #4b5563;
+        font-size: 0.8rem;
+        font-weight: 700;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        break-after: avoid-page;
+        page-break-after: avoid;
+      }
+      .print-ingredients-list {
+        margin: 0 0 0.8rem;
+        padding: 0;
+        list-style: none;
+      }
+      .print-ingredient-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 0.5rem;
+        padding: 0.22rem 0;
+        border-bottom: 1px solid #d9d9d9;
+        break-inside: avoid-page;
+        page-break-inside: avoid;
+      }
+      .print-ingredient-row:last-child {
+        border-bottom: none;
+      }
+      .print-ingredient-name {
+        min-width: 0;
+        flex: 1 1 auto;
+        font-weight: 600;
+        overflow-wrap: anywhere;
+      }
+      .print-ingredient-qty {
+        flex: 0 0 auto;
+        min-width: 5.25rem;
+        padding-left: 0.35rem;
+        text-align: right;
+        white-space: nowrap;
+        color: #334155;
+        font-weight: 700;
+      }
+      .print-steps-list {
+        margin: 0;
+        padding-left: 1.15rem;
+      }
+      .print-steps-list li {
+        margin-bottom: 0.15rem;
+        break-inside: avoid-page;
+        page-break-inside: avoid;
+      }
       .start-card-title {
         font-size: 1.2rem;
         font-weight: 800;
@@ -314,10 +451,8 @@
         pointer-events: none;
       }
       @media print {
-        @page {
-          margin: 12mm;
-        }
         nav.navbar,
+        .kitchen-subnav,
         .hero-actions,
         #retreatStartCard,
         .picker-card,
@@ -325,47 +460,119 @@
         .display-recipes-bar {
           display: none !important;
         }
+        html,
+        body {
+          background: #fff !important;
+        }
         body {
           background: #fff;
           color: #000;
           padding-top: 0 !important;
           font-size: 11pt;
-          line-height: 1.3;
+          line-height: 1.45;
         }
+        main.container,
         .container {
           max-width: 100% !important;
           width: 100% !important;
-          padding: 0 !important;
+          padding-left: 0 !important;
+          padding-right: 0 !important;
         }
-        .card {
-          box-shadow: none !important;
-          border: 1px solid #bfbfbf !important;
-          margin-bottom: 5mm !important;
-          break-inside: avoid-page;
-          page-break-inside: avoid;
+        main.container {
+          display: none !important;
         }
-        .meal-section,
-        .recipe-card,
-        .meal-title {
-          break-inside: avoid-page;
-          page-break-inside: avoid;
+        .print-output {
+          display: block !important;
+          width: 100% !important;
+          padding: 0 14mm !important;
+          box-sizing: border-box !important;
         }
-        .meal-title {
-          border-left: 3px solid #000 !important;
+        .print-page-table {
+          width: 100%;
+          border-collapse: collapse;
+          border: none;
+        }
+        .print-page-margin-top {
+          height: 18mm;
+          padding: 0;
+          border: none;
+        }
+        .print-page-content {
+          padding: 0;
+          border: none;
+          vertical-align: top;
+        }
+        main.container {
+          padding-top: 0 !important;
+          padding-bottom: 0 !important;
+        }
+        .print-sheet-header,
+        .print-meal-title,
+        .print-recipe,
+        .print-recipe-title,
+        .print-sheet-title {
+          color: #111827 !important;
           background: #fff !important;
+          box-shadow: none !important;
         }
-        .recipe-header,
-        .recipe-content {
-          padding-left: 0.75rem;
-          padding-right: 0.75rem;
+        .print-sheet-note,
+        .print-section-label {
+          color: #4b5563 !important;
         }
-        .ingredients-list li {
-          padding: 0.25rem 0;
-          border-color: #d9d9d9;
+        .print-meal-section {
+          break-inside: avoid-page;
+          page-break-inside: avoid;
         }
-        .steps-list li {
-          margin-bottom: 0.15rem;
+        .print-meal-title {
+          break-inside: avoid-page;
+          page-break-inside: avoid;
+          break-after: avoid-page;
+          page-break-after: avoid;
         }
+        .print-recipe {
+          break-inside: avoid-page;
+          page-break-inside: avoid;
+        }
+        .print-recipe-heading,
+        .print-section-label {
+          break-inside: avoid-page;
+          page-break-inside: avoid;
+          break-after: avoid-page;
+          page-break-after: avoid;
+        }
+        .print-ingredients-list {
+          break-inside: avoid-page;
+          page-break-inside: avoid;
+        }
+        .print-ingredient-row {
+          break-inside: avoid-page;
+          page-break-inside: avoid;
+        }
+        .print-steps-list li {
+          break-inside: avoid-page;
+          page-break-inside: avoid;
+        }
+        .print-recipe-title {
+          font-size: 13pt;
+        }
+        .print-section-label {
+          font-size: 8.5pt;
+          margin-top: 0.4rem;
+        }
+        .print-ingredient-row {
+          font-size: 10.5pt;
+        }
+        .print-steps-list li {
+          font-size: 10.5pt;
+          line-height: 1.5;
+          margin-bottom: 0.3rem;
+        }
+      }
+      @page {
+        margin-top: 18mm;
+        margin-bottom: 18mm;
+        margin-left: 18mm;
+        margin-right: 18mm;
       }
     </style>
     <link rel="stylesheet" href="assets/ui-theme.css" />
@@ -514,8 +721,9 @@
         </div>
       </section>
     </main>
+    <section id="printOutput" class="print-output" aria-hidden="true"></section>
 
-    <script src="assets/auth.js?v=20260218f"></script>
+    <script src="assets/auth.js?v=20260326a"></script>
     <script src="assets/kitchen-access.js?v=20260320a"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
     <script>
@@ -543,6 +751,7 @@
       const dishSelector = document.getElementById("dishSelector");
       const metaBar = document.getElementById("metaBar");
       const mealSections = document.getElementById("mealSections");
+      const printOutput = document.getElementById("printOutput");
       const displayRecipesBar = document.getElementById("displayRecipesBar");
       const displayRecipesBtn = document.getElementById("displayRecipesBtn");
       const editSelectionBtn = document.getElementById("editSelectionBtn");
@@ -712,6 +921,11 @@
         return UNIT_ALIASES[value] || value;
       }
 
+      function displayUnitLabel(unit) {
+        const normalized = normalizeUnit(unit);
+        return normalized === "l" ? "L" : normalized;
+      }
+
       function normalizeIngredientKey(name) {
         return String(name || "").trim().toLowerCase().replace(/\s+/g, " ");
       }
@@ -839,11 +1053,12 @@
         if (!forceSingleDecimal) {
           value = value.replace(/\.0+$/, "").replace(/(\.\d*?)0+$/, "$1");
         }
-        return `${value} ${unit}`;
+        return `${value} ${displayUnitLabel(unit)}`;
       }
 
       function showEmpty(message) {
         mealSections.innerHTML = `<div class="empty">${message}</div>`;
+        renderPrintEmpty(message);
       }
 
       function createMetaChip(text) {
@@ -929,6 +1144,199 @@
         card.appendChild(header);
         card.appendChild(content);
         return card;
+      }
+
+      function clearPrintOutput() {
+        if (!printOutput) {
+          return;
+        }
+        printOutput.innerHTML = "";
+        printOutput.setAttribute("aria-hidden", "true");
+      }
+
+      function renderPrintEmpty(message) {
+        if (!printOutput) {
+          return;
+        }
+        clearPrintOutput();
+        const header = document.createElement("div");
+        header.className = "print-sheet-header";
+
+        const title = document.createElement("div");
+        title.className = "print-sheet-title";
+        title.textContent = retreatTitle?.textContent || "Testing View";
+
+        header.appendChild(title);
+        if (message) {
+          const note = document.createElement("div");
+          note.className = "print-sheet-note";
+          note.textContent = message;
+          header.appendChild(note);
+        }
+
+        printOutput.appendChild(header);
+        printOutput.setAttribute("aria-hidden", "false");
+      }
+
+      function createPrintIngredientRow(item) {
+        const row = document.createElement("li");
+        row.className = "print-ingredient-row";
+
+        const left = document.createElement("span");
+        left.className = "print-ingredient-name";
+        left.textContent = item.name;
+
+        const right = document.createElement("span");
+        right.className = "print-ingredient-qty";
+        right.textContent = formatKitchenQuantity(
+          item.scaledQty, item.scaledUnit, item.canonicalUnit, item.gramsPerCup, item.name, item.category
+        );
+
+        row.appendChild(left);
+        row.appendChild(right);
+        return row;
+      }
+
+      function createPrintRecipe(dish) {
+        const article = document.createElement("article");
+        article.className = "print-recipe";
+
+        const heading = document.createElement("div");
+        heading.className = "print-recipe-heading";
+
+        const title = document.createElement("h3");
+        title.className = "print-recipe-title";
+        title.textContent = dish.name;
+
+        const meta = document.createElement("div");
+        meta.className = "print-recipe-meta";
+
+        const servesBadge = document.createElement("span");
+        servesBadge.className = "print-recipe-badge";
+        servesBadge.textContent = `Serve ${dish.serves}`;
+
+        const factorBadge = document.createElement("span");
+        factorBadge.className = "print-recipe-badge";
+        factorBadge.textContent = `${dish.factor.toFixed(2)}x`;
+
+        meta.appendChild(servesBadge);
+        meta.appendChild(factorBadge);
+        heading.appendChild(title);
+        heading.appendChild(meta);
+        article.appendChild(heading);
+
+        const ingredientLabel = document.createElement("div");
+        ingredientLabel.className = "print-section-label";
+        ingredientLabel.textContent = "Ingredients";
+        article.appendChild(ingredientLabel);
+
+        const ingredientsList = document.createElement("ul");
+        ingredientsList.className = "print-ingredients-list";
+        dish.ingredients.forEach((item) => {
+          ingredientsList.appendChild(createPrintIngredientRow(item));
+        });
+        article.appendChild(ingredientsList);
+
+        const stepsLabel = document.createElement("div");
+        stepsLabel.className = "print-section-label";
+        stepsLabel.textContent = "Instructions";
+        article.appendChild(stepsLabel);
+
+        const stepsList = document.createElement("ol");
+        stepsList.className = "print-steps-list";
+        dish.steps.forEach((step, index) => {
+          stepsList.appendChild(createStepRow(step, index));
+        });
+        article.appendChild(stepsList);
+
+        return article;
+      }
+
+      function renderPrintOutput(meals, missingRecipes) {
+        if (!printOutput) {
+          return;
+        }
+        clearPrintOutput();
+
+        // Table wrapper so thead repeats as top margin on every printed page
+        const table = document.createElement("table");
+        table.className = "print-page-table";
+
+        const thead = document.createElement("thead");
+        const theadTr = document.createElement("tr");
+        const theadTd = document.createElement("td");
+        theadTd.className = "print-page-margin-top";
+        theadTr.appendChild(theadTd);
+        thead.appendChild(theadTr);
+        table.appendChild(thead);
+
+        const tbody = document.createElement("tbody");
+        const tbodyTr = document.createElement("tr");
+        const tbodyTd = document.createElement("td");
+        tbodyTd.className = "print-page-content";
+
+        const header = document.createElement("div");
+        header.className = "print-sheet-header";
+
+        const title = document.createElement("div");
+        title.className = "print-sheet-title";
+        title.textContent = retreatTitle?.textContent || "Testing View";
+        header.appendChild(title);
+
+        const subtitleText = retreatSubtitle?.textContent || "";
+        if (subtitleText) {
+          const subtitle = document.createElement("div");
+          subtitle.className = "print-sheet-note";
+          subtitle.textContent = subtitleText;
+          header.appendChild(subtitle);
+        }
+
+        const meta = document.createElement("div");
+        meta.className = "print-sheet-note";
+        const mealCount = meals.length;
+        const recipeCount = meals.reduce((sum, meal) => sum + meal.dishes.length, 0);
+        meta.textContent = `${mealCount} meal section${mealCount === 1 ? "" : "s"} · ${recipeCount} dish${recipeCount === 1 ? "" : "es"} selected`;
+        header.appendChild(meta);
+
+        if (missingRecipes > 0) {
+          const missing = document.createElement("div");
+          missing.className = "print-sheet-note";
+          missing.textContent = `Missing recipes: ${missingRecipes}`;
+          header.appendChild(missing);
+        }
+
+        tbodyTd.appendChild(header);
+
+        meals.forEach((meal) => {
+          const section = document.createElement("section");
+          section.className = "print-meal-section";
+
+          const titleRow = document.createElement("div");
+          titleRow.className = "print-meal-title";
+
+          const heading = document.createElement("h2");
+          heading.textContent = `Day ${meal.day} - ${meal.meal}`;
+
+          const count = document.createElement("div");
+          count.className = "print-recipe-count";
+          count.textContent = `${meal.dishes.length} dishes · serves ${meal.people}`;
+
+          titleRow.appendChild(heading);
+          titleRow.appendChild(count);
+          section.appendChild(titleRow);
+
+          meal.dishes.forEach((dish) => {
+            section.appendChild(createPrintRecipe(dish));
+          });
+
+          tbodyTd.appendChild(section);
+        });
+
+        tbodyTr.appendChild(tbodyTd);
+        tbody.appendChild(tbodyTr);
+        table.appendChild(tbody);
+        printOutput.appendChild(table);
+        printOutput.setAttribute("aria-hidden", "false");
       }
 
       function renderDishSelector() {
@@ -1114,6 +1522,7 @@
 
           mealSections.appendChild(section);
         });
+        renderPrintOutput(meals, missingRecipes);
       }
 
       async function fetchRetreatPlans() {

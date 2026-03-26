@@ -272,13 +272,18 @@
 
       document.getElementById("add-row").addEventListener("click", function () { addRow(); });
 
+      function displayUnitLabel(unit) {
+        var normalized = String(unit || "").trim().toLowerCase();
+        return normalized === "l" ? "L" : unit;
+      }
+
       function formatScaled(qty, unit) {
         if (unit === "g" && qty >= 1000) return (qty / 1000).toFixed(2).replace(/\.?0+$/, "") + " kg";
-        if (unit === "ml" && qty >= 1000) return (qty / 1000).toFixed(2).replace(/\.?0+$/, "") + " l";
-        if (unit === "kg" || unit === "l") return qty.toFixed(2).replace(/\.?0+$/, "") + " " + unit;
-        if (unit === "tsp" || unit === "tbsp" || unit === "cup") return qty.toFixed(1) + " " + unit;
+        if (unit === "ml" && qty >= 1000) return (qty / 1000).toFixed(2).replace(/\.?0+$/, "") + " L";
+        if (unit === "kg" || unit === "l") return qty.toFixed(2).replace(/\.?0+$/, "") + " " + displayUnitLabel(unit);
+        if (unit === "tsp" || unit === "tbsp" || unit === "cup") return qty.toFixed(1) + " " + displayUnitLabel(unit);
         var rounded = Math.round(qty * 100) / 100;
-        return rounded + " " + unit;
+        return rounded + " " + displayUnitLabel(unit);
       }
 
       document.getElementById("scale-form").addEventListener("submit", function (event) {

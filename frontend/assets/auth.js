@@ -2,9 +2,11 @@
   const loginPath = "/login.html";
   const currentPath = window.location.pathname;
   const isLoginPage = currentPath.endsWith(loginPath);
+  const INGREDIENTS_BY_RETREAT_PATH = "/ingredients-by-retreat.html";
   const PUBLIC_PAGES = new Set([
     "/kitchen-service-view.html",
     "/kitchen-test-view.html",
+    "/ingredients-by-retreat.html",
     "/inventory-remove.html",
     "/about.html",
     "/about-sri-m.html",
@@ -26,6 +28,7 @@
     "/user-admin.html": ["admin"],
     "/kitchen-service-view.html": ["viewer", "planner", "admin"],
     "/kitchen-test-view.html": ["viewer", "planner", "admin"],
+    "/ingredients-by-retreat.html": ["viewer", "planner", "admin"],
     "/recipe-scaling.html": ["viewer", "planner", "admin"],
     "/inventory-home.html": ["viewer", "planner", "admin"],
     "/inventory-baseline.html": ["viewer", "planner", "admin"],
@@ -89,6 +92,78 @@
 
   function routeForRole(role) {
     return "/index.html";
+  }
+
+  function buildContextualPageHref(pathname) {
+    const url = new URL(pathname, window.location.origin);
+    const params = new URLSearchParams(window.location.search);
+    const apiOverride = params.get("api");
+    const planId = params.get("plan");
+    if (apiOverride && apiOverride.trim() && apiOverride.trim() !== window.location.origin) {
+      url.searchParams.set("api", apiOverride.trim());
+    }
+    if (planId && planId.trim()) {
+      url.searchParams.set("plan", planId.trim());
+    }
+    return `${url.pathname}${url.search}`;
+  }
+
+  function ensureKitchenIngredientsByRetreatLinks() {
+    const linkHref = buildContextualPageHref(INGREDIENTS_BY_RETREAT_PATH);
+
+    const kitchenDropdowns = Array.from(document.querySelectorAll(".navbar .nav-item.dropdown")).filter((dropdown) =>
+      Boolean(dropdown.querySelector(".dropdown-toggle .fa-utensils"))
+    );
+    kitchenDropdowns.forEach((dropdown) => {
+      const menu = dropdown.querySelector(".dropdown-menu");
+      if (!menu) {
+        return;
+      }
+
+      let existingLink = menu.querySelector(".dropdown-item[data-kitchen-link='ingredients-by-retreat']");
+      if (!existingLink) {
+        existingLink = document.createElement("a");
+        existingLink.className = "dropdown-item";
+        existingLink.dataset.kitchenLink = "ingredients-by-retreat";
+        existingLink.innerHTML = '<i class="fa-solid fa-basket-shopping me-2"></i> Ingredients by Retreat';
+        const item = document.createElement("li");
+        item.appendChild(existingLink);
+        menu.appendChild(item);
+      }
+      existingLink.setAttribute("href", linkHref);
+
+      const existingItem = existingLink.closest("li");
+      const shoppingItem = menu.querySelector("a[href='shopping-list.html']")?.closest("li");
+      const beforeItem = menu.querySelector("a[href='recipe-admin.html'], a[href='ingredient-admin.html']")?.closest("li");
+      if (existingItem && shoppingItem && shoppingItem.nextSibling !== existingItem) {
+        menu.insertBefore(existingItem, shoppingItem.nextSibling);
+      } else if (existingItem && beforeItem) {
+        menu.insertBefore(existingItem, beforeItem);
+      }
+    });
+
+    const subnavContainer = document.querySelector(".kitchen-subnav .container");
+    if (!subnavContainer) {
+      return;
+    }
+
+    let existingTab = subnavContainer.querySelector("a[data-kitchen-tab='ingredients-by-retreat']");
+    if (!existingTab) {
+      existingTab = document.createElement("a");
+      existingTab.className = "kitchen-tab";
+      existingTab.dataset.kitchenTab = "ingredients-by-retreat";
+      existingTab.innerHTML = '<i class="fa-solid fa-basket-shopping me-1"></i> Ingredients by Retreat';
+      subnavContainer.appendChild(existingTab);
+    }
+    existingTab.setAttribute("href", linkHref);
+
+    const shoppingTab = subnavContainer.querySelector("a[href='shopping-list.html']");
+    const beforeTab = subnavContainer.querySelector("a[href='recipe-admin.html'], a[href='ingredient-admin.html']");
+    if (shoppingTab && shoppingTab.nextSibling !== existingTab) {
+      subnavContainer.insertBefore(existingTab, shoppingTab.nextSibling);
+    } else if (beforeTab) {
+      subnavContainer.insertBefore(existingTab, beforeTab);
+    }
   }
 
   function isRoleAllowedForPage(pathname, role) {
@@ -470,6 +545,7 @@
   }
 
   initMobileNavbarAutoClose();
+  ensureKitchenIngredientsByRetreatLinks();
 
   if (isLoginPage) {
     void initLoginPage();

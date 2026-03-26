@@ -248,16 +248,17 @@
         const numeric = Number(qty);
         if (!Number.isFinite(numeric)) return "—";
         const normalizedUnit = normalizeUnit(unit);
+        const displayUnit = normalizedUnit === "l" ? "L" : normalizedUnit;
         if (normalizedUnit === "tsp" || normalizedUnit === "tbsp" || normalizedUnit === "cup") {
-          return `${numeric.toFixed(1)} ${unit}`;
+          return `${numeric.toFixed(1)} ${displayUnit}`;
         }
-        if (unit === "kg" || unit === "l") {
-          return `${numeric.toFixed(2).replace(/\.00$/, "")} ${unit}`;
+        if (normalizedUnit === "kg" || normalizedUnit === "l") {
+          return `${numeric.toFixed(2).replace(/\.00$/, "")} ${displayUnit}`;
         }
         if (Math.abs(numeric - Math.round(numeric)) < 1e-9) {
-          return `${Math.round(numeric)} ${unit}`;
+          return `${Math.round(numeric)} ${displayUnit}`;
         }
-        return `${numeric.toFixed(1).replace(/\.0$/, "")} ${unit}`;
+        return `${numeric.toFixed(1).replace(/\.0$/, "")} ${displayUnit}`;
       }
 
       function formatNeededQty(qty, unit) {
@@ -265,10 +266,11 @@
         const numeric = Number(qty);
         if (!Number.isFinite(numeric)) return "—";
         const normalizedUnit = normalizeUnit(unit);
+        const displayUnit = normalizedUnit === "l" ? "L" : normalizedUnit;
         if (normalizedUnit === "tsp" || normalizedUnit === "tbsp" || normalizedUnit === "cup") {
-          return `${numeric.toFixed(1)} ${unit}`;
+          return `${numeric.toFixed(1)} ${displayUnit}`;
         }
-        return `${Math.round(numeric)} ${unit}`;
+        return `${Math.round(numeric)} ${displayUnit}`;
       }
 
       function toLbs(qty, unit) {
@@ -836,7 +838,8 @@
 
         const unit = document.createElement("span");
         unit.className = "qty-chip";
-        unit.textContent = String(item.in_stock_unit || item.required_unit || "").trim() || "unit";
+        const displayUnit = normalizeUnit(String(item.in_stock_unit || item.required_unit || "").trim());
+        unit.textContent = displayUnit === "l" ? "L" : (displayUnit || "unit");
 
         wrapper.appendChild(input);
         wrapper.appendChild(unit);
@@ -863,7 +866,7 @@
         unitOptions.forEach((unitOption) => {
           const option = document.createElement("option");
           option.value = unitOption;
-          option.textContent = unitOption;
+          option.textContent = unitOption === "l" ? "L" : unitOption;
           if (unitOption === editorState.unit) {
             option.selected = true;
           }
@@ -933,6 +936,329 @@
         return wrapper;
       }
 
+      function targetShoppingQtyForItem(item) {
+        const preferred = Number(item?.to_buy_qty);
+        if (Number.isFinite(preferred) && preferred > 0) {
+          return preferred;
+        }
+        const fallback = Number(item?.required_qty);
+        return Number.isFinite(fallback) && fallback > 0 ? fallback : 0;
+      }
+
+      function targetShoppingUnitForItem(item) {
+        return normalizeUnit(item?.to_buy_unit || item?.required_unit || "") || "each";
+      }
+
+      function vendorAllocationsForItem(item) {
+        const rows = Array.isArray(item?.vendor_allocations) ? item.vendor_allocations : [];
+        if (!rows.length) {
+          const editorState = resolveOrderedEditorState(item);
+          return [
+            {
+              id: null,
+              vendor_id: item?.vendor_id != null ? Number(item.vendor_id) : null,
+              vendor_name: String(item?.vendor_name || "").trim() || "",
+              allocated_qty: editorState.qty,
+              allocated_unit: normalizeUnit(editorState.unit || targetShoppingUnitForItem(item)) || "each",
+              ordered: Boolean(item?.ordered),
+              received: Boolean(item?.received),
+            },
+          ];
+        }
+        return rows.map((entry, index) => {
+          const editorState = resolveOrderedEditorState(item);
+          const numericQty = Number(entry?.allocated_qty);
+          return {
+            id: Number.isFinite(Number(entry?.id)) ? Number(entry.id) : null,
+            vendor_id: entry?.vendor_id != null && Number.isFinite(Number(entry.vendor_id))
+              ? Number(entry.vendor_id)
+              : null,
+            vendor_name: String(entry?.vendor_name || "").trim() || "",
+            allocated_qty: Number.isFinite(numericQty) ? numericQty : editorState.qty,
+            allocated_unit: normalizeUnit(entry?.allocated_unit || editorState.unit || targetShoppingUnitForItem(item)) || "each",
+            ordered: Boolean(entry?.ordered),
+            received: Boolean(entry?.received),
+            sort_order: Number.isFinite(Number(entry?.sort_order)) ? Number(entry.sort_order) : index,
+          };
+        });
+      }
+
+      function cloneVendorAllocations(allocations) {
+        return allocations.map((entry) => ({
+          id: entry.id != null ? Number(entry.id) : null,
+          vendor_id: entry.vendor_id != null ? Number(entry.vendor_id) : null,
+          vendor_name: String(entry.vendor_name || "").trim() || "",
+          allocated_qty: entry.allocated_qty == null ? null : Number(entry.allocated_qty),
+          allocated_unit: normalizeUnit(entry.allocated_unit || "") || "each",
+          ordered: Boolean(entry.ordered),
+          received: Boolean(entry.received),
+          sort_order: Number.isFinite(Number(entry.sort_order)) ? Number(entry.sort_order) : 0,
+        }));
+      }
+
+      function buildVendorAllocationsPayload(allocations) {
+        return allocations.map((entry, index) => ({
+          ...(entry.id ? { id: Number(entry.id) } : {}),
+          vendorId: entry.vendor_id != null && Number.isFinite(Number(entry.vendor_id)) ? Number(entry.vendor_id) : null,
+          allocatedQty: roundEditableQuantity(entry.allocated_qty) || 0,
+          allocatedUnit: normalizeUnit(entry.allocated_unit || "") || "each",
+          ordered: Boolean(entry.ordered),
+          received: Boolean(entry.received),
+          sortOrder: index,
+        }));
+      }
+
+      function saveVendorAllocations(item, allocations) {
+        const normalized = cloneVendorAllocations(allocations).map((entry, index) => ({
+          ...entry,
+          allocated_unit: normalizeUnit(entry.allocated_unit || "") || targetShoppingUnitForItem(item),
+          sort_order: index,
+        }));
+        return updateShoppingItem(item.id, {
+          vendorAllocations: buildVendorAllocationsPayload(normalized),
+        });
+      }
+
+      function addVendorAllocation(item, allocations) {
+        const next = cloneVendorAllocations(allocations);
+        const editorState = resolveOrderedEditorState(item);
+        next.push({
+          id: null,
+          vendor_id: null,
+          vendor_name: "",
+          allocated_qty: null,
+          allocated_unit: normalizeUnit(editorState.unit || targetShoppingUnitForItem(item)) || "each",
+          ordered: false,
+          received: false,
+          sort_order: next.length,
+        });
+        void saveVendorAllocations(item, next);
+      }
+
+      function removeVendorAllocation(item, allocations, indexToRemove) {
+        const next = cloneVendorAllocations(allocations).filter((_entry, index) => index !== indexToRemove);
+        void saveVendorAllocations(item, next);
+      }
+
+      function summarizeVendorAllocationCoverage(item, allocations) {
+        const targetQty = targetShoppingQtyForItem(item);
+        const targetUnit = targetShoppingUnitForItem(item);
+        let total = 0;
+        let convertible = targetQty > 0 && Boolean(targetUnit);
+
+        allocations.forEach((entry) => {
+          const qty = Number(entry?.allocated_qty);
+          const unit = normalizeUnit(entry?.allocated_unit || "");
+          if (!Number.isFinite(qty) || qty <= 0 || !unit) {
+            return;
+          }
+          const converted = convertQuantityBetweenUnits(qty, unit, targetUnit);
+          if (converted == null) {
+            convertible = false;
+            return;
+          }
+          total += converted;
+        });
+
+        return {
+          sourceCount: allocations.length,
+          targetQty,
+          targetUnit,
+          totalQty: roundEditableQuantity(total) || 0,
+          convertible,
+        };
+      }
+
+      function createVendorAllocationSourceEditor(item, allocations) {
+        const wrapper = document.createElement("div");
+        wrapper.className = "allocation-stack";
+
+        allocations.forEach((entry, index) => {
+          const row = document.createElement("div");
+          row.className = "allocation-line";
+
+          const select = document.createElement("select");
+          select.className = "form-select form-select-sm";
+
+          const none = document.createElement("option");
+          none.value = "";
+          none.textContent = "Select source";
+          select.appendChild(none);
+
+          vendors.forEach((vendor) => {
+            const option = document.createElement("option");
+            option.value = String(vendor.id);
+            option.textContent = vendor.name;
+            if (entry.vendor_id != null && Number(entry.vendor_id) === Number(vendor.id)) {
+              option.selected = true;
+            }
+            select.appendChild(option);
+          });
+
+          select.addEventListener("change", () => {
+            const next = cloneVendorAllocations(allocations);
+            const raw = String(select.value || "").trim();
+            next[index].vendor_id = raw ? Number(raw) : null;
+            void saveVendorAllocations(item, next);
+          });
+          row.appendChild(select);
+
+          if (index === 0) {
+            const addBtn = document.createElement("button");
+            addBtn.type = "button";
+            addBtn.className = "allocation-icon-btn";
+            addBtn.innerHTML = '<i class="fa-solid fa-plus"></i>';
+            addBtn.title = "Add source";
+            addBtn.setAttribute("aria-label", "Add source");
+            addBtn.addEventListener("click", () => {
+              addVendorAllocation(item, allocations);
+            });
+            row.appendChild(addBtn);
+          }
+
+          if (allocations.length > 1 && index > 0) {
+            const removeBtn = document.createElement("button");
+            removeBtn.type = "button";
+            removeBtn.className = "allocation-icon-btn allocation-remove";
+            removeBtn.innerHTML = '<i class="fa-solid fa-xmark"></i>';
+            removeBtn.title = "Remove source";
+            removeBtn.setAttribute("aria-label", "Remove source");
+            removeBtn.addEventListener("click", () => {
+              removeVendorAllocation(item, allocations, index);
+            });
+            row.appendChild(removeBtn);
+          }
+
+          wrapper.appendChild(row);
+        });
+        return wrapper;
+      }
+
+      function createVendorAllocationAmountEditor(item, allocations) {
+        const wrapper = document.createElement("div");
+        wrapper.className = "allocation-stack";
+
+        allocations.forEach((entry, index) => {
+          const row = document.createElement("div");
+          row.className = "allocation-line";
+
+          const input = document.createElement("input");
+          input.type = "number";
+          input.className = "form-control form-control-sm";
+          input.min = "0";
+          input.step = orderedInputStep(entry.allocated_unit);
+          input.placeholder = "0";
+          input.value = formatEditableQuantityValue(entry.allocated_qty);
+
+          let lastGoodValue = input.value;
+          const select = document.createElement("select");
+          select.className = "form-select form-select-sm";
+          const unitOptions = orderedUnitOptionsForItem(item, entry.allocated_unit);
+          unitOptions.forEach((unitOption) => {
+            const option = document.createElement("option");
+            option.value = unitOption;
+            option.textContent = unitOption === "l" ? "L" : unitOption;
+            if (unitOption === normalizeUnit(entry.allocated_unit)) {
+              option.selected = true;
+            }
+            select.appendChild(option);
+          });
+          select.dataset.previousUnit = normalizeUnit(entry.allocated_unit);
+
+          input.addEventListener("change", () => {
+            const raw = String(input.value || "").trim();
+            const next = cloneVendorAllocations(allocations);
+            if (!raw) {
+              next[index].allocated_qty = 0;
+              void saveVendorAllocations(item, next);
+              return;
+            }
+            const value = Number(raw);
+            if (!Number.isFinite(value) || value < 0) {
+              input.value = lastGoodValue;
+              setStatus("Source amount must be a non-negative number.", "err");
+              return;
+            }
+            const rounded = roundEditableQuantity(value);
+            input.value = formatEditableQuantityValue(rounded);
+            lastGoodValue = input.value;
+            next[index].allocated_qty = rounded;
+            next[index].allocated_unit = normalizeUnit(select.value) || targetShoppingUnitForItem(item);
+            void saveVendorAllocations(item, next);
+          });
+
+          select.addEventListener("change", () => {
+            const previousUnit = normalizeUnit(select.dataset.previousUnit || "");
+            const selectedUnit = normalizeUnit(select.value) || targetShoppingUnitForItem(item);
+            const next = cloneVendorAllocations(allocations);
+            const raw = String(input.value || "").trim();
+
+            if (raw) {
+              const value = Number(raw);
+              if (!Number.isFinite(value) || value < 0) {
+                input.value = lastGoodValue;
+                select.value = previousUnit || selectedUnit;
+                setStatus("Source amount must be a non-negative number.", "err");
+                return;
+              }
+              let nextValue = roundEditableQuantity(value);
+              const converted = convertQuantityBetweenUnits(value, previousUnit, selectedUnit);
+              if (converted != null) {
+                nextValue = roundEditableQuantity(converted);
+              } else if (normalizeCountStylePurchaseUnit(selectedUnit) && previousUnit !== selectedUnit) {
+                nextValue = 1;
+              }
+              input.value = formatEditableQuantityValue(nextValue);
+              lastGoodValue = input.value;
+              next[index].allocated_qty = nextValue;
+            }
+
+            input.step = orderedInputStep(selectedUnit);
+            select.dataset.previousUnit = selectedUnit;
+            next[index].allocated_unit = selectedUnit;
+            void saveVendorAllocations(item, next);
+          });
+
+          row.appendChild(input);
+          row.appendChild(select);
+          wrapper.appendChild(row);
+        });
+
+        return wrapper;
+      }
+
+      function createVendorAllocationToggleEditor(item, allocations, fieldName) {
+        const wrapper = document.createElement("div");
+        wrapper.className = "allocation-stack allocation-toggle-stack";
+
+        allocations.forEach((entry, index) => {
+          const row = document.createElement("div");
+          row.className = "allocation-line allocation-line-center";
+
+          const input = document.createElement("input");
+          input.type = "checkbox";
+          input.className = "form-check-input";
+          input.checked = Boolean(entry[fieldName]);
+          input.addEventListener("change", () => {
+            const next = cloneVendorAllocations(allocations);
+            const checked = Boolean(input.checked);
+            next[index][fieldName] = checked;
+            if (fieldName === "ordered" && !checked) {
+              next[index].received = false;
+            }
+            if (fieldName === "received" && checked) {
+              next[index].ordered = true;
+            }
+            void saveVendorAllocations(item, next);
+          });
+
+          row.appendChild(input);
+          wrapper.appendChild(row);
+        });
+
+        return wrapper;
+      }
+
       function sortItemsByIngredientNameAsc(items) {
         return [...items].sort((a, b) => {
           const aName = String(a.ingredient_name || "").trim();
@@ -985,7 +1311,21 @@
       }
 
       function sourceLabel(item) {
-        return String(item.vendor_name || "").trim() || "Unassigned Source";
+        const allocations = vendorAllocationsForItem(item);
+        if (allocations.length > 1) {
+          return "Multiple Sources";
+        }
+        const first = allocations[0] || null;
+        if (first && first.vendor_name) {
+          return String(first.vendor_name).trim();
+        }
+        if (first && first.vendor_id != null) {
+          const vendor = vendors.find((entry) => Number(entry.id) === Number(first.vendor_id));
+          if (vendor && vendor.name) {
+            return vendor.name;
+          }
+        }
+        return "Unassigned Source";
       }
 
       function sortedSourceEntries(items) {
@@ -1016,6 +1356,8 @@
       function renderShoppingItemRow(item, inventoryEditable) {
         const tr = document.createElement("tr");
         tr.className = "item-row";
+        const vendorAllocations = vendorAllocationsForItem(item);
+        const allocationCoverage = summarizeVendorAllocationCoverage(item, vendorAllocations);
 
         const ingredientTd = document.createElement("td");
         ingredientTd.className = "shopping-need-cell";
@@ -1098,6 +1440,20 @@
         const ingredientMetrics = document.createElement("div");
         ingredientMetrics.className = "ingredient-metrics";
 
+        if (vendorAllocations.length > 1) {
+          const splitBadge = document.createElement("span");
+          const coverageMatches = allocationCoverage.convertible
+            && allocationCoverage.targetQty > 0
+            && Math.abs(Number(allocationCoverage.totalQty || 0) - Number(allocationCoverage.targetQty || 0)) < 0.01;
+          splitBadge.className = `badge partial-buy-badge ${coverageMatches ? "now" : "later"}`;
+          if (allocationCoverage.convertible && allocationCoverage.targetQty > 0) {
+            splitBadge.textContent = `${vendorAllocations.length} sources • ${formatEditableQuantityValue(allocationCoverage.totalQty)} / ${formatEditableQuantityValue(allocationCoverage.targetQty)} ${allocationCoverage.targetUnit}`;
+          } else {
+            splitBadge.textContent = `${vendorAllocations.length} sources`;
+          }
+          ingredientMetrics.appendChild(splitBadge);
+        }
+
         const needMetric = document.createElement("div");
         needMetric.className = "ingredient-metric";
         const needLabel = document.createElement("span");
@@ -1140,26 +1496,22 @@
 
         const sourceTd = document.createElement("td");
         sourceTd.className = "shopping-action-cell shopping-action-start";
-        sourceTd.appendChild(createVendorSelect(item));
+        sourceTd.appendChild(createVendorAllocationSourceEditor(item, vendorAllocations));
         tr.appendChild(sourceTd);
 
         const orderedAmountTd = document.createElement("td");
         orderedAmountTd.className = "shopping-action-cell";
-        orderedAmountTd.appendChild(createOrderedAmountEditor(item));
+        orderedAmountTd.appendChild(createVendorAllocationAmountEditor(item, vendorAllocations));
         tr.appendChild(orderedAmountTd);
 
         const orderedTd = document.createElement("td");
         orderedTd.className = "shopping-action-cell text-center";
-        orderedTd.appendChild(createToggle(item.ordered, (value) => {
-          void updateShoppingItem(item.id, { ordered: value });
-        }));
+        orderedTd.appendChild(createVendorAllocationToggleEditor(item, vendorAllocations, "ordered"));
         tr.appendChild(orderedTd);
 
         const receivedTd = document.createElement("td");
         receivedTd.className = "shopping-action-cell text-center";
-        receivedTd.appendChild(createToggle(item.received, (value) => {
-          void updateShoppingItem(item.id, { received: value });
-        }));
+        receivedTd.appendChild(createVendorAllocationToggleEditor(item, vendorAllocations, "received"));
         tr.appendChild(receivedTd);
 
         const notesTd = document.createElement("td");

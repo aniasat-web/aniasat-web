@@ -213,6 +213,33 @@ CREATE TABLE IF NOT EXISTS shopping_list_item_vendor_allocations (
     FOREIGN KEY (vendor_id) REFERENCES vendors(id) ON DELETE SET NULL
 );
 
+CREATE TABLE IF NOT EXISTS shopping_pickup_lists (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    shopping_list_id INTEGER NOT NULL,
+    name TEXT NOT NULL,
+    vendor_id INTEGER,
+    assignee TEXT,
+    pickup_date TEXT,
+    notes TEXT,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (shopping_list_id) REFERENCES shopping_lists(id) ON DELETE CASCADE,
+    FOREIGN KEY (vendor_id) REFERENCES vendors(id) ON DELETE SET NULL
+);
+
+CREATE TABLE IF NOT EXISTS shopping_pickup_list_items (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    shopping_pickup_list_id INTEGER NOT NULL,
+    shopping_list_item_id INTEGER REFERENCES shopping_list_items(id) ON DELETE SET NULL,
+    source_ingredient_id INTEGER NOT NULL,
+    source_canonical_unit TEXT NOT NULL,
+    sort_order INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (shopping_pickup_list_id) REFERENCES shopping_pickup_lists(id) ON DELETE CASCADE,
+    FOREIGN KEY (source_ingredient_id) REFERENCES ingredients(id) ON DELETE RESTRICT
+);
+
 CREATE INDEX IF NOT EXISTS idx_recipe_ingredients_recipe_id ON recipe_ingredients(recipe_id);
 CREATE INDEX IF NOT EXISTS idx_users_username ON users(username);
 CREATE INDEX IF NOT EXISTS idx_auth_sessions_user_id ON auth_sessions(user_id);
@@ -227,6 +254,15 @@ CREATE INDEX IF NOT EXISTS idx_shopping_item_sources_item_id ON shopping_list_it
 CREATE INDEX IF NOT EXISTS idx_shopping_item_sources_plan_id ON shopping_list_item_sources(retreat_plan_id);
 CREATE INDEX IF NOT EXISTS idx_shopping_item_vendor_allocations_item_id ON shopping_list_item_vendor_allocations(shopping_list_item_id);
 CREATE INDEX IF NOT EXISTS idx_shopping_item_vendor_allocations_vendor_id ON shopping_list_item_vendor_allocations(vendor_id);
+CREATE INDEX IF NOT EXISTS idx_shopping_pickup_lists_list_id ON shopping_pickup_lists(shopping_list_id);
+CREATE INDEX IF NOT EXISTS idx_shopping_pickup_lists_vendor_id ON shopping_pickup_lists(vendor_id);
+CREATE INDEX IF NOT EXISTS idx_shopping_pickup_list_items_pickup_list_id ON shopping_pickup_list_items(shopping_pickup_list_id);
+CREATE INDEX IF NOT EXISTS idx_shopping_pickup_list_items_item_id ON shopping_pickup_list_items(shopping_list_item_id);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_shopping_pickup_list_items_unique_source ON shopping_pickup_list_items(
+    shopping_pickup_list_id,
+    source_ingredient_id,
+    source_canonical_unit
+);
 CREATE INDEX IF NOT EXISTS idx_unit_conversions_item_name ON unit_conversions(item_name);
 CREATE INDEX IF NOT EXISTS idx_unit_conversions_context ON unit_conversions(context);
 CREATE INDEX IF NOT EXISTS idx_ingredient_aliases_ingredient_name ON ingredient_aliases(ingredient_name);

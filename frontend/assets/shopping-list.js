@@ -24,6 +24,23 @@
       const groupModeSelect = document.getElementById("groupModeSelect");
       const shoppingCategoryFilter = document.getElementById("shoppingCategoryFilter");
       const sourceBreakdownHint = document.getElementById("sourceBreakdownHint");
+      const pickupSelectionSummary = document.getElementById("pickupSelectionSummary");
+      const pickupListNameInput = document.getElementById("pickupListNameInput");
+      const pickupListVendorSelect = document.getElementById("pickupListVendorSelect");
+      const pickupListAssigneeInput = document.getElementById("pickupListAssigneeInput");
+      const pickupListDateInput = document.getElementById("pickupListDateInput");
+      const pickupListNotesInput = document.getElementById("pickupListNotesInput");
+      const selectVendorPickupItemsBtn = document.getElementById("selectVendorPickupItemsBtn");
+      const clearPickupSelectionBtn = document.getElementById("clearPickupSelectionBtn");
+      const createPickupListBtn = document.getElementById("createPickupListBtn");
+      const pickupListCards = document.getElementById("pickupListCards");
+      const pickupSelectVisibleCheck = document.getElementById("pickupSelectVisibleCheck");
+      const activePickupBanner = document.getElementById("activePickupBanner");
+      const activePickupTitle = document.getElementById("activePickupTitle");
+      const activePickupMeta = document.getElementById("activePickupMeta");
+      const activePickupMissing = document.getElementById("activePickupMissing");
+      const closePickupViewBtn = document.getElementById("closePickupViewBtn");
+      const deletePickupListBtn = document.getElementById("deletePickupListBtn");
 
       let API_BASE = resolveApiBase();
       const DEFAULT_API_BASE = window.location.origin.replace(/\/+$/, "");
@@ -38,6 +55,9 @@
       let dropdownSelectedListId = null;
       let renameEditingListId = null;
       let selectedIngredientCategory = null;
+      let pickupLists = [];
+      let activePickupListDetail = null;
+      const selectedPickupItemIds = new Set();
       const MASS_UNITS_TO_G = {
         g: 1,
         kg: 1000,
@@ -213,13 +233,13 @@
           const tr = document.createElement("tr");
           tr.className = "shopping-skeleton-row";
 
-          for (let j = 0; j < 8; j += 1) {
+          for (let j = 0; j < 9; j += 1) {
             const td = document.createElement("td");
             const line = document.createElement("div");
             line.className = "ui-skeleton-line skeleton-cell";
-            if (j === 0 || j === 1 || j === 8) {
+            if (j === 1 || j === 8) {
               line.classList.add("long");
-            } else if (j === 7 || j === 8) {
+            } else if (j === 0 || j === 6 || j === 7) {
               line.classList.add("short");
             } else {
               line.classList.add("medium");
@@ -354,6 +374,270 @@
           throw new Error(await parseApiError(response));
         }
         vendors = await response.json();
+        renderPickupVendorOptions();
+      }
+
+      function renderPickupVendorOptions() {
+        if (!(pickupListVendorSelect instanceof HTMLSelectElement)) {
+          return;
+        }
+        const previousValue = String(pickupListVendorSelect.value || "").trim();
+        pickupListVendorSelect.innerHTML = "";
+        const anyOption = document.createElement("option");
+        anyOption.value = "";
+        anyOption.textContent = "Any source";
+        pickupListVendorSelect.appendChild(anyOption);
+        vendors.forEach((vendor) => {
+          const option = document.createElement("option");
+          option.value = String(vendor.id);
+          option.textContent = vendor.name;
+          pickupListVendorSelect.appendChild(option);
+        });
+        pickupListVendorSelect.value = previousValue;
+        if (pickupListVendorSelect.value !== previousValue) {
+          pickupListVendorSelect.value = "";
+        }
+      }
+
+      function resetPickupListForm() {
+        if (pickupListNameInput) pickupListNameInput.value = "";
+        if (pickupListVendorSelect) pickupListVendorSelect.value = "";
+        if (pickupListAssigneeInput) pickupListAssigneeInput.value = "";
+        if (pickupListDateInput) pickupListDateInput.value = "";
+        if (pickupListNotesInput) pickupListNotesInput.value = "";
+      }
+
+      function activePickupItemIdSet() {
+        return new Set(
+          Array.isArray(activePickupListDetail?.item_ids)
+            ? activePickupListDetail.item_ids
+                .map((itemId) => Number(itemId))
+                .filter((itemId) => Number.isFinite(itemId) && itemId > 0)
+            : []
+        );
+      }
+
+      function pickupScopedItems(items) {
+        const rows = Array.isArray(items) ? items : [];
+        if (!activePickupListDetail) {
+          return rows;
+        }
+        const allowedIds = activePickupItemIdSet();
+        return rows.filter((item) => allowedIds.has(Number(item?.id)));
+      }
+
+      function pruneSelectedPickupItems(items) {
+        const validIds = new Set(
+          (Array.isArray(items) ? items : [])
+            .map((item) => Number(item?.id))
+            .filter((itemId) => Number.isFinite(itemId) && itemId > 0)
+        );
+        Array.from(selectedPickupItemIds).forEach((itemId) => {
+          if (!validIds.has(Number(itemId))) {
+            selectedPickupItemIds.delete(Number(itemId));
+          }
+        });
+      }
+
+      function itemMatchesVendor(item, vendorId) {
+        const targetVendorId = Number(vendorId || 0);
+        if (!Number.isFinite(targetVendorId) || targetVendorId <= 0) {
+          return false;
+        }
+        const allocations = vendorAllocationsForItem(item);
+        return allocations.some((entry) => Number(entry?.vendor_id || 0) === targetVendorId);
+      }
+
+      function visibleShoppingItems(detail = activeShoppingDetail) {
+        const allItems = pickupScopedItems(Array.isArray(detail?.items) ? detail.items : []);
+        return categoryFilteredItems(allItems);
+      }
+
+      function updatePickupSelectionSummary() {
+        if (pickupSelectionSummary) {
+          const count = selectedPickupItemIds.size;
+          pickupSelectionSummary.textContent = `${count} item${count === 1 ? "" : "s"} selected`;
+        }
+        if (!(pickupSelectVisibleCheck instanceof HTMLInputElement)) {
+          return;
+        }
+        const visibleIds = visibleShoppingItems(activeShoppingDetail)
+          .map((item) => Number(item?.id))
+          .filter((itemId) => Number.isFinite(itemId) && itemId > 0);
+        const selectedVisibleCount = visibleIds.filter((itemId) => selectedPickupItemIds.has(itemId)).length;
+        pickupSelectVisibleCheck.disabled = !visibleIds.length || Boolean(activePickupListDetail) || !activeListId;
+        pickupSelectVisibleCheck.indeterminate = selectedVisibleCount > 0 && selectedVisibleCount < visibleIds.length;
+        pickupSelectVisibleCheck.checked = visibleIds.length > 0 && selectedVisibleCount === visibleIds.length;
+      }
+
+      function renderActivePickupBanner() {
+        if (!activePickupBanner || !activePickupTitle || !activePickupMeta || !activePickupMissing) {
+          return;
+        }
+        if (!activePickupListDetail) {
+          activePickupBanner.classList.add("d-none");
+          activePickupTitle.textContent = "Pickup list";
+          activePickupMeta.textContent = "";
+          activePickupMissing.textContent = "";
+          activePickupMissing.classList.add("d-none");
+          return;
+        }
+        activePickupBanner.classList.remove("d-none");
+        activePickupTitle.textContent = activePickupListDetail.name || "Pickup list";
+        const metaParts = [];
+        if (activePickupListDetail.vendor_name) {
+          metaParts.push(activePickupListDetail.vendor_name);
+        }
+        if (activePickupListDetail.assignee) {
+          metaParts.push(`Assigned to ${activePickupListDetail.assignee}`);
+        }
+        if (activePickupListDetail.pickup_date) {
+          metaParts.push(`Pickup ${activePickupListDetail.pickup_date}`);
+        }
+        metaParts.push(`${Number(activePickupListDetail.item_count || 0)} items`);
+        activePickupMeta.textContent = metaParts.join(" • ");
+        const missingCount = Number(activePickupListDetail.missing_item_count || 0);
+        if (missingCount > 0) {
+          activePickupMissing.classList.remove("d-none");
+          activePickupMissing.innerHTML = `<i class="fa-solid fa-triangle-exclamation"></i><span>${missingCount} saved item${missingCount === 1 ? "" : "s"} no longer match the master list after refresh.</span>`;
+        } else {
+          activePickupMissing.textContent = "";
+          activePickupMissing.classList.add("d-none");
+        }
+      }
+
+      function renderPickupListCards() {
+        if (!pickupListCards) {
+          return;
+        }
+        pickupListCards.innerHTML = "";
+        if (!activeListId) {
+          pickupListCards.innerHTML = '<div class="pickup-empty-state">Load a shopping list to manage saved pickup subsets.</div>';
+          return;
+        }
+        if (!pickupLists.length) {
+          pickupListCards.innerHTML = '<div class="pickup-empty-state">No saved pickup lists for this shopping list yet.</div>';
+          return;
+        }
+        pickupLists.forEach((pickupList) => {
+          const card = document.createElement("div");
+          const isActive = Number(activePickupListDetail?.id || 0) === Number(pickupList.id);
+          card.className = `pickup-card${isActive ? " is-active" : ""}`;
+
+          const header = document.createElement("div");
+          header.className = "pickup-card-header";
+          const titleWrap = document.createElement("div");
+          const title = document.createElement("div");
+          title.className = "pickup-card-title";
+          title.textContent = pickupList.name || "Pickup list";
+          titleWrap.appendChild(title);
+
+          const meta = document.createElement("div");
+          meta.className = "pickup-card-meta mt-2";
+          const statusChip = document.createElement("span");
+          statusChip.className = "pickup-chip text-capitalize";
+          statusChip.textContent = String(pickupList.status || "draft").replace(/_/g, " ");
+          meta.appendChild(statusChip);
+          if (pickupList.vendor_name) {
+            const vendorChip = document.createElement("span");
+            vendorChip.className = "pickup-chip";
+            vendorChip.innerHTML = `<i class="fa-solid fa-store"></i><span>${pickupList.vendor_name}</span>`;
+            meta.appendChild(vendorChip);
+          }
+          if (pickupList.assignee) {
+            const assigneeChip = document.createElement("span");
+            assigneeChip.className = "pickup-chip";
+            assigneeChip.innerHTML = `<i class="fa-solid fa-user"></i><span>${pickupList.assignee}</span>`;
+            meta.appendChild(assigneeChip);
+          }
+          if (pickupList.pickup_date) {
+            const dateChip = document.createElement("span");
+            dateChip.className = "pickup-chip";
+            dateChip.innerHTML = `<i class="fa-solid fa-calendar-day"></i><span>${pickupList.pickup_date}</span>`;
+            meta.appendChild(dateChip);
+          }
+          titleWrap.appendChild(meta);
+          header.appendChild(titleWrap);
+
+          const stats = document.createElement("div");
+          stats.className = "pickup-card-stats";
+          stats.textContent = `${Number(pickupList.item_count || 0)} items • ${Number(pickupList.ordered_count || 0)} ordered • ${Number(pickupList.received_count || 0)} received`;
+          header.appendChild(stats);
+          card.appendChild(header);
+
+          if (pickupList.notes) {
+            const notes = document.createElement("div");
+            notes.className = "muted-note";
+            notes.textContent = pickupList.notes;
+            card.appendChild(notes);
+          }
+
+          if (Number(pickupList.missing_item_count || 0) > 0) {
+            const warning = document.createElement("div");
+            warning.className = "pickup-banner-warning";
+            warning.innerHTML = `<i class="fa-solid fa-triangle-exclamation"></i><span>${pickupList.missing_item_count} missing from current master list</span>`;
+            card.appendChild(warning);
+          }
+
+          const actions = document.createElement("div");
+          actions.className = "pickup-card-actions";
+
+          const openBtn = document.createElement("button");
+          openBtn.type = "button";
+          openBtn.className = `btn btn-sm ${isActive ? "btn-success" : "btn-outline-primary"}`;
+          openBtn.innerHTML = isActive
+            ? '<i class="fa-solid fa-eye me-2"></i>Viewing'
+            : '<i class="fa-solid fa-eye me-2"></i>Open';
+          openBtn.disabled = isActive;
+          openBtn.addEventListener("click", () => {
+            void openPickupList(pickupList.id);
+          });
+          actions.appendChild(openBtn);
+
+          const deleteBtn = document.createElement("button");
+          deleteBtn.type = "button";
+          deleteBtn.className = "btn btn-outline-danger btn-sm";
+          deleteBtn.innerHTML = '<i class="fa-solid fa-trash me-2"></i>Delete';
+          deleteBtn.addEventListener("click", () => {
+            void deletePickupList(pickupList.id);
+          });
+          actions.appendChild(deleteBtn);
+
+          card.appendChild(actions);
+          pickupListCards.appendChild(card);
+        });
+      }
+
+      function refreshWorkspaceChrome() {
+        renderActivePickupBanner();
+        renderPickupListCards();
+        updatePickupSelectionSummary();
+        const pickupViewActive = Boolean(activePickupListDetail);
+        if (pickupListNameInput) pickupListNameInput.disabled = pickupViewActive || !activeListId;
+        if (pickupListVendorSelect) pickupListVendorSelect.disabled = pickupViewActive || !activeListId;
+        if (pickupListAssigneeInput) pickupListAssigneeInput.disabled = pickupViewActive || !activeListId;
+        if (pickupListDateInput) pickupListDateInput.disabled = pickupViewActive || !activeListId;
+        if (pickupListNotesInput) pickupListNotesInput.disabled = pickupViewActive || !activeListId;
+        if (selectVendorPickupItemsBtn) {
+          selectVendorPickupItemsBtn.disabled = (
+            pickupViewActive
+            || !activeListId
+            || !vendors.length
+            || !(pickupListVendorSelect && String(pickupListVendorSelect.value || "").trim())
+          );
+        }
+        if (clearPickupSelectionBtn) {
+          clearPickupSelectionBtn.disabled = pickupViewActive || selectedPickupItemIds.size === 0;
+        }
+        if (createPickupListBtn) {
+          createPickupListBtn.disabled = pickupViewActive || !activeListId || selectedPickupItemIds.size === 0;
+        }
+        if (closePickupViewBtn) {
+          closePickupViewBtn.disabled = !pickupViewActive;
+        }
+        if (deletePickupListBtn) {
+          deletePickupListBtn.disabled = !pickupViewActive;
+        }
       }
 
       function renderShoppingListOptions() {
@@ -430,6 +714,9 @@
             activeShoppingDetail = null;
             activeListId = null;
             activeListPhase = null;
+            activePickupListDetail = null;
+            pickupLists = [];
+            selectedPickupItemIds.clear();
             setSummary(null);
             renderShoppingRows({ items: [] });
           }
@@ -500,10 +787,198 @@
       }
 
       function setSummary(detail) {
-        setMetricValue(metricItems, detail?.item_count || 0);
-        setMetricValue(metricOrdered, detail?.ordered_count || 0);
-        setMetricValue(metricReceived, detail?.received_count || 0);
-        setMetricValue(metricStatus, String(detail?.status || "draft").replace(/_/g, " "));
+        const summary = activePickupListDetail && Number(activePickupListDetail.shopping_list_id || 0) === Number(activeListId || 0)
+          ? activePickupListDetail
+          : detail;
+        setMetricValue(metricItems, summary?.item_count || 0);
+        setMetricValue(metricOrdered, summary?.ordered_count || 0);
+        setMetricValue(metricReceived, summary?.received_count || 0);
+        setMetricValue(metricStatus, String(summary?.status || "draft").replace(/_/g, " "));
+        refreshWorkspaceChrome();
+      }
+
+      function setActiveShoppingDetail(detail, options = {}) {
+        const { preservePickupView = false } = options;
+        activeShoppingDetail = detail || null;
+        activeListId = detail?.id || null;
+        dropdownSelectedListId = detail?.id ? Number(detail.id) : dropdownSelectedListId;
+        activeListPhase = detail?.phase ? String(detail.phase).trim().toLowerCase() : null;
+        if (
+          !preservePickupView
+          || !activePickupListDetail
+          || Number(activePickupListDetail.shopping_list_id || 0) !== Number(activeListId || 0)
+        ) {
+          activePickupListDetail = null;
+        }
+        pruneSelectedPickupItems(detail?.items || []);
+        updateListActionStates();
+      }
+
+      async function loadPickupListsForActiveList(options = {}) {
+        const { preserveActivePickup = false } = options;
+        if (!activeListId) {
+          pickupLists = [];
+          activePickupListDetail = null;
+          setSummary(activeShoppingDetail);
+          return;
+        }
+        const response = await fetch(apiUrl(`/api/shopping-lists/${activeListId}/pickup-lists`), {
+          credentials: "include",
+        });
+        if (!response.ok) {
+          throw new Error(await parseApiError(response));
+        }
+        const payload = await response.json();
+        pickupLists = Array.isArray(payload) ? payload : [];
+        if (preserveActivePickup && activePickupListDetail) {
+          const activePickupId = Number(activePickupListDetail.id || 0);
+          const stillExists = pickupLists.some((entry) => Number(entry.id) === activePickupId);
+          if (stillExists) {
+            const detailResponse = await fetch(apiUrl(`/api/shopping-pickup-lists/${activePickupId}`), {
+              credentials: "include",
+            });
+            if (!detailResponse.ok) {
+              throw new Error(await parseApiError(detailResponse));
+            }
+            activePickupListDetail = await detailResponse.json();
+          } else {
+            activePickupListDetail = null;
+          }
+        } else {
+          activePickupListDetail = null;
+        }
+        setSummary(activeShoppingDetail);
+      }
+
+      async function openPickupList(pickupListId) {
+        if (!activeListId) {
+          setStatus("Load a shopping list first.", "err");
+          return;
+        }
+        try {
+          setStatus("Opening pickup list...", "info", { busy: true });
+          const response = await fetch(apiUrl(`/api/shopping-pickup-lists/${pickupListId}`), {
+            credentials: "include",
+          });
+          if (!response.ok) {
+            throw new Error(await parseApiError(response));
+          }
+          activePickupListDetail = await response.json();
+          selectedPickupItemIds.clear();
+          setSummary(activeShoppingDetail);
+          renderShoppingRows(activeShoppingDetail || { items: [] });
+          setStatus("Pickup list loaded.", "ok");
+        } catch (error) {
+          setStatus(error instanceof Error ? error.message : String(error), "err");
+        }
+      }
+
+      function closePickupListView() {
+        activePickupListDetail = null;
+        setSummary(activeShoppingDetail);
+        renderShoppingRows(activeShoppingDetail || { items: [] });
+      }
+
+      async function deletePickupList(pickupListId) {
+        const target = pickupLists.find((entry) => Number(entry.id) === Number(pickupListId));
+        const label = target?.name || activePickupListDetail?.name || `Pickup List #${pickupListId}`;
+        const confirmed = window.confirm(`Delete "${label}"? This saved subset will be removed.`);
+        if (!confirmed) {
+          return;
+        }
+        try {
+          setStatus("Deleting pickup list...", "info", { busy: true });
+          const response = await fetch(apiUrl(`/api/shopping-pickup-lists/${pickupListId}`), {
+            method: "DELETE",
+            credentials: "include",
+          });
+          if (!response.ok) {
+            throw new Error(await parseApiError(response));
+          }
+          if (Number(activePickupListDetail?.id || 0) === Number(pickupListId)) {
+            activePickupListDetail = null;
+          }
+          await loadPickupListsForActiveList();
+          renderShoppingRows(activeShoppingDetail || { items: [] });
+          setStatus(`Deleted "${label}".`, "ok");
+        } catch (error) {
+          setStatus(error instanceof Error ? error.message : String(error), "err");
+        }
+      }
+
+      async function createPickupListFromSelection() {
+        if (!activeListId) {
+          setStatus("Load a shopping list first.", "err");
+          return;
+        }
+        const itemIds = Array.from(selectedPickupItemIds.values()).sort((a, b) => a - b);
+        if (!itemIds.length) {
+          setStatus("Select at least one shopping row first.", "err");
+          return;
+        }
+        const payload = {
+          itemIds,
+          name: pickupListNameInput?.value.trim() || null,
+          vendorId: pickupListVendorSelect?.value ? Number(pickupListVendorSelect.value) : null,
+          assignee: pickupListAssigneeInput?.value.trim() || null,
+          pickupDate: pickupListDateInput?.value || null,
+          notes: pickupListNotesInput?.value.trim() || null,
+        };
+        try {
+          setButtonBusy(createPickupListBtn, true, "Saving");
+          setStatus("Saving pickup list...", "info", { busy: true });
+          const response = await fetch(apiUrl(`/api/shopping-lists/${activeListId}/pickup-lists`), {
+            method: "POST",
+            credentials: "include",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          });
+          if (!response.ok) {
+            throw new Error(await parseApiError(response));
+          }
+          const detail = await response.json();
+          selectedPickupItemIds.clear();
+          resetPickupListForm();
+          await loadPickupListsForActiveList();
+          activePickupListDetail = detail;
+          setSummary(activeShoppingDetail);
+          renderShoppingRows(activeShoppingDetail || { items: [] });
+          setStatus(`Saved "${detail.name}".`, "ok");
+        } catch (error) {
+          setStatus(error instanceof Error ? error.message : String(error), "err");
+        } finally {
+          setButtonBusy(createPickupListBtn, false, "Saving");
+        }
+      }
+
+      function clearPickupSelection() {
+        selectedPickupItemIds.clear();
+        refreshWorkspaceChrome();
+        renderShoppingRows(activeShoppingDetail || { items: [] });
+      }
+
+      function selectVisibleItemsForVendor() {
+        if (!activeListId) {
+          setStatus("Load a shopping list first.", "err");
+          return;
+        }
+        const vendorId = pickupListVendorSelect?.value ? Number(pickupListVendorSelect.value) : null;
+        if (!vendorId) {
+          setStatus("Choose a source first.", "err");
+          return;
+        }
+        const visibleItems = visibleShoppingItems(activeShoppingDetail);
+        const matching = visibleItems.filter((item) => itemMatchesVendor(item, vendorId));
+        if (!matching.length) {
+          setStatus("No visible items match that source.", "err");
+          return;
+        }
+        matching.forEach((item) => {
+          selectedPickupItemIds.add(Number(item.id));
+        });
+        refreshWorkspaceChrome();
+        renderShoppingRows(activeShoppingDetail || { items: [] });
+        setStatus(`${matching.length} items selected for this source.`, "ok");
       }
 
       function ingredientCategoryName(item) {
@@ -1359,8 +1834,27 @@
         const vendorAllocations = vendorAllocationsForItem(item);
         const allocationCoverage = summarizeVendorAllocationCoverage(item, vendorAllocations);
 
+        const selectionTd = document.createElement("td");
+        selectionTd.className = "selection-cell";
+        const pickInput = document.createElement("input");
+        pickInput.type = "checkbox";
+        pickInput.className = "form-check-input pick-input";
+        pickInput.checked = activePickupListDetail ? true : selectedPickupItemIds.has(Number(item.id));
+        pickInput.disabled = Boolean(activePickupListDetail);
+        pickInput.addEventListener("change", () => {
+          const itemId = Number(item.id);
+          if (pickInput.checked) {
+            selectedPickupItemIds.add(itemId);
+          } else {
+            selectedPickupItemIds.delete(itemId);
+          }
+          refreshWorkspaceChrome();
+        });
+        selectionTd.appendChild(pickInput);
+        tr.appendChild(selectionTd);
+
         const ingredientTd = document.createElement("td");
-        ingredientTd.className = "shopping-need-cell";
+        ingredientTd.className = "shopping-need-cell ingredient-cell";
         const ingredientName = String(item?.ingredient_name || "").trim() || "Unknown ingredient";
         const sourceBreakdown = Array.isArray(item?.source_breakdown)
           ? item.source_breakdown
@@ -1534,7 +2028,7 @@
         const headerTr = document.createElement("tr");
         headerTr.className = "category-row";
         const headerTd = document.createElement("td");
-        headerTd.colSpan = 8;
+        headerTd.colSpan = 9;
 
         const heading = document.createElement("div");
         heading.className = "category-heading";
@@ -1558,16 +2052,18 @@
         }
         const inventoryEditable = isInventoryEditablePhase(detail?.phase || activeListPhase);
         const allItems = Array.isArray(detail?.items) ? detail.items : [];
-        const rawBreakdownCount = allItems.filter(
+        pruneSelectedPickupItems(allItems);
+        const scopedItems = pickupScopedItems(allItems);
+        const rawBreakdownCount = scopedItems.filter(
           (item) => Array.isArray(item?.source_breakdown) && item.source_breakdown.length > 0
         ).length;
-        const withBreakdownCount = allItems.filter(
+        const withBreakdownCount = scopedItems.filter(
           (item) => Array.isArray(item?.source_breakdown)
             && item.source_breakdown.length > 0
             && meetsContributionThreshold(item?.required_qty, item?.required_unit)
         ).length;
         if (sourceBreakdownHint) {
-          if (!allItems.length) {
+          if (!scopedItems.length) {
             sourceBreakdownHint.classList.add("d-none");
             sourceBreakdownHint.textContent = "";
           } else if (rawBreakdownCount === 0) {
@@ -1581,30 +2077,45 @@
             sourceBreakdownHint.textContent = `${withBreakdownCount} ingredients include contributor details (>= 2 kg or >= 2 l).`;
           }
         }
-        renderShoppingCategoryFilter(allItems);
-        const visibleItems = categoryFilteredItems(allItems);
+        renderShoppingCategoryFilter(scopedItems);
+        const visibleItems = categoryFilteredItems(scopedItems);
 
         if (!allItems.length) {
           const tr = document.createElement("tr");
           const td = document.createElement("td");
-          td.colSpan = 8;
+          td.colSpan = 9;
           td.className = "text-muted small py-3";
           td.textContent = "No items found for this shopping list.";
           tr.appendChild(td);
           shoppingBody.appendChild(tr);
           triggerFadeIn(shoppingBody);
+          refreshWorkspaceChrome();
+          return;
+        }
+
+        if (!scopedItems.length && activePickupListDetail) {
+          const tr = document.createElement("tr");
+          const td = document.createElement("td");
+          td.colSpan = 9;
+          td.className = "text-muted small py-3";
+          td.textContent = "This pickup list does not currently match any items in the master list.";
+          tr.appendChild(td);
+          shoppingBody.appendChild(tr);
+          triggerFadeIn(shoppingBody);
+          refreshWorkspaceChrome();
           return;
         }
 
         if (!visibleItems.length) {
           const tr = document.createElement("tr");
           const td = document.createElement("td");
-          td.colSpan = 8;
+          td.colSpan = 9;
           td.className = "text-muted small py-3";
           td.textContent = `No items in ${selectedIngredientCategory}.`;
           tr.appendChild(td);
           shoppingBody.appendChild(tr);
           triggerFadeIn(shoppingBody);
+          refreshWorkspaceChrome();
           return;
         }
 
@@ -1613,7 +2124,7 @@
             const sourceTr = document.createElement("tr");
             sourceTr.className = "source-row";
             const sourceTd = document.createElement("td");
-            sourceTd.colSpan = 8;
+            sourceTd.colSpan = 9;
             sourceTd.textContent = `Source: ${sourceEntry.source} (${sourceEntry.totalItems} items)`;
             sourceTr.appendChild(sourceTd);
             shoppingBody.appendChild(sourceTr);
@@ -1627,6 +2138,7 @@
             });
           });
           triggerFadeIn(shoppingBody);
+          refreshWorkspaceChrome();
           return;
         }
 
@@ -1638,6 +2150,7 @@
           });
         });
         triggerFadeIn(shoppingBody);
+        refreshWorkspaceChrome();
       }
 
       async function loadShoppingListDetail(listId) {
@@ -1651,11 +2164,8 @@
             throw new Error(await parseApiError(response));
           }
           const detail = await response.json();
-          activeShoppingDetail = detail;
-          activeListId = detail.id;
-          dropdownSelectedListId = Number(detail.id);
-          activeListPhase = String(detail.phase || "").trim().toLowerCase() || null;
-          updateListActionStates();
+          setActiveShoppingDetail(detail, { preservePickupView: true });
+          await loadPickupListsForActiveList({ preserveActivePickup: true });
           setSummary(detail);
           renderShoppingRows(detail);
         } catch (error) {
@@ -1687,11 +2197,8 @@
           }
 
           const detail = await response.json();
-          activeShoppingDetail = detail;
-          activeListId = detail.id;
-          dropdownSelectedListId = Number(detail.id);
-          activeListPhase = String(detail.phase || "").trim().toLowerCase() || null;
-          updateListActionStates();
+          setActiveShoppingDetail(detail, { preservePickupView: true });
+          await loadPickupListsForActiveList({ preserveActivePickup: true });
           setSummary(detail);
           renderShoppingRows(detail);
           await loadShoppingLists();
@@ -1726,8 +2233,8 @@
             throw new Error(await parseApiError(response));
           }
           const detail = await response.json();
-          activeShoppingDetail = detail;
-          activeListPhase = String(detail.phase || "").trim().toLowerCase() || null;
+          setActiveShoppingDetail(detail, { preservePickupView: true });
+          await loadPickupListsForActiveList({ preserveActivePickup: true });
           setSummary(detail);
           renderShoppingRows(detail);
           await loadShoppingLists();
@@ -1773,10 +2280,8 @@
             throw new Error(await parseApiError(response));
           }
           const detail = await response.json();
-          activeShoppingDetail = detail;
-          activeListId = detail.id;
-          activeListPhase = String(detail.phase || "").trim().toLowerCase() || null;
-          updateListActionStates();
+          setActiveShoppingDetail(detail);
+          await loadPickupListsForActiveList();
           setSummary(detail);
           renderShoppingRows(detail);
           await loadShoppingLists();
@@ -1831,10 +2336,8 @@
           }
           const detail = await response.json();
           if (Number(activeListId) === Number(targetListId)) {
-            activeShoppingDetail = detail;
-            activeListId = detail.id;
-            activeListPhase = String(detail.phase || "").trim().toLowerCase() || null;
-            updateListActionStates();
+            setActiveShoppingDetail(detail, { preservePickupView: true });
+            await loadPickupListsForActiveList({ preserveActivePickup: true });
             setSummary(detail);
             renderShoppingRows(detail);
           }
@@ -1890,6 +2393,9 @@
           activeShoppingDetail = null;
           activeListId = null;
           activeListPhase = null;
+          activePickupListDetail = null;
+          pickupLists = [];
+          selectedPickupItemIds.clear();
           closeInlineRenameEditor();
           updateListActionStates();
           setSummary(null);
@@ -1974,6 +2480,7 @@
 
           if (vendorsResult.status === "rejected") {
             vendors = [];
+            renderPickupVendorOptions();
             const vendorError = vendorsResult.reason instanceof Error ? vendorsResult.reason.message : String(vendorsResult.reason);
             warnings.push(`Could not load vendors: ${vendorError}`);
           }
@@ -1995,6 +2502,9 @@
                 activeShoppingDetail = null;
                 activeListId = null;
                 activeListPhase = null;
+                activePickupListDetail = null;
+                pickupLists = [];
+                selectedPickupItemIds.clear();
                 updateListActionStates();
                 setSummary(null);
                 renderShoppingRows({ items: [] });
@@ -2007,6 +2517,9 @@
             activeShoppingDetail = null;
             activeListId = null;
             activeListPhase = null;
+            activePickupListDetail = null;
+            pickupLists = [];
+            selectedPickupItemIds.clear();
             updateListActionStates();
             setSummary(null);
             renderShoppingRows({ items: [] });
@@ -2114,6 +2627,12 @@
         });
       }
 
+      if (pickupListVendorSelect) {
+        pickupListVendorSelect.addEventListener("change", () => {
+          refreshWorkspaceChrome();
+        });
+      }
+
       deleteListBtn.addEventListener("click", () => {
         void deleteActiveShoppingList();
       });
@@ -2125,5 +2644,62 @@
       refreshListsBtn.addEventListener("click", () => {
         void refreshSelectedShoppingList();
       });
+
+      if (pickupSelectVisibleCheck) {
+        pickupSelectVisibleCheck.addEventListener("change", () => {
+          if (activePickupListDetail) {
+            pickupSelectVisibleCheck.checked = false;
+            return;
+          }
+          const visibleItems = visibleShoppingItems(activeShoppingDetail);
+          visibleItems.forEach((item) => {
+            const itemId = Number(item?.id);
+            if (!Number.isFinite(itemId) || itemId <= 0) {
+              return;
+            }
+            if (pickupSelectVisibleCheck.checked) {
+              selectedPickupItemIds.add(itemId);
+            } else {
+              selectedPickupItemIds.delete(itemId);
+            }
+          });
+          refreshWorkspaceChrome();
+          renderShoppingRows(activeShoppingDetail || { items: [] });
+        });
+      }
+
+      if (selectVendorPickupItemsBtn) {
+        selectVendorPickupItemsBtn.addEventListener("click", () => {
+          selectVisibleItemsForVendor();
+        });
+      }
+
+      if (clearPickupSelectionBtn) {
+        clearPickupSelectionBtn.addEventListener("click", () => {
+          clearPickupSelection();
+          setStatus("Selection cleared.", "info");
+        });
+      }
+
+      if (createPickupListBtn) {
+        createPickupListBtn.addEventListener("click", () => {
+          void createPickupListFromSelection();
+        });
+      }
+
+      if (closePickupViewBtn) {
+        closePickupViewBtn.addEventListener("click", () => {
+          closePickupListView();
+          setStatus("Showing the master shopping list.", "ok");
+        });
+      }
+
+      if (deletePickupListBtn) {
+        deletePickupListBtn.addEventListener("click", () => {
+          if (activePickupListDetail?.id) {
+            void deletePickupList(activePickupListDetail.id);
+          }
+        });
+      }
 
       void bootstrap();

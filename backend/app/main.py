@@ -644,6 +644,23 @@ class ShoppingListCarryForwardPayload(BaseModel):
     phase: Literal["bulk", "fresh", "daily", "custom"] | None = None
 
 
+class ShoppingPickupListCreatePayload(BaseModel):
+    itemIds: list[int] = Field(min_length=1)
+    name: str | None = None
+    vendorId: int | None = Field(default=None, ge=1)
+    assignee: str | None = None
+    pickupDate: str | None = None
+    notes: str | None = None
+
+
+class ShoppingPickupListUpdatePayload(BaseModel):
+    name: str | None = None
+    vendorId: int | None = Field(default=None, ge=1)
+    assignee: str | None = None
+    pickupDate: str | None = None
+    notes: str | None = None
+
+
 class ServiceSnapshotIngredient(BaseModel):
     name: str = Field(min_length=1)
     scaledQty: str = Field(min_length=1)
@@ -1666,6 +1683,121 @@ def get_shopping_list(shopping_list_id: int) -> dict[str, Any]:
     with get_connection() as conn:
         detail = load_shopping_list_detail(conn, shopping_list_id)
     return detail
+
+
+@app.get("/api/shopping-lists/{shopping_list_id}/pickup-lists")
+def list_shopping_pickup_lists(shopping_list_id: int) -> list[dict[str, Any]]:
+    with get_connection() as conn:
+        ensure_shopping_list_exists(conn, shopping_list_id)
+        return load_shopping_pickup_lists_for_shopping_list(conn, shopping_list_id)
+
+
+@app.post("/api/shopping-lists/{shopping_list_id}/pickup-lists")
+def create_shopping_pickup_list(
+    shopping_list_id: int,
+    payload: ShoppingPickupListCreatePayload,
+    _user: Annotated[AuthUser, Depends(require_roles(ROLE_PLANNER, ROLE_ADMIN))],
+) -> dict[str, Any]:
+    requested_name = normalize_optional_text(payload.name)
+    assignee = normalize_optional_text(payload.assignee)
+    pickup_date = normalize_optional_text(payload.pickupDate)
+    notes = normalize_optional_text(payload.notes)
+    with get_connection() as conn:
+        detail = create_saved_shopping_pickup_list(
+            conn,
+            shopping_list_id=shopping_list_id,
+            item_ids=payload.itemIds,
+            requested_name=requested_name,
+            vendor_id=payload.vendorId,
+            assignee=assignee,
+            pickup_date=pickup_date,
+            notes=notes,
+        )
+        conn.commit()
+    return detail
+
+
+@app.get("/api/shopping-pickup-lists/{pickup_list_id}")
+def get_shopping_pickup_list(pickup_list_id: int) -> dict[str, Any]:
+    with get_connection() as conn:
+        return load_shopping_pickup_list_detail(conn, pickup_list_id)
+
+
+@app.patch("/api/shopping-pickup-lists/{pickup_list_id}")
+def update_shopping_pickup_list(
+    pickup_list_id: int,
+    payload: ShoppingPickupListUpdatePayload,
+    _user: Annotated[AuthUser, Depends(require_roles(ROLE_PLANNER, ROLE_ADMIN))],
+) -> dict[str, Any]:
+    fields = payload.model_fields_set
+    if not fields:
+        raise HTTPException(status_code=400, detail="No fields supplied")
+
+    with get_connection() as conn:
+        pickup_list = ensure_shopping_pickup_list_exists(conn, pickup_list_id)
+        updates: list[str] = []
+        params: list[Any] = []
+
+        if "name" in fields:
+            requested_name = normalize_required_text(payload.name, field_name="name")
+            next_name = unique_shopping_pickup_list_name(
+                conn,
+                int(pickup_list["shopping_list_id"]),
+                requested_name,
+                exclude_pickup_list_id=pickup_list_id,
+            )
+            updates.append("name = ?")
+            params.append(next_name)
+
+        if "vendorId" in fields:
+            vendor_id = payload.vendorId
+            if vendor_id is not None:
+                ensure_vendor_exists(conn, vendor_id)
+            updates.append("vendor_id = ?")
+            params.append(vendor_id)
+
+        if "assignee" in fields:
+            updates.append("assignee = ?")
+            params.append(normalize_optional_text(payload.assignee))
+
+        if "pickupDate" in fields:
+            updates.append("pickup_date = ?")
+            params.append(normalize_optional_text(payload.pickupDate))
+
+        if "notes" in fields:
+            updates.append("notes = ?")
+            params.append(normalize_optional_text(payload.notes))
+
+        updates.append("updated_at = CURRENT_TIMESTAMP")
+        params.append(pickup_list_id)
+        conn.execute(
+            f"""
+            UPDATE shopping_pickup_lists
+            SET {", ".join(updates)}
+            WHERE id = ?
+            """,
+            tuple(params),
+        )
+        detail = load_shopping_pickup_list_detail(conn, pickup_list_id)
+        conn.commit()
+    return detail
+
+
+@app.delete("/api/shopping-pickup-lists/{pickup_list_id}")
+def delete_shopping_pickup_list(
+    pickup_list_id: int,
+    _user: Annotated[AuthUser, Depends(require_roles(ROLE_PLANNER, ROLE_ADMIN))],
+) -> dict[str, Any]:
+    with get_connection() as conn:
+        pickup_list = ensure_shopping_pickup_list_exists(conn, pickup_list_id)
+        conn.execute("DELETE FROM shopping_pickup_lists WHERE id = ?", (pickup_list_id,))
+        conn.commit()
+    return {
+        "id": int(pickup_list["id"]),
+        "shopping_list_id": int(pickup_list["shopping_list_id"]),
+        "name": pickup_list["name"],
+        "status": "deleted",
+    }
 
 
 @app.patch("/api/shopping-lists/{shopping_list_id}")
@@ -3511,6 +3643,70 @@ def derive_shopping_item_status(ordered: bool, received: bool) -> str:
     return "open"
 
 
+def derive_progress_status(total_count: int, ordered_count: int, received_count: int) -> str:
+    if total_count <= 0:
+        return "draft"
+    if received_count >= total_count:
+        return "received"
+    if ordered_count > 0:
+        return "in_progress"
+    return "draft"
+
+
+def shopping_item_source_key(
+    ingredient_id: Any,
+    quantity: Any,
+    unit: Any,
+) -> tuple[int, str] | None:
+    if ingredient_id is None:
+        return None
+    canonical_qty, canonical_unit = quantity_to_canonical(
+        float(quantity or 0.0),
+        str(unit or "").strip(),
+    )
+    if canonical_qty is None or not canonical_unit:
+        return None
+    return int(ingredient_id), canonical_unit
+
+
+def ensure_vendor_exists(conn: Any, vendor_id: int) -> Any:
+    row = conn.execute(
+        "SELECT id, name FROM vendors WHERE id = ?",
+        (vendor_id,),
+    ).fetchone()
+    if not row:
+        raise HTTPException(status_code=400, detail="Vendor not found")
+    return row
+
+
+def ensure_shopping_list_exists(conn: Any, shopping_list_id: int) -> Any:
+    row = conn.execute(
+        """
+        SELECT id, name, phase, retreat_plan_id
+        FROM shopping_lists
+        WHERE id = ?
+        """,
+        (shopping_list_id,),
+    ).fetchone()
+    if not row:
+        raise HTTPException(status_code=404, detail="Shopping list not found")
+    return row
+
+
+def ensure_shopping_pickup_list_exists(conn: Any, pickup_list_id: int) -> Any:
+    row = conn.execute(
+        """
+        SELECT id, shopping_list_id, name, vendor_id, assignee, pickup_date, notes, created_at, updated_at
+        FROM shopping_pickup_lists
+        WHERE id = ?
+        """,
+        (pickup_list_id,),
+    ).fetchone()
+    if not row:
+        raise HTTPException(status_code=404, detail="Pickup list not found")
+    return row
+
+
 def shopping_vendor_allocations_supported(conn: Any) -> bool:
     return table_exists(conn, "shopping_list_item_vendor_allocations")
 
@@ -3538,16 +3734,23 @@ def load_shopping_list_item_vendor_allocations_by_item_id(
             sliva.received,
             sliva.received_at,
             sliva.sort_order
-        FROM shopping_list_item_vendor_allocations sliva
+        FROM shopping_list_item_vendor_allocations sliva{" NOT INDEXED" if conn.backend == "sqlite" else ""}
         LEFT JOIN vendors v ON v.id = sliva.vendor_id
         WHERE sliva.shopping_list_item_id IN ({placeholders})
-        ORDER BY sliva.shopping_list_item_id, sliva.sort_order, sliva.id
+        ORDER BY sliva.id
         """,
         tuple(normalized_ids),
     ).fetchall()
 
     allocations_by_item_id: dict[int, list[dict[str, Any]]] = {}
-    for row in rows:
+    for row in sorted(
+        rows,
+        key=lambda entry: (
+            int(entry["shopping_list_item_id"]),
+            int(entry["sort_order"] or 0),
+            int(entry["id"]),
+        ),
+    ):
         item_id = int(row["shopping_list_item_id"])
         allocations_by_item_id.setdefault(item_id, []).append(
             {
@@ -3679,10 +3882,28 @@ def replace_shopping_item_vendor_allocations(
 ) -> None:
     if not shopping_vendor_allocations_supported(conn):
         return
-    conn.execute(
-        "DELETE FROM shopping_list_item_vendor_allocations WHERE shopping_list_item_id = ?",
-        (shopping_list_item_id,),
-    )
+    if conn.backend == "sqlite":
+        existing_rows = conn.execute(
+            """
+            SELECT id
+            FROM shopping_list_item_vendor_allocations NOT INDEXED
+            WHERE shopping_list_item_id = ?
+            ORDER BY id
+            """,
+            (shopping_list_item_id,),
+        ).fetchall()
+        existing_ids = [int(row["id"]) for row in existing_rows if row["id"] is not None]
+        if existing_ids:
+            placeholders = ",".join("?" for _ in existing_ids)
+            conn.execute(
+                f"DELETE FROM shopping_list_item_vendor_allocations WHERE id IN ({placeholders})",
+                tuple(existing_ids),
+            )
+    else:
+        conn.execute(
+            "DELETE FROM shopping_list_item_vendor_allocations WHERE shopping_list_item_id = ?",
+            (shopping_list_item_id,),
+        )
     for index, allocation in enumerate(allocations):
         conn.execute(
             """
@@ -3721,6 +3942,7 @@ def load_existing_shopping_list_item_metadata(
     rows = conn.execute(
         """
         SELECT
+            id,
             ingredient_id,
             required_qty,
             required_unit,
@@ -3793,6 +4015,351 @@ def load_existing_shopping_list_item_metadata(
     for key in duplicate_keys:
         preserved.pop(key, None)
     return preserved
+
+
+def unique_shopping_pickup_list_name(
+    conn: Any,
+    shopping_list_id: int,
+    base_name: str,
+    exclude_pickup_list_id: int | None = None,
+) -> str:
+    seed = " ".join(str(base_name or "").strip().split()) or "Pickup List"
+    candidate = seed
+    suffix = 2
+    while True:
+        if exclude_pickup_list_id is None:
+            exists = conn.execute(
+                """
+                SELECT 1
+                FROM shopping_pickup_lists
+                WHERE shopping_list_id = ?
+                  AND lower(name) = lower(?)
+                """,
+                (shopping_list_id, candidate),
+            ).fetchone()
+        else:
+            exists = conn.execute(
+                """
+                SELECT 1
+                FROM shopping_pickup_lists
+                WHERE shopping_list_id = ?
+                  AND lower(name) = lower(?)
+                  AND id != ?
+                """,
+                (shopping_list_id, candidate, exclude_pickup_list_id),
+            ).fetchone()
+        if not exists:
+            return candidate
+        candidate = f"{seed} ({suffix})"
+        suffix += 1
+
+
+def load_shopping_list_item_source_key_map(
+    conn: Any,
+    shopping_list_id: int,
+) -> dict[tuple[int, str], int]:
+    rows = conn.execute(
+        """
+        SELECT id, ingredient_id, required_qty, required_unit
+        FROM shopping_list_items
+        WHERE shopping_list_id = ?
+        ORDER BY id
+        """,
+        (shopping_list_id,),
+    ).fetchall()
+
+    mapping: dict[tuple[int, str], int] = {}
+    duplicates: set[tuple[int, str]] = set()
+    for row in rows:
+        key = shopping_item_source_key(
+            row["ingredient_id"],
+            row["required_qty"],
+            row["required_unit"],
+        )
+        if key is None:
+            continue
+        if key in mapping:
+            duplicates.add(key)
+            continue
+        mapping[key] = int(row["id"])
+
+    for key in duplicates:
+        mapping.pop(key, None)
+    return mapping
+
+
+def relink_shopping_pickup_list_items(conn: Any, shopping_list_id: int) -> None:
+    if not table_exists(conn, "shopping_pickup_list_items"):
+        return
+
+    item_id_by_source_key = load_shopping_list_item_source_key_map(conn, shopping_list_id)
+    rows = conn.execute(
+        """
+        SELECT
+            ppli.id,
+            ppli.source_ingredient_id,
+            ppli.source_canonical_unit
+        FROM shopping_pickup_list_items ppli
+        JOIN shopping_pickup_lists ppl
+          ON ppl.id = ppli.shopping_pickup_list_id
+        WHERE ppl.shopping_list_id = ?
+        """,
+        (shopping_list_id,),
+    ).fetchall()
+
+    for row in rows:
+        source_key = (
+            int(row["source_ingredient_id"]),
+            str(row["source_canonical_unit"] or "").strip(),
+        )
+        next_item_id = item_id_by_source_key.get(source_key)
+        conn.execute(
+            """
+            UPDATE shopping_pickup_list_items
+            SET shopping_list_item_id = ?,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+            """,
+            (next_item_id, int(row["id"])),
+        )
+
+
+def derive_pickup_list_status(
+    total_count: int,
+    ordered_count: int,
+    received_count: int,
+    missing_item_count: int,
+) -> str:
+    if missing_item_count > 0:
+        return "needs_review"
+    return derive_progress_status(total_count, ordered_count, received_count)
+
+
+def load_shopping_pickup_list_detail(conn: Any, pickup_list_id: int) -> dict[str, Any]:
+    list_row = conn.execute(
+        """
+        SELECT
+            ppl.id,
+            ppl.shopping_list_id,
+            ppl.name,
+            ppl.vendor_id,
+            v.name AS vendor_name,
+            ppl.assignee,
+            ppl.pickup_date,
+            ppl.notes,
+            ppl.created_at,
+            ppl.updated_at
+        FROM shopping_pickup_lists ppl
+        LEFT JOIN vendors v ON v.id = ppl.vendor_id
+        WHERE ppl.id = ?
+        """,
+        (pickup_list_id,),
+    ).fetchone()
+    if not list_row:
+        raise HTTPException(status_code=404, detail="Pickup list not found")
+
+    item_rows = conn.execute(
+        """
+        SELECT
+            ppli.id,
+            ppli.shopping_list_item_id,
+            ppli.source_ingredient_id,
+            ppli.source_canonical_unit,
+            ppli.sort_order,
+            sli.ordered,
+            sli.received,
+            COALESCE(i.name, ('Unknown ingredient #' || ppli.source_ingredient_id)) AS ingredient_name
+        FROM shopping_pickup_list_items ppli
+        LEFT JOIN shopping_list_items sli ON sli.id = ppli.shopping_list_item_id
+        LEFT JOIN ingredients i ON i.id = ppli.source_ingredient_id
+        WHERE ppli.shopping_pickup_list_id = ?
+        ORDER BY ppli.sort_order, ppli.id
+        """,
+        (pickup_list_id,),
+    ).fetchall()
+
+    item_ids: list[int] = []
+    missing_items: list[dict[str, Any]] = []
+    ordered_count = 0
+    received_count = 0
+    for row in item_rows:
+        linked_item_id = row["shopping_list_item_id"]
+        if linked_item_id is None:
+            missing_items.append(
+                {
+                    "ingredient_id": int(row["source_ingredient_id"]),
+                    "ingredient_name": str(row["ingredient_name"] or "").strip() or "Unknown ingredient",
+                    "canonical_unit": str(row["source_canonical_unit"] or "").strip() or None,
+                }
+            )
+            continue
+        item_ids.append(int(linked_item_id))
+        if bool(row["ordered"]):
+            ordered_count += 1
+        if bool(row["received"]):
+            received_count += 1
+
+    total_count = len(item_rows)
+    missing_item_count = len(missing_items)
+    return {
+        "id": int(list_row["id"]),
+        "shopping_list_id": int(list_row["shopping_list_id"]),
+        "name": list_row["name"],
+        "vendor_id": int(list_row["vendor_id"]) if list_row["vendor_id"] is not None else None,
+        "vendor_name": normalize_optional_text(list_row["vendor_name"]),
+        "assignee": normalize_optional_text(list_row["assignee"]),
+        "pickup_date": normalize_optional_text(list_row["pickup_date"]),
+        "notes": normalize_optional_text(list_row["notes"]),
+        "created_at": list_row["created_at"],
+        "updated_at": list_row["updated_at"],
+        "item_count": total_count,
+        "ordered_count": ordered_count,
+        "received_count": received_count,
+        "missing_item_count": missing_item_count,
+        "status": derive_pickup_list_status(
+            total_count,
+            ordered_count,
+            received_count,
+            missing_item_count,
+        ),
+        "item_ids": item_ids,
+        "missing_items": missing_items,
+    }
+
+
+def load_shopping_pickup_lists_for_shopping_list(
+    conn: Any,
+    shopping_list_id: int,
+) -> list[dict[str, Any]]:
+    rows = conn.execute(
+        """
+        SELECT id
+        FROM shopping_pickup_lists
+        WHERE shopping_list_id = ?
+        ORDER BY lower(name), id
+        """,
+        (shopping_list_id,),
+    ).fetchall()
+    return [load_shopping_pickup_list_detail(conn, int(row["id"])) for row in rows]
+
+
+def create_saved_shopping_pickup_list(
+    conn: Any,
+    *,
+    shopping_list_id: int,
+    item_ids: list[int],
+    requested_name: str | None,
+    vendor_id: int | None,
+    assignee: str | None,
+    pickup_date: str | None,
+    notes: str | None,
+) -> dict[str, Any]:
+    shopping_list = ensure_shopping_list_exists(conn, shopping_list_id)
+    if vendor_id is not None:
+        vendor_row = ensure_vendor_exists(conn, vendor_id)
+        vendor_name = str(vendor_row["name"] or "").strip() or None
+    else:
+        vendor_name = None
+
+    normalized_item_ids: list[int] = []
+    seen_ids: set[int] = set()
+    for item_id in item_ids:
+        numeric = int(item_id)
+        if numeric <= 0 or numeric in seen_ids:
+            continue
+        normalized_item_ids.append(numeric)
+        seen_ids.add(numeric)
+    if not normalized_item_ids:
+        raise HTTPException(status_code=400, detail="Select at least one shopping item.")
+
+    placeholders = ",".join("?" for _ in normalized_item_ids)
+    item_rows = conn.execute(
+        f"""
+        SELECT id, ingredient_id, required_qty, required_unit
+        FROM shopping_list_items
+        WHERE shopping_list_id = ?
+          AND id IN ({placeholders})
+        ORDER BY id
+        """,
+        (shopping_list_id, *normalized_item_ids),
+    ).fetchall()
+    if len(item_rows) != len(normalized_item_ids):
+        raise HTTPException(status_code=400, detail="One or more selected items are no longer in this shopping list.")
+
+    item_row_by_id = {int(row["id"]): row for row in item_rows}
+    default_name = (
+        f"{vendor_name} Run"
+        if vendor_name
+        else f"{shopping_list['name']} Pickup"
+    )
+    final_name = unique_shopping_pickup_list_name(
+        conn,
+        shopping_list_id,
+        requested_name or default_name,
+    )
+
+    created = conn.execute(
+        """
+        INSERT INTO shopping_pickup_lists(
+            shopping_list_id,
+            name,
+            vendor_id,
+            assignee,
+            pickup_date,
+            notes
+        )
+        VALUES (?, ?, ?, ?, ?, ?)
+        RETURNING id
+        """,
+        (
+            shopping_list_id,
+            final_name,
+            vendor_id,
+            assignee,
+            pickup_date,
+            notes,
+        ),
+    ).fetchone()
+    pickup_list_id = int(created["id"])
+
+    seen_source_keys: set[tuple[int, str]] = set()
+    for sort_order, item_id in enumerate(normalized_item_ids):
+        row = item_row_by_id[item_id]
+        source_key = shopping_item_source_key(
+            row["ingredient_id"],
+            row["required_qty"],
+            row["required_unit"],
+        )
+        if source_key is None:
+            raise HTTPException(status_code=400, detail="A selected shopping item could not be saved.")
+        if source_key in seen_source_keys:
+            raise HTTPException(
+                status_code=400,
+                detail="Selected items include duplicate ingredient/unit lines that cannot be saved in one pickup list.",
+            )
+        source_ingredient_id, source_canonical_unit = source_key
+        seen_source_keys.add(source_key)
+        conn.execute(
+            """
+            INSERT INTO shopping_pickup_list_items(
+                shopping_pickup_list_id,
+                shopping_list_item_id,
+                source_ingredient_id,
+                source_canonical_unit,
+                sort_order
+            )
+            VALUES (?, ?, ?, ?, ?)
+            """,
+            (
+                pickup_list_id,
+                item_id,
+                source_ingredient_id,
+                source_canonical_unit,
+                sort_order,
+            ),
+        )
+
+    return load_shopping_pickup_list_detail(conn, pickup_list_id)
 
 
 def materialize_shopping_list(
@@ -4184,6 +4751,7 @@ def materialize_shopping_list(
             detail="All filtered ingredients are already fully covered by inventory.",
         )
 
+    relink_shopping_pickup_list_items(conn, shopping_list_id)
     refresh_shopping_list_status(conn, shopping_list_id)
     detail = load_shopping_list_detail(conn, shopping_list_id)
     detail["missing_recipes"] = sorted(missing_recipes)
@@ -4207,15 +4775,7 @@ def refresh_shopping_list_status(conn: Any, shopping_list_id: int) -> None:
     total_count = int(counts["total_count"] or 0)
     ordered_count = int(counts["ordered_count"] or 0)
     received_count = int(counts["received_count"] or 0)
-
-    if total_count <= 0:
-        status = "draft"
-    elif received_count >= total_count:
-        status = "received"
-    elif ordered_count > 0:
-        status = "in_progress"
-    else:
-        status = "draft"
+    status = derive_progress_status(total_count, ordered_count, received_count)
 
     conn.execute(
         "UPDATE shopping_lists SET status = ? WHERE id = ?",

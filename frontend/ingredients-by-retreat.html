@@ -627,10 +627,10 @@
         <a href="retreat-planner-sample.html" class="kitchen-tab"><i class="fa-solid fa-calendar-days me-1"></i> Planning View</a>
         <a href="kitchen-service-view.html" class="kitchen-tab"><i class="fa-solid fa-fire-burner me-1"></i> Retreat View</a>
         <a href="kitchen-test-view.html" class="kitchen-tab"><i class="fa-solid fa-vial me-1"></i> Testing View</a>
-        <a href="ingredients-by-retreat.html" class="kitchen-tab active" data-kitchen-tab="ingredients-by-retreat"><i class="fa-solid fa-basket-shopping me-1"></i> Ingredients by Retreat</a>
         <a href="recipe-admin.html" class="kitchen-tab"><i class="fa-solid fa-book me-1"></i> Recipes</a>
         <a href="ingredient-admin.html" class="kitchen-tab"><i class="fa-solid fa-carrot me-1"></i> Ingredients</a>
         <a href="shopping-list.html" class="kitchen-tab"><i class="fa-solid fa-cart-shopping me-1"></i> Shopping List</a>
+        <a href="ingredients-by-retreat.html" class="kitchen-tab active" data-kitchen-tab="ingredients-by-retreat"><i class="fa-solid fa-basket-shopping me-1"></i> Ingredients by Retreat</a>
       </div>
     </nav>
 
@@ -1056,7 +1056,7 @@
           kitchenAccessPromise = window.kitchenGuestAccess.ensurePageAccess({
             scope: "testing",
             title: "Ingredients by Retreat Access Required",
-            description: "Use the shared testing code or sign in with a kitchen account to view retreat ingredient pull lists.",
+            description: "Use the same shared code as Testing View, or sign in with a kitchen account to view retreat ingredient pull lists.",
           });
         }
         return kitchenAccessPromise;

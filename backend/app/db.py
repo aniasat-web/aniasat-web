@@ -1357,6 +1357,25 @@ def init_db(_allow_malformed_recovery: bool = True) -> None:
                     ON shopping_list_item_vendor_allocations(vendor_id)
                     """
                 )
+            elif conn.backend == "sqlite":
+                # Rebuild the SQLite indexes on startup. The multi-source shopping
+                # feature is new and these indexes are tiny locally, so rebuilding
+                # them is a safe way to recover from the occasional malformed
+                # secondary index without touching table data.
+                conn.execute("DROP INDEX IF EXISTS idx_shopping_item_vendor_allocations_item_id")
+                conn.execute("DROP INDEX IF EXISTS idx_shopping_item_vendor_allocations_vendor_id")
+                conn.execute(
+                    """
+                    CREATE INDEX IF NOT EXISTS idx_shopping_item_vendor_allocations_item_id
+                    ON shopping_list_item_vendor_allocations(shopping_list_item_id)
+                    """
+                )
+                conn.execute(
+                    """
+                    CREATE INDEX IF NOT EXISTS idx_shopping_item_vendor_allocations_vendor_id
+                    ON shopping_list_item_vendor_allocations(vendor_id)
+                    """
+                )
 
             if not table_exists(conn, "app_settings"):
                 conn.execute(

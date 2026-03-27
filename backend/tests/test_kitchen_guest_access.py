@@ -59,8 +59,33 @@ class KitchenGuestAccessTests(unittest.TestCase):
         )
         self.assertEqual(response.status_code, 200, response.text)
 
+    def create_retreat_plan(self, name: str = "Guest Access Retreat") -> int:
+        response = self.admin_client.post(
+            "/api/retreat-plans",
+            json={
+                "name": name,
+                "startDate": "2026-03-27",
+                "dayCount": 1,
+                "defaultPeople": 10,
+                "meals": [
+                    {
+                        "day": 1,
+                        "meal": "Breakfast",
+                        "people": 10,
+                        "dishes": [],
+                    }
+                ],
+            },
+        )
+        self.assertEqual(response.status_code, 200, response.text)
+        payload = response.json()
+        self.assertIsInstance(payload, dict)
+        self.assertIn("id", payload)
+        return int(payload["id"])
+
     def test_testing_guest_code_requires_code_and_remains_scoped(self) -> None:
         self.set_shared_code("testing", "TEST-1234")
+        plan_id = self.create_retreat_plan()
 
         status = self.guest_client.get("/api/kitchen-access/testing")
         self.assertEqual(status.status_code, 200, status.text)
@@ -69,6 +94,11 @@ class KitchenGuestAccessTests(unittest.TestCase):
 
         unauth_plan_list = self.guest_client.get("/api/retreat-plans")
         self.assertEqual(unauth_plan_list.status_code, 401, unauth_plan_list.text)
+
+        unauth_ingredients = self.guest_client.get(
+            f"/api/retreat-plans/{plan_id}/ingredients-by-retreat?tier=bulk"
+        )
+        self.assertEqual(unauth_ingredients.status_code, 401, unauth_ingredients.text)
 
         bad_login = self.guest_client.post(
             "/api/kitchen-access/testing/login",
@@ -85,6 +115,14 @@ class KitchenGuestAccessTests(unittest.TestCase):
 
         plan_list = self.guest_client.get("/api/retreat-plans")
         self.assertEqual(plan_list.status_code, 200, plan_list.text)
+
+        ingredients = self.guest_client.get(
+            f"/api/retreat-plans/{plan_id}/ingredients-by-retreat?tier=bulk"
+        )
+        self.assertEqual(ingredients.status_code, 200, ingredients.text)
+        ingredients_payload = ingredients.json()
+        self.assertEqual(ingredients_payload["tier"], "bulk")
+        self.assertEqual(int(ingredients_payload["retreat_plan"]["id"]), plan_id)
 
         recipes = self.guest_client.get("/api/recipes/full")
         self.assertEqual(recipes.status_code, 200, recipes.text)

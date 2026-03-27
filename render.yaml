@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: blossom-foundation
+    name: blossom-kitchen
     runtime: python
     rootDir: backend
     buildFilter:

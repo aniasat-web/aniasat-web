@@ -204,6 +204,24 @@
         display: none;
       }
 
+      .print-page-table {
+        width: 100%;
+        border-collapse: collapse;
+        border: none;
+      }
+
+      .print-page-margin-top {
+        height: 18mm;
+        padding: 0;
+        border: none;
+      }
+
+      .print-page-content {
+        padding: 0;
+        border: none;
+        vertical-align: top;
+      }
+
       .print-sheet-header {
         display: grid;
         gap: 0.2rem;
@@ -375,7 +393,7 @@
         }
         body.print-mode .print-output {
           display: block !important;
-          padding: 0 !important;
+          padding: 0 14mm !important;
           box-sizing: border-box !important;
           width: 100% !important;
         }
@@ -1664,6 +1682,22 @@
         }
         clearPrintTargets();
 
+        const table = document.createElement("table");
+        table.className = "print-page-table";
+
+        const thead = document.createElement("thead");
+        const theadRow = document.createElement("tr");
+        const theadCell = document.createElement("td");
+        theadCell.className = "print-page-margin-top";
+        theadRow.appendChild(theadCell);
+        thead.appendChild(theadRow);
+        table.appendChild(thead);
+
+        const tbody = document.createElement("tbody");
+        const tbodyRow = document.createElement("tr");
+        const tbodyCell = document.createElement("td");
+        tbodyCell.className = "print-page-content";
+
         const header = document.createElement("div");
         header.className = "print-sheet-header";
 
@@ -1684,7 +1718,7 @@
         if (meta.textContent) {
           header.appendChild(meta);
         }
-        printOutput.appendChild(header);
+        tbodyCell.appendChild(header);
 
         records.forEach((record) => {
           const meal = record.meal;
@@ -1709,8 +1743,13 @@
             section.appendChild(createPrintRecipeFromData(dish));
           });
 
-          printOutput.appendChild(section);
+          tbodyCell.appendChild(section);
         });
+
+        tbodyRow.appendChild(tbodyCell);
+        tbody.appendChild(tbodyRow);
+        table.appendChild(tbody);
+        printOutput.appendChild(table);
 
         printTargetMealKeys = records.map((record) => record.key);
         printOutput.setAttribute("aria-hidden", "false");

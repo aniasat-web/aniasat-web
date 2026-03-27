@@ -39,6 +39,7 @@
       const activePickupTitle = document.getElementById("activePickupTitle");
       const activePickupMeta = document.getElementById("activePickupMeta");
       const activePickupMissing = document.getElementById("activePickupMissing");
+      const downloadPickupPdfBtn = document.getElementById("downloadPickupPdfBtn");
       const closePickupViewBtn = document.getElementById("closePickupViewBtn");
       const deletePickupListBtn = document.getElementById("deletePickupListBtn");
 
@@ -594,6 +595,15 @@
           });
           actions.appendChild(openBtn);
 
+          const pdfBtn = document.createElement("button");
+          pdfBtn.type = "button";
+          pdfBtn.className = "btn btn-outline-secondary btn-sm";
+          pdfBtn.innerHTML = '<i class="fa-solid fa-file-pdf me-2"></i>PDF';
+          pdfBtn.addEventListener("click", () => {
+            downloadPickupListPdf(pickupList);
+          });
+          actions.appendChild(pdfBtn);
+
           const deleteBtn = document.createElement("button");
           deleteBtn.type = "button";
           deleteBtn.className = "btn btn-outline-danger btn-sm";
@@ -635,8 +645,316 @@
         if (closePickupViewBtn) {
           closePickupViewBtn.disabled = !pickupViewActive;
         }
+        if (downloadPickupPdfBtn) {
+          downloadPickupPdfBtn.disabled = !pickupViewActive;
+        }
         if (deletePickupListBtn) {
           deletePickupListBtn.disabled = !pickupViewActive;
+        }
+      }
+
+      function vendorNameForExport(vendorId, fallbackName = "") {
+        const fallback = String(fallbackName || "").trim();
+        if (fallback) {
+          return fallback;
+        }
+        const targetId = Number(vendorId || 0);
+        if (!Number.isFinite(targetId) || targetId <= 0) {
+          return "";
+        }
+        const vendor = vendors.find((entry) => Number(entry?.id) === targetId);
+        return String(vendor?.name || "").trim();
+      }
+
+      function pickupItemsForExport(pickupListDetail, detail = activeShoppingDetail) {
+        if (!pickupListDetail || !detail) {
+          return [];
+        }
+        if (Number(pickupListDetail.shopping_list_id || 0) !== Number(detail.id || 0)) {
+          return [];
+        }
+        const allowedIds = new Set(
+          (Array.isArray(pickupListDetail.item_ids) ? pickupListDetail.item_ids : [])
+            .map((itemId) => Number(itemId))
+            .filter((itemId) => Number.isFinite(itemId) && itemId > 0)
+        );
+        return (Array.isArray(detail.items) ? detail.items : []).filter((item) => {
+          const itemId = Number(item?.id);
+          return Number.isFinite(itemId) && allowedIds.has(itemId);
+        });
+      }
+
+      function pickupAllocationsForExport(item, pickupListDetail) {
+        const allocations = vendorAllocationsForItem(item).filter((entry) => {
+          const qty = Number(entry?.allocated_qty);
+          const vendorId = Number(entry?.vendor_id || 0);
+          const vendorName = String(entry?.vendor_name || "").trim();
+          return (Number.isFinite(qty) && qty > 0) || vendorId > 0 || Boolean(vendorName);
+        });
+        if (!allocations.length) {
+          return [];
+        }
+        const targetVendorId = Number(pickupListDetail?.vendor_id || 0);
+        if (Number.isFinite(targetVendorId) && targetVendorId > 0) {
+          const matching = allocations.filter((entry) => Number(entry?.vendor_id || 0) === targetVendorId);
+          if (matching.length) {
+            return matching;
+          }
+        }
+        return allocations;
+      }
+
+      function pickupQuantityTextForExport(item, pickupListDetail) {
+        const allocations = pickupAllocationsForExport(item, pickupListDetail);
+        if (!allocations.length) {
+          return formatQty(
+            item?.to_buy_qty != null ? item.to_buy_qty : item?.required_qty,
+            item?.to_buy_unit || item?.required_unit
+          );
+        }
+        if (allocations.length === 1) {
+          const entry = allocations[0];
+          return formatQty(entry?.allocated_qty, entry?.allocated_unit);
+        }
+        return allocations
+          .map((entry) => formatQty(entry?.allocated_qty, entry?.allocated_unit))
+          .join(" + ");
+      }
+
+      function pickupSourceTextForExport(item, pickupListDetail) {
+        const assignedSource = vendorNameForExport(pickupListDetail?.vendor_id, pickupListDetail?.vendor_name);
+        if (assignedSource) {
+          return assignedSource;
+        }
+        const allocations = pickupAllocationsForExport(item, pickupListDetail);
+        if (!allocations.length) {
+          return sourceLabel(item);
+        }
+        const uniqueNames = Array.from(new Set(
+          allocations
+            .map((entry) => vendorNameForExport(entry?.vendor_id, entry?.vendor_name) || "Unassigned Source")
+            .filter(Boolean)
+        ));
+        return uniqueNames.join(", ");
+      }
+
+      function pdfFileSafePart(value, fallback) {
+        const normalized = String(value || "")
+          .trim()
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, "-")
+          .replace(/^-+|-+$/g, "");
+        return normalized || fallback;
+      }
+
+      function downloadPickupListPdf(pickupListDetail = activePickupListDetail) {
+        if (!pickupListDetail) {
+          setStatus("Open a pickup list first.", "err");
+          return;
+        }
+        if (!activeShoppingDetail || Number(activeShoppingDetail.id || 0) !== Number(pickupListDetail.shopping_list_id || 0)) {
+          setStatus("Load the parent shopping list before downloading this pickup PDF.", "err");
+          return;
+        }
+
+        const jsPdfCtor = window.jspdf?.jsPDF;
+        if (typeof jsPdfCtor !== "function") {
+          setStatus("PDF download is unavailable right now. Reload the page and try again.", "err");
+          return;
+        }
+
+        const matchedItems = pickupItemsForExport(pickupListDetail, activeShoppingDetail);
+        const groupedItems = sortedCategoryEntries(matchedItems);
+        const missingItems = Array.isArray(pickupListDetail.missing_items) ? pickupListDetail.missing_items : [];
+        if (!groupedItems.length && !missingItems.length) {
+          setStatus("This pickup list does not currently have any printable items.", "err");
+          return;
+        }
+
+        try {
+          setStatus("Preparing pickup PDF...", "info", { busy: true });
+
+          const doc = new jsPdfCtor({
+            orientation: "portrait",
+            unit: "pt",
+            format: "letter",
+          });
+          const pageWidth = doc.internal.pageSize.getWidth();
+          const pageHeight = doc.internal.pageSize.getHeight();
+          const margin = 40;
+          const contentWidth = pageWidth - (margin * 2);
+          const ingredientWidth = 250;
+          const qtyWidth = 90;
+          const gapWidth = 18;
+          const sourceWidth = contentWidth - ingredientWidth - qtyWidth - gapWidth;
+          const ingredientX = margin;
+          const qtyRightX = margin + ingredientWidth + qtyWidth;
+          const sourceX = margin + ingredientWidth + qtyWidth + gapWidth;
+          const title = String(pickupListDetail.name || "Pickup List").trim() || "Pickup List";
+          const orderName = String(activeShoppingDetail?.name || "Shopping List").trim() || "Shopping List";
+          const sourceName = vendorNameForExport(pickupListDetail?.vendor_id, pickupListDetail?.vendor_name) || "Mixed / not specified";
+          const volunteerName = String(pickupListDetail?.assignee || "").trim() || "Unassigned";
+          const pickupDate = String(pickupListDetail?.pickup_date || "").trim() || "Not scheduled";
+          const generatedAt = new Date().toLocaleString();
+          let y = margin;
+
+          function ensureSpace(requiredHeight, drawContinuationHeader = true) {
+            if ((y + requiredHeight) <= (pageHeight - margin)) {
+              return;
+            }
+            doc.addPage();
+            y = margin;
+            if (drawContinuationHeader) {
+              drawHeader(false);
+              drawTableHeader();
+            }
+          }
+
+          function drawHeader(isFirstPage) {
+            doc.setTextColor(31, 41, 55);
+            doc.setFont("helvetica", "bold");
+            doc.setFontSize(isFirstPage ? 18 : 14);
+            doc.text(title, margin, y);
+            y += isFirstPage ? 22 : 18;
+
+            doc.setFont("helvetica", "normal");
+            doc.setFontSize(10);
+            doc.setTextColor(71, 85, 105);
+
+            if (isFirstPage) {
+              const metaLines = [
+                `Order: ${orderName}`,
+                `Source: ${sourceName}`,
+                `Volunteer: ${volunteerName}`,
+                `Pickup Date: ${pickupDate}`,
+                `Generated: ${generatedAt}`,
+              ];
+              metaLines.forEach((line) => {
+                doc.text(line, margin, y);
+                y += 14;
+              });
+
+              if (pickupListDetail.notes) {
+                const noteLines = doc.splitTextToSize(`Notes: ${pickupListDetail.notes}`, contentWidth);
+                doc.text(noteLines, margin, y);
+                y += (noteLines.length * 12) + 4;
+              }
+
+              if (missingItems.length) {
+                const warningLines = doc.splitTextToSize(
+                  `${missingItems.length} saved item${missingItems.length === 1 ? "" : "s"} no longer match the current master shopping list. They are listed at the end of this PDF.`,
+                  contentWidth
+                );
+                doc.setTextColor(154, 52, 18);
+                doc.text(warningLines, margin, y);
+                y += (warningLines.length * 12) + 4;
+                doc.setTextColor(71, 85, 105);
+              }
+            } else {
+              doc.text(`Order: ${orderName}`, margin, y);
+              y += 12;
+              doc.text(`Source: ${sourceName} • Volunteer: ${volunteerName} • Pickup: ${pickupDate}`, margin, y);
+              y += 14;
+            }
+
+            doc.setDrawColor(226, 232, 240);
+            doc.line(margin, y, pageWidth - margin, y);
+            y += 14;
+          }
+
+          function drawTableHeader() {
+            doc.setFont("helvetica", "bold");
+            doc.setFontSize(9);
+            doc.setTextColor(71, 85, 105);
+            doc.text("Ingredient", ingredientX, y);
+            doc.text("Qty", qtyRightX, y, { align: "right" });
+            doc.text("Source", sourceX, y);
+            y += 10;
+            doc.setDrawColor(226, 232, 240);
+            doc.line(margin, y, pageWidth - margin, y);
+            y += 8;
+          }
+
+          function drawCategoryHeader(category) {
+            ensureSpace(24);
+            doc.setFillColor(248, 250, 252);
+            doc.roundedRect(margin, y, contentWidth, 18, 4, 4, "F");
+            doc.setFont("helvetica", "bold");
+            doc.setFontSize(10);
+            doc.setTextColor(31, 41, 55);
+            doc.text(String(category || "Uncategorized"), margin + 8, y + 12);
+            y += 24;
+          }
+
+          function drawItemRow(item, pickupList) {
+            const ingredientName = String(item?.ingredient_name || "").trim() || "Unknown ingredient";
+            const qtyText = pickupQuantityTextForExport(item, pickupList) || "—";
+            const sourceText = pickupSourceTextForExport(item, pickupList) || "—";
+            const ingredientLines = doc.splitTextToSize(ingredientName, ingredientWidth);
+            const qtyLines = doc.splitTextToSize(qtyText, qtyWidth);
+            const sourceLines = doc.splitTextToSize(sourceText, sourceWidth);
+            const lineCount = Math.max(ingredientLines.length, qtyLines.length, sourceLines.length, 1);
+            const rowHeight = (lineCount * 12) + 10;
+            ensureSpace(rowHeight);
+
+            doc.setFont("helvetica", "normal");
+            doc.setFontSize(10);
+            doc.setTextColor(31, 41, 55);
+            doc.text(ingredientLines, ingredientX, y + 10);
+            doc.text(qtyLines, qtyRightX, y + 10, { align: "right" });
+            doc.setTextColor(71, 85, 105);
+            doc.text(sourceLines, sourceX, y + 10);
+
+            y += rowHeight - 2;
+            doc.setDrawColor(241, 245, 249);
+            doc.line(margin, y, pageWidth - margin, y);
+            y += 8;
+          }
+
+          function drawMissingItemsSection() {
+            if (!missingItems.length) {
+              return;
+            }
+            ensureSpace(40, false);
+            doc.setFont("helvetica", "bold");
+            doc.setFontSize(12);
+            doc.setTextColor(154, 52, 18);
+            doc.text("Saved Items Missing From Current Master List", margin, y);
+            y += 18;
+
+            doc.setFont("helvetica", "normal");
+            doc.setFontSize(10);
+            doc.setTextColor(71, 85, 105);
+
+            missingItems.forEach((item) => {
+              const unitText = String(item?.canonical_unit || "").trim();
+              const line = `• ${String(item?.ingredient_name || "Unknown ingredient").trim()}${unitText ? ` (${unitText})` : ""}`;
+              const wrapped = doc.splitTextToSize(line, contentWidth);
+              ensureSpace((wrapped.length * 12) + 4, false);
+              doc.text(wrapped, margin, y);
+              y += (wrapped.length * 12) + 4;
+            });
+          }
+
+          drawHeader(true);
+          if (groupedItems.length) {
+            drawTableHeader();
+
+            groupedItems.forEach(([category, items]) => {
+              drawCategoryHeader(category);
+              items.forEach((item) => {
+                drawItemRow(item, pickupListDetail);
+              });
+            });
+          }
+
+          drawMissingItemsSection();
+
+          const fileName = `${pdfFileSafePart(orderName, "shopping-list")}--${pdfFileSafePart(title, "pickup-list")}.pdf`;
+          doc.save(fileName);
+          setStatus(`Downloaded PDF for "${title}".`, "ok");
+        } catch (error) {
+          setStatus(error instanceof Error ? error.message : String(error), "err");
         }
       }
 
@@ -2691,6 +3009,12 @@
         closePickupViewBtn.addEventListener("click", () => {
           closePickupListView();
           setStatus("Showing the master shopping list.", "ok");
+        });
+      }
+
+      if (downloadPickupPdfBtn) {
+        downloadPickupPdfBtn.addEventListener("click", () => {
+          downloadPickupListPdf(activePickupListDetail);
         });
       }
 

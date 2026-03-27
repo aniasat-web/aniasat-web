@@ -49,6 +49,12 @@ DEFAULT_VENDOR_NAMES = [
     "American grocery store",
 ]
 
+SLICED_BREAD_INGREDIENT_NAMES = (
+    "Gluten-free bread",
+    "Whole grain bread",
+)
+SLICED_BREAD_SLICES_PER_LOAF = 20.0
+
 SQLITE_MALFORMED_ERROR_PHRASES = (
     "database disk image is malformed",
     "malformed database schema",
@@ -770,6 +776,234 @@ def migrate_retreat_inventory_shelf_locations(conn: CompatConnection) -> None:
             VALUES (?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
             """,
             (item_id, location_id, quantity),
+        )
+
+
+def ensure_unit_conversion_row(
+    conn: CompatConnection,
+    *,
+    item_name: str,
+    quantity_from: float,
+    unit_from: str,
+    quantity_to: float,
+    unit_to: str,
+    context: str,
+    notes: str | None = None,
+) -> None:
+    row = conn.execute(
+        """
+        SELECT id, quantity_from, quantity_to, notes
+        FROM unit_conversions
+        WHERE lower(COALESCE(item_name, '')) = lower(?)
+          AND lower(unit_from) = lower(?)
+          AND lower(unit_to) = lower(?)
+          AND lower(context) = lower(?)
+        ORDER BY id
+        LIMIT 1
+        """,
+        (item_name, unit_from, unit_to, context),
+    ).fetchone()
+    if row:
+        existing_quantity_from = float(row["quantity_from"] or 0)
+        existing_quantity_to = float(row["quantity_to"] or 0)
+        existing_notes = normalize_optional_text(row["notes"])
+        if (
+            abs(existing_quantity_from - quantity_from) < 1e-9
+            and abs(existing_quantity_to - quantity_to) < 1e-9
+            and existing_notes == normalize_optional_text(notes)
+        ):
+            return
+        conn.execute(
+            """
+            UPDATE unit_conversions
+            SET quantity_from = ?,
+                unit_from = ?,
+                quantity_to = ?,
+                unit_to = ?,
+                context = ?,
+                notes = ?
+            WHERE id = ?
+            """,
+            (
+                quantity_from,
+                unit_from,
+                quantity_to,
+                unit_to,
+                context,
+                notes,
+                int(row["id"]),
+            ),
+        )
+        return
+
+    conn.execute(
+        """
+        INSERT INTO unit_conversions(
+            item_name,
+            quantity_from,
+            unit_from,
+            quantity_to,
+            unit_to,
+            context,
+            notes
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+        """,
+        (
+            item_name,
+            quantity_from,
+            unit_from,
+            quantity_to,
+            unit_to,
+            context,
+            notes,
+        ),
+    )
+
+
+def migrate_sliced_bread_to_loaf_units(conn: CompatConnection) -> None:
+    if not table_exists(conn, "ingredients"):
+        return
+
+    normalized_names = tuple(name.lower() for name in SLICED_BREAD_INGREDIENT_NAMES)
+    placeholders = ",".join("?" for _ in normalized_names)
+    bread_rows = conn.execute(
+        f"""
+        SELECT id, name
+        FROM ingredients
+        WHERE lower(name) IN ({placeholders})
+        ORDER BY id
+        """,
+        normalized_names,
+    ).fetchall()
+    if not bread_rows:
+        return
+
+    bread_ids = [int(row["id"]) for row in bread_rows]
+    bread_id_placeholders = ",".join("?" for _ in bread_ids)
+    bread_id_params = tuple(bread_ids)
+    assumption_note = f"Assume {int(SLICED_BREAD_SLICES_PER_LOAF)} slices per loaf."
+
+    for row in bread_rows:
+        conn.execute(
+            """
+            UPDATE ingredients
+            SET canonical_unit = 'loaf'
+            WHERE id = ?
+              AND lower(trim(COALESCE(canonical_unit, ''))) != 'loaf'
+            """,
+            (int(row["id"]),),
+        )
+
+        ingredient_name = str(row["name"] or "").strip()
+        if not ingredient_name:
+            continue
+
+        ensure_unit_conversion_row(
+            conn,
+            item_name=ingredient_name,
+            quantity_from=SLICED_BREAD_SLICES_PER_LOAF,
+            unit_from="piece",
+            quantity_to=1.0,
+            unit_to="loaf",
+            context="ingredient_specific",
+            notes=assumption_note,
+        )
+        ensure_unit_conversion_row(
+            conn,
+            item_name=ingredient_name,
+            quantity_from=1.0,
+            unit_from="loaf",
+            quantity_to=SLICED_BREAD_SLICES_PER_LOAF,
+            unit_to="piece",
+            context="ingredient_specific",
+            notes=assumption_note,
+        )
+
+    if table_exists(conn, "recipe_ingredients"):
+        conn.execute(
+            f"""
+            UPDATE recipe_ingredients
+            SET quantity = ROUND(quantity / ?, 4),
+                unit = 'loaf'
+            WHERE ingredient_id IN ({bread_id_placeholders})
+              AND lower(trim(COALESCE(unit, ''))) IN ('piece', 'pieces')
+            """,
+            (SLICED_BREAD_SLICES_PER_LOAF, *bread_id_params),
+        )
+
+    if table_exists(conn, "inventory_items"):
+        conn.execute(
+            f"""
+            UPDATE inventory_items
+            SET quantity = ROUND(quantity / ?, 4),
+                unit = 'loaf'
+            WHERE ingredient_id IN ({bread_id_placeholders})
+              AND lower(trim(COALESCE(unit, ''))) IN ('piece', 'pieces')
+            """,
+            (SLICED_BREAD_SLICES_PER_LOAF, *bread_id_params),
+        )
+
+    if table_exists(conn, "shopping_list_items"):
+        for qty_column, unit_column in (
+            ("required_qty", "required_unit"),
+            ("in_stock_qty", "in_stock_unit"),
+            ("to_buy_qty", "to_buy_unit"),
+            ("ordered_qty", "ordered_unit"),
+        ):
+            conn.execute(
+                f"""
+                UPDATE shopping_list_items
+                SET {qty_column} = ROUND({qty_column} / ?, 4),
+                    {unit_column} = 'loaf'
+                WHERE ingredient_id IN ({bread_id_placeholders})
+                  AND lower(trim(COALESCE({unit_column}, ''))) IN ('piece', 'pieces')
+                """,
+                (SLICED_BREAD_SLICES_PER_LOAF, *bread_id_params),
+            )
+
+    if table_exists(conn, "shopping_list_item_sources") and table_exists(conn, "shopping_list_items"):
+        conn.execute(
+            f"""
+            UPDATE shopping_list_item_sources
+            SET required_qty = ROUND(required_qty / ?, 4),
+                required_unit = 'loaf'
+            WHERE shopping_list_item_id IN (
+                SELECT id
+                FROM shopping_list_items
+                WHERE ingredient_id IN ({bread_id_placeholders})
+            )
+              AND lower(trim(COALESCE(required_unit, ''))) IN ('piece', 'pieces')
+            """,
+            (SLICED_BREAD_SLICES_PER_LOAF, *bread_id_params),
+        )
+
+    if table_exists(conn, "shopping_list_item_vendor_allocations") and table_exists(conn, "shopping_list_items"):
+        conn.execute(
+            f"""
+            UPDATE shopping_list_item_vendor_allocations
+            SET allocated_qty = ROUND(allocated_qty / ?, 4),
+                allocated_unit = 'loaf'
+            WHERE shopping_list_item_id IN (
+                SELECT id
+                FROM shopping_list_items
+                WHERE ingredient_id IN ({bread_id_placeholders})
+            )
+              AND lower(trim(COALESCE(allocated_unit, ''))) IN ('piece', 'pieces')
+            """,
+            (SLICED_BREAD_SLICES_PER_LOAF, *bread_id_params),
+        )
+
+    if table_exists(conn, "shopping_pickup_list_items"):
+        conn.execute(
+            f"""
+            UPDATE shopping_pickup_list_items
+            SET source_canonical_unit = 'loaf',
+                updated_at = CURRENT_TIMESTAMP
+            WHERE source_ingredient_id IN ({bread_id_placeholders})
+              AND lower(trim(COALESCE(source_canonical_unit, ''))) IN ('piece', 'pieces')
+            """,
+            bread_id_params,
         )
 
 
@@ -1655,6 +1889,7 @@ def init_db(_allow_malformed_recovery: bool = True) -> None:
             conn.execute("CREATE INDEX IF NOT EXISTS idx_shopping_lists_retreat_plan_id ON shopping_lists(retreat_plan_id)")
             conn.execute("CREATE INDEX IF NOT EXISTS idx_shopping_items_vendor_id ON shopping_list_items(vendor_id)")
             seed_default_vendors(conn)
+            migrate_sliced_bread_to_loaf_units(conn)
 
             maybe_seed_master_data(conn)
             conn.commit()

@@ -1886,7 +1886,15 @@ def init_db(_allow_malformed_recovery: bool = True) -> None:
                 """
             )
 
+            if conn.backend == "sqlite":
+                # These shopping indexes are small and SQLite secondary indexes can
+                # occasionally become inconsistent on Render's disk. Rebuilding them
+                # on startup repairs the index without touching table rows.
+                conn.execute("DROP INDEX IF EXISTS idx_shopping_lists_retreat_plan_id")
+                conn.execute("DROP INDEX IF EXISTS idx_shopping_items_list_id")
+                conn.execute("DROP INDEX IF EXISTS idx_shopping_items_vendor_id")
             conn.execute("CREATE INDEX IF NOT EXISTS idx_shopping_lists_retreat_plan_id ON shopping_lists(retreat_plan_id)")
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_shopping_items_list_id ON shopping_list_items(shopping_list_id)")
             conn.execute("CREATE INDEX IF NOT EXISTS idx_shopping_items_vendor_id ON shopping_list_items(vendor_id)")
             seed_default_vendors(conn)
             migrate_sliced_bread_to_loaf_units(conn)

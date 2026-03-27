@@ -64,6 +64,10 @@ app.add_middleware(
 
 FRONTEND_DIR = Path(__file__).resolve().parents[2] / "frontend"
 
+
+def using_sqlite_backend() -> bool:
+    return not str(os.getenv("DATABASE_URL", "") or "").strip()
+
 MASS_TO_G = {
     "g": 1.0,
     "kg": 1000.0,
@@ -1636,6 +1640,11 @@ def list_shopping_lists(
         params.append(phase.strip())
 
     where_sql = f"WHERE {' AND '.join(filters)}" if filters else ""
+    shopping_list_items_source = (
+        "shopping_list_items sli NOT INDEXED"
+        if using_sqlite_backend()
+        else "shopping_list_items sli"
+    )
 
     with get_connection() as conn:
         rows = conn.execute(
@@ -1653,7 +1662,7 @@ def list_shopping_lists(
                 COALESCE(SUM(CASE WHEN COALESCE(sli.received, 0) = 1 THEN 1 ELSE 0 END), 0) AS received_count
             FROM shopping_lists sl
             LEFT JOIN retreat_plans rp ON rp.id = sl.retreat_plan_id
-            LEFT JOIN shopping_list_items sli ON sli.shopping_list_id = sl.id
+            LEFT JOIN {shopping_list_items_source} ON sli.shopping_list_id = sl.id
             {where_sql}
             GROUP BY sl.id
             ORDER BY sl.id DESC

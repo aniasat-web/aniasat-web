@@ -8952,15 +8952,34 @@ def upsert_inventory_order_items(
     for item in items:
         item_type = str(item.itemType or "").strip().upper()
         item_id = int(item.itemId)
-        snapshot = resolve_inventory_order_item_snapshot(
-            conn,
-            domain=domain,
-            item_type=item_type,
-            item_id=item_id,
-            requested_unit=item.unit,
-            ingredient_inventory_by_key=ingredient_inventory_by_key,
-            preserve_requested_unit=preserve_requested_unit,
-        )
+        source_shopping_list_item_id = int(item.sourceShoppingListItemId) if item.sourceShoppingListItemId is not None else None
+        lookup_key = (item_type, item_id, source_shopping_list_item_id)
+        existing = existing_by_key.get(lookup_key)
+        try:
+            snapshot = resolve_inventory_order_item_snapshot(
+                conn,
+                domain=domain,
+                item_type=item_type,
+                item_id=item_id,
+                requested_unit=item.unit,
+                ingredient_inventory_by_key=ingredient_inventory_by_key,
+                preserve_requested_unit=preserve_requested_unit,
+            )
+        except HTTPException:
+            # Item was deleted upstream but this line already exists on the order.
+            # Preserve the stored snapshot so the user can still save/advance the order.
+            if existing is None:
+                raise
+            snapshot = {
+                "item_name_snapshot": existing["item_name_snapshot"],
+                "category_snapshot": existing["category_snapshot"],
+                "unit_snapshot": existing["unit_snapshot"],
+                "current_quantity_snapshot": rounded_quantity(existing["current_quantity_snapshot"]),
+                "live_quantity": rounded_quantity(existing["current_quantity_snapshot"]),
+                "live_unit": existing["unit_snapshot"],
+                "live_location": None,
+                "live_order_url": existing["order_url_snapshot"] if "order_url_snapshot" in existing.keys() else None,
+            }
 
         required_quantity = rounded_quantity(item.requiredQuantity)
         ordered_quantity = rounded_quantity(item.orderedQuantity)
@@ -8994,7 +9013,6 @@ def upsert_inventory_order_items(
             applied_quantity = received_quantity
 
         notes = normalize_optional_text(item.notes)
-        source_shopping_list_item_id = int(item.sourceShoppingListItemId) if item.sourceShoppingListItemId is not None else None
         order_url_override = normalize_optional_text(item.orderUrlOverride)
         if source_shopping_list_item_id is not None:
             if str(domain or "").strip().upper() != "FOOD" or item_type != "INGREDIENT":
@@ -9023,8 +9041,7 @@ def upsert_inventory_order_items(
                 detail="orderUrlOverride is only valid for non-food inventory lines.",
             )
 
-        key = (item_type, item_id, source_shopping_list_item_id)
-        existing = existing_by_key.get(key)
+        key = lookup_key
         item_fields = set(getattr(item, "model_fields_set", set()))
         draft_purchase_unit = (
             normalize_purchase_unit(item.draftPurchaseUnit)

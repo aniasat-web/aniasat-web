@@ -352,10 +352,12 @@ fi
 echo "Promoting uploaded DB to ${RENDER_REMOTE_DB_PATH} ..."
 ssh "${SSH_OPTS[@]}" "${TARGET}" \
   "set -euo pipefail; \
+   rm -f '${RENDER_REMOTE_DB_PATH}-wal' '${RENDER_REMOTE_DB_PATH}-shm'; \
    mv '${REMOTE_UPLOAD_PATH}' '${RENDER_REMOTE_DB_PATH}'"
 
 echo "Sync complete: ${LOCAL_DB_PATH} -> ${RENDER_REMOTE_DB_PATH}"
 if [[ "${SKIP_REMOTE_BACKUP}" -eq 0 ]]; then
   echo "Remote backup available at ${REMOTE_BACKUP_PATH}"
 fi
-echo "Restart the Render service so all workers pick up the new DB file."
+echo "IMPORTANT: Restart the Render service IMMEDIATELY so all workers pick up the new DB file."
+echo "A running worker holding the old file can recover its stale WAL into the new file and corrupt it."

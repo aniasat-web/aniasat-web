@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+import csv
+import io
 import json
 import os
 import re
 import secrets
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from pathlib import Path
 from typing import Annotated
 from typing import Any
@@ -13,7 +15,7 @@ from urllib import error as urllib_error
 from urllib import parse as urllib_parse
 from urllib import request as urllib_request
 
-from fastapi import Depends, FastAPI, HTTPException, Query, Request, Response
+from fastapi import Depends, FastAPI, File, Form, HTTPException, Query, Request, Response, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
@@ -1872,6 +1874,150 @@ def delete_shopping_list(
     }
 
 
+class ShoppingListCreatePayload(BaseModel):
+    name: str = ""
+    listDate: str = ""
+
+
+@app.post("/api/shopping-lists")
+def create_manual_shopping_list(
+    payload: ShoppingListCreatePayload,
+    _user: Annotated[AuthUser, Depends(require_roles(ROLE_PLANNER, ROLE_ADMIN))],
+) -> dict[str, Any]:
+    list_date_text = (payload.listDate or "").strip()
+    if list_date_text:
+        try:
+            list_date = date.fromisoformat(list_date_text).isoformat()
+        except ValueError:
+            raise HTTPException(status_code=400, detail="List date must be formatted YYYY-MM-DD.")
+    else:
+        list_date = date.today().isoformat()
+
+    label = (payload.name or "").strip() or f"Manual List {list_date}"
+
+    with get_connection() as conn:
+        label = unique_shopping_list_name(conn, label)
+        created = conn.execute(
+            """
+            INSERT INTO shopping_lists(name, phase, status)
+            VALUES (?, 'custom', 'draft')
+            RETURNING id
+            """,
+            (label,),
+        ).fetchone()
+        shopping_list_id = int(created["id"])
+        conn.commit()
+        detail = load_shopping_list_detail(conn, shopping_list_id)
+    return detail
+
+
+class ShoppingListItemAddPayload(BaseModel):
+    ingredientName: str = Field(min_length=1)
+    qty: float = Field(gt=0)
+    unit: str = ""
+
+
+@app.post("/api/shopping-lists/{shopping_list_id}/items")
+def add_shopping_list_item(
+    shopping_list_id: int,
+    payload: ShoppingListItemAddPayload,
+    _user: Annotated[AuthUser, Depends(require_roles(ROLE_PLANNER, ROLE_ADMIN))],
+) -> dict[str, Any]:
+    with get_connection() as conn:
+        list_row = conn.execute(
+            "SELECT id FROM shopping_lists WHERE id = ?",
+            (shopping_list_id,),
+        ).fetchone()
+        if not list_row:
+            raise HTTPException(status_code=404, detail="Shopping list not found")
+
+        ingredient_name = payload.ingredientName.strip()
+        unit = normalize_unit((payload.unit or "").strip()) or "each"
+        qty = round(float(payload.qty), 4)
+
+        ingredient = conn.execute(
+            "SELECT id, name FROM ingredients WHERE lower(name) = lower(?)",
+            (ingredient_name,),
+        ).fetchone()
+        if ingredient is None:
+            alias = conn.execute(
+                "SELECT ingredient_name FROM ingredient_aliases WHERE lower(alias_name) = lower(?)",
+                (ingredient_name,),
+            ).fetchone()
+            if alias:
+                ingredient = conn.execute(
+                    "SELECT id, name FROM ingredients WHERE lower(name) = lower(?)",
+                    (str(alias["ingredient_name"]),),
+                ).fetchone()
+        if ingredient is None:
+            if unit in MASS_TO_G:
+                canonical_unit = "g"
+            elif unit in VOLUME_TO_ML:
+                canonical_unit = "ml"
+            else:
+                canonical_unit = unit
+            ingredient = conn.execute(
+                "INSERT INTO ingredients(name, canonical_unit) VALUES (?, ?) RETURNING id, name",
+                (ingredient_name, canonical_unit),
+            ).fetchone()
+
+        ingredient_id = int(ingredient["id"])
+        existing_item = conn.execute(
+            """
+            SELECT id, required_qty, required_unit, in_stock_qty
+            FROM shopping_list_items
+            WHERE shopping_list_id = ? AND ingredient_id = ? AND lower(required_unit) = lower(?)
+            """,
+            (shopping_list_id, ingredient_id, unit),
+        ).fetchone()
+
+        if existing_item:
+            required_qty = round(float(existing_item["required_qty"] or 0.0) + qty, 4)
+            in_stock_qty = float(existing_item["in_stock_qty"] or 0.0)
+            to_buy_qty = round(max(required_qty - in_stock_qty, 0.0), 4)
+            conn.execute(
+                "UPDATE shopping_list_items SET required_qty = ?, to_buy_qty = ?, to_buy_unit = required_unit WHERE id = ?",
+                (required_qty, to_buy_qty, int(existing_item["id"])),
+            )
+        else:
+            conn.execute(
+                """
+                INSERT INTO shopping_list_items(
+                    shopping_list_id, ingredient_id, required_qty, required_unit,
+                    in_stock_qty, in_stock_unit, to_buy_qty, to_buy_unit,
+                    ordered, received, status
+                )
+                VALUES (?, ?, ?, ?, 0, ?, ?, ?, 0, 0, 'open')
+                """,
+                (shopping_list_id, ingredient_id, qty, unit, unit, qty, unit),
+            )
+
+        refresh_shopping_list_status(conn, shopping_list_id)
+        conn.commit()
+        detail = load_shopping_list_detail(conn, shopping_list_id)
+    return detail
+
+
+@app.delete("/api/shopping-lists/{shopping_list_id}/items/{item_id}")
+def delete_shopping_list_item(
+    shopping_list_id: int,
+    item_id: int,
+    _user: Annotated[AuthUser, Depends(require_roles(ROLE_PLANNER, ROLE_ADMIN))],
+) -> dict[str, Any]:
+    with get_connection() as conn:
+        item_row = conn.execute(
+            "SELECT id FROM shopping_list_items WHERE id = ? AND shopping_list_id = ?",
+            (item_id, shopping_list_id),
+        ).fetchone()
+        if not item_row:
+            raise HTTPException(status_code=404, detail="Shopping list item not found")
+        conn.execute("DELETE FROM shopping_list_items WHERE id = ?", (item_id,))
+        refresh_shopping_list_status(conn, shopping_list_id)
+        conn.commit()
+        detail = load_shopping_list_detail(conn, shopping_list_id)
+    return detail
+
+
 @app.post("/api/shopping-lists/generate")
 def generate_shopping_list(
     payload: ShoppingListGeneratePayload,
@@ -1898,7 +2044,7 @@ def refresh_shopping_list(
     with get_connection() as conn:
         list_row = conn.execute(
             """
-            SELECT id, name
+            SELECT id, name, phase, generation_config_json
             FROM shopping_lists
             WHERE id = ?
             """,
@@ -1906,6 +2052,11 @@ def refresh_shopping_list(
         ).fetchone()
         if not list_row:
             raise HTTPException(status_code=404, detail="Shopping list not found")
+        if str(list_row["phase"] or "").strip().lower() == "custom" and not list_row["generation_config_json"]:
+            raise HTTPException(
+                status_code=400,
+                detail="This is a manual list with no retreat plan behind it; there is nothing to refresh from.",
+            )
 
         payload = infer_shopping_list_generation_payload(conn, shopping_list_id)
         detail = materialize_shopping_list(
@@ -2016,6 +2167,502 @@ def apply_shopping_list_inventory(
     }
 
 
+KITCHEN_INVENTORY_NAME_HEADERS = {"ingredient", "ingredient name", "item", "item name", "name", "product"}
+KITCHEN_INVENTORY_QTY_HEADERS = {"qty", "quantity", "count", "amount", "on hand", "on-hand", "stock", "storage", "inventory"}
+KITCHEN_INVENTORY_UNIT_HEADERS = {"unit", "units", "uom", "measure"}
+
+
+def load_kitchen_inventory_upload_grid(filename: str, content: bytes) -> list[list[Any]]:
+    lowered = (filename or "").lower()
+    if lowered.endswith((".xlsx", ".xlsm")):
+        try:
+            from openpyxl import load_workbook
+
+            workbook = load_workbook(io.BytesIO(content), data_only=True, read_only=True)
+        except Exception as exc:
+            raise HTTPException(status_code=400, detail=f"Could not read Excel file: {exc}")
+        try:
+            sheet = workbook.active
+            return [list(row) for row in sheet.iter_rows(values_only=True)]
+        finally:
+            workbook.close()
+
+    try:
+        text = content.decode("utf-8-sig")
+    except UnicodeDecodeError:
+        try:
+            text = content.decode("latin-1")
+        except Exception as exc:
+            raise HTTPException(status_code=400, detail=f"Could not decode file as text: {exc}")
+    return [list(row) for row in csv.reader(io.StringIO(text))]
+
+
+def detect_kitchen_inventory_columns(rows: list[list[Any]]) -> tuple[int, int, int | None, int]:
+    """Find (name_col, qty_col, unit_col, first_data_row) from a header row, else assume columns A/B/C."""
+    for index, row in enumerate(rows[:10]):
+        cells = [str(cell if cell is not None else "").strip().lower() for cell in row]
+        name_col = qty_col = unit_col = None
+        for col, cell in enumerate(cells):
+            if name_col is None and cell in KITCHEN_INVENTORY_NAME_HEADERS:
+                name_col = col
+            elif qty_col is None and cell in KITCHEN_INVENTORY_QTY_HEADERS:
+                qty_col = col
+            elif unit_col is None and cell in KITCHEN_INVENTORY_UNIT_HEADERS:
+                unit_col = col
+        if name_col is not None and qty_col is not None:
+            return name_col, qty_col, unit_col, index + 1
+    return 0, 1, 2, 0
+
+
+def load_kitchen_inventory_list_detail(conn: Any, list_id: int) -> dict[str, Any]:
+    row = conn.execute(
+        """
+        SELECT id, name, inventory_date, source_filename, notes, created_at
+        FROM kitchen_inventory_lists
+        WHERE id = ?
+        """,
+        (list_id,),
+    ).fetchone()
+    if not row:
+        raise HTTPException(status_code=404, detail="Kitchen inventory list not found")
+
+    item_rows = conn.execute(
+        """
+        SELECT
+            kii.id,
+            kii.ingredient_id,
+            i.name AS ingredient_name,
+            kii.input_name,
+            kii.input_qty,
+            kii.input_unit,
+            kii.canonical_qty,
+            kii.canonical_unit,
+            kii.conversion_note
+        FROM kitchen_inventory_list_items kii
+        LEFT JOIN ingredients i ON i.id = kii.ingredient_id
+        WHERE kii.list_id = ?
+        ORDER BY lower(kii.input_name), kii.id
+        """,
+        (list_id,),
+    ).fetchall()
+
+    items = [
+        {
+            "id": int(item["id"]),
+            "ingredient_id": int(item["ingredient_id"]) if item["ingredient_id"] is not None else None,
+            "ingredient_name": item["ingredient_name"],
+            "input_name": item["input_name"],
+            "input_qty": item["input_qty"],
+            "input_unit": item["input_unit"],
+            "canonical_qty": item["canonical_qty"],
+            "canonical_unit": item["canonical_unit"],
+            "conversion_note": item["conversion_note"],
+        }
+        for item in item_rows
+    ]
+    matched_count = sum(1 for item in items if item["ingredient_id"] is not None)
+    converted_count = sum(1 for item in items if item["canonical_qty"] is not None)
+    return {
+        "id": int(row["id"]),
+        "name": row["name"],
+        "inventory_date": row["inventory_date"],
+        "source_filename": row["source_filename"],
+        "notes": row["notes"],
+        "created_at": row["created_at"],
+        "item_count": len(items),
+        "matched_count": matched_count,
+        "unmatched_count": len(items) - matched_count,
+        "converted_count": converted_count,
+        "items": items,
+    }
+
+
+@app.post("/api/kitchen-inventory/upload")
+async def upload_kitchen_inventory_list(
+    _user: Annotated[AuthUser, Depends(require_roles(ROLE_PLANNER, ROLE_ADMIN))],
+    file: Annotated[UploadFile, File()],
+    name: Annotated[str, Form()] = "",
+    inventoryDate: Annotated[str, Form()] = "",
+    notes: Annotated[str, Form()] = "",
+) -> dict[str, Any]:
+    content = await file.read()
+    if not content:
+        raise HTTPException(status_code=400, detail="Uploaded file is empty.")
+
+    rows = load_kitchen_inventory_upload_grid(file.filename or "", content)
+    name_col, qty_col, unit_col, data_start = detect_kitchen_inventory_columns(rows)
+
+    inventory_date_text = (inventoryDate or "").strip()
+    if inventory_date_text:
+        try:
+            inventory_date = date.fromisoformat(inventory_date_text).isoformat()
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Inventory date must be formatted YYYY-MM-DD.")
+    else:
+        inventory_date = date.today().isoformat()
+
+    list_name = (name or "").strip() or f"Kitchen Inventory {inventory_date}"
+
+    with get_connection() as conn:
+        ingredient_rows = conn.execute("SELECT id, name, canonical_unit FROM ingredients").fetchall()
+        ingredient_by_name = {str(row["name"] or "").strip().lower(): row for row in ingredient_rows}
+        alias_rows = conn.execute("SELECT ingredient_name, alias_name FROM ingredient_aliases").fetchall()
+        alias_to_ingredient_name = {
+            str(row["alias_name"] or "").strip().lower(): str(row["ingredient_name"] or "").strip().lower()
+            for row in alias_rows
+        }
+
+        parsed_items: list[dict[str, Any]] = []
+        skipped_rows: list[dict[str, Any]] = []
+        for row_index in range(data_start, len(rows)):
+            row = rows[row_index]
+
+            def cell_text(col: int | None) -> str:
+                if col is None or col >= len(row) or row[col] is None:
+                    return ""
+                return str(row[col]).strip()
+
+            raw_name = cell_text(name_col)
+            raw_qty = cell_text(qty_col)
+            raw_unit = cell_text(unit_col)
+            if not raw_name and not raw_qty:
+                continue
+            if not raw_name:
+                skipped_rows.append({"row": row_index + 1, "reason": "Missing ingredient name."})
+                continue
+            try:
+                qty = float(raw_qty.replace(",", ""))
+            except ValueError:
+                skipped_rows.append({"row": row_index + 1, "reason": f"Quantity '{raw_qty}' is not a number."})
+                continue
+            if qty < 0:
+                skipped_rows.append({"row": row_index + 1, "reason": "Quantity is negative."})
+                continue
+
+            lookup_key = raw_name.lower()
+            ingredient = ingredient_by_name.get(lookup_key)
+            if ingredient is None:
+                alias_target = alias_to_ingredient_name.get(lookup_key)
+                if alias_target:
+                    ingredient = ingredient_by_name.get(alias_target)
+
+            unit = normalize_unit(raw_unit) if raw_unit else ""
+            canonical_qty: float | None = None
+            canonical_unit: str | None = None
+            note: str | None = None
+            if ingredient is None:
+                note = "No matching ingredient in the catalog."
+            else:
+                if not unit:
+                    unit = normalize_unit(str(ingredient["canonical_unit"] or "").strip())
+                if not unit:
+                    note = "Missing unit and the ingredient has no canonical unit."
+                else:
+                    canonical_qty, canonical_unit, note = to_canonical(str(ingredient["name"]), qty, unit)
+                    if canonical_qty is not None:
+                        canonical_qty = round(float(canonical_qty), 4)
+
+            parsed_items.append(
+                {
+                    "ingredient_id": int(ingredient["id"]) if ingredient is not None else None,
+                    "input_name": raw_name,
+                    "input_qty": qty,
+                    "input_unit": unit or (raw_unit or None),
+                    "canonical_qty": canonical_qty,
+                    "canonical_unit": canonical_unit,
+                    "conversion_note": note,
+                }
+            )
+
+        if not parsed_items:
+            raise HTTPException(
+                status_code=400,
+                detail="No inventory rows found. Expected columns: ingredient name, quantity, unit.",
+            )
+
+        created = conn.execute(
+            """
+            INSERT INTO kitchen_inventory_lists(name, inventory_date, source_filename, notes)
+            VALUES (?, ?, ?, ?)
+            RETURNING id
+            """,
+            (list_name, inventory_date, file.filename or None, (notes or "").strip() or None),
+        ).fetchone()
+        list_id = int(created["id"])
+        for item in parsed_items:
+            conn.execute(
+                """
+                INSERT INTO kitchen_inventory_list_items(
+                    list_id, ingredient_id, input_name, input_qty, input_unit,
+                    canonical_qty, canonical_unit, conversion_note
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    list_id,
+                    item["ingredient_id"],
+                    item["input_name"],
+                    item["input_qty"],
+                    item["input_unit"],
+                    item["canonical_qty"],
+                    item["canonical_unit"],
+                    item["conversion_note"],
+                ),
+            )
+        conn.commit()
+        detail = load_kitchen_inventory_list_detail(conn, list_id)
+
+    detail["skipped_rows"] = skipped_rows
+    return detail
+
+
+class KitchenInventoryItemInput(BaseModel):
+    ingredientId: int = Field(gt=0)
+    qty: float = Field(ge=0)
+    unit: str = ""
+
+
+class KitchenInventoryCreatePayload(BaseModel):
+    name: str = ""
+    inventoryDate: str = ""
+    notes: str = ""
+    items: list[KitchenInventoryItemInput] = Field(min_length=1)
+
+
+@app.post("/api/kitchen-inventory")
+def create_kitchen_inventory_list(
+    payload: KitchenInventoryCreatePayload,
+    _user: Annotated[AuthUser, Depends(require_roles(ROLE_PLANNER, ROLE_ADMIN))],
+) -> dict[str, Any]:
+    inventory_date_text = (payload.inventoryDate or "").strip()
+    if inventory_date_text:
+        try:
+            inventory_date = date.fromisoformat(inventory_date_text).isoformat()
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Inventory date must be formatted YYYY-MM-DD.")
+    else:
+        inventory_date = date.today().isoformat()
+
+    list_name = (payload.name or "").strip() or f"Kitchen Inventory {inventory_date}"
+
+    with get_connection() as conn:
+        ingredient_ids = sorted({int(item.ingredientId) for item in payload.items})
+        placeholders = ",".join("?" for _ in ingredient_ids)
+        ingredient_rows = conn.execute(
+            f"SELECT id, name, canonical_unit FROM ingredients WHERE id IN ({placeholders})",
+            tuple(ingredient_ids),
+        ).fetchall()
+        ingredient_by_id = {int(row["id"]): row for row in ingredient_rows}
+        missing_ids = [str(ingredient_id) for ingredient_id in ingredient_ids if ingredient_id not in ingredient_by_id]
+        if missing_ids:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Unknown ingredient id(s): {', '.join(missing_ids)}",
+            )
+
+        created = conn.execute(
+            """
+            INSERT INTO kitchen_inventory_lists(name, inventory_date, source_filename, notes)
+            VALUES (?, ?, NULL, ?)
+            RETURNING id
+            """,
+            (list_name, inventory_date, (payload.notes or "").strip() or None),
+        ).fetchone()
+        list_id = int(created["id"])
+
+        for item in payload.items:
+            ingredient = ingredient_by_id[int(item.ingredientId)]
+            unit = normalize_unit((item.unit or "").strip()) or normalize_unit(
+                str(ingredient["canonical_unit"] or "").strip()
+            )
+            canonical_qty: float | None = None
+            canonical_unit: str | None = None
+            note: str | None = None
+            if not unit:
+                note = "Missing unit and the ingredient has no canonical unit."
+            else:
+                canonical_qty, canonical_unit, note = to_canonical(str(ingredient["name"]), float(item.qty), unit)
+                if canonical_qty is not None:
+                    canonical_qty = round(float(canonical_qty), 4)
+            conn.execute(
+                """
+                INSERT INTO kitchen_inventory_list_items(
+                    list_id, ingredient_id, input_name, input_qty, input_unit,
+                    canonical_qty, canonical_unit, conversion_note
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    list_id,
+                    int(item.ingredientId),
+                    str(ingredient["name"]),
+                    float(item.qty),
+                    unit or None,
+                    canonical_qty,
+                    canonical_unit,
+                    note,
+                ),
+            )
+        conn.commit()
+        detail = load_kitchen_inventory_list_detail(conn, list_id)
+
+    detail["skipped_rows"] = []
+    return detail
+
+
+@app.get("/api/kitchen-inventory")
+def list_kitchen_inventory_lists() -> list[dict[str, Any]]:
+    with get_connection() as conn:
+        rows = conn.execute(
+            """
+            SELECT
+                kl.id,
+                kl.name,
+                kl.inventory_date,
+                kl.source_filename,
+                kl.created_at,
+                COUNT(kii.id) AS item_count,
+                COALESCE(SUM(CASE WHEN kii.ingredient_id IS NOT NULL THEN 1 ELSE 0 END), 0) AS matched_count,
+                COALESCE(SUM(CASE WHEN kii.canonical_qty IS NOT NULL THEN 1 ELSE 0 END), 0) AS converted_count
+            FROM kitchen_inventory_lists kl
+            LEFT JOIN kitchen_inventory_list_items kii ON kii.list_id = kl.id
+            GROUP BY kl.id
+            ORDER BY kl.inventory_date DESC, kl.id DESC
+            """
+        ).fetchall()
+
+    return [
+        {
+            "id": int(row["id"]),
+            "name": row["name"],
+            "inventory_date": row["inventory_date"],
+            "source_filename": row["source_filename"],
+            "created_at": row["created_at"],
+            "item_count": int(row["item_count"] or 0),
+            "matched_count": int(row["matched_count"] or 0),
+            "converted_count": int(row["converted_count"] or 0),
+        }
+        for row in rows
+    ]
+
+
+@app.get("/api/kitchen-inventory/{list_id}")
+def get_kitchen_inventory_list(list_id: int) -> dict[str, Any]:
+    with get_connection() as conn:
+        return load_kitchen_inventory_list_detail(conn, list_id)
+
+
+@app.delete("/api/kitchen-inventory/{list_id}")
+def delete_kitchen_inventory_list(
+    list_id: int,
+    _user: Annotated[AuthUser, Depends(require_roles(ROLE_PLANNER, ROLE_ADMIN))],
+) -> dict[str, Any]:
+    with get_connection() as conn:
+        row = conn.execute(
+            "SELECT id, name FROM kitchen_inventory_lists WHERE id = ?",
+            (list_id,),
+        ).fetchone()
+        if not row:
+            raise HTTPException(status_code=404, detail="Kitchen inventory list not found")
+        conn.execute("DELETE FROM kitchen_inventory_list_items WHERE list_id = ?", (list_id,))
+        conn.execute("DELETE FROM kitchen_inventory_lists WHERE id = ?", (list_id,))
+        conn.commit()
+    return {"status": "deleted", "id": list_id, "name": row["name"]}
+
+
+class ShoppingListApplyInventoryListPayload(BaseModel):
+    inventoryListId: int = Field(gt=0)
+
+
+@app.post("/api/shopping-lists/{shopping_list_id}/apply-inventory-list")
+def apply_kitchen_inventory_list_to_shopping_list(
+    shopping_list_id: int,
+    payload: ShoppingListApplyInventoryListPayload,
+    _user: Annotated[AuthUser, Depends(require_roles(ROLE_PLANNER, ROLE_ADMIN))],
+) -> dict[str, Any]:
+    with get_connection() as conn:
+        list_row = conn.execute(
+            "SELECT id, name FROM shopping_lists WHERE id = ?",
+            (shopping_list_id,),
+        ).fetchone()
+        if not list_row:
+            raise HTTPException(status_code=404, detail="Shopping list not found")
+
+        inventory_row = conn.execute(
+            "SELECT id, name, inventory_date FROM kitchen_inventory_lists WHERE id = ?",
+            (payload.inventoryListId,),
+        ).fetchone()
+        if not inventory_row:
+            raise HTTPException(status_code=404, detail="Kitchen inventory list not found")
+
+        inventory_by_key: dict[tuple[int, str], float] = {}
+        for row in conn.execute(
+            """
+            SELECT ingredient_id, canonical_qty, canonical_unit
+            FROM kitchen_inventory_list_items
+            WHERE list_id = ?
+              AND ingredient_id IS NOT NULL
+              AND canonical_qty IS NOT NULL
+              AND canonical_unit IS NOT NULL
+            """,
+            (payload.inventoryListId,),
+        ).fetchall():
+            key = (int(row["ingredient_id"]), str(row["canonical_unit"]))
+            inventory_by_key[key] = inventory_by_key.get(key, 0.0) + float(row["canonical_qty"] or 0.0)
+
+        item_rows = conn.execute(
+            """
+            SELECT id, ingredient_id, required_qty, required_unit
+            FROM shopping_list_items
+            WHERE shopping_list_id = ?
+            """,
+            (shopping_list_id,),
+        ).fetchall()
+
+        matched_count = 0
+        zeroed_count = 0
+        for item in item_rows:
+            required_qty = float(item["required_qty"] or 0.0)
+            required_unit = normalize_unit(str(item["required_unit"] or "").strip())
+            _required_canonical_qty, item_canonical_unit = quantity_to_canonical(required_qty, required_unit)
+            in_stock_canonical = float(
+                inventory_by_key.get((int(item["ingredient_id"]), item_canonical_unit or ""), 0.0)
+            )
+            if in_stock_canonical > 0 and item_canonical_unit:
+                in_stock_qty = canonical_qty_to_unit(in_stock_canonical, item_canonical_unit, required_unit)
+                matched_count += 1
+            else:
+                in_stock_qty = 0.0
+                zeroed_count += 1
+            to_buy_qty = max(required_qty - in_stock_qty, 0.0)
+            conn.execute(
+                """
+                UPDATE shopping_list_items
+                SET in_stock_qty = ?, in_stock_unit = ?, to_buy_qty = ?, to_buy_unit = ?
+                WHERE id = ?
+                """,
+                (
+                    round(in_stock_qty, 4),
+                    required_unit,
+                    round(to_buy_qty, 4),
+                    required_unit,
+                    int(item["id"]),
+                ),
+            )
+        conn.commit()
+
+    return {
+        "status": "ok",
+        "shopping_list_id": shopping_list_id,
+        "shopping_list_name": list_row["name"],
+        "inventory_list_id": int(inventory_row["id"]),
+        "inventory_list_name": inventory_row["name"],
+        "inventory_date": inventory_row["inventory_date"],
+        "matched_count": matched_count,
+        "zeroed_count": zeroed_count,
+    }
+
+
 @app.patch("/api/shopping-lists/{shopping_list_id}/items/{item_id}")
 def update_shopping_list_item(
     shopping_list_id: int,
@@ -2071,12 +2718,6 @@ def update_shopping_list_item(
         in_stock_qty = float(item_row["in_stock_qty"] or 0.0)
         ordered_qty = float(item_row["ordered_qty"]) if item_row["ordered_qty"] is not None else None
         if "inStockQty" in fields:
-            list_phase = str(item_row["phase"] or "").strip().lower()
-            if list_phase not in {"fresh", "daily"}:
-                raise HTTPException(
-                    status_code=400,
-                    detail="Current inventory can be edited only for fresh and daily shopping lists.",
-                )
             in_stock_qty = float(payload.inStockQty or 0.0)
         required_canonical_qty, required_canonical_unit = quantity_to_canonical(required_qty, required_unit)
         in_stock_canonical_qty, in_stock_canonical_unit = quantity_to_canonical(in_stock_qty, in_stock_unit)
@@ -2314,6 +2955,17 @@ def update_ingredient(
         raise HTTPException(status_code=400, detail="Ingredient name cannot be blank")
 
     canonical_unit = payload.canonical_unit.strip() if payload.canonical_unit and payload.canonical_unit.strip() else None
+    if canonical_unit:
+        canonical_unit = normalize_unit(canonical_unit)
+        allowed_canonical_units = {"g", "kg", "ml", "l", "each"} | COUNT_UNITS
+        if canonical_unit not in allowed_canonical_units:
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    f"'{payload.canonical_unit}' is not a valid canonical unit. "
+                    f"Allowed: {', '.join(sorted(allowed_canonical_units))}."
+                ),
+            )
     notes = payload.notes.strip() if payload.notes and payload.notes.strip() else None
     category = payload.category.strip() if payload.category and payload.category.strip() else None
     purchase_tier = payload.purchase_tier.strip() if payload.purchase_tier and payload.purchase_tier.strip() else None

@@ -2,8 +2,6 @@
       const selectAllRetreatsBtn = document.getElementById("selectAllRetreatsBtn");
       const clearRetreatsBtn = document.getElementById("clearRetreatsBtn");
       const phaseSelect = document.getElementById("phaseSelect");
-      const subtractInventoryCheck = document.getElementById("subtractInventoryCheck");
-      const includeZeroCheck = document.getElementById("includeZeroCheck");
       const generateBtn = document.getElementById("generateBtn");
       const shoppingListSelect = document.getElementById("shoppingListSelect");
       const inlineRenameWrap = document.getElementById("inlineRenameWrap");
@@ -13,7 +11,17 @@
       const loadListBtn = document.getElementById("loadListBtn");
       const deleteListBtn = document.getElementById("deleteListBtn");
       const applyInventoryBtn = document.getElementById("applyInventoryBtn");
+      const inventoryCountSelect = document.getElementById("inventoryCountSelect");
+      const applyInventoryCountBtn = document.getElementById("applyInventoryCountBtn");
+      const applyInventoryBox = document.getElementById("applyInventoryBox");
+      const applyInventoryHint = document.getElementById("applyInventoryHint");
       const refreshListsBtn = document.getElementById("refreshListsBtn");
+      const newManualListBtn = document.getElementById("newManualListBtn");
+      const addItemNameInput = document.getElementById("addItemNameInput");
+      const addItemQtyInput = document.getElementById("addItemQtyInput");
+      const addItemUnitSelect = document.getElementById("addItemUnitSelect");
+      const addItemBtn = document.getElementById("addItemBtn");
+      const addItemIngredientOptions = document.getElementById("addItemIngredientOptions");
       const shoppingBody = document.getElementById("shoppingBody");
       const shoppingTableWrap = document.querySelector(".shopping-table-wrap");
       const statusPill = document.getElementById("statusPill");
@@ -22,6 +30,7 @@
       const metricReceived = document.getElementById("metricReceived");
       const metricStatus = document.getElementById("metricStatus");
       const groupModeSelect = document.getElementById("groupModeSelect");
+      const hideZeroToBuyCheck = document.getElementById("hideZeroToBuyCheck");
       const shoppingCategoryFilter = document.getElementById("shoppingCategoryFilter");
       const sourceBreakdownHint = document.getElementById("sourceBreakdownHint");
       const pickupSelectionSummary = document.getElementById("pickupSelectionSummary");
@@ -49,6 +58,9 @@
       const RENAME_SELECTED_LIST_VALUE = "__RENAME_SELECTED_LIST__";
       let vendors = [];
       let shoppingLists = [];
+      let kitchenInventoryCounts = [];
+      let ingredientCatalogNames = [];
+      const ADD_ITEM_UNITS = ["kg", "g", "lb", "oz", "l", "ml", "each", "piece", "packet", "bag", "can", "bunch", "box", "bottle", "jar"];
       let activeListId = null;
       let activeListPhase = null;
       let activeShoppingDetail = null;
@@ -1053,10 +1065,40 @@
         return normalized === "fresh" || normalized === "daily";
       }
 
+      function updateApplyInventoryHint() {
+        if (!applyInventoryBox || !applyInventoryHint) return;
+        const items = Array.isArray(activeShoppingDetail?.items) ? activeShoppingDetail.items : [];
+        const hasList = Boolean(activeListId);
+        const hasStock = items.some((item) => Number(item?.in_stock_qty) > 0);
+        applyInventoryBox.classList.toggle("needs-apply", hasList && items.length > 0 && !hasStock);
+        if (!hasList) {
+          applyInventoryHint.innerHTML =
+            'Load a shopping list, then fill its on-hand stock from a dated count (managed on the <a href="kitchen-inventory.html">Inventory - Food</a> page).';
+        } else if (!items.length) {
+          applyInventoryHint.innerHTML = "This list has no items yet.";
+        } else if (!hasStock) {
+          applyInventoryHint.innerHTML =
+            '<strong>No inventory applied to this list yet.</strong> Pick a dated count and click Apply so "To Buy" reflects what is already on hand.';
+        } else {
+          applyInventoryHint.innerHTML =
+            "On-hand stock is filled. Re-apply a count anytime to overwrite it, or edit Stock values inline.";
+        }
+      }
+
       function updateListActionStates() {
         const hasList = Boolean(activeListId);
         deleteListBtn.disabled = !hasList;
         applyInventoryBtn.disabled = !(hasList && isInventoryEditablePhase(activeListPhase));
+        if (applyInventoryCountBtn) {
+          const hasCountSelection = Boolean(inventoryCountSelect && inventoryCountSelect.value);
+          applyInventoryCountBtn.disabled = !(hasList && hasCountSelection);
+        }
+        [addItemNameInput, addItemQtyInput, addItemUnitSelect, addItemBtn].forEach((element) => {
+          if (element) {
+            element.disabled = !hasList;
+          }
+        });
+        updateApplyInventoryHint();
       }
 
       function listNameById(listId) {
@@ -1304,10 +1346,14 @@
       }
 
       function categoryFilteredItems(items) {
-        if (!selectedIngredientCategory) {
-          return [...items];
+        let filtered = [...items];
+        if (selectedIngredientCategory) {
+          filtered = filtered.filter((item) => ingredientCategoryName(item) === selectedIngredientCategory);
         }
-        return items.filter((item) => ingredientCategoryName(item) === selectedIngredientCategory);
+        if (hideZeroToBuyCheck && hideZeroToBuyCheck.checked) {
+          filtered = filtered.filter((item) => Number(item?.to_buy_qty) > 0);
+        }
+        return filtered;
       }
 
       function renderShoppingCategoryFilter(items) {
@@ -1405,7 +1451,11 @@
         return input;
       }
 
-      function inventoryInputStep(_unit) {
+      function inventoryInputStep(unit) {
+        const normalized = normalizeUnit(unit);
+        if (normalized === "kg" || normalized === "l" || normalized === "lb" || normalized === "oz" || normalized === "fl oz" || normalized === "qt" || normalized === "gal") {
+          return "0.1";
+        }
         return "1";
       }
 
@@ -1422,10 +1472,8 @@
         if (!Number.isFinite(numeric)) {
           return "";
         }
-        if (Math.abs(numeric - Math.round(numeric)) < 1e-9) {
-          return String(Math.round(numeric));
-        }
-        return String(Math.round(numeric * 100) / 100);
+        const rounded = Math.round(numeric * 10) / 10;
+        return Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(1);
       }
 
       function roundEditableQuantity(value) {
@@ -1602,6 +1650,15 @@
         };
       }
 
+      function formatStockEditorValue(value) {
+        const numeric = Number(value);
+        if (!Number.isFinite(numeric)) {
+          return "0";
+        }
+        const rounded = Math.round(numeric * 10) / 10;
+        return Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(1);
+      }
+
       function createInventoryEditor(item) {
         const wrapper = document.createElement("div");
         wrapper.className = "inventory-editor";
@@ -1612,7 +1669,7 @@
         input.min = "0";
         input.step = inventoryInputStep(String(item.in_stock_unit || item.required_unit || "").trim());
         input.value = item.in_stock_qty != null && Number.isFinite(Number(item.in_stock_qty))
-          ? String(Math.round(Number(item.in_stock_qty)))
+          ? formatStockEditorValue(item.in_stock_qty)
           : "0";
 
         let lastGoodValue = input.value;
@@ -1623,10 +1680,10 @@
             setStatus("Current inventory must be a non-negative number.", "err");
             return;
           }
-          const rounded = Math.round(value);
-          input.value = String(rounded);
-          lastGoodValue = String(rounded);
-          void updateShoppingItem(item.id, { inStockQty: rounded });
+          const formatted = formatStockEditorValue(value);
+          input.value = formatted;
+          lastGoodValue = formatted;
+          void updateShoppingItem(item.id, { inStockQty: Number(formatted) });
         });
 
         const unit = document.createElement("span");
@@ -1681,9 +1738,10 @@
             setStatus("Amount ordered must be a non-negative number.", "err");
             return;
           }
-          const rounded = roundEditableQuantity(value);
-          input.value = formatEditableQuantityValue(rounded);
-          lastGoodValue = input.value;
+          const formatted = formatEditableQuantityValue(value);
+          const rounded = Number(formatted);
+          input.value = formatted;
+          lastGoodValue = formatted;
           void updateShoppingItem(item.id, { orderedQty: rounded, orderedUnit: selectedUnit || null });
         });
 
@@ -1710,6 +1768,7 @@
             } else if (normalizeCountStylePurchaseUnit(selectedUnit) && previousUnit !== selectedUnit) {
               nextValue = 1;
             }
+            nextValue = Number(formatEditableQuantityValue(nextValue));
 
             input.value = formatEditableQuantityValue(nextValue);
             lastGoodValue = input.value;
@@ -2328,15 +2387,34 @@
 
         const notesTd = document.createElement("td");
         notesTd.className = "shopping-action-cell";
-        const notesInput = document.createElement("input");
-        notesInput.type = "text";
-        notesInput.className = "form-control form-control-sm";
-        notesInput.placeholder = "optional";
+        const notesInput = document.createElement("textarea");
+        notesInput.rows = 1;
+        notesInput.className = "form-control form-control-sm item-note-input";
+        notesInput.placeholder = "Add a note...";
         notesInput.value = item.notes || "";
+        const autosizeNotes = () => {
+          notesInput.style.height = "auto";
+          notesInput.style.height = `${notesInput.scrollHeight}px`;
+        };
+        notesInput.addEventListener("input", autosizeNotes);
         notesInput.addEventListener("change", () => {
           void updateShoppingItem(item.id, { notes: notesInput.value.trim() || null });
         });
-        notesTd.appendChild(notesInput);
+        requestAnimationFrame(autosizeNotes);
+        const notesWrap = document.createElement("div");
+        notesWrap.className = "d-flex align-items-start gap-1";
+        notesWrap.appendChild(notesInput);
+        const removeItemBtn = document.createElement("button");
+        removeItemBtn.type = "button";
+        removeItemBtn.className = "icon-btn is-cancel flex-shrink-0";
+        removeItemBtn.title = "Remove item from list";
+        removeItemBtn.setAttribute("aria-label", "Remove item from list");
+        removeItemBtn.innerHTML = '<i class="fa-solid fa-trash"></i>';
+        removeItemBtn.addEventListener("click", () => {
+          void deleteShoppingListItemRow(item);
+        });
+        notesWrap.appendChild(removeItemBtn);
+        notesTd.appendChild(notesWrap);
         tr.appendChild(notesTd);
 
         return tr;
@@ -2368,7 +2446,7 @@
         if (shoppingTableWrap) {
           shoppingTableWrap.classList.remove("is-loading");
         }
-        const inventoryEditable = isInventoryEditablePhase(detail?.phase || activeListPhase);
+        const inventoryEditable = true;
         const allItems = Array.isArray(detail?.items) ? detail.items : [];
         pruneSelectedPickupItems(allItems);
         const scopedItems = pickupScopedItems(allItems);
@@ -2502,6 +2580,21 @@
           return;
         }
 
+        const targetList = shoppingLists.find((list) => Number(list.id) === targetListId);
+        if (targetList && String(targetList.phase || "").toLowerCase() === "custom") {
+          try {
+            setButtonBusy(refreshListsBtn, true, "Refreshing");
+            await loadShoppingListDetail(targetListId);
+            await loadShoppingLists();
+            setStatus("Manual list reloaded.", "ok");
+          } catch (error) {
+            setStatus(error instanceof Error ? error.message : String(error), "err");
+          } finally {
+            setButtonBusy(refreshListsBtn, false, "Refreshing");
+          }
+          return;
+        }
+
         try {
           setButtonBusy(refreshListsBtn, true, "Refreshing");
           setStatus("Refreshing shopping list from current retreat menu...", "info", { busy: true });
@@ -2580,8 +2673,8 @@
           retreatPlanIds,
           allRetreats,
           phase: phaseSelect.value,
-          subtractInventory: Boolean(subtractInventoryCheck.checked),
-          includeZeroToBuy: Boolean(includeZeroCheck.checked),
+          subtractInventory: false,
+          includeZeroToBuy: true,
         };
 
         try {
@@ -2608,7 +2701,7 @@
           if (missing.length) {
             setStatus(`Generated with ${missing.length} missing recipes.`, "err");
           } else {
-            setStatus("Shopping list generated.", "ok");
+            setStatus("Shopping list generated. Now apply an inventory count to fill on-hand stock.", "ok");
           }
         } catch (error) {
           setStatus(error instanceof Error ? error.message : String(error), "err");
@@ -2769,6 +2862,224 @@
         }
       }
 
+      async function loadKitchenInventoryCounts() {
+        if (!inventoryCountSelect) return;
+        const response = await fetch(apiUrl("/api/kitchen-inventory"), { credentials: "include" });
+        if (!response.ok) {
+          throw new Error(await parseApiError(response));
+        }
+        kitchenInventoryCounts = await response.json();
+        const previous = inventoryCountSelect.value;
+        inventoryCountSelect.innerHTML = "";
+        const placeholder = document.createElement("option");
+        placeholder.value = "";
+        placeholder.textContent = kitchenInventoryCounts.length
+          ? "Select a saved inventory count"
+          : "No inventory counts uploaded yet";
+        inventoryCountSelect.appendChild(placeholder);
+        kitchenInventoryCounts.forEach((count) => {
+          const option = document.createElement("option");
+          option.value = String(count.id);
+          option.textContent = `${count.inventory_date} — ${count.name || `Count #${count.id}`}`;
+          inventoryCountSelect.appendChild(option);
+        });
+        if (previous && kitchenInventoryCounts.some((count) => String(count.id) === previous)) {
+          inventoryCountSelect.value = previous;
+        }
+        updateListActionStates();
+      }
+
+      async function applyKitchenInventoryCount() {
+        if (!activeListId) {
+          setStatus("Load a shopping list first.", "err");
+          return;
+        }
+        const countId = Number(inventoryCountSelect ? inventoryCountSelect.value : 0);
+        if (!Number.isFinite(countId) || countId <= 0) {
+          setStatus("Select a saved inventory count first.", "err");
+          return;
+        }
+        const count = kitchenInventoryCounts.find((entry) => Number(entry.id) === countId);
+        const countLabel = count
+          ? `${count.inventory_date} — ${count.name || `Count #${count.id}`}`
+          : `Count #${countId}`;
+        const listName = listNameById(activeListId) || `Shopping List #${activeListId}`;
+        const confirmed = window.confirm(
+          `Apply inventory count "${countLabel}" to "${listName}"?\n\n` +
+            "On-hand stock will be set for every item in the list; ingredients missing from the count are set to 0. " +
+            "You can still edit stock values afterwards."
+        );
+        if (!confirmed) {
+          return;
+        }
+
+        try {
+          setButtonBusy(applyInventoryCountBtn, true, "Applying");
+          setStatus("Applying inventory count...", "info", { busy: true });
+          renderShoppingSkeletonRows(8);
+          const response = await fetch(apiUrl(`/api/shopping-lists/${activeListId}/apply-inventory-list`), {
+            method: "POST",
+            credentials: "include",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ inventoryListId: countId }),
+          });
+          if (!response.ok) {
+            throw new Error(await parseApiError(response));
+          }
+          const result = await response.json();
+          await loadShoppingListDetail(activeListId);
+          setStatus(
+            `Applied "${result.inventory_list_name}" (${result.inventory_date}): stock filled for ${result.matched_count} items, ${result.zeroed_count} set to 0.`,
+            "ok"
+          );
+        } catch (error) {
+          setStatus(error instanceof Error ? error.message : String(error), "err");
+          if (shoppingTableWrap) {
+            shoppingTableWrap.classList.remove("is-loading");
+          }
+        } finally {
+          setButtonBusy(applyInventoryCountBtn, false, "Applying");
+        }
+      }
+
+      function initAddItemUnitOptions() {
+        if (!addItemUnitSelect || addItemUnitSelect.options.length) return;
+        ADD_ITEM_UNITS.forEach((unitOption) => {
+          const option = document.createElement("option");
+          option.value = unitOption;
+          option.textContent = unitOption === "l" ? "L" : unitOption;
+          addItemUnitSelect.appendChild(option);
+        });
+      }
+
+      async function loadIngredientCatalogOptions() {
+        if (!addItemIngredientOptions) return;
+        const response = await fetch(apiUrl("/api/ingredients"), { credentials: "include" });
+        if (!response.ok) {
+          throw new Error(await parseApiError(response));
+        }
+        const rows = await response.json();
+        ingredientCatalogNames = rows
+          .map((row) => String(row.name || "").trim())
+          .filter(Boolean)
+          .sort((a, b) => a.localeCompare(b));
+        addItemIngredientOptions.innerHTML = "";
+        ingredientCatalogNames.forEach((name) => {
+          const option = document.createElement("option");
+          option.value = name;
+          addItemIngredientOptions.appendChild(option);
+        });
+      }
+
+      async function createManualShoppingList() {
+        const today = new Date().toISOString().slice(0, 10);
+        const proposed = window.prompt(
+          "Name for the new manual shopping list:",
+          `Sir's Kitchen - ${today}`,
+        );
+        if (proposed === null) {
+          return;
+        }
+        try {
+          setButtonBusy(newManualListBtn, true, "Creating");
+          setStatus("Creating manual shopping list...", "info", { busy: true });
+          const response = await fetch(apiUrl("/api/shopping-lists"), {
+            method: "POST",
+            credentials: "include",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ name: proposed.trim(), listDate: today }),
+          });
+          if (!response.ok) {
+            throw new Error(await parseApiError(response));
+          }
+          const detail = await response.json();
+          setActiveShoppingDetail(detail);
+          await loadPickupListsForActiveList();
+          setSummary(detail);
+          renderShoppingRows(detail);
+          await loadShoppingLists();
+          setStatus(`Created "${detail.name}". Add items below.`, "ok");
+          if (addItemNameInput) {
+            addItemNameInput.focus();
+          }
+        } catch (error) {
+          setStatus(error instanceof Error ? error.message : String(error), "err");
+        } finally {
+          setButtonBusy(newManualListBtn, false, "Creating");
+        }
+      }
+
+      async function addItemToActiveList() {
+        if (!activeListId) {
+          setStatus("Load a shopping list first.", "err");
+          return;
+        }
+        const name = String(addItemNameInput?.value || "").trim();
+        const qty = Number(addItemQtyInput?.value);
+        const unit = String(addItemUnitSelect?.value || "");
+        if (!name) {
+          setStatus("Enter an ingredient name to add.", "err");
+          return;
+        }
+        if (!Number.isFinite(qty) || qty <= 0) {
+          setStatus("Enter an amount greater than 0.", "err");
+          return;
+        }
+        try {
+          setButtonBusy(addItemBtn, true, "Adding");
+          setStatus(`Adding ${name}...`, "info", { busy: true });
+          const response = await fetch(apiUrl(`/api/shopping-lists/${activeListId}/items`), {
+            method: "POST",
+            credentials: "include",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ ingredientName: name, qty, unit }),
+          });
+          if (!response.ok) {
+            throw new Error(await parseApiError(response));
+          }
+          const detail = await response.json();
+          setActiveShoppingDetail(detail, { preservePickupView: true });
+          setSummary(detail);
+          renderShoppingRows(detail);
+          await loadShoppingLists();
+          if (addItemNameInput) addItemNameInput.value = "";
+          if (addItemQtyInput) addItemQtyInput.value = "";
+          void loadIngredientCatalogOptions().catch(() => {});
+          setStatus(`Added ${name}.`, "ok");
+          if (addItemNameInput) addItemNameInput.focus();
+        } catch (error) {
+          setStatus(error instanceof Error ? error.message : String(error), "err");
+        } finally {
+          setButtonBusy(addItemBtn, false, "Adding");
+        }
+      }
+
+      async function deleteShoppingListItemRow(item) {
+        if (!activeListId) return;
+        const label = item?.ingredient_name || "this item";
+        if (!window.confirm(`Remove "${label}" from the list?`)) {
+          return;
+        }
+        try {
+          setStatus(`Removing ${label}...`, "info", { busy: true });
+          const response = await fetch(apiUrl(`/api/shopping-lists/${activeListId}/items/${item.id}`), {
+            method: "DELETE",
+            credentials: "include",
+          });
+          if (!response.ok) {
+            throw new Error(await parseApiError(response));
+          }
+          const detail = await response.json();
+          setActiveShoppingDetail(detail, { preservePickupView: true });
+          setSummary(detail);
+          renderShoppingRows(detail);
+          await loadShoppingLists();
+          setStatus(`Removed ${label}.`, "ok");
+        } catch (error) {
+          setStatus(error instanceof Error ? error.message : String(error), "err");
+        }
+      }
+
       async function bootstrap() {
         try {
           setStatus("Loading shopping workspace...", "info", { busy: true });
@@ -2850,6 +3161,14 @@
             const loadedListCount = listsResult.status === "fulfilled" ? Number(listsResult.value || 0) : shoppingLists.length;
             setStatus(`Ready. ${loadedPlanCount} retreat plans, ${loadedListCount} shopping lists loaded.`, "ok");
           }
+
+          void loadKitchenInventoryCounts().catch(() => {
+            /* non-fatal: the apply-count control just stays disabled */
+          });
+          initAddItemUnitOptions();
+          void loadIngredientCatalogOptions().catch(() => {
+            /* non-fatal: the add-item name field just loses its suggestions */
+          });
         } catch (error) {
           if (shoppingTableWrap) {
             shoppingTableWrap.classList.remove("is-loading");
@@ -2862,6 +3181,11 @@
         setGroupMode(groupModeSelect.value);
         renderShoppingRows(activeShoppingDetail || { items: [] });
       });
+      if (hideZeroToBuyCheck) {
+        hideZeroToBuyCheck.addEventListener("change", () => {
+          renderShoppingRows(activeShoppingDetail || { items: [] });
+        });
+      }
       selectAllRetreatsBtn.addEventListener("click", () => {
         Array.from(retreatPlanSelect.options).forEach((opt) => {
           opt.selected = true;
@@ -2959,8 +3283,53 @@
         void applyInventoryFromList();
       });
 
+      if (inventoryCountSelect) {
+        inventoryCountSelect.addEventListener("change", () => {
+          updateListActionStates();
+        });
+      }
+
+      if (applyInventoryCountBtn) {
+        applyInventoryCountBtn.addEventListener("click", () => {
+          void applyKitchenInventoryCount();
+        });
+      }
+
+      if (newManualListBtn) {
+        newManualListBtn.addEventListener("click", () => {
+          void createManualShoppingList();
+        });
+      }
+
+      if (addItemBtn) {
+        addItemBtn.addEventListener("click", () => {
+          void addItemToActiveList();
+        });
+      }
+
+      if (addItemNameInput) {
+        addItemNameInput.addEventListener("keydown", (event) => {
+          if (event.key === "Enter") {
+            event.preventDefault();
+            void addItemToActiveList();
+          }
+        });
+      }
+
+      if (addItemQtyInput) {
+        addItemQtyInput.addEventListener("keydown", (event) => {
+          if (event.key === "Enter") {
+            event.preventDefault();
+            void addItemToActiveList();
+          }
+        });
+      }
+
       refreshListsBtn.addEventListener("click", () => {
         void refreshSelectedShoppingList();
+        void loadKitchenInventoryCounts().catch(() => {
+          /* non-fatal */
+        });
       });
 
       if (pickupSelectVisibleCheck) {

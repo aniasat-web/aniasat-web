@@ -102,9 +102,39 @@ Planner/admin workflow for procurement:
 
 - Generate list from a saved retreat plan and profile (`retreat` or `test`).
 - Default phase filter (`bulk`, `fresh`, `daily`) or custom tier selection.
-- Subtract imported inventory stock to compute `to_buy`.
 - Assign source vendor per item.
 - Track item state with explicit `ordered` and `received` toggles.
+- On-hand stock is an editable field on every list (all phases); editing it recomputes `to_buy`.
+- Two-step flow: generate the list (Step 1), then apply a saved kitchen inventory count (Step 2) via
+  the highlighted "Apply Inventory Count" band in the workspace — on-hand stock is filled for every
+  item from the dated count, ingredients missing from the count are set to 0, and `to_buy`
+  recalculates. The band warns when the loaded list has no stock applied yet.
+- The UI no longer subtracts legacy `inventory_items` stock at generation time (the old
+  "Subtract stock" checkbox was removed); the API's `subtractInventory` flag still exists for
+  scripted use.
+- A "Hide zero to-buy items" filter hides rows fully covered by applied inventory.
+- Manual lists (phase `custom`): "New Manual List" creates an empty, dated list with no retreat
+  plan behind it (e.g. a separate kitchen list for Sir). Items are added by ingredient name +
+  amount + unit via the "Add Item To Loaded List" bar (unknown names are added to the ingredient
+  catalog); any row can be removed with its trash icon. Manual lists get the full vendor /
+  ordered / received / pickup-list workflow but cannot be "refreshed" from a plan.
+
+### Inventory - Food (`kitchen-inventory.html`)
+
+Enter and save dated inventory counts of kitchen ingredients (Kitchen menu → Inventory - Food):
+
+- The page lists every ingredient from the catalog with an on-hand quantity input and a unit
+  dropdown (defaults: `kg` for mass ingredients, `L` for volume, canonical count unit otherwise).
+- Filter by name/category, or show entered rows only; blank rows mean "not counted" and are
+  treated as 0 on hand when a count is applied to a shopping list.
+- Each saved count carries an inventory date (default today), optional name, and notes.
+- Quantities are converted to each ingredient's canonical unit (g / ml / count) so counts stay
+  consistent with recipe and shopping list math; rows that cannot be converted are flagged.
+- Saved counts can be viewed in detail, loaded back into the form to update and re-save as a new
+  dated count, deleted, and applied to a shopping list from the Shopping page.
+- A CSV/XLSX import path also exists as an API-only option (`POST /api/kitchen-inventory/upload`
+  with columns `Ingredient`, `Qty`, `Unit`); ingredient names are matched against the catalog and
+  `ingredient_aliases`.
 
 ### Inventory Baseline (`inventory-baseline.html`)
 
@@ -556,11 +586,20 @@ Base URL: `http://localhost:8000`
 | GET | `/api/orders/putaway-queue` | List shared order lines pending putaway (`received > applied`) |
 | POST | `/api/orders/{order_id}/putaway` | Apply putaway qty/location to inventory for selected order lines |
 | GET | `/api/shopping-lists` | List shopping lists with ordered/received rollups |
+| POST | `/api/shopping-lists` | Create an empty manual shopping list (`{name, listDate}`, phase `custom`) |
+| POST | `/api/shopping-lists/{shopping_list_id}/items` | Add an item by name (`{ingredientName, qty, unit}`); creates the ingredient if unknown, sums onto an existing same-unit row |
+| DELETE | `/api/shopping-lists/{shopping_list_id}/items/{item_id}` | Remove one item from a shopping list |
 | GET | `/api/shopping-lists/{shopping_list_id}` | Get a shopping list with item detail |
 | POST | `/api/shopping-lists/generate` | Generate a shopping list from a retreat plan |
 | POST | `/api/shopping-lists/{shopping_list_id}/carry-forward` | Create a Step 2 list from all unreceived items |
 | POST | `/api/shopping-lists/{shopping_list_id}/apply-inventory` | Apply current inventory values from a fresh/daily list to inventory overrides |
-| PATCH | `/api/shopping-lists/{shopping_list_id}/items/{item_id}` | Update vendor, current inventory (fresh/daily only), notes, ordered, received for one item |
+| POST | `/api/shopping-lists/{shopping_list_id}/apply-inventory-list` | Fill on-hand stock for all items from a saved kitchen inventory count (`{"inventoryListId": N}`) |
+| PATCH | `/api/shopping-lists/{shopping_list_id}/items/{item_id}` | Update vendor, current inventory (any phase), notes, ordered, received for one item |
+| POST | `/api/kitchen-inventory` | Create a dated kitchen inventory count from entered quantities (`{name, inventoryDate, notes, items: [{ingredientId, qty, unit}]}`); converts to canonical units |
+| POST | `/api/kitchen-inventory/upload` | Upload a dated CSV/XLSX kitchen inventory count (multipart: `file`, `name`, `inventoryDate`, `notes`); converts to canonical units |
+| GET | `/api/kitchen-inventory` | List saved kitchen inventory counts with match stats |
+| GET | `/api/kitchen-inventory/{list_id}` | Get one kitchen inventory count with item detail |
+| DELETE | `/api/kitchen-inventory/{list_id}` | Delete a kitchen inventory count |
 
 ---
 

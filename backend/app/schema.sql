@@ -591,3 +591,28 @@ CREATE INDEX IF NOT EXISTS idx_retreat_inventory_item_locations_item_id ON retre
 CREATE INDEX IF NOT EXISTS idx_retreat_inventory_item_locations_location_id ON retreat_inventory_item_locations(location_id);
 CREATE INDEX IF NOT EXISTS idx_retreat_inventory_transactions_created_at ON retreat_inventory_transactions(created_at);
 CREATE INDEX IF NOT EXISTS idx_retreat_inventory_transactions_entity ON retreat_inventory_transactions(entity_type, entity_id);
+
+CREATE TABLE IF NOT EXISTS kitchen_inventory_lists (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    inventory_date TEXT NOT NULL,
+    source_filename TEXT,
+    notes TEXT,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS kitchen_inventory_list_items (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    list_id INTEGER NOT NULL,
+    ingredient_id INTEGER,
+    input_name TEXT NOT NULL,
+    input_qty REAL NOT NULL,
+    input_unit TEXT,
+    canonical_qty REAL,
+    canonical_unit TEXT,
+    conversion_note TEXT,
+    FOREIGN KEY (list_id) REFERENCES kitchen_inventory_lists(id) ON DELETE CASCADE,
+    FOREIGN KEY (ingredient_id) REFERENCES ingredients(id) ON DELETE SET NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_kitchen_inventory_list_items_list_id ON kitchen_inventory_list_items(list_id);

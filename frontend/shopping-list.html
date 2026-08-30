@@ -465,6 +465,17 @@
         grid-template-columns: minmax(320px, 1.05fr) minmax(360px, 1fr);
       }
 
+      body.shopping-page .apply-inventory-box {
+        grid-column: 1 / -1;
+        border-color: #f3c98c;
+        background: #fffaf0;
+      }
+
+      body.shopping-page .apply-inventory-box.needs-apply {
+        border-color: #f59e0b;
+        box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.18);
+      }
+
       body.shopping-page .filters-grid {
         grid-template-columns: minmax(300px, 0.85fr) minmax(0, 1.15fr);
       }
@@ -827,7 +838,16 @@
       }
 
       body.shopping-page .shopping-col-notes {
-        width: 200px;
+        width: 280px;
+      }
+
+      body.shopping-page .item-note-input {
+        font-size: 0.84rem;
+        line-height: 1.4;
+        resize: none;
+        overflow: hidden;
+        min-height: calc(1.4em + 0.5rem + 2px);
+        white-space: pre-wrap;
       }
 
       body.shopping-page .pickup-toolbar-grid {
@@ -1076,6 +1096,7 @@
               <ul class="dropdown-menu">
                 <li><a class="dropdown-item" href="retreat-planner-sample.html"><i class="fa-solid fa-calendar-days me-2"></i> Planner</a></li>
                 <li><a class="dropdown-item" href="shopping-list.html"><i class="fa-solid fa-cart-shopping me-2"></i> Shopping</a></li>
+                <li><a class="dropdown-item" href="kitchen-inventory.html"><i class="fa-solid fa-clipboard-check me-2"></i> Inventory - Food</a></li>
                 <li><a class="dropdown-item" href="kitchen-service-view.html"><i class="fa-solid fa-fire-burner me-2"></i> Retreat View</a></li>
                 <li><a class="dropdown-item" href="kitchen-test-view.html"><i class="fa-solid fa-vial me-2"></i> Testing View</a></li>
                 <li><a class="dropdown-item" href="recipe-admin.html"><i class="fa-solid fa-book me-2"></i> Recipes</a></li>
@@ -1136,6 +1157,7 @@
         <a href="recipe-admin.html" class="kitchen-tab"><i class="fa-solid fa-book me-1"></i> Recipes</a>
         <a href="ingredient-admin.html" class="kitchen-tab"><i class="fa-solid fa-carrot me-1"></i> Ingredients</a>
         <a href="shopping-list.html" class="kitchen-tab active"><i class="fa-solid fa-cart-shopping me-1"></i> Shopping List</a>
+        <a href="kitchen-inventory.html" class="kitchen-tab"><i class="fa-solid fa-clipboard-check me-1"></i> Inventory - Food</a>
       </div>
     </nav>
 
@@ -1158,7 +1180,7 @@
       <section class="card-shell p-4 generation-panel control-panel">
         <div>
           <h2 class="h4 mb-1"><i class="fa-solid fa-wand-magic-sparkles me-2 text-muted"></i>Generate From Retreat Plans</h2>
-          <p class="section-note mb-0">Build a new shopping list from one or more retreat plans and decide whether current kitchen inventory should be subtracted before generation.</p>
+          <p class="section-note mb-0">Build a new shopping list from one or more retreat plans, then apply a dated inventory count in the workspace below to fill on-hand stock.</p>
         </div>
         <div class="toolbar-grid generation-grid">
           <div class="toolbar-box">
@@ -1174,32 +1196,19 @@
           </div>
           <div class="toolbar-box">
             <div class="row g-3 align-items-end">
-              <div class="col-6 col-lg-5">
-                <label class="form-label small text-uppercase fw-bold text-muted">Phase</label>
+              <div class="col-12">
+                <label class="form-label small text-uppercase fw-bold text-muted" for="phaseSelect">Phase</label>
                 <select id="phaseSelect" class="form-select">
                   <option value="bulk" selected>Bulk</option>
                   <option value="fresh">Fresh</option>
                   <option value="daily">Daily</option>
                 </select>
               </div>
-              <div class="col-6 col-lg-7">
-                <label class="form-label small text-uppercase fw-bold text-muted">Options</label>
-                <div class="d-grid gap-1">
-                  <div class="form-check">
-                    <input class="form-check-input" type="checkbox" id="subtractInventoryCheck" checked />
-                    <label class="form-check-label" for="subtractInventoryCheck">Subtract stock</label>
-                  </div>
-                  <div class="form-check">
-                    <input class="form-check-input" type="checkbox" id="includeZeroCheck" />
-                    <label class="form-check-label" for="includeZeroCheck">Show zero-to-buy</label>
-                  </div>
-                </div>
-              </div>
               <div class="col-12 d-grid">
                 <button id="generateBtn" class="btn btn-success">
                   <i class="fa-solid fa-wand-magic-sparkles me-2"></i>Generate Shopping List
                 </button>
-                <div class="muted-note mt-1">Generate first, then rename or split the saved list if needed.</div>
+                <div class="muted-note mt-1">Step 1: generate the list. Step 2: apply an inventory count below so "To Buy" accounts for what is on hand.</div>
               </div>
             </div>
           </div>
@@ -1249,6 +1258,26 @@
               </button>
               <button id="refreshListsBtn" class="btn btn-outline-secondary">
                 <i class="fa-solid fa-rotate me-2"></i>Refresh
+              </button>
+              <button id="newManualListBtn" class="btn btn-outline-primary">
+                <i class="fa-solid fa-plus me-2"></i>New Manual List
+              </button>
+            </div>
+            <div class="muted-note mt-2">
+              A manual list starts empty (e.g. Sir's kitchen) — add items and amounts below, no retreat plan needed.
+            </div>
+          </div>
+          <div class="toolbar-box apply-inventory-box" id="applyInventoryBox">
+            <div class="d-flex flex-wrap align-items-center gap-3">
+              <div class="me-2" style="min-width: 260px; flex: 1 1 320px;">
+                <div class="shopping-meta-label mb-1">
+                  <i class="fa-solid fa-clipboard-check me-1"></i>Step 2 · Apply Inventory Count
+                </div>
+                <div id="applyInventoryHint" class="muted-note"></div>
+              </div>
+              <select id="inventoryCountSelect" class="form-select" style="max-width: 340px;"></select>
+              <button id="applyInventoryCountBtn" class="btn btn-warning fw-semibold flex-shrink-0" disabled>
+                <i class="fa-solid fa-clipboard-check me-2"></i>Apply
               </button>
             </div>
           </div>
@@ -1356,12 +1385,49 @@
                   <option value="source">Source -> Category -> Ingredient (A-Z)</option>
                 </select>
               </div>
+              <div class="col-12">
+                <div class="form-check">
+                  <input class="form-check-input" type="checkbox" id="hideZeroToBuyCheck" />
+                  <label class="form-check-label small" for="hideZeroToBuyCheck">Hide zero to-buy items</label>
+                </div>
+              </div>
             </div>
           </div>
           <div class="toolbar-box category-filter-wrap">
             <label class="shopping-meta-label mb-2">Ingredient Categories</label>
             <div id="shoppingCategoryFilter" class="d-flex flex-wrap gap-2"></div>
             <div id="sourceBreakdownHint" class="muted-note breakdown-hint d-none"></div>
+          </div>
+        </div>
+
+        <div class="toolbar-box" id="addItemBar">
+          <label class="shopping-meta-label mb-2" for="addItemNameInput">Add Item To Loaded List</label>
+          <div class="d-flex flex-wrap gap-2 align-items-center">
+            <input
+              id="addItemNameInput"
+              list="addItemIngredientOptions"
+              type="text"
+              class="form-control form-control-sm"
+              placeholder="Ingredient name"
+              style="max-width: 280px;"
+              disabled
+            />
+            <datalist id="addItemIngredientOptions"></datalist>
+            <input
+              id="addItemQtyInput"
+              type="number"
+              min="0"
+              step="0.1"
+              class="form-control form-control-sm"
+              placeholder="Amount"
+              style="max-width: 110px;"
+              disabled
+            />
+            <select id="addItemUnitSelect" class="form-select form-select-sm" style="max-width: 110px;" disabled></select>
+            <button id="addItemBtn" class="btn btn-sm btn-outline-primary" disabled>
+              <i class="fa-solid fa-plus me-1"></i>Add Item
+            </button>
+            <span class="muted-note">A name not in the catalog is added as a new ingredient. Remove a row with its trash icon.</span>
           </div>
         </div>
 

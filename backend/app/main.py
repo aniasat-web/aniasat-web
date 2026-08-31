@@ -6244,7 +6244,16 @@ def ingredient_specific_g_per_unit(ingredient_name: str, unit: str) -> float | N
 def to_canonical(ingredient_name: str, qty: float, unit: str) -> tuple[float | None, str | None, str | None]:
     unit = normalize_unit(unit)
     if unit in MASS_TO_G:
-        return qty * MASS_TO_G[unit], "g", None
+        grams = qty * MASS_TO_G[unit]
+        density_grams_per_cup, mass_canonical_unit, _mass_category = ingredient_profile(ingredient_name)
+        if (
+            mass_canonical_unit in {"ml", "l"}
+            and density_grams_per_cup is not None
+            and float(density_grams_per_cup) > 0
+        ):
+            grams_per_ml = float(density_grams_per_cup) / VOLUME_TO_ML["cup"]
+            return grams / grams_per_ml, "ml", "Converted mass to volume using ingredient density."
+        return grams, "g", None
 
     specific_g_per_unit = ingredient_specific_g_per_unit(ingredient_name, unit)
     if specific_g_per_unit is not None:

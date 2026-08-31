@@ -155,6 +155,13 @@ class KitchenInventoryCountTests(unittest.TestCase):
         )
         self.assertEqual(unknown.status_code, 400, unknown.text)
 
+    def test_upload_mass_converts_to_volume_with_density(self) -> None:
+        self.insert_ingredient("Ghee", "ml", grams_per_cup=218.4)
+        detail = self.upload_count("Ingredient,Qty,Unit\nGhee,38,lbs\n")
+        item = detail["items"][0]
+        self.assertEqual(item["canonical_unit"], "ml")
+        self.assertAlmostEqual(item["canonical_qty"], 18941.22, places=2)
+
     def test_upload_without_header_and_default_unit(self) -> None:
         self.insert_ingredient("Jaggery", "g")
         detail = self.upload_count("Jaggery,500\n")
